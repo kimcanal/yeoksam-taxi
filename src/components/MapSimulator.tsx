@@ -345,6 +345,7 @@ type EnvironmentState = {
   precipitationOpacity: number;
   precipitationIntensity: number;
   vehicleSpeedMultiplier: number;
+  exposure: number;
 };
 
 const TAXI_PALETTE: VehiclePalette = {
@@ -439,9 +440,9 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
         ? 0x9cb2c2
         : weatherMode === 'heavy-rain'
           ? 0x738899
-          : 0xccd9e8;
+          : 0xe2edf8;
   const skyNightColor =
-    weatherMode === 'heavy-snow' ? 0x11192a : weatherMode === 'heavy-rain' ? 0x0a121d : 0x08111c;
+    weatherMode === 'heavy-snow' ? 0x1b2736 : weatherMode === 'heavy-rain' ? 0x0a121d : 0x08111c;
   const fogDayColor =
     weatherMode === 'clear'
       ? 0xa4d7ef
@@ -449,9 +450,9 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
         ? 0xa6b7c3
         : weatherMode === 'heavy-rain'
           ? 0x7d8d99
-          : 0xdce5ee;
+          : 0xe8f0f7;
   const fogNightColor =
-    weatherMode === 'heavy-snow' ? 0x162131 : weatherMode === 'heavy-rain' ? 0x0c1520 : 0x0a121c;
+    weatherMode === 'heavy-snow' ? 0x243243 : weatherMode === 'heavy-rain' ? 0x0c1520 : 0x0a121c;
   const weatherSpeedMultiplier =
     weatherMode === 'clear' ? 1 : weatherMode === 'cloudy' ? 0.97 : weatherMode === 'heavy-rain' ? 0.9 : 0.82;
   const nightSpeedMultiplier = daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
@@ -481,24 +482,71 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
             connector: 0x27425f,
             local: 0x223243,
           };
+  const lightingPreset =
+    weatherMode === 'clear'
+      ? {
+          ambientColor: 0xf4f8ff,
+          ambientIntensity: 0.76,
+          hemiSkyColor: 0xdce9ff,
+          hemiGroundColor: 0x415468,
+          hemiIntensity: 0.88,
+          sunColor: 0xfffbf2,
+          sunIntensity: 0.9,
+          fogNear: 144,
+          fogFar: 410,
+          exposure: 1.1,
+        }
+      : weatherMode === 'cloudy'
+        ? {
+            ambientColor: 0xecf2fb,
+            ambientIntensity: 0.74,
+            hemiSkyColor: 0xd2deed,
+            hemiGroundColor: 0x3d4d60,
+            hemiIntensity: 0.84,
+            sunColor: 0xf8fbff,
+            sunIntensity: 0.82,
+            fogNear: 138,
+            fogFar: 392,
+            exposure: 1.08,
+          }
+        : weatherMode === 'heavy-rain'
+          ? {
+              ambientColor: 0xe5edf7,
+              ambientIntensity: 0.72,
+              hemiSkyColor: 0xc5d4e6,
+              hemiGroundColor: 0x334153,
+              hemiIntensity: 0.8,
+              sunColor: 0xf0f4fa,
+              sunIntensity: 0.74,
+              fogNear: 124,
+              fogFar: 350,
+              exposure: 1.05,
+            }
+          : {
+              ambientColor: 0xf6fbff,
+              ambientIntensity: 0.8,
+              hemiSkyColor: 0xe4effc,
+              hemiGroundColor: 0x47586b,
+              hemiIntensity: 0.88,
+              sunColor: 0xf8fbff,
+              sunIntensity: 0.82,
+              fogNear: 132,
+              fogFar: 362,
+              exposure: 1.08,
+            };
 
   return {
     skyColor: mixHexColor(baseSkyColor, sunsetSkyColor, sunset * 0.72),
     fogColor: mixHexColor(baseFogColor, sunsetFogColor, sunset * 0.54),
-    fogNear: weatherMode === 'heavy-rain' ? 96 : weatherMode === 'heavy-snow' ? 104 : daylight < 0.18 ? 108 : 124,
-    fogFar: weatherMode === 'heavy-rain' ? 336 : weatherMode === 'heavy-snow' ? 322 : daylight < 0.18 ? 334 : 376,
-    ambientColor: mixHexColor(0x94a8c4, 0xffffff, daylight * 0.58 + twilight * 0.12 + 0.18),
-    ambientIntensity: THREE.MathUtils.lerp(0.34, 0.82, daylight) * (1 - cloudCover * 0.18) + twilight * 0.04,
-    hemiSkyColor: mixHexColor(0x1f3045, 0xcfe3ff, daylight * 0.66 + twilight * 0.22 + 0.06),
-    hemiGroundColor: mixHexColor(0x101926, 0x314357, daylight * 0.34 + 0.12),
-    hemiIntensity: THREE.MathUtils.lerp(0.34, 0.88, daylight) * (1 - cloudCover * 0.14),
-    sunColor:
-      weatherMode === 'heavy-rain'
-        ? 0xf0f4fa
-        : weatherMode === 'heavy-snow'
-          ? 0xf8fbff
-          : 0xfffaf0,
-    sunIntensity: Math.max(0.08, daylight * (0.96 - cloudCover * 0.22) + twilight * 0.12),
+    fogNear: lightingPreset.fogNear,
+    fogFar: lightingPreset.fogFar,
+    ambientColor: lightingPreset.ambientColor,
+    ambientIntensity: lightingPreset.ambientIntensity,
+    hemiSkyColor: lightingPreset.hemiSkyColor,
+    hemiGroundColor: lightingPreset.hemiGroundColor,
+    hemiIntensity: lightingPreset.hemiIntensity,
+    sunColor: lightingPreset.sunColor,
+    sunIntensity: lightingPreset.sunIntensity,
     sunPosition: new THREE.Vector3(
       Math.cos(sunAngle) * 160,
       THREE.MathUtils.lerp(22, 186, Math.max(0, Math.sin(sunAngle))),
@@ -522,14 +570,15 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
     stopLineEmissive: daylight < 0.2 ? 0x526579 : 0x394959,
     stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
     buildingTint: weatherMode === 'heavy-snow' ? 0xf3f8ff : weatherMode === 'heavy-rain' ? 0xf7fafc : 0xffffff,
-    buildingEmissive: mixHexColor(0x16202c, 0x415c80, nightBuildingFactor * 0.38 + twilight * 0.12),
-    buildingEmissiveIntensity: 0.05 + twilight * 0.06 + nightBuildingFactor * 0.24,
+    buildingEmissive: mixHexColor(0x1f2c3a, 0x4a6488, nightBuildingFactor * 0.34 + twilight * 0.12),
+    buildingEmissiveIntensity: 0.12 + twilight * 0.05 + nightBuildingFactor * 0.16,
     precipitation:
       weatherMode === 'heavy-rain' ? 'rain' : weatherMode === 'heavy-snow' ? 'snow' : 'none',
     precipitationOpacity:
       weatherMode === 'heavy-rain' ? 0.24 : weatherMode === 'heavy-snow' ? 0.42 : 0,
     precipitationIntensity: weatherMode === 'heavy-rain' ? 0.55 : weatherMode === 'heavy-snow' ? 0.4 : 0,
     vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
+    exposure: lightingPreset.exposure,
   };
 }
 
@@ -853,7 +902,7 @@ function buildTransitLandmarks(
       const fallbackHeading = new THREE.Vector3(0, 0, 1);
 
       if (feature.properties.category === 'bus_stop') {
-        if (!nearestRoad || nearestRoad.distance > 14 || nearestRoad.roadClass === 'local') {
+        if (!nearestRoad || nearestRoad.distance > 12 || nearestRoad.roadClass !== 'arterial') {
           return null;
         }
 
@@ -915,13 +964,13 @@ function buildTransitLandmarks(
 
   const subwayStations = filterTransitBySpacing(
     raw.filter((feature) => feature.category === 'subway_station'),
-    38,
-    14,
+    62,
+    8,
   );
   const busStops = filterTransitBySpacing(
     raw.filter((feature) => feature.category === 'bus_stop'),
-    38,
-    20,
+    62,
+    8,
   );
 
   return [...subwayStations, ...busStops];
@@ -2078,7 +2127,8 @@ export default function MapSimulator() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<SimulationData | null>(null);
   const [status, setStatus] = useState<'loading' | 'rendering' | 'ready' | 'error'>('loading');
-  const [showLabels, setShowLabels] = useState(true);
+  const [showLabels, setShowLabels] = useState(false);
+  const [showTransit, setShowTransit] = useState(false);
   const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(12 * 60);
   const [weatherMode, setWeatherMode] = useState<WeatherMode>('clear');
   const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
@@ -2424,6 +2474,76 @@ export default function MapSimulator() {
     const stars = new THREE.Points(starsGeometry, starsMaterial);
     scene.add(stars);
 
+    const cloudPuffGeometry = new THREE.SphereGeometry(1, 14, 14);
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      color: 0xf5f9ff,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const cloudClusters = Array.from({ length: 8 }, (_, index) => {
+      const cluster = new THREE.Group();
+      const azimuth = (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
+      const elevation = THREE.MathUtils.lerp(0.24, 0.5, (index % 5) / 5);
+      const radius = celestialRadius * THREE.MathUtils.lerp(0.56, 0.72, (index % 4) / 4);
+      const anchor = new THREE.Vector3(
+        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
+        Math.sin(elevation) * radius * 0.76 + 72 + (index % 3) * 10,
+        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
+      );
+
+      [
+        { x: -7.5, y: 0.4, z: 0, sx: 7.2, sy: 2.8, sz: 3.6 },
+        { x: -2.2, y: 1.2, z: 1.1, sx: 6.1, sy: 2.5, sz: 3.1 },
+        { x: 3.8, y: 0.8, z: -0.4, sx: 7.8, sy: 3.1, sz: 3.7 },
+        { x: 8.4, y: 0.1, z: 0.7, sx: 5.8, sy: 2.2, sz: 2.8 },
+      ].forEach((puff) => {
+        const mesh = new THREE.Mesh(cloudPuffGeometry, cloudMaterial);
+        mesh.position.set(puff.x, puff.y, puff.z);
+        mesh.scale.set(puff.sx, puff.sy, puff.sz);
+        cluster.add(mesh);
+      });
+
+      cluster.position.copy(anchor);
+      scene.add(cluster);
+      return { cluster, anchor, phase: index * 0.9 };
+    });
+
+    const stormCloudMaterial = new THREE.MeshBasicMaterial({
+      color: 0x73879a,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const stormCloudClusters = Array.from({ length: 6 }, (_, index) => {
+      const cluster = new THREE.Group();
+      const azimuth = (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
+      const elevation = THREE.MathUtils.lerp(0.16, 0.28, (index % 3) / 3);
+      const radius = celestialRadius * THREE.MathUtils.lerp(0.48, 0.62, (index % 4) / 4);
+      const anchor = new THREE.Vector3(
+        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
+        Math.sin(elevation) * radius * 0.62 + 56 + (index % 2) * 7,
+        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
+      );
+
+      [
+        { x: -10.5, y: 0.2, z: 0.5, sx: 10.8, sy: 3.8, sz: 5.2 },
+        { x: -3.2, y: 1.1, z: -1.2, sx: 9.6, sy: 3.4, sz: 4.7 },
+        { x: 5.4, y: 0.9, z: 0.3, sx: 11.2, sy: 4.2, sz: 5.6 },
+        { x: 13.2, y: 0.1, z: -0.4, sx: 8.2, sy: 3.1, sz: 4.4 },
+      ].forEach((puff) => {
+        const mesh = new THREE.Mesh(cloudPuffGeometry, stormCloudMaterial);
+        mesh.position.set(puff.x, puff.y, puff.z);
+        mesh.scale.set(puff.sx, puff.sy, puff.sz);
+        cluster.add(mesh);
+      });
+
+      cluster.position.copy(anchor);
+      cluster.visible = false;
+      scene.add(cluster);
+      return { cluster, anchor, phase: index * 1.2 };
+    });
+
     const rainLayer = createPrecipitationLayer(
       720,
       new THREE.PointsMaterial({
@@ -2507,10 +2627,10 @@ export default function MapSimulator() {
     const dongBoundaryMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 0.05, 1),
       new THREE.MeshStandardMaterial({
-        color: 0x7edcff,
-        emissive: 0x13384a,
-        emissiveIntensity: 0.34,
-        roughness: 0.5,
+        color: 0x4fb8d8,
+        emissive: 0x102634,
+        emissiveIntensity: 0.12,
+        roughness: 0.6,
         metalness: 0.08,
       }),
       dongBoundarySegments.length,
@@ -2519,7 +2639,7 @@ export default function MapSimulator() {
     dongBoundarySegments.forEach((segment, index) => {
       dummy.position.set(segment.center.x, 0.21, segment.center.z);
       dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(0.65, 1, segment.length + 0.4);
+      dummy.scale.set(0.42, 1, segment.length + 0.2);
       dummy.updateMatrix();
       dongBoundaryMesh.setMatrixAt(index, dummy.matrix);
       dongBoundaryMesh.setColorAt(index, new THREE.Color(segment.color));
@@ -2717,7 +2837,7 @@ export default function MapSimulator() {
     buildingFeatures
       .filter((building) => building.label)
       .sort((left, right) => right.height - left.height)
-      .slice(0, 12)
+      .slice(0, 7)
       .forEach((building) => {
         const label = new CSS2DObject(labelElement(building.label as string, 'building'));
         label.position.set(
@@ -2730,32 +2850,34 @@ export default function MapSimulator() {
         scene.add(label);
       });
 
-    transitLandmarks.forEach((landmark, index) => {
-      const structure =
-        landmark.category === 'bus_stop'
-          ? createBusStopStructure(index, landmark.sideSign, landmark.isMajor)
-          : createSubwayStationStructure(index, landmark.sideSign, landmark.isMajor);
-      structure.position.copy(landmark.position);
-      structure.rotation.y = landmark.yaw;
-      structure.scale.setScalar(
-        landmark.category === 'bus_stop'
-          ? landmark.isMajor
-            ? 1.02
-            : 0.88
-          : landmark.isMajor
-            ? 1.12
-            : 0.84,
-      );
-      scene.add(structure);
+    if (showTransit) {
+      transitLandmarks.forEach((landmark, index) => {
+        const structure =
+          landmark.category === 'bus_stop'
+            ? createBusStopStructure(index, landmark.sideSign, landmark.isMajor)
+            : createSubwayStationStructure(index, landmark.sideSign, landmark.isMajor);
+        structure.position.copy(landmark.position);
+        structure.rotation.y = landmark.yaw;
+        structure.scale.setScalar(
+          landmark.category === 'bus_stop'
+            ? landmark.isMajor
+              ? 0.94
+              : 0.8
+            : landmark.isMajor
+              ? 1.02
+              : 0.8,
+        );
+        scene.add(structure);
 
-      if (landmark.category === 'subway_station' && landmark.name && landmark.isMajor) {
-        const label = new CSS2DObject(labelElement(landmark.name, 'transit'));
-        label.position.set(landmark.position.x, 3.1, landmark.position.z);
-        label.visible = showLabels;
-        labelObjects.push(label);
-        scene.add(label);
-      }
-    });
+        if (landmark.category === 'subway_station' && landmark.name && landmark.isMajor) {
+          const label = new CSS2DObject(labelElement(landmark.name, 'transit'));
+          label.position.set(landmark.position.x, 3.1, landmark.position.z);
+          label.visible = showLabels;
+          labelObjects.push(label);
+          scene.add(label);
+        }
+      });
+    }
 
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
@@ -3174,7 +3296,7 @@ export default function MapSimulator() {
 
       taxiSourceRoutes
         .filter((route) => route.name)
-        .slice(0, 10)
+        .slice(0, 6)
         .forEach((route) => {
           const sample = sampleRoute(route, route.totalLength * 0.4);
           const label = new CSS2DObject(labelElement(route.name as string, 'road'));
@@ -3209,7 +3331,6 @@ export default function MapSimulator() {
     const applyEnvironment = (minutes: number, nextWeatherMode: WeatherMode) => {
       const environment = buildEnvironmentState(minutes, nextWeatherMode);
       const daylight = daylightFactor(minutes);
-      const twilight = twilightFactor(minutes);
       const sunset = sunsetFactor(minutes);
       const cloudVisibility =
         nextWeatherMode === 'clear'
@@ -3234,7 +3355,7 @@ export default function MapSimulator() {
 
       sun.color.setHex(environment.sunColor);
       sun.intensity = environment.sunIntensity;
-      sun.position.copy(environment.sunPosition);
+      sun.position.set(centerPoint.x + 112, 188, centerPoint.z + 84);
 
       groundMaterial.color.setHex(environment.groundColor);
       roadMaterials.arterial.color.setHex(environment.roadColors.arterial);
@@ -3292,6 +3413,34 @@ export default function MapSimulator() {
       activeStarOpacity =
         THREE.MathUtils.clamp((0.16 - daylight) / 0.16, 0, 0.68) *
         (nextWeatherMode === 'heavy-rain' ? 0.22 : nextWeatherMode === 'cloudy' ? 0.5 : 0.78);
+      const cloudOpacityBase =
+        nextWeatherMode === 'clear'
+          ? 0
+          : nextWeatherMode === 'cloudy'
+            ? 0.3
+            : nextWeatherMode === 'heavy-rain'
+              ? 0.42
+              : 0.58;
+      const cloudColor =
+        nextWeatherMode === 'heavy-rain'
+          ? 0xc8d2de
+          : nextWeatherMode === 'heavy-snow'
+            ? 0xf6fbff
+            : 0xf0f5fb;
+      cloudMaterial.color.setHex(cloudColor);
+      cloudMaterial.opacity =
+        nextWeatherMode === 'heavy-rain'
+          ? 0.14
+          : cloudOpacityBase * (daylight > 0.08 ? 1 : 0.86);
+      cloudClusters.forEach(({ cluster }) => {
+        cluster.visible = nextWeatherMode !== 'heavy-rain' && cloudOpacityBase > 0.01;
+      });
+      const stormCloudOpacity = nextWeatherMode === 'heavy-rain' ? 0.54 : 0;
+      stormCloudMaterial.opacity = stormCloudOpacity;
+      stormCloudMaterial.color.setHex(nextWeatherMode === 'heavy-rain' ? 0x6f8397 : 0x73879a);
+      stormCloudClusters.forEach(({ cluster }) => {
+        cluster.visible = stormCloudOpacity > 0.01;
+      });
 
       activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
       rainLayer.points.visible = environment.precipitation === 'rain';
@@ -3301,18 +3450,7 @@ export default function MapSimulator() {
       snowLayer.material.opacity = environment.precipitationOpacity;
       snowLayer.material.size = 0.58 + environment.precipitationIntensity * 0.18;
 
-      renderer.toneMappingExposure =
-        daylight > 0.44
-          ? 1.12
-          : sunset > 0.22
-            ? 1.03
-            : daylight < 0.14
-              ? 0.94
-              : nextWeatherMode === 'heavy-rain'
-                ? 0.99
-                : twilight > 0.22
-                  ? 1.01
-                  : 1.05;
+      renderer.toneMappingExposure = environment.exposure;
     };
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
@@ -3917,6 +4055,16 @@ export default function MapSimulator() {
       updatePedestrians(elapsedTime);
       updatePrecipitation(delta, elapsedTime);
       updateVehicles(delta, elapsedTime);
+      cloudClusters.forEach(({ cluster, anchor, phase }) => {
+        cluster.position.x = anchor.x + Math.sin(elapsedTime * 0.035 + phase) * 5.5;
+        cluster.position.z = anchor.z + Math.cos(elapsedTime * 0.028 + phase) * 4.2;
+        cluster.position.y = anchor.y + Math.sin(elapsedTime * 0.06 + phase) * 0.9;
+      });
+      stormCloudClusters.forEach(({ cluster, anchor, phase }) => {
+        cluster.position.x = anchor.x + Math.sin(elapsedTime * 0.022 + phase) * 8.8;
+        cluster.position.z = anchor.z + Math.cos(elapsedTime * 0.018 + phase) * 7.1;
+        cluster.position.y = anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
+      });
       starsMaterial.opacity = activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
       sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
       moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
@@ -3946,6 +4094,9 @@ export default function MapSimulator() {
       snowLayer.material.dispose();
       starsGeometry.dispose();
       starsMaterial.dispose();
+      cloudPuffGeometry.dispose();
+      cloudMaterial.dispose();
+      stormCloudMaterial.dispose();
       sunDiscMaterial.dispose();
       sunHaloMaterial.dispose();
       sunsetGlowMaterial.dispose();
@@ -3955,7 +4106,7 @@ export default function MapSimulator() {
       container.removeChild(renderer.domElement);
       container.removeChild(labelRenderer.domElement);
     };
-  }, [data, showLabels]);
+  }, [data, showLabels, showTransit]);
 
   const roadNames = useMemo(() => buildMajorRoadNames(data?.roads ?? null), [data]);
   const buildingNames = useMemo(() => buildMajorBuildingNames(data?.buildings ?? null), [data]);
@@ -4061,8 +4212,8 @@ export default function MapSimulator() {
           역삼1·2동을 중심으로 논현, 삼성, 신사, 청담, 대치4동까지 이어지는 9개 동을
           OSM 경계 기준으로 불러와 3D로 다시 렌더링했습니다. 택시는 우측 차선으로
           주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며, 승차지에서 손님을
-          태운 뒤 목적지까지 최단 경로로 이동합니다. 주요 버스 정류장과 지하철역은
-          단순 마커 대신 작은 구조물로 강조했습니다.
+          태운 뒤 목적지까지 최단 경로로 이동합니다. 기본 화면은 가독성 우선으로 두고,
+          버스 정류장과 지하철 구조물은 필요할 때만 켤 수 있게 정리했습니다.
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
@@ -4179,7 +4330,7 @@ export default function MapSimulator() {
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
             시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
-            고정해 가독성을 유지합니다.
+            고정해 가독성을 유지합니다. 대중교통 구조물은 기본적으로 숨겨두었습니다.
           </div>
         </div>
 
@@ -4240,6 +4391,16 @@ export default function MapSimulator() {
             className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400"
           />
           도로/건물/동/지하철 라벨 보기
+        </label>
+
+        <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={showTransit}
+            onChange={(event) => setShowTransit(event.target.checked)}
+            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-400"
+          />
+          버스 정류장/지하철 구조물 보기
         </label>
 
         <div className="mt-5 grid gap-3 text-sm">
