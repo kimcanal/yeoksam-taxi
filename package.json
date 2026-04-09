@@ -10,7 +10,8 @@
     "fetch:dongs": "node fetch-dongs.mjs",
     "fetch:buildings": "node fetch-buildings.mjs",
     "fetch:roads": "node fetch-roads.mjs",
-    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads"
+    "fetch:transit": "node fetch-transit.mjs",
+    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads && npm run fetch:transit"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",

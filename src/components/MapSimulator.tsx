@@ -9,6 +9,7 @@ import type {
   LineString,
   MultiLineString,
   MultiPolygon,
+  Point,
   Polygon,
   Position,
 } from 'geojson';
@@ -78,12 +79,26 @@ type DongProperties = {
   nameEn: string | null;
 };
 
+type TransitCategory = 'bus_stop' | 'subway_station';
+
+type TransitProperties = {
+  category: TransitCategory;
+  name: string | null;
+  operator: string | null;
+  network: string | null;
+  ref: string | null;
+  sourceType: string | null;
+  importance: number;
+};
+
 type RoadFeature = Feature<LineString | MultiLineString, RoadProperties>;
 type BuildingFeature = Feature<Polygon | MultiPolygon, BuildingProperties>;
 type DongFeature = Feature<Polygon | MultiPolygon, DongProperties>;
+type TransitFeature = Feature<Point, TransitProperties>;
 type RoadFeatureCollection = FeatureCollection<LineString | MultiLineString, RoadProperties>;
 type BuildingFeatureCollection = FeatureCollection<Polygon | MultiPolygon, BuildingProperties>;
 type DongFeatureCollection = FeatureCollection<Polygon | MultiPolygon, DongProperties>;
+type TransitFeatureCollection = FeatureCollection<Point, TransitProperties>;
 
 type RouteNode = {
   key: string;
@@ -188,6 +203,7 @@ type SimulationData = {
   roads: RoadFeatureCollection;
   buildings: BuildingFeatureCollection;
   dongs: DongFeatureCollection;
+  transit: TransitFeatureCollection;
 };
 
 type Hotspot = {
@@ -218,6 +234,36 @@ type DongRegion = {
   position: THREE.Vector3;
   rings: THREE.Vector3[][];
   color: number;
+};
+
+type ProjectedRoadSegment = {
+  roadClass: RoadProperties['roadClass'];
+  width: number;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  name: string | null;
+};
+
+type TransitLandmark = {
+  id: string;
+  category: TransitCategory;
+  name: string | null;
+  position: THREE.Vector3;
+  heading: THREE.Vector3;
+  sideSign: 1 | -1;
+  yaw: number;
+  importance: number;
+  roadClass: RoadProperties['roadClass'] | null;
+  isMajor: boolean;
+};
+
+type NearestRoadContext = {
+  closest: THREE.Vector3;
+  heading: THREE.Vector3;
+  width: number;
+  roadClass: RoadProperties['roadClass'];
+  name: string | null;
+  distance: number;
 };
 
 type GraphEdge = {
@@ -293,6 +339,8 @@ type EnvironmentState = {
   stopLineEmissive: number;
   stopLineIntensity: number;
   buildingTint: number;
+  buildingEmissive: number;
+  buildingEmissiveIntensity: number;
   precipitation: 'none' | 'rain' | 'snow';
   precipitationOpacity: number;
   precipitationIntensity: number;
@@ -363,6 +411,11 @@ function twilightFactor(minutes: number) {
   return Math.max(sunriseWindow, sunsetWindow);
 }
 
+function sunsetFactor(minutes: number) {
+  const normalized = normalizeDayMinutes(minutes);
+  return 1 - THREE.MathUtils.clamp(Math.abs(normalized - (18 * 60 + 30)) / 95, 0, 1);
+}
+
 function mixHexColor(start: number, end: number, alpha: number) {
   return new THREE.Color(start).lerp(new THREE.Color(end), THREE.MathUtils.clamp(alpha, 0, 1)).getHex();
 }
@@ -375,6 +428,7 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
   const normalizedMinutes = normalizeDayMinutes(minutes);
   const daylight = daylightFactor(normalizedMinutes);
   const twilight = twilightFactor(normalizedMinutes);
+  const sunset = sunsetFactor(normalizedMinutes);
   const sunAngle = (normalizedMinutes / MINUTES_PER_DAY) * Math.PI * 2 - Math.PI / 2;
   const cloudCover =
     weatherMode === 'clear' ? 0.05 : weatherMode === 'cloudy' ? 0.24 : weatherMode === 'heavy-rain' ? 0.48 : 0.38;
@@ -401,36 +455,60 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
   const weatherSpeedMultiplier =
     weatherMode === 'clear' ? 1 : weatherMode === 'cloudy' ? 0.97 : weatherMode === 'heavy-rain' ? 0.9 : 0.82;
   const nightSpeedMultiplier = daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
+  const sunsetSkyColor = weatherMode === 'heavy-snow' ? 0xffd8c2 : 0xff9d5c;
+  const sunsetFogColor = weatherMode === 'heavy-snow' ? 0xffe7d8 : 0xffb579;
+  const nightBuildingFactor = THREE.MathUtils.clamp((0.22 - daylight) / 0.22, 0, 1);
+
+  const baseSkyColor = mixHexColor(skyNightColor, skyDayColor, daylight + twilight * 0.1);
+  const baseFogColor = mixHexColor(fogNightColor, fogDayColor, daylight * 0.88 + twilight * 0.08);
+  const neutralGroundColor =
+    weatherMode === 'heavy-snow' ? 0x2a3442 : weatherMode === 'heavy-rain' ? 0x101924 : 0x101b26;
+  const roadBaseColors =
+    weatherMode === 'heavy-snow'
+      ? {
+          arterial: 0x466289,
+          connector: 0x3c556f,
+          local: 0x334557,
+        }
+      : weatherMode === 'heavy-rain'
+        ? {
+            arterial: 0x2a466b,
+            connector: 0x233b57,
+            local: 0x1d2c3c,
+          }
+        : {
+            arterial: 0x2c4d7c,
+            connector: 0x27425f,
+            local: 0x223243,
+          };
 
   return {
-    skyColor: mixHexColor(skyNightColor, skyDayColor, daylight + twilight * 0.1),
-    fogColor: mixHexColor(fogNightColor, fogDayColor, daylight * 0.88 + twilight * 0.08),
+    skyColor: mixHexColor(baseSkyColor, sunsetSkyColor, sunset * 0.72),
+    fogColor: mixHexColor(baseFogColor, sunsetFogColor, sunset * 0.54),
     fogNear: weatherMode === 'heavy-rain' ? 96 : weatherMode === 'heavy-snow' ? 104 : daylight < 0.18 ? 108 : 124,
     fogFar: weatherMode === 'heavy-rain' ? 336 : weatherMode === 'heavy-snow' ? 322 : daylight < 0.18 ? 334 : 376,
-    ambientColor: mixHexColor(0x7695bc, 0xffffff, daylight * 0.8 + 0.16),
-    ambientIntensity: THREE.MathUtils.lerp(0.28, 0.76, daylight) * (1 - cloudCover * 0.22),
-    hemiSkyColor: mixHexColor(0x24374f, skyDayColor, daylight * 0.82 + 0.16),
-    hemiGroundColor: mixHexColor(0x0f1722, 0x2b3d4f, daylight * 0.38 + 0.18),
+    ambientColor: mixHexColor(0x94a8c4, 0xffffff, daylight * 0.58 + twilight * 0.12 + 0.18),
+    ambientIntensity: THREE.MathUtils.lerp(0.34, 0.82, daylight) * (1 - cloudCover * 0.18) + twilight * 0.04,
+    hemiSkyColor: mixHexColor(0x1f3045, 0xcfe3ff, daylight * 0.66 + twilight * 0.22 + 0.06),
+    hemiGroundColor: mixHexColor(0x101926, 0x314357, daylight * 0.34 + 0.12),
     hemiIntensity: THREE.MathUtils.lerp(0.34, 0.88, daylight) * (1 - cloudCover * 0.14),
     sunColor:
-      daylight > 0.2
-        ? mixHexColor(0xffc18a, weatherMode === 'heavy-snow' ? 0xfafcff : 0xfff1d8, daylight)
-        : mixHexColor(0x6988ad, 0xffc18a, twilight),
-    sunIntensity: Math.max(0.12, daylight * (1.08 - cloudCover * 0.24) + twilight * 0.16),
+      weatherMode === 'heavy-rain'
+        ? 0xf0f4fa
+        : weatherMode === 'heavy-snow'
+          ? 0xf8fbff
+          : 0xfffaf0,
+    sunIntensity: Math.max(0.08, daylight * (0.96 - cloudCover * 0.22) + twilight * 0.12),
     sunPosition: new THREE.Vector3(
       Math.cos(sunAngle) * 160,
       THREE.MathUtils.lerp(22, 186, Math.max(0, Math.sin(sunAngle))),
       Math.sin(sunAngle + 0.7) * 115,
     ),
-    groundColor: mixHexColor(
-      weatherMode === 'heavy-snow' ? 0x1c2735 : 0x0e1620,
-      weatherMode === 'heavy-snow' ? 0xdfe7ef : 0x182330,
-      daylight * (weatherMode === 'heavy-snow' ? 0.66 : 0.46) + 0.12,
-    ),
+    groundColor: neutralGroundColor,
     roadColors: {
-      arterial: scaleHexColor(mixHexColor(0x1c2c42, 0x2c4d7c, daylight * 0.85 + 0.1), 1 - cloudCover * 0.08),
-      connector: scaleHexColor(mixHexColor(0x182434, 0x27425f, daylight * 0.82 + 0.1), 1 - cloudCover * 0.08),
-      local: scaleHexColor(mixHexColor(0x15202e, 0x223243, daylight * 0.8 + 0.12), 1 - cloudCover * 0.07),
+      arterial: scaleHexColor(roadBaseColors.arterial, 1 - cloudCover * 0.04),
+      connector: scaleHexColor(roadBaseColors.connector, 1 - cloudCover * 0.04),
+      local: scaleHexColor(roadBaseColors.local, 1 - cloudCover * 0.03),
     },
     roadRoughness: weatherMode === 'heavy-rain' ? 0.78 : weatherMode === 'heavy-snow' ? 0.84 : 0.95,
     roadMetalness: weatherMode === 'heavy-rain' ? 0.14 : weatherMode === 'heavy-snow' ? 0.05 : 0.02,
@@ -443,7 +521,9 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
     stopLineColor: weatherMode === 'heavy-snow' ? 0xffffff : 0xf7fbff,
     stopLineEmissive: daylight < 0.2 ? 0x526579 : 0x394959,
     stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
-    buildingTint: mixHexColor(0x70859d, 0xffffff, daylight * 0.62 + 0.12),
+    buildingTint: weatherMode === 'heavy-snow' ? 0xf3f8ff : weatherMode === 'heavy-rain' ? 0xf7fafc : 0xffffff,
+    buildingEmissive: mixHexColor(0x16202c, 0x415c80, nightBuildingFactor * 0.38 + twilight * 0.12),
+    buildingEmissiveIntensity: 0.05 + twilight * 0.06 + nightBuildingFactor * 0.24,
     precipitation:
       weatherMode === 'heavy-rain' ? 'rain' : weatherMode === 'heavy-snow' ? 'snow' : 'none',
     precipitationOpacity:
@@ -692,6 +772,161 @@ function buildDongRegions(dongs: DongFeatureCollection, center: { lat: number; l
     .filter(Boolean) as DongRegion[];
 }
 
+function nearestRoadContext(
+  point: THREE.Vector3,
+  roadSegments: ProjectedRoadSegment[],
+): NearestRoadContext | null {
+  let best: NearestRoadContext | null = null;
+
+  roadSegments.forEach((segment) => {
+    const delta = segment.end.clone().sub(segment.start);
+    const lengthSq = delta.lengthSq();
+    if (lengthSq < 0.0001) {
+      return;
+    }
+
+    const t = THREE.MathUtils.clamp(
+      point.clone().sub(segment.start).dot(delta) / lengthSq,
+      0,
+      1,
+    );
+    const closest = segment.start.clone().lerp(segment.end, t);
+    const distance = distanceXZ(point, closest);
+    if (best && distance >= best.distance) {
+      return;
+    }
+
+    best = {
+      closest,
+      heading: delta.normalize(),
+      width: segment.width,
+      roadClass: segment.roadClass,
+      name: segment.name,
+      distance,
+    };
+  });
+
+  return best;
+}
+
+function filterTransitBySpacing(
+  landmarks: TransitLandmark[],
+  minimumDistance: number,
+  maximumCount: number,
+) {
+  const kept: TransitLandmark[] = [];
+  landmarks
+    .sort((left, right) => {
+      const importanceGap = right.importance - left.importance;
+      if (importanceGap !== 0) {
+        return importanceGap;
+      }
+
+      return (left.name ?? '').localeCompare(right.name ?? '', 'ko');
+    })
+    .forEach((landmark) => {
+      if (kept.length >= maximumCount) {
+        return;
+      }
+
+      if (kept.every((entry) => distanceXZ(entry.position, landmark.position) >= minimumDistance)) {
+        kept.push(landmark);
+      }
+    });
+
+  return kept;
+}
+
+function buildTransitLandmarks(
+  transit: TransitFeatureCollection,
+  center: { lat: number; lon: number },
+  roadSegments: ProjectedRoadSegment[],
+) {
+  const raw = transit.features
+    .map((feature, index) => {
+      if (feature.geometry.type !== 'Point') {
+        return null;
+      }
+
+      const originalPoint = projectPoint(feature.geometry.coordinates, center);
+      const nearestRoad = nearestRoadContext(originalPoint, roadSegments);
+      const fallbackHeading = new THREE.Vector3(0, 0, 1);
+
+      if (feature.properties.category === 'bus_stop') {
+        if (!nearestRoad || nearestRoad.distance > 14 || nearestRoad.roadClass === 'local') {
+          return null;
+        }
+
+        const right = new THREE.Vector3(nearestRoad.heading.z, 0, -nearestRoad.heading.x).normalize();
+        const sideSign = right.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0 ? 1 : -1;
+        const importance =
+          feature.properties.importance +
+          roadRank(nearestRoad.roadClass) * 2 +
+          (nearestRoad.name ? 1 : 0);
+
+        return {
+          id: `transit-${index}`,
+          category: 'bus_stop' as const,
+          name: feature.properties.name,
+          position: nearestRoad.closest
+            .clone()
+            .addScaledVector(right, sideSign * (nearestRoad.width * 0.58 + 1.35))
+            .setY(0.12),
+          heading: nearestRoad.heading.clone(),
+          sideSign,
+          yaw: Math.atan2(nearestRoad.heading.x, nearestRoad.heading.z),
+          importance,
+          roadClass: nearestRoad.roadClass,
+          isMajor: nearestRoad.roadClass === 'arterial' || importance >= 9,
+        } satisfies TransitLandmark;
+      }
+
+      const nearestHeading = nearestRoad?.heading.clone() ?? fallbackHeading;
+      const nearestRight = new THREE.Vector3(nearestHeading.z, 0, -nearestHeading.x).normalize();
+      const sideSign =
+        nearestRoad && nearestRoad.distance < 22
+          ? nearestRight.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0
+            ? 1
+            : -1
+          : 1;
+      const position =
+        nearestRoad && nearestRoad.distance < 22
+          ? nearestRoad.closest
+              .clone()
+              .addScaledVector(nearestRight, sideSign * (nearestRoad.width * 0.42 + 2.3))
+              .setY(0.12)
+          : originalPoint.clone().setY(0.12);
+
+      return {
+        id: `transit-${index}`,
+        category: 'subway_station' as const,
+        name: feature.properties.name,
+        position,
+        heading: nearestHeading,
+        sideSign,
+        yaw: Math.atan2(nearestHeading.x, nearestHeading.z),
+        importance:
+          feature.properties.importance + 2 + (feature.properties.name ? 4 : 0) + (nearestRoad?.name ? 1 : 0),
+        roadClass: nearestRoad?.roadClass ?? null,
+        isMajor: Boolean(feature.properties.name),
+      } satisfies TransitLandmark;
+    })
+    .filter(Boolean) as TransitLandmark[];
+
+  const subwayStations = filterTransitBySpacing(
+    raw.filter((feature) => feature.category === 'subway_station'),
+    38,
+    14,
+  );
+  const busStops = filterTransitBySpacing(
+    raw.filter((feature) => feature.category === 'bus_stop'),
+    38,
+    20,
+  );
+
+  return [...subwayStations, ...busStops];
+}
+
 function roadRank(roadClass: RoadProperties['roadClass']) {
   switch (roadClass) {
     case 'arterial':
@@ -790,7 +1025,7 @@ function mostCommonLabel(values: Array<string | null | undefined>) {
   return bestLabel;
 }
 
-function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'district') {
+function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'district' | 'transit') {
   const element = document.createElement('div');
   element.textContent = text;
   element.style.padding =
@@ -798,6 +1033,8 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
       ? '2px 8px'
       : kind === 'service'
         ? '3px 10px'
+        : kind === 'transit'
+          ? '4px 11px'
         : kind === 'district'
           ? '4px 12px'
           : '3px 9px';
@@ -808,6 +1045,8 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
       ? 'rgba(8,18,34,0.72)'
       : kind === 'service'
         ? 'rgba(51,36,7,0.86)'
+        : kind === 'transit'
+          ? 'rgba(5,32,44,0.92)'
         : kind === 'district'
           ? 'rgba(6,34,48,0.9)'
         : 'rgba(12,20,36,0.85)';
@@ -816,6 +1055,8 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
       ? '#cfe7ff'
       : kind === 'service'
         ? '#ffe7a8'
+        : kind === 'transit'
+          ? '#a8eeff'
         : kind === 'district'
           ? '#9ce8ff'
           : '#f7fbff';
@@ -877,6 +1118,208 @@ function buildBuildingMasses(
       } satisfies BuildingMass;
     })
     .filter(Boolean) as BuildingMass[];
+}
+
+function createBusStopStructure(seed: number, sideSign: 1 | -1, isMajor: boolean) {
+  const roofColor = [0x27a4d8, 0x22b08c, 0x4b8cff][seed % 3];
+  const group = new THREE.Group();
+  const shelterLength = isMajor ? 2.28 : 1.9;
+  const shelterWidth = isMajor ? 1.08 : 0.92;
+
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(shelterWidth, 0.12, shelterLength),
+    new THREE.MeshStandardMaterial({ color: 0xdce7f2, roughness: 0.92 }),
+  );
+  base.position.y = 0.06;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(shelterWidth + 0.12, 0.12, shelterLength + 0.2),
+    new THREE.MeshStandardMaterial({
+      color: roofColor,
+      emissive: roofColor,
+      emissiveIntensity: isMajor ? 0.12 : 0.08,
+      roughness: 0.52,
+    }),
+  );
+  roof.position.y = 1.76;
+  roof.castShadow = true;
+  group.add(roof);
+
+  const backWall = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 1.26, shelterLength - 0.34),
+    new THREE.MeshStandardMaterial({ color: 0xc8d8e5, roughness: 0.62, metalness: 0.04 }),
+  );
+  backWall.position.set(0.34 * sideSign, 0.84, 0);
+  backWall.castShadow = true;
+  group.add(backWall);
+
+  [-(shelterLength * 0.38), shelterLength * 0.38].forEach((zOffset) => {
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 1.62, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x6e8192, roughness: 0.72 }),
+    );
+    post.position.set(0.2 * sideSign, 0.84, zOffset);
+    post.castShadow = true;
+    group.add(post);
+  });
+
+  const bench = new THREE.Mesh(
+    new THREE.BoxGeometry(0.28, 0.18, isMajor ? 1.02 : 0.74),
+    new THREE.MeshStandardMaterial({ color: 0x53667b, roughness: 0.82 }),
+  );
+  bench.position.set(0.06 * sideSign, 0.42, 0);
+  bench.castShadow = true;
+  group.add(bench);
+
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 1.88, 8),
+    new THREE.MeshStandardMaterial({ color: 0xf4fbff, roughness: 0.48 }),
+  );
+  pole.position.set(-0.5 * sideSign, 0.94, -0.88);
+  pole.castShadow = true;
+  group.add(pole);
+
+  const sign = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.64, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: 0x1f8ecb,
+      emissive: 0x1f8ecb,
+      emissiveIntensity: 0.16,
+      roughness: 0.42,
+    }),
+  );
+  sign.position.set(-0.5 * sideSign, 1.6, -0.88);
+  group.add(sign);
+
+  if (isMajor) {
+    const routeBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.88, 0.68),
+      new THREE.MeshStandardMaterial({
+        color: 0xf2f8ff,
+        emissive: 0x16384d,
+        emissiveIntensity: 0.08,
+        roughness: 0.42,
+      }),
+    );
+    routeBoard.position.set(-0.22 * sideSign, 1.05, 0.56);
+    routeBoard.castShadow = true;
+    group.add(routeBoard);
+  }
+
+  return group;
+}
+
+function createSubwayStationStructure(seed: number, sideSign: 1 | -1, isMajor: boolean) {
+  const accent = [0x31a8ff, 0x3bbcff, 0x5aa8ff][seed % 3];
+  const group = new THREE.Group();
+
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(isMajor ? 2.6 : 2.1, 0.18, isMajor ? 2.1 : 1.72),
+    new THREE.MeshStandardMaterial({ color: 0xe2ecf6, roughness: 0.9 }),
+  );
+  base.position.y = 0.09;
+  base.receiveShadow = true;
+  group.add(base);
+
+  const canopy = new THREE.Mesh(
+    new THREE.BoxGeometry(isMajor ? 2.15 : 1.8, 0.16, isMajor ? 1.22 : 1),
+    new THREE.MeshStandardMaterial({
+      color: accent,
+      emissive: accent,
+      emissiveIntensity: isMajor ? 0.18 : 0.12,
+      roughness: 0.34,
+    }),
+  );
+  canopy.position.set(0.12 * sideSign, 1.58, -0.14);
+  canopy.castShadow = true;
+  group.add(canopy);
+
+  const glassRoof = new THREE.Mesh(
+    new THREE.BoxGeometry(isMajor ? 1.92 : 1.62, 0.08, isMajor ? 0.82 : 0.72),
+    new THREE.MeshStandardMaterial({
+      color: 0xe5f7ff,
+      emissive: 0x12374a,
+      emissiveIntensity: 0.08,
+      transparent: true,
+      opacity: 0.84,
+      roughness: 0.18,
+      metalness: 0.08,
+    }),
+  );
+  glassRoof.position.set(0.18 * sideSign, 1.4, -0.12);
+  glassRoof.castShadow = true;
+  group.add(glassRoof);
+
+  const sidePanel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 1.08, isMajor ? 0.94 : 0.78),
+    new THREE.MeshStandardMaterial({
+      color: 0xd8f4ff,
+      transparent: true,
+      opacity: 0.72,
+      roughness: 0.12,
+      metalness: 0.08,
+    }),
+  );
+  sidePanel.position.set(0.72 * sideSign, 0.86, -0.18);
+  group.add(sidePanel);
+
+  const sideRail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, 0.82, isMajor ? 1.12 : 0.92),
+    new THREE.MeshStandardMaterial({ color: 0x7c93aa, roughness: 0.46 }),
+  );
+  sideRail.position.set(-0.52 * sideSign, 0.64, 0.38);
+  sideRail.castShadow = true;
+  group.add(sideRail);
+
+  const gateWall = new THREE.Mesh(
+    new THREE.BoxGeometry(0.14, 1.24, isMajor ? 0.92 : 0.74),
+    new THREE.MeshStandardMaterial({
+      color: 0xe7f1fb,
+      roughness: 0.54,
+      metalness: 0.04,
+    }),
+  );
+  gateWall.position.set(0.94 * sideSign, 0.82, -0.22);
+  gateWall.castShadow = true;
+  group.add(gateWall);
+
+  const totem = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, isMajor ? 2.48 : 2.18, 0.26),
+    new THREE.MeshStandardMaterial({ color: 0xeef6ff, roughness: 0.52 }),
+  );
+  totem.position.set(-0.92 * sideSign, isMajor ? 1.24 : 1.08, -0.68);
+  totem.castShadow = true;
+  group.add(totem);
+
+  const sign = new THREE.Mesh(
+    new THREE.BoxGeometry(isMajor ? 0.96 : 0.78, 0.48, 0.14),
+    new THREE.MeshStandardMaterial({
+      color: accent,
+      emissive: accent,
+      emissiveIntensity: isMajor ? 0.28 : 0.22,
+      roughness: 0.36,
+    }),
+  );
+  sign.position.set(-0.92 * sideSign, isMajor ? 2.0 : 1.82, -0.68);
+  group.add(sign);
+
+  Array.from({ length: isMajor ? 5 : 4 }, (_, index) => index).forEach((stepIndex) => {
+    const step = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.16, isMajor ? 1.14 : 0.98),
+      new THREE.MeshStandardMaterial({ color: 0xb7c7d8, roughness: 0.84 }),
+    );
+    step.position.set(
+      (0.78 - stepIndex * 0.18) * -sideSign,
+      0.08 + stepIndex * 0.13,
+      0.42,
+    );
+    step.castShadow = true;
+    group.add(step);
+  });
+
+  return group;
 }
 
 function buildSignals(
@@ -1675,8 +2118,9 @@ export default function MapSimulator() {
         (response) => response.json() as Promise<BuildingFeatureCollection>,
       ),
       fetch('/dongs.geojson').then((response) => response.json() as Promise<DongFeatureCollection>),
+      fetch('/transit.geojson').then((response) => response.json() as Promise<TransitFeatureCollection>),
     ])
-      .then(([roads, buildings, dongs]) => {
+      .then(([roads, buildings, dongs, transit]) => {
         if (cancelled) {
           return;
         }
@@ -1685,6 +2129,7 @@ export default function MapSimulator() {
           roads,
           buildings,
           dongs,
+          transit,
         };
         setStatus('rendering');
         requestAnimationFrame(() => {
@@ -1775,16 +2220,18 @@ export default function MapSimulator() {
 
     const buildingFeatures = buildBuildingMasses(data.buildings, data.center);
     const dongRegions = buildDongRegions(data.dongs, data.center);
-    const roadSegments = data.roads.features.flatMap((feature) =>
+    const roadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap((feature) =>
       lineStringsOfRoad(feature, data.center).flatMap((line) =>
         line.slice(1).map((node, index) => ({
           roadClass: feature.properties.roadClass,
           width: feature.properties.width * ROAD_WIDTH_SCALE,
           start: line[index].point,
           end: node.point,
+          name: feature.properties.name,
         })),
       ),
     );
+    const transitLandmarks = buildTransitLandmarks(data.transit, data.center, roadSegments);
 
     const bounds = new THREE.Box3();
     roadSegments.forEach((segment) => {
@@ -1921,6 +2368,61 @@ export default function MapSimulator() {
     ground.position.set(centerPoint.x, 0, centerPoint.z);
     ground.receiveShadow = true;
     scene.add(ground);
+
+    const celestialRadius = Math.max(size.x, size.z) + 320;
+    const sunDiscMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffd9a8,
+      transparent: true,
+      opacity: 0,
+    });
+    const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(8.5, 20, 20), sunDiscMaterial);
+    scene.add(sunDisc);
+
+    const sunHaloMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffb66c,
+      transparent: true,
+      opacity: 0,
+    });
+    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(15.5, 20, 20), sunHaloMaterial);
+    scene.add(sunHalo);
+
+    const sunsetGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff8b47,
+      transparent: true,
+      opacity: 0,
+    });
+    const sunsetGlow = new THREE.Mesh(new THREE.SphereGeometry(23, 20, 20), sunsetGlowMaterial);
+    scene.add(sunsetGlow);
+
+    const moonMaterial = new THREE.MeshBasicMaterial({
+      color: 0xe9f2ff,
+      transparent: true,
+      opacity: 0,
+    });
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(5.8, 18, 18), moonMaterial);
+    scene.add(moon);
+
+    const starPositions = new Float32Array(280 * 3);
+    for (let index = 0; index < 280; index += 1) {
+      const azimuth = Math.random() * Math.PI * 2;
+      const elevation = THREE.MathUtils.lerp(0.24, 1.14, Math.random());
+      const radius = celestialRadius + Math.random() * 120;
+      const offset = index * 3;
+      starPositions[offset] = centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius;
+      starPositions[offset + 1] = Math.sin(elevation) * radius * 0.82 + 110;
+      starPositions[offset + 2] = centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius;
+    }
+    const starsGeometry = new THREE.BufferGeometry();
+    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starsMaterial = new THREE.PointsMaterial({
+      color: 0xf4f8ff,
+      size: 1.7,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
 
     const rainLayer = createPrecipitationLayer(
       720,
@@ -2140,7 +2642,12 @@ export default function MapSimulator() {
     laneMarkerMesh.instanceMatrix.needsUpdate = true;
     scene.add(laneMarkerMesh);
 
-    const buildingMaterial = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0.02 });
+    const buildingMaterial = new THREE.MeshStandardMaterial({
+      roughness: 0.96,
+      metalness: 0.02,
+      emissive: 0x16202c,
+      emissiveIntensity: 0.08,
+    });
     const buildingMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
       buildingMaterial,
@@ -2222,6 +2729,33 @@ export default function MapSimulator() {
         labelObjects.push(label);
         scene.add(label);
       });
+
+    transitLandmarks.forEach((landmark, index) => {
+      const structure =
+        landmark.category === 'bus_stop'
+          ? createBusStopStructure(index, landmark.sideSign, landmark.isMajor)
+          : createSubwayStationStructure(index, landmark.sideSign, landmark.isMajor);
+      structure.position.copy(landmark.position);
+      structure.rotation.y = landmark.yaw;
+      structure.scale.setScalar(
+        landmark.category === 'bus_stop'
+          ? landmark.isMajor
+            ? 1.02
+            : 0.88
+          : landmark.isMajor
+            ? 1.12
+            : 0.84,
+      );
+      scene.add(structure);
+
+      if (landmark.category === 'subway_station' && landmark.name && landmark.isMajor) {
+        const label = new CSS2DObject(labelElement(landmark.name, 'transit'));
+        label.position.set(landmark.position.x, 3.1, landmark.position.z);
+        label.visible = showLabels;
+        labelObjects.push(label);
+        scene.add(label);
+      }
+    });
 
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
@@ -2670,10 +3204,21 @@ export default function MapSimulator() {
     let appliedWeatherMode: WeatherMode | null = null;
     let appliedTimeMinutes = -1;
     let activeVehicleSpeedMultiplier = 1;
+    let activeStarOpacity = 0;
 
     const applyEnvironment = (minutes: number, nextWeatherMode: WeatherMode) => {
       const environment = buildEnvironmentState(minutes, nextWeatherMode);
       const daylight = daylightFactor(minutes);
+      const twilight = twilightFactor(minutes);
+      const sunset = sunsetFactor(minutes);
+      const cloudVisibility =
+        nextWeatherMode === 'clear'
+          ? 1
+          : nextWeatherMode === 'cloudy'
+            ? 0.78
+            : nextWeatherMode === 'heavy-rain'
+              ? 0.42
+              : 0.58;
       const background = scene.background as THREE.Color | null;
 
       background?.setHex(environment.skyColor);
@@ -2706,6 +3251,8 @@ export default function MapSimulator() {
       laneMarkerMaterial.emissive.setHex(environment.laneMarkerEmissive);
       laneMarkerMaterial.emissiveIntensity = environment.laneMarkerIntensity;
       buildingMaterial.color.setHex(environment.buildingTint);
+      buildingMaterial.emissive.setHex(environment.buildingEmissive);
+      buildingMaterial.emissiveIntensity = environment.buildingEmissiveIntensity;
       if (crosswalkMaterial) {
         crosswalkMaterial.color.setHex(environment.crosswalkColor);
         crosswalkMaterial.emissive.setHex(environment.crosswalkEmissive);
@@ -2717,6 +3264,35 @@ export default function MapSimulator() {
         stopLineMaterial.emissiveIntensity = environment.stopLineIntensity;
       }
 
+      const skyDirection = environment.sunPosition.clone().normalize();
+      const sunAnchor = centerPoint.clone().addScaledVector(skyDirection, celestialRadius);
+      sunDisc.position.copy(sunAnchor);
+      sunHalo.position.copy(sunAnchor);
+      sunsetGlow.position.copy(
+        centerPoint
+          .clone()
+          .addScaledVector(
+            new THREE.Vector3(skyDirection.x, Math.max(0.12, skyDirection.y * 0.48), skyDirection.z).normalize(),
+            celestialRadius * 0.84,
+          ),
+      );
+
+      const moonDirection = skyDirection.clone().multiplyScalar(-1);
+      moonDirection.y = Math.max(0.22, moonDirection.y * 0.7 + 0.18);
+      moonDirection.normalize();
+      moon.position.copy(centerPoint.clone().addScaledVector(moonDirection, celestialRadius * 0.92));
+
+      sunDiscMaterial.color.setHex(sunset > 0.18 ? 0xffc572 : 0xffefbc);
+      sunDiscMaterial.opacity = THREE.MathUtils.clamp(daylight * 0.4 + sunset * 0.44, 0, 0.78) * cloudVisibility;
+      sunHaloMaterial.opacity = THREE.MathUtils.clamp(daylight * 0.14 + sunset * 0.3, 0, 0.28) * cloudVisibility;
+      sunsetGlowMaterial.opacity = THREE.MathUtils.clamp(sunset * 0.36, 0, 0.3) * cloudVisibility;
+      moonMaterial.opacity =
+        THREE.MathUtils.clamp((0.18 - daylight) / 0.18, 0, 0.82) *
+        (nextWeatherMode === 'heavy-rain' ? 0.42 : 0.76);
+      activeStarOpacity =
+        THREE.MathUtils.clamp((0.16 - daylight) / 0.16, 0, 0.68) *
+        (nextWeatherMode === 'heavy-rain' ? 0.22 : nextWeatherMode === 'cloudy' ? 0.5 : 0.78);
+
       activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
       rainLayer.points.visible = environment.precipitation === 'rain';
       rainLayer.material.opacity = environment.precipitationOpacity;
@@ -2726,7 +3302,17 @@ export default function MapSimulator() {
       snowLayer.material.size = 0.58 + environment.precipitationIntensity * 0.18;
 
       renderer.toneMappingExposure =
-        daylight < 0.15 ? 0.92 : nextWeatherMode === 'heavy-rain' ? 0.98 : 1.04;
+        daylight > 0.44
+          ? 1.12
+          : sunset > 0.22
+            ? 1.03
+            : daylight < 0.14
+              ? 0.94
+              : nextWeatherMode === 'heavy-rain'
+                ? 0.99
+                : twilight > 0.22
+                  ? 1.01
+                  : 1.05;
     };
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
@@ -3331,6 +3917,9 @@ export default function MapSimulator() {
       updatePedestrians(elapsedTime);
       updatePrecipitation(delta, elapsedTime);
       updateVehicles(delta, elapsedTime);
+      starsMaterial.opacity = activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
+      sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
+      moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     };
@@ -3355,6 +3944,12 @@ export default function MapSimulator() {
       rainLayer.material.dispose();
       snowLayer.geometry.dispose();
       snowLayer.material.dispose();
+      starsGeometry.dispose();
+      starsMaterial.dispose();
+      sunDiscMaterial.dispose();
+      sunHaloMaterial.dispose();
+      sunsetGlowMaterial.dispose();
+      moonMaterial.dispose();
       renderer.dispose();
       labelObjects.forEach((label) => label.removeFromParent());
       container.removeChild(renderer.domElement);
@@ -3367,6 +3962,44 @@ export default function MapSimulator() {
   const dongNames = useMemo(
     () => data?.dongs.features.map((dong) => dong.properties.name) ?? [],
     [data],
+  );
+  const transitHighlights = useMemo(() => {
+    if (!data) {
+      return [] as TransitLandmark[];
+    }
+
+    const projectedRoadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap((feature) =>
+      lineStringsOfRoad(feature, data.center).flatMap((line) =>
+        line.slice(1).map((node, index) => ({
+          roadClass: feature.properties.roadClass,
+          width: feature.properties.width * ROAD_WIDTH_SCALE,
+          start: line[index].point,
+          end: node.point,
+          name: feature.properties.name,
+        })),
+      ),
+    );
+
+    return buildTransitLandmarks(data.transit, data.center, projectedRoadSegments);
+  }, [data]);
+  const transitCounts = useMemo(
+    () => ({
+      busStops: transitHighlights.filter((feature) => feature.category === 'bus_stop').length,
+      subwayStations: transitHighlights.filter((feature) => feature.category === 'subway_station').length,
+    }),
+    [transitHighlights],
+  );
+  const subwayNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          transitHighlights
+            .filter((feature) => feature.category === 'subway_station' && feature.isMajor)
+            .map((feature) => feature.name)
+            .filter(Boolean) as string[],
+        ),
+      ).slice(0, 8),
+    [transitHighlights],
   );
   const taxiOptions = useMemo(
     () =>
@@ -3428,7 +4061,8 @@ export default function MapSimulator() {
           역삼1·2동을 중심으로 논현, 삼성, 신사, 청담, 대치4동까지 이어지는 9개 동을
           OSM 경계 기준으로 불러와 3D로 다시 렌더링했습니다. 택시는 우측 차선으로
           주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며, 승차지에서 손님을
-          태운 뒤 목적지까지 최단 경로로 이동합니다.
+          태운 뒤 목적지까지 최단 경로로 이동합니다. 주요 버스 정류장과 지하철역은
+          단순 마커 대신 작은 구조물로 강조했습니다.
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
@@ -3459,6 +4093,18 @@ export default function MapSimulator() {
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Pedestrians</div>
             <div className="mt-1 text-lg font-semibold text-violet-200">{stats.pedestrians}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Bus Stops</div>
+            <div className="mt-1 text-lg font-semibold text-emerald-200">
+              {transitCounts.busStops}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Subway</div>
+            <div className="mt-1 text-lg font-semibold text-sky-200">
+              {transitCounts.subwayStations}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Routing</div>
@@ -3532,7 +4178,8 @@ export default function MapSimulator() {
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
-            가독성을 해치지 않도록 날씨 효과는 완화된 강도로 적용됩니다.
+            시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
+            고정해 가독성을 유지합니다.
           </div>
         </div>
 
@@ -3592,7 +4239,7 @@ export default function MapSimulator() {
             onChange={(event) => setShowLabels(event.target.checked)}
             className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400"
           />
-          도로/건물/동 라벨 보기
+          도로/건물/동/지하철 라벨 보기
         </label>
 
         <div className="mt-5 grid gap-3 text-sm">
@@ -3659,6 +4306,22 @@ export default function MapSimulator() {
               ))}
             </div>
           </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+              Subway Hubs
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {subwayNames.map((station) => (
+                <span
+                  key={station}
+                  className="rounded-full border border-sky-300/15 bg-sky-300/10 px-2 py-1 text-sky-100"
+                >
+                  {station}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400">
@@ -3695,6 +4358,14 @@ export default function MapSimulator() {
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ffcf57]" />
             승차 포인트
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#2bb1d8]" />
+            버스 정류장
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#4ca7ff]" />
+            지하철역
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#f6f7ff]" />
