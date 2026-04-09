@@ -1,18 +1,12 @@
 import fs from "fs";
 import osmtogeojson from "osmtogeojson";
+import {
+  OVERPASS_URLS,
+  geometryTouchesDongs,
+  loadTargetRegion,
+} from "./map-region.mjs";
 
-const BOUNDS = {
-  south: 37.491,
-  west: 127.023,
-  north: 37.509,
-  east: 127.041,
-};
-
-const OVERPASS_URLS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
+const { dongs, queryBounds: BOUNDS } = loadTargetRegion();
 
 const HIGHWAY_TYPES = [
   "trunk",
@@ -26,7 +20,7 @@ const HIGHWAY_TYPES = [
 ];
 
 const query = `
-[out:json][timeout:25];
+[out:json][timeout:60];
 (
   way["highway"~"^(${HIGHWAY_TYPES.join("|")})$"](${BOUNDS.south},${BOUNDS.west},${BOUNDS.north},${BOUNDS.east});
 );
@@ -117,7 +111,7 @@ async function fetchOverpassJson() {
   throw lastError;
 }
 
-console.log("Fetching Yeoksam roads...");
+console.log("Fetching roads for the 9 selected Gangnam dongs...");
 
 try {
   const osmJson = await fetchOverpassJson();
@@ -128,6 +122,7 @@ try {
       feature.geometry?.type === "LineString" ||
       feature.geometry?.type === "MultiLineString",
     )
+    .filter((feature) => geometryTouchesDongs(feature.geometry, dongs.features))
     .map((feature) => {
       const roadClass = roadClassFor(feature.properties?.highway);
 

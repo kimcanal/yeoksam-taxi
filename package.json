@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "fetch:dongs": "node fetch-dongs.mjs",
     "fetch:buildings": "node fetch-buildings.mjs",
     "fetch:roads": "node fetch-roads.mjs",
-    "fetch:map": "npm run fetch:buildings && npm run fetch:roads"
+    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",

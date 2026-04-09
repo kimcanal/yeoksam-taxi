@@ -1,28 +1,17 @@
 import fs from "fs";
 import osmtogeojson from "osmtogeojson";
+import {
+  OVERPASS_URLS,
+  geometryTouchesDongs,
+  loadTargetRegion,
+} from "./map-region.mjs";
 
-const BOUNDS = {
-  south: 37.491,
-  west: 127.023,
-  north: 37.509,
-  east: 127.041,
-};
+const { dongs, queryBounds: BOUNDS, center: CENTER } = loadTargetRegion();
 
-const CENTER = {
-  lat: (BOUNDS.south + BOUNDS.north) / 2,
-  lon: (BOUNDS.west + BOUNDS.east) / 2,
-};
-
-const OVERPASS_URLS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://lz4.overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
-
-const MIN_BUILDING_AREA_M2 = 30;
+const MIN_BUILDING_AREA_M2 = 200;
 
 const query = `
-[out:json][timeout:25];
+[out:json][timeout:60];
 (
   way["building"](${BOUNDS.south},${BOUNDS.west},${BOUNDS.north},${BOUNDS.east});
   relation["building"](${BOUNDS.south},${BOUNDS.west},${BOUNDS.north},${BOUNDS.east});
@@ -190,7 +179,7 @@ async function fetchOverpassJson() {
   throw lastError;
 }
 
-console.log("Fetching Yeoksam buildings...");
+console.log("Fetching buildings for the 9 selected Gangnam dongs...");
 
 try {
   const osmJson = await fetchOverpassJson();
@@ -202,6 +191,7 @@ try {
       feature.geometry?.type === "MultiPolygon",
     )
     .filter((feature) => feature.properties?.["building:part"] !== "yes")
+    .filter((feature) => geometryTouchesDongs(feature.geometry, dongs.features))
     .map((feature) => ({
       type: "Feature",
       id: feature.id,
@@ -214,7 +204,9 @@ try {
       },
       geometry: roundGeometry(feature.geometry),
     }))
-    .filter((feature) => feature.properties.area >= MIN_BUILDING_AREA_M2);
+    .filter((feature) =>
+      feature.properties.label || feature.properties.area >= MIN_BUILDING_AREA_M2,
+    );
 
   fs.writeFileSync(
     "public/buildings.geojson",
