@@ -169,7 +169,7 @@ async function fetchOverpassJson() {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "kakao-twin/0.1",
+          "User-Agent": "yeoksam_taxi/0.1",
         },
         body: `data=${encodeURIComponent(query)}`,
       });
