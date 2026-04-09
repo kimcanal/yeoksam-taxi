@@ -42,9 +42,10 @@ const CAMERA_MAX_DISTANCE = 560;
 const CAMERA_MIN_PITCH = 0.34;
 const CAMERA_MAX_PITCH = 1.16;
 const CAMERA_LOOK_HEIGHT = 6;
-const TAXI_VIEW_CAMERA_HEIGHT = 1.86;
-const TAXI_VIEW_CAMERA_FORWARD_OFFSET = 0.28;
-const TAXI_VIEW_LOOK_AHEAD = 14;
+const TAXI_VIEW_CAMERA_HEIGHT = 4.1;
+const TAXI_VIEW_CAMERA_BACK_OFFSET = -10.5;
+const TAXI_VIEW_CAMERA_SIDE_OFFSET = 0.5;
+const TAXI_VIEW_LOOK_AHEAD = 18;
 const TAXI_CLICK_MOVE_THRESHOLD = 8;
 const SHOW_DONG_BOUNDARIES = false;
 const DRIVE_RENDER_FPS = 60;
@@ -4821,16 +4822,18 @@ export default function MapSimulator() {
         if (viewedTaxi) {
           const sample = sampleRoute(viewedTaxi.route, viewedTaxi.distance);
           const heading = sample.heading.clone().normalize();
+          const right = new THREE.Vector3(-heading.z, 0, heading.x).normalize();
           const rideBlend = 1 - Math.exp(-delta * 7.2);
           rideCameraPosition
             .copy(viewedTaxi.group.position)
-            .addScaledVector(heading, TAXI_VIEW_CAMERA_FORWARD_OFFSET);
+            .addScaledVector(heading, TAXI_VIEW_CAMERA_BACK_OFFSET)
+            .addScaledVector(right, TAXI_VIEW_CAMERA_SIDE_OFFSET);
           rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
 
           const desiredLookTarget = viewedTaxi.group.position
             .clone()
             .addScaledVector(heading, TAXI_VIEW_LOOK_AHEAD);
-          desiredLookTarget.y = rideCameraPosition.y + 0.08;
+          desiredLookTarget.y = viewedTaxi.group.position.y + 1.6;
 
           if (!rideLookInitialized) {
             camera.position.copy(rideCameraPosition);
@@ -5022,7 +5025,7 @@ export default function MapSimulator() {
       : cameraMode === 'follow'
         ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. 택시를 클릭하면 더 가까운 택시 시점으로 전환됩니다.`
         : cameraMode === 'ride'
-          ? `택시 시점: ${selectedTaxi?.label ?? '선택한 택시'}와 함께 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
+          ? `택시 시점: ${selectedTaxi?.label ?? '선택한 택시'} 뒤를 따라가며 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
           : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.';
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ?? WEATHER_OPTIONS[0];
@@ -5296,13 +5299,12 @@ export default function MapSimulator() {
 
           <div className="mt-3">
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Follow Target
+              Taxi Target
             </div>
             <select
               value={selectedTaxiId}
               onChange={(event) => {
                 setFollowTaxiId(event.target.value);
-                setCameraMode('follow');
               }}
               disabled={!taxiOptions.length}
               className="w-full rounded-2xl border border-white/10 bg-slate-900/75 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-50"
@@ -5313,6 +5315,9 @@ export default function MapSimulator() {
                 </option>
               ))}
             </select>
+            <div className="mt-2 text-xs leading-5 text-slate-500">
+              빈차, 승객 탑승 중, 정차 중인 택시와 관계없이 언제든 선택해 시점을 붙일 수 있습니다.
+            </div>
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
