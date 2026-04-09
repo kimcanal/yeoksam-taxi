@@ -214,9 +214,11 @@ type Stats = {
   pedestrians: number;
 };
 
+type FpsMode = 'auto' | 'fixed60' | 'unlimited';
+
 type FpsStats = {
   fps: number;
-  cap: number;
+  capLabel: string;
 };
 
 type TaxiOption = {
@@ -675,6 +677,54 @@ function renderFpsCapFor(mode: CameraMode) {
     default:
       return DRIVE_RENDER_FPS;
   }
+}
+
+function autoRenderFpsFor(mode: CameraMode, refreshRateEstimate: number | null) {
+  const baseCap = renderFpsCapFor(mode);
+  if (refreshRateEstimate === null) {
+    return baseCap;
+  }
+
+  const nearestMultipleOfSixty = Math.round(refreshRateEstimate / 60) * 60;
+  if (
+    nearestMultipleOfSixty >= 60 &&
+    Math.abs(refreshRateEstimate - nearestMultipleOfSixty) <= 3
+  ) {
+    return 60;
+  }
+
+  if (refreshRateEstimate >= 100) {
+    return Math.round(refreshRateEstimate / 2);
+  }
+
+  return baseCap;
+}
+
+function resolveRenderCap(
+  mode: CameraMode,
+  fpsMode: FpsMode,
+  refreshRateEstimate: number | null,
+) {
+  switch (fpsMode) {
+    case 'unlimited':
+      return null;
+    case 'fixed60':
+      return 60;
+    default:
+      return autoRenderFpsFor(mode, refreshRateEstimate);
+  }
+}
+
+function renderCapLabel(cap: number | null, isHidden: boolean, fpsMode: FpsMode) {
+  if (isHidden && cap !== null) {
+    return `${Math.round(cap)} (background)`;
+  }
+
+  if (fpsMode === 'unlimited' || cap === null) {
+    return 'Unlimited';
+  }
+
+  return `${Math.round(cap)}`;
 }
 
 function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
@@ -2367,15 +2417,17 @@ export default function MapSimulator() {
   const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
   const [followTaxiId, setFollowTaxiId] = useState('');
   const [showFps, setShowFps] = useState(false);
+  const [fpsMode, setFpsMode] = useState<FpsMode>('auto');
   const [fpsStats, setFpsStats] = useState<FpsStats>({
     fps: 0,
-    cap: renderFpsCapFor('drive'),
+    capLabel: renderCapLabel(renderFpsCapFor('drive'), false, 'auto'),
   });
   const simulationTimeRef = useRef(12 * 60);
   const weatherModeRef = useRef<WeatherMode>('clear');
   const cameraModeRef = useRef<CameraMode>('drive');
   const followTaxiIdRef = useRef('');
   const showFpsRef = useRef(false);
+  const fpsModeRef = useRef<FpsMode>('auto');
   const [stats, setStats] = useState<Stats>({
     taxis: TAXI_COUNT,
     traffic: TRAFFIC_COUNT,
@@ -2401,6 +2453,10 @@ export default function MapSimulator() {
   useEffect(() => {
     showFpsRef.current = showFps;
   }, [showFps]);
+
+  useEffect(() => {
+    fpsModeRef.current = fpsMode;
+  }, [fpsMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3712,7 +3768,9 @@ export default function MapSimulator() {
     let animationFrame = 0;
     let lastRafTimestamp = 0;
     let lastVisibleRenderTimestamp = 0;
-    let renderAccumulatorMs = 0;
+    let lastCappedRenderTimestamp = 0;
+    let lastCapSignature = '';
+    let refreshRateEstimate = 0;
     let statsAccumulator = 0;
     let fpsSampleElapsed = 0;
     let fpsFrameCount = 0;
@@ -4455,29 +4513,69 @@ export default function MapSimulator() {
       animationFrame = window.requestAnimationFrame(animate);
       const frameTimestamp = timestamp ?? performance.now();
       timer.update(frameTimestamp);
-      const activeRenderCap = isPageHidden
-        ? HIDDEN_RENDER_FPS
-        : renderFpsCapFor(cameraModeRef.current);
-      const targetFrameMs = 1000 / activeRenderCap;
       const rawDeltaMs =
-        lastRafTimestamp === 0 ? targetFrameMs : Math.min(frameTimestamp - lastRafTimestamp, 250);
+        lastRafTimestamp === 0
+          ? 1000 / 60
+          : Math.min(frameTimestamp - lastRafTimestamp, 250);
       lastRafTimestamp = frameTimestamp;
-      renderAccumulatorMs = Math.min(renderAccumulatorMs + rawDeltaMs, targetFrameMs * 3);
-      if (renderAccumulatorMs < targetFrameMs) {
-        return;
+      if (!isPageHidden && rawDeltaMs > 2 && rawDeltaMs < 40) {
+        const instantRefreshRate = 1000 / rawDeltaMs;
+        refreshRateEstimate =
+          refreshRateEstimate === 0
+            ? instantRefreshRate
+            : THREE.MathUtils.lerp(refreshRateEstimate, instantRefreshRate, 0.1);
+      }
+      const activeRenderCap =
+        isPageHidden
+          ? HIDDEN_RENDER_FPS
+          : resolveRenderCap(
+              cameraModeRef.current,
+              fpsModeRef.current,
+              refreshRateEstimate || null,
+            );
+      const capSignature = `${activeRenderCap ?? 'unlimited'}:${isPageHidden ? 'hidden' : 'visible'}`;
+      if (capSignature !== lastCapSignature) {
+        lastCapSignature = capSignature;
+        lastCappedRenderTimestamp = 0;
       }
 
-      const delta = Math.min(
-        Math.max(
-          lastVisibleRenderTimestamp === 0
-            ? targetFrameMs
-            : frameTimestamp - lastVisibleRenderTimestamp,
-          targetFrameMs,
-        ) / 1000,
-        0.05,
-      );
+      let delta = 0;
+      if (activeRenderCap !== null) {
+        const targetFrameMs = 1000 / activeRenderCap;
+        if (lastCappedRenderTimestamp === 0) {
+          lastCappedRenderTimestamp = frameTimestamp;
+        } else {
+          const elapsedSinceCap = frameTimestamp - lastCappedRenderTimestamp;
+          if (elapsedSinceCap < targetFrameMs) {
+            return;
+          }
+          lastCappedRenderTimestamp =
+            frameTimestamp - (elapsedSinceCap % targetFrameMs);
+        }
+
+        delta = Math.min(
+          Math.max(
+            lastVisibleRenderTimestamp === 0
+              ? targetFrameMs
+              : frameTimestamp - lastVisibleRenderTimestamp,
+            targetFrameMs,
+          ) / 1000,
+          0.05,
+        );
+      } else {
+        delta = Math.min(
+          Math.max(
+            lastVisibleRenderTimestamp === 0 ? rawDeltaMs : frameTimestamp - lastVisibleRenderTimestamp,
+            1,
+          ) / 1000,
+          0.05,
+        );
+      }
+
+      if (delta <= 0) {
+          return;
+      }
       lastVisibleRenderTimestamp = frameTimestamp;
-      renderAccumulatorMs -= targetFrameMs;
       const elapsedTime = timer.getElapsed();
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
@@ -4592,11 +4690,17 @@ export default function MapSimulator() {
         if (showFpsRef.current) {
           setFpsStats({
             fps: Math.round(fpsFrameCount / fpsSampleElapsed),
-            cap: activeRenderCap,
+            capLabel: renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current),
           });
         } else {
           setFpsStats((current) =>
-            current.cap === activeRenderCap ? current : { ...current, cap: activeRenderCap },
+            current.capLabel ===
+            renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current)
+              ? current
+              : {
+                  ...current,
+                  capLabel: renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current),
+                },
           );
         }
         fpsFrameCount = 0;
@@ -4738,6 +4842,11 @@ export default function MapSimulator() {
   const twilightValue = twilightFactor(simulationTimeMinutes);
   const daylightLabel =
     daylightValue > 0.18 ? '낮' : twilightValue > 0.25 ? '황혼' : '밤';
+  const fpsModeOptions: Array<{ id: FpsMode; label: string }> = [
+    { id: 'auto', label: 'Auto' },
+    { id: 'fixed60', label: '60 FPS' },
+    { id: 'unlimited', label: 'Unlimited' },
+  ];
 
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
@@ -4748,7 +4857,26 @@ export default function MapSimulator() {
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">FPS</div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-2xl font-semibold tabular-nums text-lime-100">{fpsStats.fps}</div>
-            <div className="pb-1 text-xs text-slate-400">cap {fpsStats.cap}</div>
+            <div className="pb-1 text-xs text-slate-400">Target FPS: {fpsStats.capLabel}</div>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {fpsModeOptions.map((option) => {
+              const isSelected = fpsMode === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setFpsMode(option.id)}
+                  className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${
+                    isSelected
+                      ? 'border-lime-300/40 bg-lime-400/10 text-lime-100'
+                      : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8'
+                  }`}
+                >
+                  <div className="font-medium">{option.label}</div>
+                </button>
+              );
+            })}
           </div>
           <div className="mt-1 text-[11px] text-slate-400">
             mode {cameraModeLabel.toLowerCase()} · `F`로 숨기기

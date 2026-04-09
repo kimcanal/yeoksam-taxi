@@ -33,6 +33,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Project Docs
+
+- `CHANGELOG.md`: dated update history
+- `docs/extended-map-review.md`: branch comparison notes and screenshot checklist
+
 ## Data
 
 The simulator uses:
@@ -51,8 +56,17 @@ npm run fetch:map
 ## Notes
 
 - The current prototype uses 9 administrative dongs in Gangnam-gu: `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`.
-- Dong boundaries are fetched from OpenStreetMap administrative relations through Overpass and rendered as 3D district regions.
+- Dong boundaries are fetched from OpenStreetMap administrative relations through Overpass, but boundary rendering is currently disabled while a clearer visualization approach is being redesigned.
 - Roads, buildings, and transit landmarks come from OSM geometry, but some visual properties are simplified for readability.
 - Building heights are partially inferred from `height`, `building:levels`, or fallback heuristics when OSM is incomplete.
 - Taxi demand, signals, pedestrians, routing behavior, and vehicle logic are simulated inside the app on top of OSM-derived geometry.
 - This is reliable enough for a spatial prototype and demo, but not a substitute for official real-time transport or cadastral data.
+
+## Short Roadmap
+
+- Add better UX controls such as a taxi-count slider.
+- Replace placeholder-looking signal visuals and implement more realistic signal logic.
+- Reduce or resolve deadlock behavior at busy intersections.
+- Revisit district visualization with a road-aligned ground overlay instead of the current disabled boundary view.
+- Add hourly CSV-based weather, taxi-demand, and traffic data for the 9 selected dongs before attempting real-time ingestion.
+- Define a merged dong-level time-series format for later forecasting/model experiments.

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-10
+
+### Changed
+- Replaced the FPS overlay checkbox with explicit `Auto`, `60 FPS`, and `Unlimited` target modes.
+- Updated `Auto` target logic so 60Hz-like displays stay at 60 FPS, while 100Hz+ displays can use a half-refresh target.
+- Simplified the FPS overlay text to show `Target FPS` directly.
+- Clarified in project docs that district boundary rendering is currently disabled while a cleaner approach is being explored.
+
+### Documented
+- Added roadmap notes for signal logic, deadlock handling, taxi-density controls, and future hourly CSV-based data integration.
+- Added an `extended-map` review document and screenshot checklist for comparing the branch against `main`.
+
 ## 2026-04-09
 
 ### Added
@@ -30,3 +42,13 @@
 - Revisit dong boundary visualization later with a more reliable approach:
   likely a road/ground-aligned overlay instead of translucent wall geometry.
 - Re-evaluate MacBook-specific performance after district overlays are redesigned.
+- Add a taxi-count slider so demo density can be tuned without code changes.
+- Rework signal visuals so intersections look less placeholder-like.
+- Replace the current placeholder signal cycle with real intersection signal logic.
+- Resolve intersection deadlock cases when multiple vehicles block each other.
+- Revisit routing rules with more realistic road constraints such as one-way flow and turn restrictions.
+- Prepare a non-real-time hourly data pipeline for the 9 selected dongs:
+  weather, taxi-demand, and traffic CSV inputs first.
+- Define a merged time-series schema for later model work
+  (for example CNN-LSTM training on hourly dong-level inputs).
+- Keep real-time public-data integration deferred until the offline/hourly pipeline is stable.
