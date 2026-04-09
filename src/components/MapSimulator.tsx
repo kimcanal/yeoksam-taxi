@@ -14,8 +14,8 @@ import type {
   Position,
 } from 'geojson';
 
-const TAXI_COUNT = 14;
-const TRAFFIC_COUNT = 24;
+const TAXI_COUNT = 12;
+const TRAFFIC_COUNT = 16;
 const POSITION_SCALE = 0.2;
 const ROAD_WIDTH_SCALE = 0.6;
 const BUILDING_HEIGHT_SCALE = 0.2;
@@ -42,6 +42,15 @@ const CAMERA_MAX_DISTANCE = 560;
 const CAMERA_MIN_PITCH = 0.34;
 const CAMERA_MAX_PITCH = 1.16;
 const CAMERA_LOOK_HEIGHT = 6;
+const SHOW_DONG_BOUNDARIES = false;
+const DRIVE_RENDER_FPS = 60;
+const FOLLOW_RENDER_FPS = 60;
+const OVERVIEW_RENDER_FPS = 60;
+const HIDDEN_RENDER_FPS = 12;
+const DRIVE_PIXEL_RATIO = 0.9;
+const FOLLOW_PIXEL_RATIO = 0.9;
+const OVERVIEW_PIXEL_RATIO = 0.8;
+const HIDDEN_PIXEL_RATIO = 0.65;
 const ROAD_LAYER_Y = {
   local: 0.116,
   connector: 0.121,
@@ -203,6 +212,11 @@ type Stats = {
   activeTrips: number;
   completedTrips: number;
   pedestrians: number;
+};
+
+type FpsStats = {
+  fps: number;
+  cap: number;
 };
 
 type TaxiOption = {
@@ -652,6 +666,32 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
   };
 }
 
+function renderFpsCapFor(mode: CameraMode) {
+  switch (mode) {
+    case 'overview':
+      return OVERVIEW_RENDER_FPS;
+    case 'follow':
+      return FOLLOW_RENDER_FPS;
+    default:
+      return DRIVE_RENDER_FPS;
+  }
+}
+
+function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
+  if (isHidden) {
+    return HIDDEN_PIXEL_RATIO;
+  }
+
+  switch (mode) {
+    case 'overview':
+      return OVERVIEW_PIXEL_RATIO;
+    case 'follow':
+      return FOLLOW_PIXEL_RATIO;
+    default:
+      return DRIVE_PIXEL_RATIO;
+  }
+}
+
 function geoKey(position: Position) {
   return `${position[0].toFixed(5)}:${position[1].toFixed(5)}`;
 }
@@ -953,28 +993,37 @@ function buildDongBoundarySegments(dongRegions: DongRegion[]) {
     });
   });
 
-  return [...segmentMap.entries()].map(([key, value]) => {
-    const direction = value.end.clone().sub(value.start);
-    const length = direction.length();
-    const center = value.start.clone().lerp(value.end, 0.5);
-    const normal = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
-    const probeDistance = Math.min(Math.max(length * 0.08, 0.9), 2.2);
-    const leftProbe = center.clone().addScaledVector(normal, probeDistance);
-    const rightProbe = center.clone().addScaledVector(normal, -probeDistance);
-    const leftDong = dongRegions.find((dong) => dongContainsPoint(dong, leftProbe))?.name ?? null;
-    const rightDong = dongRegions.find((dong) => dongContainsPoint(dong, rightProbe))?.name ?? null;
+  return [...segmentMap.entries()]
+    .map(([key, value]) => {
+      const direction = value.end.clone().sub(value.start);
+      const length = direction.length();
+      const center = value.start.clone().lerp(value.end, 0.5);
+      const normal = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+      const probeDistance = Math.min(Math.max(length * 0.08, 0.9), 2.2);
+      const leftProbe = center.clone().addScaledVector(normal, probeDistance);
+      const rightProbe = center.clone().addScaledVector(normal, -probeDistance);
+      const leftDong =
+        dongRegions.find((dong) => dongContainsPoint(dong, leftProbe))?.name ?? null;
+      const rightDong =
+        dongRegions.find((dong) => dongContainsPoint(dong, rightProbe))?.name ?? null;
 
-    return {
-      id: key,
-      start: value.start,
-      end: value.end,
-      center,
-      angle: Math.atan2(value.end.x - value.start.x, value.end.z - value.start.z),
-      length,
-      leftDong,
-      rightDong,
-    } satisfies DongBoundarySegment;
-  });
+      return {
+        id: key,
+        start: value.start,
+        end: value.end,
+        center,
+        angle: Math.atan2(value.end.x - value.start.x, value.end.z - value.start.z),
+        length,
+        leftDong,
+        rightDong,
+      } satisfies DongBoundarySegment;
+    })
+    .filter(
+      (segment) =>
+        Boolean(segment.leftDong) &&
+        Boolean(segment.rightDong) &&
+        segment.leftDong !== segment.rightDong,
+    );
 }
 
 function boundaryHintElement() {
@@ -1308,6 +1357,10 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
   element.style.letterSpacing = '0.02em';
   element.style.whiteSpace = 'nowrap';
   element.style.pointerEvents = 'none';
+  element.style.transition =
+    kind === 'district'
+      ? 'background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease'
+      : 'none';
   element.style.boxShadow = '0 8px 18px rgba(0,0,0,0.25)';
   return element;
 }
@@ -2022,8 +2075,6 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
     bodyMaterial,
   );
   body.position.y = 0.7;
-  body.castShadow = true;
-  body.receiveShadow = true;
   group.add(body);
 
   const cabin = new THREE.Mesh(
@@ -2035,7 +2086,6 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
     }),
   );
   cabin.position.set(0, 1.5, 0.15);
-  cabin.castShadow = true;
   group.add(cabin);
 
   const windshield = new THREE.Mesh(
@@ -2085,7 +2135,6 @@ function createPedestrianGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: palette, roughness: 0.8 }),
   );
   body.position.y = 0.74;
-  body.castShadow = true;
   group.add(body);
 
   const head = new THREE.Mesh(
@@ -2093,7 +2142,6 @@ function createPedestrianGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: 0xf4d9c2, roughness: 0.7 }),
   );
   head.position.y = 1.34;
-  head.castShadow = true;
   group.add(head);
 
   const feet = new THREE.Mesh(
@@ -2101,7 +2149,6 @@ function createPedestrianGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: 0x1a2331, roughness: 0.92 }),
   );
   feet.position.y = 0.12;
-  feet.castShadow = true;
   group.add(feet);
 
   return group;
@@ -2125,7 +2172,6 @@ function createCallerGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: 0x161c28, roughness: 0.94 }),
   );
   shoes.position.y = 0.06;
-  shoes.castShadow = true;
   group.add(shoes);
 
   const legs = new THREE.Mesh(
@@ -2133,7 +2179,6 @@ function createCallerGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: bottomPalette, roughness: 0.88 }),
   );
   legs.position.y = 0.38;
-  legs.castShadow = true;
   group.add(legs);
 
   const torso = new THREE.Mesh(
@@ -2141,7 +2186,6 @@ function createCallerGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.82 }),
   );
   torso.position.y = 0.94;
-  torso.castShadow = true;
   group.add(torso);
 
   const head = new THREE.Mesh(
@@ -2149,7 +2193,6 @@ function createCallerGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: 0xf2d7bd, roughness: 0.75 }),
   );
   head.position.y = 1.42;
-  head.castShadow = true;
   group.add(head);
 
   const leftArm = new THREE.Mesh(
@@ -2158,7 +2201,6 @@ function createCallerGroup(seed: number) {
   );
   leftArm.position.set(-0.34, 0.9, 0);
   leftArm.rotation.z = 0.18;
-  leftArm.castShadow = true;
   group.add(leftArm);
 
   const waveArmPivot = new THREE.Group();
@@ -2170,7 +2212,6 @@ function createCallerGroup(seed: number) {
     new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.84 }),
   );
   waveArm.position.set(0, -0.28, 0);
-  waveArm.castShadow = true;
   waveArmPivot.add(waveArm);
 
   const hailCube = new THREE.Mesh(
@@ -2183,7 +2224,6 @@ function createCallerGroup(seed: number) {
     }),
   );
   hailCube.position.set(0.12, -0.62, 0.08);
-  hailCube.castShadow = true;
   waveArmPivot.add(hailCube);
 
   return { group, waveArmPivot, hailCube };
@@ -2326,10 +2366,16 @@ export default function MapSimulator() {
   const [weatherMode, setWeatherMode] = useState<WeatherMode>('clear');
   const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
   const [followTaxiId, setFollowTaxiId] = useState('');
+  const [showFps, setShowFps] = useState(false);
+  const [fpsStats, setFpsStats] = useState<FpsStats>({
+    fps: 0,
+    cap: renderFpsCapFor('drive'),
+  });
   const simulationTimeRef = useRef(12 * 60);
   const weatherModeRef = useRef<WeatherMode>('clear');
   const cameraModeRef = useRef<CameraMode>('drive');
   const followTaxiIdRef = useRef('');
+  const showFpsRef = useRef(false);
   const [stats, setStats] = useState<Stats>({
     taxis: TAXI_COUNT,
     traffic: TRAFFIC_COUNT,
@@ -2351,6 +2397,10 @@ export default function MapSimulator() {
   useEffect(() => {
     cameraModeRef.current = cameraMode;
   }, [cameraMode]);
+
+  useEffect(() => {
+    showFpsRef.current = showFps;
+  }, [showFps]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2435,6 +2485,7 @@ export default function MapSimulator() {
     }
 
     const container = containerRef.current;
+    let isPageHidden = document.visibilityState === 'hidden';
     const scene = new THREE.Scene();
     const sceneFog = new THREE.Fog(0x07111b, 120, 360);
     scene.background = new THREE.Color(0x07111b);
@@ -2448,10 +2499,21 @@ export default function MapSimulator() {
     );
     camera.position.set(-120, 135, 150);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      powerPreference: 'high-performance',
+    });
+    renderer.setPixelRatio(
+      Math.min(
+        window.devicePixelRatio,
+        renderPixelRatioFor(
+          cameraModeRef.current,
+          document.visibilityState === 'hidden',
+        ),
+      ),
+    );
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.02;
@@ -2473,8 +2535,8 @@ export default function MapSimulator() {
 
     const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
     sun.position.set(110, 180, 80);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = false;
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.near = 10;
     sun.shadow.camera.far = 420;
     sun.shadow.camera.left = -180;
@@ -2497,7 +2559,7 @@ export default function MapSimulator() {
       ),
     );
     const transitLandmarks = buildTransitLandmarks(data.transit, data.center, roadSegments);
-    const dongBoundarySegments = buildDongBoundarySegments(dongRegions);
+    const dongBoundarySegments = SHOW_DONG_BOUNDARIES ? buildDongBoundarySegments(dongRegions) : [];
     const dongBoundaryWallHeight = THREE.MathUtils.clamp(
       buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
         Math.max(buildingFeatures.length, 1) *
@@ -2739,7 +2801,7 @@ export default function MapSimulator() {
       opacity: 0,
       depthWrite: false,
     });
-    const cloudClusters = Array.from({ length: 8 }, (_, index) => {
+    const cloudClusters = Array.from({ length: 5 }, (_, index) => {
       const cluster = new THREE.Group();
       const azimuth = (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
       const elevation = THREE.MathUtils.lerp(0.24, 0.5, (index % 5) / 5);
@@ -2773,7 +2835,7 @@ export default function MapSimulator() {
       opacity: 0,
       depthWrite: false,
     });
-    const stormCloudClusters = Array.from({ length: 6 }, (_, index) => {
+    const stormCloudClusters = Array.from({ length: 4 }, (_, index) => {
       const cluster = new THREE.Group();
       const azimuth = (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
       const elevation = THREE.MathUtils.lerp(0.16, 0.28, (index % 3) / 3);
@@ -2803,7 +2865,7 @@ export default function MapSimulator() {
     });
 
     const rainLayer = createPrecipitationLayer(
-      720,
+      480,
       new THREE.PointsMaterial({
         color: 0xb8ddff,
         size: 0.28,
@@ -2815,7 +2877,7 @@ export default function MapSimulator() {
       76,
     );
     const snowLayer = createPrecipitationLayer(
-      520,
+      360,
       new THREE.PointsMaterial({
         color: 0xffffff,
         size: 0.68,
@@ -2859,7 +2921,7 @@ export default function MapSimulator() {
     const dongBoundaryGlowMaterial = new THREE.MeshBasicMaterial({
       color: 0x5de08d,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.34,
       depthWrite: false,
     });
     const dongBoundaryGlowMesh = new THREE.InstancedMesh(
@@ -2869,9 +2931,9 @@ export default function MapSimulator() {
     );
 
     dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, 0.19, segment.center.z);
+      dummy.position.set(segment.center.x, 0.26, segment.center.z);
       dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(0.92, 1, segment.length + 0.75);
+      dummy.scale.set(2.1, 1, segment.length + 1.1);
       dummy.updateMatrix();
       dongBoundaryGlowMesh.setMatrixAt(index, dummy.matrix);
       dongBoundaryGlowMesh.setColorAt(index, new THREE.Color(0x7dffb2));
@@ -2881,15 +2943,13 @@ export default function MapSimulator() {
     if (dongBoundaryGlowMesh.instanceColor) {
       dongBoundaryGlowMesh.instanceColor.needsUpdate = true;
     }
-    dongBoundaryGlowMesh.renderOrder = 25;
+    dongBoundaryGlowMesh.renderOrder = 35;
     scene.add(dongBoundaryGlowMesh);
 
-    const dongBoundaryLineMaterial = new THREE.MeshStandardMaterial({
-      color: 0x44d57f,
-      emissive: 0x0d4524,
-      emissiveIntensity: 0.2,
-      roughness: 0.32,
-      metalness: 0.08,
+    const dongBoundaryLineMaterial = new THREE.MeshBasicMaterial({
+      color: 0x6bff9c,
+      transparent: true,
+      opacity: 0.98,
     });
     const dongBoundaryMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 0.05, 1),
@@ -2898,9 +2958,9 @@ export default function MapSimulator() {
     );
 
     dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, 0.235, segment.center.z);
+      dummy.position.set(segment.center.x, 0.315, segment.center.z);
       dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(0.48, 1.15, segment.length + 0.28);
+      dummy.scale.set(1.28, 1.4, segment.length + 0.44);
       dummy.updateMatrix();
       dongBoundaryMesh.setMatrixAt(index, dummy.matrix);
       dongBoundaryMesh.setColorAt(index, new THREE.Color(0x64ef9b));
@@ -2910,19 +2970,13 @@ export default function MapSimulator() {
     if (dongBoundaryMesh.instanceColor) {
       dongBoundaryMesh.instanceColor.needsUpdate = true;
     }
-    dongBoundaryMesh.renderOrder = 26;
+    dongBoundaryMesh.renderOrder = 36;
     scene.add(dongBoundaryMesh);
 
-    const dongWallMaterial = new THREE.MeshPhysicalMaterial({
+    const dongWallMaterial = new THREE.MeshBasicMaterial({
       color: 0x76ffad,
-      emissive: 0x114126,
-      emissiveIntensity: 0.16,
       transparent: true,
-      opacity: 0.18,
-      roughness: 0.16,
-      metalness: 0.04,
-      transmission: 0.18,
-      thickness: 0.8,
+      opacity: 0.001,
       depthWrite: false,
     });
     const dongWallMesh = new THREE.InstancedMesh(
@@ -3004,7 +3058,6 @@ export default function MapSimulator() {
       });
 
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.receiveShadow = true;
       mesh.renderOrder = roadClass === 'arterial' ? 20 : roadClass === 'connector' ? 10 : 0;
       scene.add(mesh);
     });
@@ -3077,8 +3130,6 @@ export default function MapSimulator() {
       buildingMesh.setMatrixAt(index, dummy.matrix);
       buildingMesh.setColorAt(index, new THREE.Color(building.color));
     });
-    buildingMesh.castShadow = true;
-    buildingMesh.receiveShadow = true;
     buildingMesh.instanceMatrix.needsUpdate = true;
     if (buildingMesh.instanceColor) {
       buildingMesh.instanceColor.needsUpdate = true;
@@ -3086,20 +3137,42 @@ export default function MapSimulator() {
     scene.add(buildingMesh);
 
     const labelObjects: CSS2DObject[] = [];
+    const districtLabelElements = new Map<string, HTMLDivElement>();
     const boundaryHintText = boundaryHintElement();
     container.appendChild(boundaryHintText);
 
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === 'overview';
       dongFloorMaterials.forEach((material) => {
-        material.opacity = isOverview ? 0.09 : 0.045;
+        material.opacity = isOverview ? 0.065 : 0.03;
       });
-      dongBoundaryGlowMaterial.opacity = isOverview ? 0.18 : 0.02;
-      dongBoundaryLineMaterial.emissiveIntensity = isOverview ? 0.2 : 0.11;
-      dongBoundaryLineMaterial.color.setHex(isOverview ? 0x44d57f : 0x3ebf72);
-      dongWallMaterial.opacity = isOverview ? 0.18 : 0.015;
-      dongWallMaterial.emissiveIntensity = isOverview ? 0.16 : 0.02;
-      dongWallMaterial.transmission = isOverview ? 0.18 : 0.03;
+      dongBoundaryGlowMaterial.opacity = isOverview ? 0.34 : 0.22;
+      dongBoundaryLineMaterial.color.setHex(isOverview ? 0x76ffad : 0x63f09b);
+      dongBoundaryLineMaterial.opacity = isOverview ? 0.98 : 0.92;
+      dongWallMaterial.opacity = 0.001;
+    };
+
+    const applyRenderBudget = (mode: CameraMode) => {
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio, renderPixelRatioFor(mode, isPageHidden)),
+      );
+      renderer.setSize(container.clientWidth, container.clientHeight, false);
+    };
+
+    const setBoundaryDongHighlight = (dongNames: string[]) => {
+      const activeDongs = new Set(dongNames.filter(Boolean));
+      districtLabelElements.forEach((element, dongName) => {
+        const isActive = activeDongs.has(dongName);
+        element.style.background = isActive ? 'rgba(18,84,45,0.97)' : 'rgba(5,48,67,0.96)';
+        element.style.borderColor = isActive
+          ? 'rgba(162,255,187,0.5)'
+          : 'rgba(255,255,255,0.12)';
+        element.style.color = isActive ? '#f2fff5' : '#d5f6ff';
+        element.style.boxShadow = isActive
+          ? '0 0 0 1px rgba(162,255,187,0.12), 0 10px 24px rgba(0,0,0,0.32)'
+          : '0 8px 18px rgba(0,0,0,0.25)';
+        element.style.transform = isActive ? 'translateY(-1px) scale(1.03)' : 'none';
+      });
     };
 
     const resolveFollowTaxi = () =>
@@ -3112,9 +3185,10 @@ export default function MapSimulator() {
 
     const applyModePreset = (mode: CameraMode) => {
       if (mode === 'overview') {
+        cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
-        cameraRig.pitch = Math.max(cameraRig.pitch, 0.84);
-        cameraRig.distance = Math.max(cameraRig.distance, overviewMinDistance);
+        cameraRig.pitch = Math.max(cameraRig.pitch, 0.86);
+        cameraRig.distance = Math.max(cameraRig.distance, overviewMinDistance * 1.04);
         return;
       }
 
@@ -3135,12 +3209,14 @@ export default function MapSimulator() {
 
     applyModePreset(activeCameraMode);
     applyDistrictPresentation(activeCameraMode);
+    applyRenderBudget(activeCameraMode);
     syncCamera();
 
     dongRegions.forEach((dong) => {
       const label = new CSS2DObject(labelElement(dong.name, 'district'));
       label.position.set(dong.position.x, 2.8, dong.position.z);
       label.visible = true;
+      districtLabelElements.set(dong.name, label.element as HTMLDivElement);
       labelObjects.push(label);
       scene.add(label);
     });
@@ -3634,7 +3710,12 @@ export default function MapSimulator() {
     const timer = new THREE.Timer();
     timer.connect(document);
     let animationFrame = 0;
+    let lastRafTimestamp = 0;
+    let lastVisibleRenderTimestamp = 0;
+    let renderAccumulatorMs = 0;
     let statsAccumulator = 0;
+    let fpsSampleElapsed = 0;
+    let fpsFrameCount = 0;
     let appliedWeatherMode: WeatherMode | null = null;
     let appliedTimeMinutes = -1;
     let activeVehicleSpeedMultiplier = 1;
@@ -4137,26 +4218,26 @@ export default function MapSimulator() {
       if (!segment) {
         hoveredBoundaryIndex = -1;
         boundaryHintText.style.display = 'none';
+        setBoundaryDongHighlight([]);
         if (!cameraRig.dragging) {
           renderer.domElement.style.cursor = 'grab';
         }
         return;
       }
-
-      const direction = segment.end.clone().sub(segment.start);
-      const toCamera = camera.position.clone().sub(segment.center);
-      const cameraOnLeft = direction.x * toCamera.z - direction.z * toCamera.x > 0;
-      const nearDong = cameraOnLeft ? segment.leftDong : segment.rightDong;
-      const farDong = cameraOnLeft ? segment.rightDong : segment.leftDong;
-
+      const boundaryDongs = [
+        ...new Set(
+          [segment.leftDong, segment.rightDong].filter(
+            (dongName): dongName is string => Boolean(dongName),
+          ),
+        ),
+      ];
+      setBoundaryDongHighlight(boundaryDongs);
       boundaryHintText.textContent =
-        nearDong && farDong
-          ? `이쪽은 ${nearDong} · 건너편은 ${farDong}`
-          : nearDong
-            ? `이쪽은 ${nearDong}`
-            : farDong
-              ? `건너편은 ${farDong}`
-              : '행정동 경계';
+        boundaryDongs.length >= 2
+          ? `${boundaryDongs[0]} · ${boundaryDongs[1]} 경계`
+          : boundaryDongs[0]
+            ? `${boundaryDongs[0]} 경계`
+            : '행정동 경계';
       boundaryHintText.style.left = `${pointerClientX}px`;
       boundaryHintText.style.top = `${pointerClientY}px`;
       boundaryHintText.style.display = 'block';
@@ -4189,6 +4270,7 @@ export default function MapSimulator() {
       const height = container.clientHeight;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      applyRenderBudget(cameraModeRef.current);
       renderer.setSize(width, height);
       labelRenderer.setSize(width, height);
     };
@@ -4200,6 +4282,7 @@ export default function MapSimulator() {
       'KeyS',
       'KeyD',
       'KeyE',
+      'KeyF',
       'ShiftLeft',
       'ShiftRight',
       'ArrowUp',
@@ -4312,6 +4395,13 @@ export default function MapSimulator() {
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'KeyF') {
+        if (!isInteractiveTarget(event.target)) {
+          event.preventDefault();
+        }
+        setShowFps((current) => !current);
+        return;
+      }
       if (!controlKeyCodes.has(event.code)) {
         return;
       }
@@ -4336,6 +4426,11 @@ export default function MapSimulator() {
       stopDragging();
     };
 
+    const onVisibilityChange = () => {
+      isPageHidden = document.visibilityState === 'hidden';
+      applyRenderBudget(cameraModeRef.current);
+    };
+
     const onPointerLeave = () => {
       pointerInside = false;
       pointerNdc.set(2, 2);
@@ -4346,6 +4441,7 @@ export default function MapSimulator() {
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('blur', onWindowBlur);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     renderer.domElement.addEventListener('contextmenu', onContextMenu);
@@ -4357,8 +4453,31 @@ export default function MapSimulator() {
 
     const animate = (timestamp?: number) => {
       animationFrame = window.requestAnimationFrame(animate);
-      timer.update(timestamp);
-      const delta = Math.min(timer.getDelta(), 0.05);
+      const frameTimestamp = timestamp ?? performance.now();
+      timer.update(frameTimestamp);
+      const activeRenderCap = isPageHidden
+        ? HIDDEN_RENDER_FPS
+        : renderFpsCapFor(cameraModeRef.current);
+      const targetFrameMs = 1000 / activeRenderCap;
+      const rawDeltaMs =
+        lastRafTimestamp === 0 ? targetFrameMs : Math.min(frameTimestamp - lastRafTimestamp, 250);
+      lastRafTimestamp = frameTimestamp;
+      renderAccumulatorMs = Math.min(renderAccumulatorMs + rawDeltaMs, targetFrameMs * 3);
+      if (renderAccumulatorMs < targetFrameMs) {
+        return;
+      }
+
+      const delta = Math.min(
+        Math.max(
+          lastVisibleRenderTimestamp === 0
+            ? targetFrameMs
+            : frameTimestamp - lastVisibleRenderTimestamp,
+          targetFrameMs,
+        ) / 1000,
+        0.05,
+      );
+      lastVisibleRenderTimestamp = frameTimestamp;
+      renderAccumulatorMs -= targetFrameMs;
       const elapsedTime = timer.getElapsed();
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
@@ -4375,6 +4494,7 @@ export default function MapSimulator() {
         activeCameraMode = currentMode;
         applyModePreset(currentMode);
         applyDistrictPresentation(currentMode);
+        applyRenderBudget(currentMode);
       }
 
       if (currentMode === 'drive') {
@@ -4419,10 +4539,10 @@ export default function MapSimulator() {
         }
         cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.6, delta);
       } else if (currentMode === 'overview') {
-        const blend = 1 - Math.exp(-delta * 3.2);
-        cameraLookLift = CAMERA_LOOK_HEIGHT;
-        cameraRig.focus.lerp(centerPoint, blend);
-        cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.72, CAMERA_MAX_PITCH);
+        cameraLookLift = 1.8;
+        cameraRig.focus.copy(centerPoint);
+        cameraRig.focus.y = 0;
+        cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.82, CAMERA_MAX_PITCH);
         cameraRig.distance = THREE.MathUtils.clamp(
           Math.max(cameraRig.distance, overviewMinDistance),
           overviewMinDistance,
@@ -4466,6 +4586,22 @@ export default function MapSimulator() {
         cluster.position.z = anchor.z + Math.cos(elapsedTime * 0.018 + phase) * 7.1;
         cluster.position.y = anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
       });
+      fpsFrameCount += 1;
+      fpsSampleElapsed += delta;
+      if (fpsSampleElapsed >= 0.45) {
+        if (showFpsRef.current) {
+          setFpsStats({
+            fps: Math.round(fpsFrameCount / fpsSampleElapsed),
+            cap: activeRenderCap,
+          });
+        } else {
+          setFpsStats((current) =>
+            current.cap === activeRenderCap ? current : { ...current, cap: activeRenderCap },
+          );
+        }
+        fpsFrameCount = 0;
+        fpsSampleElapsed = 0;
+      }
       starsMaterial.opacity = activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
       sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
       moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
@@ -4485,6 +4621,7 @@ export default function MapSimulator() {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('blur', onWindowBlur);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       renderer.domElement.removeEventListener('contextmenu', onContextMenu);
@@ -4589,10 +4726,10 @@ export default function MapSimulator() {
         : status;
   const controlHint =
     cameraMode === 'overview'
-      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다.'
+      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. F로 FPS 오버레이를 켤 수 있습니다.'
       : cameraMode === 'follow'
-        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다.`
-        : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. Shift로 가속할 수 있습니다.';
+        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. F로 FPS 오버레이를 켤 수 있습니다.`
+        : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. Shift로 가속하고 F로 FPS 오버레이를 켤 수 있습니다.';
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ?? WEATHER_OPTIONS[0];
   const formattedSimulationTime = format24Hour(simulationTimeMinutes);
@@ -4605,6 +4742,19 @@ export default function MapSimulator() {
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
       <div ref={containerRef} className="h-full w-full" />
+
+      {showFps ? (
+        <div className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">FPS</div>
+          <div className="mt-1 flex items-end gap-3">
+            <div className="text-2xl font-semibold tabular-nums text-lime-100">{fpsStats.fps}</div>
+            <div className="pb-1 text-xs text-slate-400">cap {fpsStats.cap}</div>
+          </div>
+          <div className="mt-1 text-[11px] text-slate-400">
+            mode {cameraModeLabel.toLowerCase()} · `F`로 숨기기
+          </div>
+        </div>
+      ) : null}
 
       <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
@@ -4787,7 +4937,8 @@ export default function MapSimulator() {
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
             동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM 지오메트리에서
             가져옵니다. 다만 건물 높이와 차량·신호·보행자 동작은 시뮬레이션 목적에 맞게
-            일부 단순화했습니다. 초록색 경계벽에 커서를 올리면 양쪽 동 안내가 나타납니다.
+            일부 단순화했습니다. 행정동 경계 시각화는 현재 비활성화되어 있고, 이후 더 안정적인
+            표현 방식으로 다시 추가할 예정입니다.
           </div>
         </div>
 
@@ -4976,10 +5127,6 @@ export default function MapSimulator() {
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ffcf57]" />
             승차 포인트
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#76ffad]" />
-            유리 동 경계
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#2bb1d8]" />
