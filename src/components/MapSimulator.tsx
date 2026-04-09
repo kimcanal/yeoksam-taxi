@@ -1,0 +1,2908 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiLineString,
+  MultiPolygon,
+  Polygon,
+  Position,
+} from 'geojson';
+
+const TAXI_COUNT = 14;
+const TRAFFIC_COUNT = 24;
+const POSITION_SCALE = 0.2;
+const ROAD_WIDTH_SCALE = 0.6;
+const BUILDING_HEIGHT_SCALE = 0.2;
+const SIGNAL_RADIUS = 7;
+const SIGNAL_CYCLE = 24;
+const CAMERA_CENTER = { lat: 37.5, lon: 127.0328 };
+const HOTSPOT_SLOWDOWN_DISTANCE = 16;
+const HOTSPOT_TRIGGER_DISTANCE = 1.2;
+const SERVICE_STOP_DURATION = 1.6;
+const INTERSECTION_OCCUPANCY_RADIUS = 3.8;
+const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
+const CROSSWALK_STRIPE_COUNT = 6;
+const CROSSWALK_STEP = 1.1;
+const CROSSWALK_WIDTH = 6.2;
+const PEDESTRIAN_SPAN = 4.2;
+const CAMERA_DRIVE_SPEED = 26;
+const CAMERA_STRAFE_SPEED = 22;
+const CAMERA_TURN_SPEED = 1.95;
+const CAMERA_BASE_MOVE_SCALE = 1.8;
+const CAMERA_BASE_TURN_SCALE = 0.95;
+const CAMERA_DRAG_SENSITIVITY = 0.0042;
+const CAMERA_MIN_DISTANCE = 34;
+const CAMERA_MAX_DISTANCE = 240;
+const CAMERA_MIN_PITCH = 0.34;
+const CAMERA_MAX_PITCH = 1.16;
+const CAMERA_LOOK_HEIGHT = 6;
+const ROAD_LAYER_Y = {
+  local: 0.116,
+  connector: 0.121,
+  arterial: 0.126,
+} as const;
+
+type SignalAxis = 'ns' | 'ew';
+type TurnMovement = 'straight' | 'left' | 'right';
+type SignalPhase =
+  | 'ns_flow'
+  | 'ns_left'
+  | 'ew_flow'
+  | 'ew_left'
+  | 'ped_walk'
+  | 'ped_flash'
+  | 'clearance';
+
+type RoadProperties = {
+  roadClass: 'arterial' | 'connector' | 'local';
+  width: number;
+  name: string | null;
+  highway: string | null;
+};
+
+type BuildingProperties = {
+  height: number;
+  area: number;
+  label: string | null;
+  kind: string | null;
+  address: string | null;
+};
+
+type RoadFeature = Feature<LineString | MultiLineString, RoadProperties>;
+type BuildingFeature = Feature<Polygon | MultiPolygon, BuildingProperties>;
+type RoadFeatureCollection = FeatureCollection<LineString | MultiLineString, RoadProperties>;
+type BuildingFeatureCollection = FeatureCollection<Polygon | MultiPolygon, BuildingProperties>;
+
+type RouteNode = {
+  key: string;
+  point: THREE.Vector3;
+};
+
+type SignalData = {
+  id: string;
+  key: string;
+  point: THREE.Vector3;
+  offset: number;
+};
+
+type SignalFlow = {
+  phase: SignalPhase;
+  ns: 'green' | 'red';
+  ew: 'green' | 'red';
+  nsLeft: boolean;
+  ewLeft: boolean;
+  pedestrian: 'walk' | 'flash' | 'stop';
+};
+
+type StopMarker = {
+  signalId: string;
+  distance: number;
+  axis: SignalAxis;
+  turn: TurnMovement;
+};
+
+type RouteTemplate = {
+  id: string;
+  name: string | null;
+  roadClass: RoadProperties['roadClass'];
+  roadWidth: number;
+  laneOffset: number;
+  nodes: RouteNode[];
+  cumulative: number[];
+  totalLength: number;
+  stops: StopMarker[];
+  startKey: string;
+  endKey: string;
+  isLoop: boolean;
+};
+
+type VehiclePalette = {
+  body: number;
+  cabin: number;
+  sign: number | null;
+};
+
+type VehicleKind = 'taxi' | 'traffic';
+type VehiclePlanMode = 'traffic' | 'pickup' | 'dropoff';
+type CameraMode = 'drive' | 'overview' | 'follow';
+
+type Vehicle = {
+  id: string;
+  kind: VehicleKind;
+  route: RouteTemplate;
+  group: THREE.Group;
+  bodyMaterial: THREE.MeshStandardMaterial;
+  signMaterial: THREE.MeshStandardMaterial | null;
+  baseSpeed: number;
+  speed: number;
+  distance: number;
+  safeGap: number;
+  length: number;
+  currentSignalId: string | null;
+  roadName: string | null;
+  palette: VehiclePalette;
+  isOccupied: boolean;
+  pickupHotspot: Hotspot | null;
+  dropoffHotspot: Hotspot | null;
+  serviceTimer: number;
+  planMode: VehiclePlanMode;
+};
+
+type Stats = {
+  taxis: number;
+  traffic: number;
+  waiting: number;
+  signals: number;
+  activeTrips: number;
+  completedTrips: number;
+  pedestrians: number;
+};
+
+type TaxiOption = {
+  id: string;
+  label: string;
+  detail: string;
+};
+
+type SimulationData = {
+  center: { lat: number; lon: number };
+  roads: RoadFeatureCollection;
+  buildings: BuildingFeatureCollection;
+};
+
+type Hotspot = {
+  id: string;
+  nodeKey: string;
+  routeId: string;
+  distance: number;
+  position: THREE.Vector3;
+  point: THREE.Vector3;
+  label: string;
+  roadName: string | null;
+};
+
+type BuildingMass = {
+  id: string;
+  label: string | null;
+  height: number;
+  position: THREE.Vector3;
+  width: number;
+  depth: number;
+  color: number;
+};
+
+type GraphEdge = {
+  id: string;
+  from: string;
+  to: string;
+  roadClass: RoadProperties['roadClass'];
+  roadWidth: number;
+  length: number;
+  name: string | null;
+};
+
+type RoadGraph = {
+  nodes: Map<string, RouteNode>;
+  adjacency: Map<string, GraphEdge[]>;
+  edgeIndex: Map<string, GraphEdge>;
+};
+
+type SignalVisual = SignalData & {
+  group: THREE.Group;
+  reds: THREE.Mesh[];
+  greens: THREE.Mesh[];
+  leftArrows: THREE.Mesh[];
+  pedestrianLamps: THREE.Mesh[];
+};
+
+type PedestrianVisual = {
+  signalId: string;
+  axis: SignalAxis;
+  group: THREE.Group;
+  phaseOffset: number;
+  speed: number;
+  lateralOffset: number;
+  direction: 1 | -1;
+};
+
+type HotspotVisual = {
+  hotspot: Hotspot;
+  base: THREE.Mesh;
+  glow: THREE.Mesh;
+  beacon: THREE.Mesh;
+  ring: THREE.Mesh;
+  callerGroup: THREE.Group;
+  waveArmPivot: THREE.Group;
+  hailCube: THREE.Mesh;
+  callBadge: CSS2DObject;
+};
+
+const TAXI_PALETTE: VehiclePalette = {
+  body: 0xffcb44,
+  cabin: 0xfff1a4,
+  sign: 0xfff9d8,
+};
+
+const TRAFFIC_PALETTES: VehiclePalette[] = [
+  { body: 0x78c4ff, cabin: 0xdff3ff, sign: null },
+  { body: 0xff8f66, cabin: 0xffdcc9, sign: null },
+  { body: 0x79d58f, cabin: 0xe2fae8, sign: null },
+  { body: 0x7f9aff, cabin: 0xe2e8ff, sign: null },
+  { body: 0xffb15c, cabin: 0xffead1, sign: null },
+];
+
+function geoKey(position: Position) {
+  return `${position[0].toFixed(5)}:${position[1].toFixed(5)}`;
+}
+
+function projectPoint(position: Position, center: { lat: number; lon: number }) {
+  const latFactor = 110540 * POSITION_SCALE;
+  const lonFactor = 111320 * Math.cos((center.lat * Math.PI) / 180) * POSITION_SCALE;
+  return new THREE.Vector3(
+    (position[0] - center.lon) * lonFactor,
+    0,
+    -(position[1] - center.lat) * latFactor,
+  );
+}
+
+function lineStringsOfRoad(feature: RoadFeature, center: { lat: number; lon: number }) {
+  if (feature.geometry.type === 'LineString') {
+    return [
+      feature.geometry.coordinates.map((coordinate) => ({
+        key: geoKey(coordinate),
+        point: projectPoint(coordinate, center),
+      })),
+    ];
+  }
+
+  return feature.geometry.coordinates.map((line) =>
+    line.map((coordinate) => ({
+      key: geoKey(coordinate),
+      point: projectPoint(coordinate, center),
+    })),
+  );
+}
+
+function outerRingOfBuilding(feature: BuildingFeature, center: { lat: number; lon: number }) {
+  const ring =
+    feature.geometry.type === 'Polygon'
+      ? feature.geometry.coordinates[0]
+      : feature.geometry.coordinates[0]?.[0] ?? [];
+
+  return ring.map((coordinate) => projectPoint(coordinate, center));
+}
+
+function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
+  return Math.hypot(end.x - start.x, end.z - start.z);
+}
+
+function buildCumulative(points: THREE.Vector3[]) {
+  const cumulative = [0];
+  for (let index = 1; index < points.length; index += 1) {
+    cumulative.push(cumulative[index - 1] + distanceXZ(points[index - 1], points[index]));
+  }
+  return cumulative;
+}
+
+function normalizeDistance(value: number, totalLength: number) {
+  if (totalLength <= 0) {
+    return 0;
+  }
+  return ((value % totalLength) + totalLength) % totalLength;
+}
+
+function clampRouteDistance(route: RouteTemplate, value: number) {
+  if (route.isLoop) {
+    return normalizeDistance(value, route.totalLength);
+  }
+  return THREE.MathUtils.clamp(value, 0, route.totalLength);
+}
+
+function routeDistanceAhead(route: RouteTemplate, current: number, target: number) {
+  if (route.isLoop) {
+    const normalizedCurrent = normalizeDistance(current, route.totalLength);
+    const normalizedTarget = normalizeDistance(target, route.totalLength);
+    if (normalizedTarget >= normalizedCurrent) {
+      return normalizedTarget - normalizedCurrent;
+    }
+    return route.totalLength - normalizedCurrent + normalizedTarget;
+  }
+
+  if (target < current) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return target - current;
+}
+
+function offsetToRight(position: THREE.Vector3, heading: THREE.Vector3, offset: number) {
+  const right = new THREE.Vector3(heading.z, 0, -heading.x).normalize();
+  return position.clone().addScaledVector(right, offset);
+}
+
+function wrapAngle(angle: number) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function dampAngle(current: number, target: number, lambda: number, delta: number) {
+  const gap = wrapAngle(target - current);
+  return wrapAngle(current + gap * (1 - Math.exp(-lambda * delta)));
+}
+
+function sampleRoute(route: RouteTemplate, distance: number) {
+  if (route.nodes.length < 2 || route.totalLength <= 0) {
+    return {
+      position: route.nodes[0]?.point.clone() ?? new THREE.Vector3(),
+      heading: new THREE.Vector3(0, 0, 1),
+      segmentIndex: 0,
+    };
+  }
+
+  const clampedDistance = clampRouteDistance(route, distance);
+  let segmentIndex = 0;
+  while (
+    segmentIndex < route.cumulative.length - 2 &&
+    route.cumulative[segmentIndex + 1] < clampedDistance
+  ) {
+    segmentIndex += 1;
+  }
+
+  const start = route.nodes[segmentIndex].point;
+  const end = route.nodes[segmentIndex + 1]?.point ?? start;
+  const segmentStart = route.cumulative[segmentIndex];
+  const segmentLength = Math.max(distanceXZ(start, end), 0.0001);
+  const heading = end.clone().sub(start);
+  if (heading.lengthSq() < 0.0001) {
+    heading.set(0, 0, 1);
+  } else {
+    heading.normalize();
+  }
+
+  return {
+    position: start.clone().lerp(end, (clampedDistance - segmentStart) / segmentLength),
+    heading,
+    segmentIndex,
+  };
+}
+
+function dominantAxis(start: THREE.Vector3, end: THREE.Vector3): SignalAxis {
+  return Math.abs(end.x - start.x) > Math.abs(end.z - start.z) ? 'ew' : 'ns';
+}
+
+function classifyTurn(
+  previous: THREE.Vector3,
+  current: THREE.Vector3,
+  next: THREE.Vector3,
+): TurnMovement {
+  const incoming = current.clone().sub(previous).normalize();
+  const outgoing = next.clone().sub(current).normalize();
+  const dot = incoming.dot(outgoing);
+  if (dot > 0.72) {
+    return 'straight';
+  }
+  const cross = incoming.x * outgoing.z - incoming.z * outgoing.x;
+  return cross > 0 ? 'right' : 'left';
+}
+
+function colorForBuilding(height: number) {
+  if (height >= 45) return 0x6f8fce;
+  if (height >= 25) return 0x4c6a9f;
+  return 0x334760;
+}
+
+function roadRank(roadClass: RoadProperties['roadClass']) {
+  switch (roadClass) {
+    case 'arterial':
+      return 3;
+    case 'connector':
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function roadTravelCost(roadClass: RoadProperties['roadClass']) {
+  switch (roadClass) {
+    case 'arterial':
+      return 0.9;
+    case 'connector':
+      return 1;
+    default:
+      return 1.18;
+  }
+}
+
+function mostCommonLabel(values: Array<string | null | undefined>) {
+  const counts = new Map<string, number>();
+  values.forEach((value) => {
+    if (!value) {
+      return;
+    }
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
+
+  let bestLabel: string | null = null;
+  let bestCount = 0;
+  counts.forEach((count, label) => {
+    if (count > bestCount) {
+      bestCount = count;
+      bestLabel = label;
+    }
+  });
+  return bestLabel;
+}
+
+function labelElement(text: string, kind: 'road' | 'building' | 'service') {
+  const element = document.createElement('div');
+  element.textContent = text;
+  element.style.padding =
+    kind === 'road' ? '2px 8px' : kind === 'service' ? '3px 10px' : '3px 9px';
+  element.style.borderRadius = '999px';
+  element.style.border = '1px solid rgba(255,255,255,0.12)';
+  element.style.background =
+    kind === 'road'
+      ? 'rgba(8,18,34,0.72)'
+      : kind === 'service'
+        ? 'rgba(51,36,7,0.86)'
+        : 'rgba(12,20,36,0.85)';
+  element.style.color =
+    kind === 'road' ? '#cfe7ff' : kind === 'service' ? '#ffe7a8' : '#f7fbff';
+  element.style.fontSize = kind === 'road' ? '11px' : '12px';
+  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
+  element.style.letterSpacing = '0.02em';
+  element.style.whiteSpace = 'nowrap';
+  element.style.pointerEvents = 'none';
+  element.style.boxShadow = '0 8px 18px rgba(0,0,0,0.25)';
+  return element;
+}
+
+function hotspotCallElement() {
+  const element = document.createElement('div');
+  element.textContent = 'o/ CALL TAXI';
+  element.style.padding = '3px 10px';
+  element.style.borderRadius = '999px';
+  element.style.border = '1px solid rgba(255,229,161,0.45)';
+  element.style.background = 'rgba(38,29,8,0.88)';
+  element.style.color = '#ffefbe';
+  element.style.fontSize = '11px';
+  element.style.fontWeight = '600';
+  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
+  element.style.letterSpacing = '0.04em';
+  element.style.whiteSpace = 'nowrap';
+  element.style.pointerEvents = 'none';
+  element.style.boxShadow = '0 8px 18px rgba(0,0,0,0.32)';
+  return element;
+}
+
+function buildBuildingMasses(
+  buildings: BuildingFeatureCollection,
+  center: { lat: number; lon: number },
+) {
+  return buildings.features
+    .map((feature, index) => {
+      const ring = outerRingOfBuilding(feature, center);
+      if (ring.length < 4) {
+        return null;
+      }
+
+      const footprint = new THREE.Box3();
+      ring.forEach((point) => footprint.expandByPoint(point));
+      const footprintSize = footprint.getSize(new THREE.Vector3());
+      const footprintCenter = footprint.getCenter(new THREE.Vector3());
+      if (footprintSize.x < 0.8 || footprintSize.z < 0.8) {
+        return null;
+      }
+
+      return {
+        id: `building-${index}`,
+        label: feature.properties.label,
+        height: Math.max(2, (feature.properties.height ?? 15) * BUILDING_HEIGHT_SCALE),
+        position: footprintCenter,
+        width: footprintSize.x,
+        depth: footprintSize.z,
+        color: colorForBuilding(feature.properties.height ?? 15),
+      } satisfies BuildingMass;
+    })
+    .filter(Boolean) as BuildingMass[];
+}
+
+function buildSignals(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+) {
+  const nodeMap = new Map<
+    string,
+    {
+      point: THREE.Vector3;
+      roadIds: Set<string>;
+      rank: number;
+    }
+  >();
+
+  roads.features.forEach((feature, featureIndex) => {
+    lineStringsOfRoad(feature, center).forEach((line) => {
+      line.forEach((node, nodeIndex) => {
+        const entry = nodeMap.get(node.key) ?? {
+          point: node.point,
+          roadIds: new Set<string>(),
+          rank: 0,
+        };
+        entry.roadIds.add(String(feature.id ?? `road-${featureIndex}`));
+        entry.rank = Math.max(entry.rank, roadRank(feature.properties.roadClass));
+        if (nodeIndex > 0 && nodeIndex < line.length - 1) {
+          nodeMap.set(node.key, entry);
+        }
+      });
+    });
+  });
+
+  return [...nodeMap.entries()]
+    .filter(([, entry]) => entry.roadIds.size >= 2 && entry.rank >= 2)
+    .sort((left, right) => {
+      const roadGap = right[1].roadIds.size - left[1].roadIds.size;
+      if (roadGap !== 0) {
+        return roadGap;
+      }
+      return right[1].rank - left[1].rank;
+    })
+    .slice(0, 18)
+    .map(([key, entry], index) => ({
+      id: `signal-${index}`,
+      key,
+      point: entry.point.clone(),
+      offset: index * 1.8,
+    })) satisfies SignalData[];
+}
+
+function buildRoadGraph(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+): RoadGraph {
+  const nodes = new Map<string, RouteNode>();
+  const adjacency = new Map<string, GraphEdge[]>();
+  const edgeIndex = new Map<string, GraphEdge>();
+
+  roads.features.forEach((feature, featureIndex) => {
+    lineStringsOfRoad(feature, center).forEach((line, lineIndex) => {
+      line.forEach((node) => {
+        if (!nodes.has(node.key)) {
+          nodes.set(node.key, { key: node.key, point: node.point.clone() });
+        }
+      });
+
+      for (let index = 0; index < line.length - 1; index += 1) {
+        const from = line[index];
+        const to = line[index + 1];
+        const length = distanceXZ(from.point, to.point);
+        if (length < 1) {
+          continue;
+        }
+
+        const roadWidth = feature.properties.width * ROAD_WIDTH_SCALE;
+        const baseId = `${feature.id ?? featureIndex}-${lineIndex}-${index}`;
+        const forward: GraphEdge = {
+          id: `${baseId}-f`,
+          from: from.key,
+          to: to.key,
+          roadClass: feature.properties.roadClass,
+          roadWidth,
+          length,
+          name: feature.properties.name,
+        };
+        const backward: GraphEdge = {
+          ...forward,
+          id: `${baseId}-r`,
+          from: to.key,
+          to: from.key,
+        };
+
+        const forwardList = adjacency.get(forward.from) ?? [];
+        forwardList.push(forward);
+        adjacency.set(forward.from, forwardList);
+
+        const backwardList = adjacency.get(backward.from) ?? [];
+        backwardList.push(backward);
+        adjacency.set(backward.from, backwardList);
+
+        edgeIndex.set(`${forward.from}|${forward.to}`, forward);
+        edgeIndex.set(`${backward.from}|${backward.to}`, backward);
+      }
+    });
+  });
+
+  return { nodes, adjacency, edgeIndex };
+}
+
+function shortestPath(graph: RoadGraph, startKey: string, endKey: string) {
+  if (startKey === endKey) {
+    return [startKey];
+  }
+
+  const frontier = [{ key: startKey, cost: 0 }];
+  const visited = new Set<string>();
+  const distances = new Map<string, number>([[startKey, 0]]);
+  const previous = new Map<string, string>();
+
+  while (frontier.length) {
+    frontier.sort((left, right) => left.cost - right.cost);
+    const current = frontier.shift();
+    if (!current || visited.has(current.key)) {
+      continue;
+    }
+
+    if (current.key === endKey) {
+      break;
+    }
+
+    visited.add(current.key);
+
+    (graph.adjacency.get(current.key) ?? []).forEach((edge) => {
+      const nextCost = current.cost + edge.length * roadTravelCost(edge.roadClass);
+      const knownCost = distances.get(edge.to) ?? Number.POSITIVE_INFINITY;
+      if (nextCost < knownCost) {
+        distances.set(edge.to, nextCost);
+        previous.set(edge.to, current.key);
+        frontier.push({ key: edge.to, cost: nextCost });
+      }
+    });
+  }
+
+  if (!previous.has(endKey)) {
+    return null;
+  }
+
+  const path = [endKey];
+  let cursor = endKey;
+  while (cursor !== startKey) {
+    const prior = previous.get(cursor);
+    if (!prior) {
+      return null;
+    }
+    path.push(prior);
+    cursor = prior;
+  }
+
+  return path.reverse();
+}
+
+function buildPathRoute(
+  graph: RoadGraph,
+  signalByKey: Map<string, SignalData>,
+  nodeKeys: string[],
+  id: string,
+  label: string | null,
+) {
+  if (nodeKeys.length < 2) {
+    return null;
+  }
+
+  const nodes = nodeKeys
+    .map((key) => graph.nodes.get(key))
+    .filter(Boolean)
+    .map((node) => ({ key: node?.key ?? '', point: node?.point.clone() ?? new THREE.Vector3() }));
+
+  if (nodes.length < 2) {
+    return null;
+  }
+
+  const edgeProps = nodeKeys
+    .slice(0, -1)
+    .map((fromKey, index) => graph.edgeIndex.get(`${fromKey}|${nodeKeys[index + 1]}`))
+    .filter(Boolean) as GraphEdge[];
+
+  const cumulative = buildCumulative(nodes.map((node) => node.point));
+  const totalLength = cumulative[cumulative.length - 1] ?? 0;
+  if (totalLength < 2) {
+    return null;
+  }
+
+  const roadClass = edgeProps.reduce<RoadProperties['roadClass']>((best, edge) => {
+    return roadRank(edge.roadClass) > roadRank(best) ? edge.roadClass : best;
+  }, edgeProps[0]?.roadClass ?? 'local');
+  const roadWidth =
+    edgeProps.reduce((sum, edge) => sum + edge.roadWidth, 0) / Math.max(edgeProps.length, 1);
+
+  const stops: StopMarker[] = [];
+  for (let index = 1; index < nodes.length - 1; index += 1) {
+    const signal = signalByKey.get(nodes[index].key);
+    if (!signal) {
+      continue;
+    }
+
+    const previousStop = stops[stops.length - 1];
+    if (previousStop?.signalId === signal.id) {
+      continue;
+    }
+
+    stops.push({
+      signalId: signal.id,
+      distance: Math.max(0, cumulative[index] - 2.8),
+      axis: dominantAxis(nodes[index - 1].point, nodes[index].point),
+      turn: classifyTurn(nodes[index - 1].point, nodes[index].point, nodes[index + 1].point),
+    });
+  }
+
+  return {
+    id,
+    name: label ?? mostCommonLabel(edgeProps.map((edge) => edge.name)) ?? null,
+    roadClass,
+    roadWidth,
+    laneOffset: THREE.MathUtils.clamp(roadWidth * 0.22, 0.45, 0.95),
+    nodes,
+    cumulative,
+    totalLength,
+    stops,
+    startKey: nodeKeys[0],
+    endKey: nodeKeys[nodeKeys.length - 1],
+    isLoop: false,
+  } satisfies RouteTemplate;
+}
+
+function buildShortestRoute(
+  graph: RoadGraph,
+  signalByKey: Map<string, SignalData>,
+  startKey: string,
+  endKey: string,
+  id: string,
+  label: string | null,
+) {
+  const nodeKeys = shortestPath(graph, startKey, endKey);
+  if (!nodeKeys || nodeKeys.length < 2) {
+    return null;
+  }
+  return buildPathRoute(graph, signalByKey, nodeKeys, id, label);
+}
+
+function buildLoopRoutes(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+  signalByKey: Map<string, SignalData>,
+) {
+  const candidates = roads.features
+    .flatMap((feature, featureIndex) =>
+      lineStringsOfRoad(feature, center).map((line, lineIndex) => ({
+        id: `${feature.id ?? featureIndex}-${lineIndex}`,
+        name: feature.properties.name,
+        roadClass: feature.properties.roadClass,
+        roadWidth: feature.properties.width * ROAD_WIDTH_SCALE,
+        nodes: line,
+        length: buildCumulative(line.map((node) => node.point)).at(-1) ?? 0,
+      })),
+    )
+    .filter((candidate) => candidate.nodes.length >= 2 && candidate.length >= 34);
+
+  return candidates
+    .sort((left, right) => {
+      const nameGap = Number(Boolean(right.name)) - Number(Boolean(left.name));
+      if (nameGap !== 0) {
+        return nameGap;
+      }
+      const rankGap = roadRank(right.roadClass) - roadRank(left.roadClass);
+      if (rankGap !== 0) {
+        return rankGap;
+      }
+      return right.length - left.length;
+    })
+    .map((candidate) => {
+      const roundTripNodes = [
+        ...candidate.nodes,
+        ...candidate.nodes.slice(0, -1).reverse().map((node) => ({
+          key: node.key,
+          point: node.point.clone(),
+        })),
+      ];
+      const cumulative = buildCumulative(roundTripNodes.map((node) => node.point));
+      const totalLength = cumulative[cumulative.length - 1] ?? 0;
+
+      const stops: StopMarker[] = [];
+      for (let index = 1; index < roundTripNodes.length - 1; index += 1) {
+        const signal = signalByKey.get(roundTripNodes[index].key);
+        if (!signal) {
+          continue;
+        }
+
+        const previousStop = stops[stops.length - 1];
+        if (previousStop?.signalId === signal.id) {
+          continue;
+        }
+
+        stops.push({
+          signalId: signal.id,
+          distance: Math.max(0, cumulative[index] - 2.8),
+          axis: dominantAxis(roundTripNodes[index - 1].point, roundTripNodes[index].point),
+          turn: classifyTurn(
+            roundTripNodes[index - 1].point,
+            roundTripNodes[index].point,
+            roundTripNodes[index + 1].point,
+          ),
+        });
+      }
+
+      return {
+        id: candidate.id,
+        name: candidate.name,
+        roadClass: candidate.roadClass,
+        roadWidth: candidate.roadWidth,
+        laneOffset: THREE.MathUtils.clamp(candidate.roadWidth * 0.22, 0.45, 0.95),
+        nodes: roundTripNodes,
+        cumulative,
+        totalLength,
+        stops,
+        startKey: roundTripNodes[0].key,
+        endKey: roundTripNodes[roundTripNodes.length - 1].key,
+        isLoop: true,
+      } satisfies RouteTemplate;
+    })
+    .filter((route) => route.totalLength >= 40);
+}
+
+function hotspotLabelForRoute(
+  route: RouteTemplate,
+  position: THREE.Vector3,
+  buildings: BuildingMass[],
+  index: number,
+) {
+  const nearest = buildings
+    .filter((building) => Boolean(building.label))
+    .map((building) => ({
+      building,
+      distance: building.position.distanceTo(position),
+    }))
+    .sort((left, right) => left.distance - right.distance)[0];
+
+  if (nearest && nearest.distance < 34 && nearest.building.label) {
+    return nearest.building.label;
+  }
+  if (route.name) {
+    return `${route.name} 승차지`;
+  }
+  return `택시 포인트 ${index + 1}`;
+}
+
+function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
+  return routes.flatMap((route, routeIndex) => {
+    if (route.nodes.length < 4) {
+      return [] as Hotspot[];
+    }
+
+    const fractions = route.totalLength > 180 ? [0.14, 0.38, 0.63, 0.86] : [0.22, 0.58, 0.84];
+    return fractions.map((fraction, hotspotIndex) => {
+      const targetDistance = route.totalLength * fraction + routeIndex * 4.5;
+      let nodeIndex = 1;
+      let bestGap = Number.POSITIVE_INFINITY;
+
+      for (let index = 1; index < route.nodes.length - 1; index += 1) {
+        const gap = Math.abs(route.cumulative[index] - targetDistance);
+        if (gap < bestGap) {
+          bestGap = gap;
+          nodeIndex = index;
+        }
+      }
+
+      const currentPoint = route.nodes[nodeIndex].point;
+      const previousPoint = route.nodes[Math.max(0, nodeIndex - 1)].point;
+      const nextPoint = route.nodes[Math.min(route.nodes.length - 1, nodeIndex + 1)].point;
+      const heading = nextPoint.clone().sub(previousPoint);
+      if (heading.lengthSq() < 0.0001) {
+        heading.set(0, 0, 1);
+      } else {
+        heading.normalize();
+      }
+
+      const lanePosition = offsetToRight(currentPoint, heading, route.laneOffset + 0.95);
+      return {
+        id: `${route.id}-hotspot-${hotspotIndex}`,
+        nodeKey: route.nodes[nodeIndex].key,
+        routeId: route.id,
+        distance: route.cumulative[nodeIndex],
+        position: lanePosition.clone().setY(0.14),
+        point: lanePosition.clone(),
+        label: hotspotLabelForRoute(route, lanePosition, buildings, hotspotIndex),
+        roadName: route.name,
+      } satisfies Hotspot;
+    });
+  });
+}
+
+function signalState(signal: SignalData, elapsedTime: number): SignalFlow {
+  const phase = (elapsedTime + signal.offset) % SIGNAL_CYCLE;
+  if (phase < 5.8) {
+    return { phase: 'ns_flow', ns: 'green', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
+  }
+  if (phase < 7.8) {
+    return { phase: 'ns_left', ns: 'red', ew: 'red', nsLeft: true, ewLeft: false, pedestrian: 'stop' };
+  }
+  if (phase < 8.8) {
+    return { phase: 'clearance', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
+  }
+  if (phase < 14.6) {
+    return { phase: 'ew_flow', ns: 'red', ew: 'green', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
+  }
+  if (phase < 16.6) {
+    return { phase: 'ew_left', ns: 'red', ew: 'red', nsLeft: false, ewLeft: true, pedestrian: 'stop' };
+  }
+  if (phase < 17.6) {
+    return { phase: 'clearance', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
+  }
+  if (phase < 21.2) {
+    return { phase: 'ped_walk', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'walk' };
+  }
+  return { phase: 'ped_flash', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'flash' };
+}
+
+function canVehicleProceed(
+  stop: StopMarker,
+  state: SignalFlow,
+  conflictingAxisOccupied: boolean,
+) {
+  if (state.phase === 'clearance' || state.phase === 'ped_walk' || state.phase === 'ped_flash') {
+    return false;
+  }
+  if (stop.turn === 'left') {
+    if (stop.axis === 'ns') {
+      return state.nsLeft || (state.ns === 'green' && !conflictingAxisOccupied);
+    }
+    return state.ewLeft || (state.ew === 'green' && !conflictingAxisOccupied);
+  }
+  return stop.axis === 'ns' ? state.ns === 'green' : state.ew === 'green';
+}
+
+function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
+  const group = new THREE.Group();
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: palette.body,
+    roughness: 0.95,
+    metalness: 0.02,
+  });
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(kind === 'taxi' ? 1.8 : 1.62, 1.2, kind === 'taxi' ? 4.3 : 4.05),
+    bodyMaterial,
+  );
+  body.position.y = 0.7;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(kind === 'taxi' ? 1.24 : 1.14, 0.95, 2.05),
+    new THREE.MeshStandardMaterial({
+      color: palette.cabin,
+      roughness: 0.65,
+      metalness: 0.02,
+    }),
+  );
+  cabin.position.set(0, 1.5, 0.15);
+  cabin.castShadow = true;
+  group.add(cabin);
+
+  const windshield = new THREE.Mesh(
+    new THREE.BoxGeometry(1.08, 0.18, 1.46),
+    new THREE.MeshStandardMaterial({
+      color: 0xdff3ff,
+      emissive: 0x294a6a,
+      emissiveIntensity: 0.16,
+      roughness: 0.2,
+      metalness: 0.05,
+    }),
+  );
+  windshield.position.set(0, 2.05, 0.15);
+  group.add(windshield);
+
+  let signMaterial: THREE.MeshStandardMaterial | null = null;
+  if (kind === 'taxi') {
+    signMaterial = new THREE.MeshStandardMaterial({
+      color: palette.sign ?? 0xfff9d8,
+      emissive: 0x6d5800,
+      emissiveIntensity: 0.14,
+      roughness: 0.72,
+      metalness: 0,
+    });
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.26, 0.72), signMaterial);
+    sign.position.set(0, 2.42, -0.25);
+    group.add(sign);
+  }
+
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 4.9),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  return { group, bodyMaterial, signMaterial };
+}
+
+function createPedestrianGroup(seed: number) {
+  const palette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][seed % 5];
+  const group = new THREE.Group();
+
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.82, 0.24),
+    new THREE.MeshStandardMaterial({ color: palette, roughness: 0.8 }),
+  );
+  body.position.y = 0.74;
+  body.castShadow = true;
+  group.add(body);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 10, 10),
+    new THREE.MeshStandardMaterial({ color: 0xf4d9c2, roughness: 0.7 }),
+  );
+  head.position.y = 1.34;
+  head.castShadow = true;
+  group.add(head);
+
+  const feet = new THREE.Mesh(
+    new THREE.BoxGeometry(0.28, 0.12, 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x1a2331, roughness: 0.92 }),
+  );
+  feet.position.y = 0.12;
+  feet.castShadow = true;
+  group.add(feet);
+
+  return group;
+}
+
+function createCallerGroup(seed: number) {
+  const topPalette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][seed % 5];
+  const bottomPalette = [0x253244, 0x26394d, 0x2f3845, 0x29313f][seed % 4];
+  const group = new THREE.Group();
+
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.1, 0.72),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  const shoes = new THREE.Mesh(
+    new THREE.BoxGeometry(0.36, 0.12, 0.24),
+    new THREE.MeshStandardMaterial({ color: 0x161c28, roughness: 0.94 }),
+  );
+  shoes.position.y = 0.06;
+  shoes.castShadow = true;
+  group.add(shoes);
+
+  const legs = new THREE.Mesh(
+    new THREE.BoxGeometry(0.3, 0.52, 0.22),
+    new THREE.MeshStandardMaterial({ color: bottomPalette, roughness: 0.88 }),
+  );
+  legs.position.y = 0.38;
+  legs.castShadow = true;
+  group.add(legs);
+
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(0.48, 0.62, 0.28),
+    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.82 }),
+  );
+  torso.position.y = 0.94;
+  torso.castShadow = true;
+  group.add(torso);
+
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(0.3, 0.3, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xf2d7bd, roughness: 0.75 }),
+  );
+  head.position.y = 1.42;
+  head.castShadow = true;
+  group.add(head);
+
+  const leftArm = new THREE.Mesh(
+    new THREE.BoxGeometry(0.14, 0.56, 0.14),
+    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.84 }),
+  );
+  leftArm.position.set(-0.34, 0.9, 0);
+  leftArm.rotation.z = 0.18;
+  leftArm.castShadow = true;
+  group.add(leftArm);
+
+  const waveArmPivot = new THREE.Group();
+  waveArmPivot.position.set(0.32, 1.16, 0);
+  group.add(waveArmPivot);
+
+  const waveArm = new THREE.Mesh(
+    new THREE.BoxGeometry(0.14, 0.6, 0.14),
+    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.84 }),
+  );
+  waveArm.position.set(0, -0.28, 0);
+  waveArm.castShadow = true;
+  waveArmPivot.add(waveArm);
+
+  const hailCube = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.24, 0.16),
+    new THREE.MeshStandardMaterial({
+      color: 0xffdd63,
+      emissive: 0x7b5600,
+      emissiveIntensity: 0.34,
+      roughness: 0.38,
+    }),
+  );
+  hailCube.position.set(0.12, -0.62, 0.08);
+  hailCube.castShadow = true;
+  waveArmPivot.add(hailCube);
+
+  return { group, waveArmPivot, hailCube };
+}
+
+function buildMajorRoadNames(roads: RoadFeatureCollection | null) {
+  if (!roads) {
+    return [];
+  }
+  return [
+    ...new Set(
+      roads.features
+        .filter((feature) => feature.properties.name && feature.properties.roadClass !== 'local')
+        .map((feature) => feature.properties.name as string),
+    ),
+  ].slice(0, 6);
+}
+
+function buildMajorBuildingNames(buildings: BuildingFeatureCollection | null) {
+  if (!buildings) {
+    return [];
+  }
+  return buildings.features
+    .filter((feature) => feature.properties.label)
+    .sort((left, right) => (right.properties.height ?? 0) - (left.properties.height ?? 0))
+    .slice(0, 6)
+    .map((feature) => feature.properties.label as string);
+}
+
+function setTaxiAppearance(vehicle: Vehicle) {
+  if (vehicle.kind !== 'taxi') {
+    return;
+  }
+  if (vehicle.isOccupied) {
+    vehicle.bodyMaterial.color.setHex(0xe3a928);
+    vehicle.bodyMaterial.emissive.setHex(0x3c2700);
+    vehicle.bodyMaterial.emissiveIntensity = 0.22;
+    vehicle.signMaterial?.color.setHex(0x9ee8ff);
+    vehicle.signMaterial?.emissive.setHex(0x19586c);
+    if (vehicle.signMaterial) {
+      vehicle.signMaterial.emissiveIntensity = 0.36;
+    }
+    return;
+  }
+
+  vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
+  vehicle.bodyMaterial.emissive.setHex(0x221700);
+  vehicle.bodyMaterial.emissiveIntensity = 0.08;
+  vehicle.signMaterial?.color.setHex(vehicle.palette.sign ?? 0xfff9d8);
+  vehicle.signMaterial?.emissive.setHex(0x6d5800);
+  if (vehicle.signMaterial) {
+    vehicle.signMaterial.emissiveIntensity = 0.16;
+  }
+}
+
+function syncVehicleTransform(vehicle: Vehicle) {
+  const sample = sampleRoute(vehicle.route, vehicle.distance);
+  const lanePosition = offsetToRight(sample.position, sample.heading, vehicle.route.laneOffset);
+  vehicle.group.position.copy(lanePosition);
+  vehicle.group.rotation.y = Math.atan2(sample.heading.x, sample.heading.z);
+}
+
+function planTaxiJob(
+  startKey: string,
+  hotspots: Hotspot[],
+  graph: RoadGraph,
+  signalByKey: Map<string, SignalData>,
+  seed: number,
+  vehicleId: string,
+) {
+  const originPoint = graph.nodes.get(startKey)?.point ?? new THREE.Vector3();
+  const pickups = hotspots
+    .filter((hotspot) => hotspot.nodeKey !== startKey)
+    .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(originPoint) }))
+    .sort((left, right) => left.distance - right.distance);
+
+  if (!pickups.length) {
+    return null;
+  }
+
+  const pickupPool = pickups.slice(1, Math.min(pickups.length, 12));
+  const orderedPickups = pickupPool.length ? pickupPool : pickups;
+
+  for (let attempt = 0; attempt < Math.min(orderedPickups.length * 2, 18); attempt += 1) {
+    const pickup = orderedPickups[(seed + attempt * 3) % orderedPickups.length].hotspot;
+    const drops = hotspots
+      .filter((hotspot) => hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey)
+      .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(pickup.point) }))
+      .filter((entry) => entry.distance > 26)
+      .sort((left, right) => right.distance - left.distance);
+
+    const orderedDrops = drops.length
+      ? drops
+      : hotspots
+          .filter((hotspot) => hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey)
+          .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(pickup.point) }));
+
+    if (!orderedDrops.length) {
+      continue;
+    }
+
+    const dropoff = orderedDrops[(seed * 2 + attempt) % orderedDrops.length].hotspot;
+    const pickupRoute = buildShortestRoute(
+      graph,
+      signalByKey,
+      startKey,
+      pickup.nodeKey,
+      `${vehicleId}-pickup-${seed}-${attempt}`,
+      pickup.roadName ?? pickup.label,
+    );
+    const dropRoute = buildShortestRoute(
+      graph,
+      signalByKey,
+      pickup.nodeKey,
+      dropoff.nodeKey,
+      `${vehicleId}-drop-validate-${seed}-${attempt}`,
+      dropoff.roadName ?? dropoff.label,
+    );
+
+    if (pickupRoute && dropRoute) {
+      return {
+        pickupHotspot: pickup,
+        dropoffHotspot: dropoff,
+        pickupRoute,
+      };
+    }
+  }
+
+  return null;
+}
+
+export default function MapSimulator() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<SimulationData | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [showLabels, setShowLabels] = useState(true);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
+  const [followTaxiId, setFollowTaxiId] = useState('');
+  const cameraModeRef = useRef<CameraMode>('drive');
+  const followTaxiIdRef = useRef('');
+  const [stats, setStats] = useState<Stats>({
+    taxis: TAXI_COUNT,
+    traffic: TRAFFIC_COUNT,
+    waiting: 0,
+    signals: 0,
+    activeTrips: 0,
+    completedTrips: 0,
+    pedestrians: 0,
+  });
+
+  useEffect(() => {
+    cameraModeRef.current = cameraMode;
+  }, [cameraMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      fetch('/roads.geojson').then((response) => response.json() as Promise<RoadFeatureCollection>),
+      fetch('/buildings.geojson').then(
+        (response) => response.json() as Promise<BuildingFeatureCollection>,
+      ),
+    ])
+      .then(([roads, buildings]) => {
+        if (cancelled) {
+          return;
+        }
+        setData({ center: CAMERA_CENTER, roads, buildings });
+        setStatus('ready');
+      })
+      .catch((error) => {
+        console.error(error);
+        if (!cancelled) {
+          setStatus('error');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!data || !containerRef.current) {
+      return undefined;
+    }
+
+    const container = containerRef.current;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07111b);
+    scene.fog = new THREE.Fog(0x07111b, 120, 360);
+
+    const camera = new THREE.PerspectiveCamera(
+      48,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      1500,
+    );
+    camera.position.set(-120, 135, 150);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.domElement.style.cursor = 'grab';
+    renderer.domElement.style.touchAction = 'none';
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(container.clientWidth, container.clientHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.inset = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+    scene.add(new THREE.HemisphereLight(0xb6d5ff, 0x172333, 0.82));
+
+    const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
+    sun.position.set(110, 180, 80);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 10;
+    sun.shadow.camera.far = 420;
+    sun.shadow.camera.left = -180;
+    sun.shadow.camera.right = 180;
+    sun.shadow.camera.top = 180;
+    sun.shadow.camera.bottom = -180;
+    scene.add(sun);
+
+    const graph = buildRoadGraph(data.roads, data.center);
+    const buildingFeatures = buildBuildingMasses(data.buildings, data.center);
+    const signals = buildSignals(data.roads, data.center);
+    const signalById = new Map(signals.map((signal) => [signal.id, signal]));
+    const signalByKey = new Map(signals.map((signal) => [signal.key, signal]));
+    const loopRoutes = buildLoopRoutes(data.roads, data.center, signalByKey);
+    const taxiSourceRoutes = loopRoutes.filter((route) => route.roadClass !== 'local').slice(0, 10);
+    const trafficRoutes = loopRoutes.slice(0, 18);
+    const taxiRouteById = new Map(taxiSourceRoutes.map((route) => [route.id, route]));
+
+    if (!taxiSourceRoutes.length || !trafficRoutes.length) {
+      return undefined;
+    }
+
+    const hotspots = buildTaxiHotspots(taxiSourceRoutes, buildingFeatures);
+    if (!hotspots.length) {
+      return undefined;
+    }
+
+    const roadSegments = data.roads.features.flatMap((feature) =>
+      lineStringsOfRoad(feature, data.center).flatMap((line) =>
+        line.slice(1).map((node, index) => ({
+          roadClass: feature.properties.roadClass,
+          width: feature.properties.width * ROAD_WIDTH_SCALE,
+          start: line[index].point,
+          end: node.point,
+        })),
+      ),
+    );
+
+    const bounds = new THREE.Box3();
+    roadSegments.forEach((segment) => {
+      bounds.expandByPoint(segment.start);
+      bounds.expandByPoint(segment.end);
+    });
+    const size = bounds.getSize(new THREE.Vector3());
+    const centerPoint = bounds.getCenter(new THREE.Vector3());
+    const movementBounds = bounds.clone().expandByVector(new THREE.Vector3(48, 0, 48));
+    const overviewMinDistance = THREE.MathUtils.clamp(Math.max(size.x, size.z) * 0.9, 96, 190);
+    const initialOffset = new THREE.Vector3(-120, 135, 150);
+    const cameraRig = {
+      focus: centerPoint.clone(),
+      yaw: Math.atan2(initialOffset.x, initialOffset.z),
+      pitch: Math.atan2(initialOffset.y, Math.hypot(initialOffset.x, initialOffset.z)),
+      distance: THREE.MathUtils.clamp(
+        initialOffset.length(),
+        CAMERA_MIN_DISTANCE,
+        CAMERA_MAX_DISTANCE,
+      ),
+      dragging: false,
+      pointerId: -1,
+      pointerX: 0,
+      pointerY: 0,
+    };
+    const pressedKeys = new Set<string>();
+    const followOrbit = { yawOffset: 0.22 };
+    let activeCameraMode = cameraModeRef.current;
+    let activeFollowTaxiId = followTaxiIdRef.current;
+    let cameraLookLift = CAMERA_LOOK_HEIGHT;
+
+    const syncCamera = () => {
+      cameraRig.pitch = THREE.MathUtils.clamp(
+        cameraRig.pitch,
+        CAMERA_MIN_PITCH,
+        CAMERA_MAX_PITCH,
+      );
+      cameraRig.distance = THREE.MathUtils.clamp(
+        cameraRig.distance,
+        CAMERA_MIN_DISTANCE,
+        CAMERA_MAX_DISTANCE,
+      );
+      cameraRig.focus.x = THREE.MathUtils.clamp(
+        cameraRig.focus.x,
+        movementBounds.min.x,
+        movementBounds.max.x,
+      );
+      cameraRig.focus.z = THREE.MathUtils.clamp(
+        cameraRig.focus.z,
+        movementBounds.min.z,
+        movementBounds.max.z,
+      );
+
+      const offset = new THREE.Vector3(
+        Math.sin(cameraRig.yaw) * Math.cos(cameraRig.pitch),
+        Math.sin(cameraRig.pitch),
+        Math.cos(cameraRig.yaw) * Math.cos(cameraRig.pitch),
+      ).multiplyScalar(cameraRig.distance);
+
+      camera.position.copy(cameraRig.focus).add(offset);
+      camera.lookAt(cameraRig.focus.x, cameraRig.focus.y + cameraLookLift, cameraRig.focus.z);
+    };
+
+    syncCamera();
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(size.x + 120, size.z + 120),
+      new THREE.MeshStandardMaterial({ color: 0x101b26, roughness: 0.98, metalness: 0.02 }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(centerPoint.x, 0, centerPoint.z);
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const roadMaterials = {
+      arterial: new THREE.MeshStandardMaterial({
+        color: 0x2c4d7c,
+        roughness: 0.96,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
+      connector: new THREE.MeshStandardMaterial({
+        color: 0x27425f,
+        roughness: 0.96,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+      local: new THREE.MeshStandardMaterial({
+        color: 0x223243,
+        roughness: 0.97,
+        polygonOffset: true,
+        polygonOffsetFactor: 0,
+        polygonOffsetUnits: 0,
+      }),
+    };
+
+    const roadGeometries = {
+      arterial: [] as typeof roadSegments,
+      connector: [] as typeof roadSegments,
+      local: [] as typeof roadSegments,
+    };
+
+    roadSegments.forEach((segment) => {
+      if (distanceXZ(segment.start, segment.end) < 1) {
+        return;
+      }
+      roadGeometries[segment.roadClass].push(segment);
+    });
+
+    const dummy = new THREE.Object3D();
+
+    (['arterial', 'connector', 'local'] as const).forEach((roadClass) => {
+      const segments = roadGeometries[roadClass];
+      const mesh = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 0.25, 1),
+        roadMaterials[roadClass],
+        segments.length,
+      );
+
+      segments.forEach((segment, index) => {
+        const length = distanceXZ(segment.start, segment.end);
+        const center = segment.start.clone().lerp(segment.end, 0.5);
+        const angle = Math.atan2(segment.end.x - segment.start.x, segment.end.z - segment.start.z);
+        dummy.position.set(center.x, ROAD_LAYER_Y[roadClass], center.z);
+        dummy.rotation.set(0, angle, 0);
+        dummy.scale.set(segment.width, 1, length + 1.2);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+      });
+
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.receiveShadow = true;
+      mesh.renderOrder = roadClass === 'arterial' ? 20 : roadClass === 'connector' ? 10 : 0;
+      scene.add(mesh);
+    });
+
+    const laneMarkers = roadSegments.flatMap((segment) => {
+      if (segment.roadClass === 'local') {
+        return [];
+      }
+      const length = distanceXZ(segment.start, segment.end);
+      if (length < 12) {
+        return [];
+      }
+      const dashLength = segment.roadClass === 'arterial' ? 4.8 : 3.7;
+      const gapLength = segment.roadClass === 'arterial' ? 4.2 : 3.5;
+      const angle = Math.atan2(segment.end.x - segment.start.x, segment.end.z - segment.start.z);
+      const markerCount = Math.max(1, Math.floor((length - 4) / (dashLength + gapLength)));
+
+      return Array.from({ length: markerCount }, (_, markerIndex) => {
+        const dashCenter = Math.min(
+          length - dashLength * 0.5 - 2,
+          2 + markerIndex * (dashLength + gapLength) + dashLength * 0.5,
+        );
+        return {
+          center: segment.start.clone().lerp(segment.end, dashCenter / length),
+          angle,
+          length: dashLength,
+        };
+      });
+    });
+
+    const laneMarkerMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.16, 0.03, 1),
+      new THREE.MeshStandardMaterial({
+        color: 0xffefb0,
+        emissive: 0x866000,
+        emissiveIntensity: 0.16,
+        roughness: 0.62,
+      }),
+      laneMarkers.length,
+    );
+
+    laneMarkers.forEach((marker, index) => {
+      dummy.position.set(marker.center.x, 0.16, marker.center.z);
+      dummy.rotation.set(0, marker.angle, 0);
+      dummy.scale.set(1, 1, marker.length);
+      dummy.updateMatrix();
+      laneMarkerMesh.setMatrixAt(index, dummy.matrix);
+    });
+    laneMarkerMesh.instanceMatrix.needsUpdate = true;
+    scene.add(laneMarkerMesh);
+
+    const buildingMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0.02 }),
+      buildingFeatures.length,
+    );
+
+    buildingFeatures.forEach((building, index) => {
+      dummy.position.set(building.position.x, building.height / 2, building.position.z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(building.width, building.height, building.depth);
+      dummy.updateMatrix();
+      buildingMesh.setMatrixAt(index, dummy.matrix);
+      buildingMesh.setColorAt(index, new THREE.Color(building.color));
+    });
+    buildingMesh.castShadow = true;
+    buildingMesh.receiveShadow = true;
+    buildingMesh.instanceMatrix.needsUpdate = true;
+    if (buildingMesh.instanceColor) {
+      buildingMesh.instanceColor.needsUpdate = true;
+    }
+    scene.add(buildingMesh);
+
+    const signalVisuals: SignalVisual[] = signals.map((signal) => {
+      const group = new THREE.Group();
+      const reds: THREE.Mesh[] = [];
+      const greens: THREE.Mesh[] = [];
+      const leftArrows: THREE.Mesh[] = [];
+      const pedestrianLamps: THREE.Mesh[] = [];
+
+      const mastLayout = [
+        { offset: new THREE.Vector3(0, 0, -3.35), yaw: 0 },
+        { offset: new THREE.Vector3(3.35, 0, 0), yaw: Math.PI / 2 },
+        { offset: new THREE.Vector3(0, 0, 3.35), yaw: Math.PI },
+        { offset: new THREE.Vector3(-3.35, 0, 0), yaw: -Math.PI / 2 },
+      ];
+
+      mastLayout.forEach(({ offset, yaw }) => {
+        const mast = new THREE.Group();
+        mast.position.copy(offset);
+        mast.rotation.y = yaw;
+
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.14, 0.14, 4.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x9aa5b1, roughness: 0.6 }),
+        );
+        pole.position.set(0, 2.1, 0);
+        pole.castShadow = true;
+        mast.add(pole);
+
+        const arm = new THREE.Mesh(
+          new THREE.BoxGeometry(1.15, 0.12, 0.12),
+          new THREE.MeshStandardMaterial({ color: 0x8d99a8, roughness: 0.55 }),
+        );
+        arm.position.set(0.58, 3.92, 0);
+        mast.add(arm);
+
+        const head = new THREE.Mesh(
+          new THREE.BoxGeometry(1.42, 2.42, 0.68),
+          new THREE.MeshStandardMaterial({ color: 0x10161f, roughness: 0.5 }),
+        );
+        head.position.set(1.32, 3.7, 0);
+        mast.add(head);
+
+        const red = new THREE.Mesh(
+          new THREE.SphereGeometry(0.17, 12, 12),
+          new THREE.MeshStandardMaterial({ color: 0x431015, emissive: 0x230709 }),
+        );
+        red.position.set(1.02, 4, 0.38);
+        mast.add(red);
+        reds.push(red);
+
+        const green = new THREE.Mesh(
+          new THREE.SphereGeometry(0.17, 12, 12),
+          new THREE.MeshStandardMaterial({ color: 0x123f22, emissive: 0x081a0f }),
+        );
+        green.position.set(1.02, 3.36, 0.38);
+        mast.add(green);
+        greens.push(green);
+
+        const leftArrow = new THREE.Mesh(
+          new THREE.BoxGeometry(0.38, 0.38, 0.18),
+          new THREE.MeshStandardMaterial({ color: 0x0f2218, emissive: 0x07120b }),
+        );
+        leftArrow.position.set(1.72, 3.7, 0.38);
+        mast.add(leftArrow);
+        leftArrows.push(leftArrow);
+
+        const pedestrianLamp = new THREE.Mesh(
+          new THREE.BoxGeometry(0.42, 0.42, 0.18),
+          new THREE.MeshStandardMaterial({ color: 0x222833, emissive: 0x10151d }),
+        );
+        pedestrianLamp.position.set(1.72, 3.06, 0.38);
+        mast.add(pedestrianLamp);
+        pedestrianLamps.push(pedestrianLamp);
+
+        group.add(mast);
+      });
+
+      group.position.copy(signal.point);
+      scene.add(group);
+
+      return {
+        ...signal,
+        group,
+        reds,
+        greens,
+        leftArrows,
+        pedestrianLamps,
+      };
+    });
+
+    const crosswalkStripes = signalVisuals.flatMap((signal) => {
+      const nsStripes = Array.from({ length: CROSSWALK_STRIPE_COUNT }, (_, index) => ({
+        center: signal.point.clone().add(new THREE.Vector3(0, 0.03, (index - 2.5) * CROSSWALK_STEP)),
+        angle: 0,
+        width: CROSSWALK_WIDTH,
+        depth: 0.42,
+      }));
+      const ewStripes = Array.from({ length: CROSSWALK_STRIPE_COUNT }, (_, index) => ({
+        center: signal.point.clone().add(new THREE.Vector3((index - 2.5) * CROSSWALK_STEP, 0.03, 0)),
+        angle: Math.PI / 2,
+        width: CROSSWALK_WIDTH,
+        depth: 0.42,
+      }));
+      return [...nsStripes, ...ewStripes];
+    });
+
+    const crosswalkMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.02, 1),
+      new THREE.MeshStandardMaterial({
+        color: 0xeef4ff,
+        emissive: 0x39424f,
+        emissiveIntensity: 0.08,
+        roughness: 0.7,
+      }),
+      crosswalkStripes.length,
+    );
+
+    crosswalkStripes.forEach((stripe, index) => {
+      dummy.position.copy(stripe.center);
+      dummy.rotation.set(0, stripe.angle, 0);
+      dummy.scale.set(stripe.width, 1, stripe.depth);
+      dummy.updateMatrix();
+      crosswalkMesh.setMatrixAt(index, dummy.matrix);
+    });
+    crosswalkMesh.instanceMatrix.needsUpdate = true;
+    scene.add(crosswalkMesh);
+
+    const stopLineMarkers = loopRoutes
+      .filter((route) => route.roadClass !== 'local')
+      .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
+
+    const stopLineMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.04, 0.32),
+      new THREE.MeshStandardMaterial({
+        color: 0xf7fbff,
+        emissive: 0x394959,
+        emissiveIntensity: 0.12,
+        roughness: 0.54,
+      }),
+      stopLineMarkers.length,
+    );
+
+    stopLineMarkers.forEach((marker, index) => {
+      const sample = sampleRoute(marker.route, marker.stop.distance);
+      const lanePosition = offsetToRight(sample.position, sample.heading, marker.route.laneOffset);
+      dummy.position.set(lanePosition.x, 0.18, lanePosition.z);
+      dummy.rotation.set(0, Math.atan2(sample.heading.x, sample.heading.z), 0);
+      dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);
+      dummy.updateMatrix();
+      stopLineMesh.setMatrixAt(index, dummy.matrix);
+    });
+    stopLineMesh.instanceMatrix.needsUpdate = true;
+    scene.add(stopLineMesh);
+
+    const hotspotVisuals: HotspotVisual[] = hotspots.map((hotspot, index) => {
+      const group = new THREE.Group();
+      const baseColor = index % 3 === 0 ? 0xffcf57 : index % 3 === 1 ? 0x71d8ff : 0xff8d71;
+      const hotspotRoute = taxiRouteById.get(hotspot.routeId);
+      const hotspotSample = hotspotRoute
+        ? sampleRoute(hotspotRoute, hotspot.distance)
+        : { position: hotspot.position.clone(), heading: new THREE.Vector3(0, 0, 1) };
+
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.2, 1.45, 0.18, 20),
+        new THREE.MeshStandardMaterial({
+          color: baseColor,
+          emissive: baseColor,
+          emissiveIntensity: 0.14,
+          roughness: 0.5,
+        }),
+      );
+      base.position.y = 0.11;
+      group.add(base);
+
+      const glow = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.72, 0.94, 0.12, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff6da,
+          emissive: baseColor,
+          emissiveIntensity: 0.22,
+          transparent: true,
+          opacity: 0.74,
+          roughness: 0.2,
+        }),
+      );
+      glow.position.y = 0.25;
+      group.add(glow);
+
+      const beacon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 18, 18),
+        new THREE.MeshStandardMaterial({
+          color: 0xfffbf1,
+          emissive: baseColor,
+          emissiveIntensity: 0.34,
+          transparent: true,
+          opacity: 0.9,
+          roughness: 0.16,
+        }),
+      );
+      beacon.position.y = 0.55;
+      group.add(beacon);
+
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(1.02, 0.08, 10, 28),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff7db,
+          emissive: baseColor,
+          emissiveIntensity: 0.2,
+          roughness: 0.38,
+        }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.24;
+      group.add(ring);
+
+      const caller = createCallerGroup(index);
+      const curbOffset = (hotspotRoute?.roadWidth ?? 3.8) * 0.72 + 1.55;
+      const callerAnchor = offsetToRight(hotspotSample.position, hotspotSample.heading, curbOffset).addScaledVector(
+        hotspotSample.heading,
+        -0.3,
+      );
+      caller.group.position.set(
+        callerAnchor.x - hotspot.position.x,
+        0.04,
+        callerAnchor.z - hotspot.position.z,
+      );
+      caller.group.rotation.y = Math.atan2(
+        hotspotSample.position.x - callerAnchor.x,
+        hotspotSample.position.z - callerAnchor.z,
+      );
+      caller.group.visible = false;
+      caller.waveArmPivot.rotation.z = -0.72;
+      group.add(caller.group);
+
+      const callBadge = new CSS2DObject(hotspotCallElement());
+      callBadge.position.set(0, 2.18, 0);
+      callBadge.visible = false;
+      group.add(callBadge);
+
+      group.position.copy(hotspot.position);
+      scene.add(group);
+      return {
+        hotspot,
+        base,
+        glow,
+        beacon,
+        ring,
+        callerGroup: caller.group,
+        waveArmPivot: caller.waveArmPivot,
+        hailCube: caller.hailCube,
+        callBadge,
+      };
+    });
+
+    const pedestrianVisuals: PedestrianVisual[] = signalVisuals.flatMap((signal, signalIndex) => [
+      {
+        signalId: signal.id,
+        axis: 'ns',
+        group: createPedestrianGroup(signalIndex),
+        phaseOffset: signalIndex * 0.17,
+        speed: 0.18 + (signalIndex % 3) * 0.03,
+        lateralOffset: -2.1,
+        direction: 1,
+      },
+      {
+        signalId: signal.id,
+        axis: 'ns',
+        group: createPedestrianGroup(signalIndex + 2),
+        phaseOffset: signalIndex * 0.13 + 0.4,
+        speed: 0.16 + (signalIndex % 2) * 0.02,
+        lateralOffset: 2.1,
+        direction: -1,
+      },
+      {
+        signalId: signal.id,
+        axis: 'ew',
+        group: createPedestrianGroup(signalIndex + 4),
+        phaseOffset: signalIndex * 0.11 + 0.2,
+        speed: 0.19 + (signalIndex % 4) * 0.02,
+        lateralOffset: -2.1,
+        direction: 1,
+      },
+      {
+        signalId: signal.id,
+        axis: 'ew',
+        group: createPedestrianGroup(signalIndex + 7),
+        phaseOffset: signalIndex * 0.09 + 0.6,
+        speed: 0.17 + (signalIndex % 3) * 0.02,
+        lateralOffset: 2.1,
+        direction: -1,
+      },
+    ]);
+
+    pedestrianVisuals.forEach((pedestrian) => {
+      pedestrian.group.visible = false;
+      scene.add(pedestrian.group);
+    });
+
+    const vehicles: Vehicle[] = [];
+    let completedTrips = 0;
+    let activePedestrians = 0;
+
+    for (let index = 0; index < TAXI_COUNT; index += 1) {
+      const spawnHotspot = hotspots[(index * 2) % hotspots.length];
+      const job = planTaxiJob(
+        spawnHotspot.nodeKey,
+        hotspots,
+        graph,
+        signalByKey,
+        index + 1,
+        `taxi-${index}`,
+      );
+      if (!job) {
+        continue;
+      }
+
+      const { group, bodyMaterial, signMaterial } = createVehicleGroup('taxi', TAXI_PALETTE);
+      scene.add(group);
+
+      const vehicle: Vehicle = {
+        id: `taxi-${index}`,
+        kind: 'taxi',
+        route: job.pickupRoute,
+        group,
+        bodyMaterial,
+        signMaterial,
+        baseSpeed: 7.1 + (index % 4) * 0.55,
+        speed: 0,
+        distance: 0,
+        safeGap: 7.8,
+        length: 4.6,
+        currentSignalId: null,
+        roadName: job.pickupRoute.name,
+        palette: TAXI_PALETTE,
+        isOccupied: false,
+        pickupHotspot: job.pickupHotspot,
+        dropoffHotspot: job.dropoffHotspot,
+        serviceTimer: 0,
+        planMode: 'pickup',
+      };
+      setTaxiAppearance(vehicle);
+      syncVehicleTransform(vehicle);
+      vehicles.push(vehicle);
+    }
+
+    for (let index = 0; index < TRAFFIC_COUNT; index += 1) {
+      const route = trafficRoutes[index % trafficRoutes.length];
+      const palette = TRAFFIC_PALETTES[index % TRAFFIC_PALETTES.length];
+      const { group, bodyMaterial, signMaterial } = createVehicleGroup('traffic', palette);
+      scene.add(group);
+
+      const vehicle: Vehicle = {
+        id: `traffic-${index}`,
+        kind: 'traffic',
+        route,
+        group,
+        bodyMaterial,
+        signMaterial,
+        baseSpeed: 5.6 + (index % 5) * 0.4,
+        speed: 0,
+        distance: (route.totalLength / TRAFFIC_COUNT) * index,
+        safeGap: 6.4,
+        length: 4.2,
+        currentSignalId: null,
+        roadName: route.name,
+        palette,
+        isOccupied: false,
+        pickupHotspot: null,
+        dropoffHotspot: null,
+        serviceTimer: 0,
+        planMode: 'traffic',
+      };
+      syncVehicleTransform(vehicle);
+      vehicles.push(vehicle);
+    }
+
+    const taxiVehicles = vehicles.filter((vehicle) => vehicle.kind === 'taxi');
+    const taxiById = new Map(taxiVehicles.map((vehicle) => [vehicle.id, vehicle]));
+
+    const resolveFollowTaxi = () =>
+      taxiById.get(followTaxiIdRef.current) ?? taxiVehicles[0] ?? null;
+
+    const taxiHeading = (vehicle: Vehicle) => {
+      const sample = sampleRoute(vehicle.route, vehicle.distance);
+      return Math.atan2(sample.heading.x, sample.heading.z);
+    };
+
+    const applyModePreset = (mode: CameraMode) => {
+      if (mode === 'overview') {
+        cameraRig.focus.y = 0;
+        cameraRig.pitch = Math.max(cameraRig.pitch, 0.84);
+        cameraRig.distance = Math.max(cameraRig.distance, overviewMinDistance);
+        return;
+      }
+
+      if (mode === 'follow') {
+        const followedTaxi = resolveFollowTaxi();
+        cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.46, 0.9);
+        cameraRig.distance = THREE.MathUtils.clamp(cameraRig.distance, 20, 58);
+        if (followedTaxi) {
+          const baseYaw = taxiHeading(followedTaxi) + Math.PI;
+          const nextOffset = wrapAngle(cameraRig.yaw - baseYaw);
+          followOrbit.yawOffset = Math.abs(nextOffset) < 1.25 ? nextOffset : 0.22;
+        }
+        return;
+      }
+
+      cameraRig.focus.y = 0;
+    };
+
+    applyModePreset(activeCameraMode);
+    syncCamera();
+
+    const labelObjects: CSS2DObject[] = [];
+
+    taxiSourceRoutes
+      .filter((route) => route.name)
+      .slice(0, 10)
+      .forEach((route) => {
+        const sample = sampleRoute(route, route.totalLength * 0.4);
+        const label = new CSS2DObject(labelElement(route.name as string, 'road'));
+        label.position.copy(sample.position.clone().setY(1.6));
+        label.visible = showLabels;
+        labelObjects.push(label);
+        scene.add(label);
+      });
+
+    buildingFeatures
+      .filter((building) => building.label)
+      .sort((left, right) => right.height - left.height)
+      .slice(0, 12)
+      .forEach((building) => {
+        const label = new CSS2DObject(labelElement(building.label as string, 'building'));
+        label.position.set(
+          building.position.x,
+          Math.min(building.height + 4, 38),
+          building.position.z,
+        );
+        label.visible = showLabels;
+        labelObjects.push(label);
+        scene.add(label);
+      });
+
+    const clock = new THREE.Clock();
+    let animationFrame = 0;
+    let statsAccumulator = 0;
+
+    const updateSignalVisuals = (elapsedTime: number) => {
+      signalVisuals.forEach((signal) => {
+        const state = signalState(signal, elapsedTime);
+        signal.reds.forEach((lamp) => {
+          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
+            state.ns === 'red' && state.ew === 'red' ? 0xff2d55 : 0x240608,
+          );
+        });
+        signal.greens.forEach((lamp) => {
+          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
+            state.phase === 'ns_flow' || state.phase === 'ew_flow' ? 0x3cf07b : 0x08190d,
+          );
+        });
+        signal.leftArrows.forEach((lamp) => {
+          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
+            state.phase === 'ns_left' || state.phase === 'ew_left' ? 0x54f49d : 0x08190d,
+          );
+        });
+        signal.pedestrianLamps.forEach((lamp) => {
+          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
+            state.pedestrian === 'walk'
+              ? 0xf6f7ff
+              : state.pedestrian === 'flash' && Math.sin(elapsedTime * 12) > 0
+                ? 0xf9c756
+                : 0x111721,
+          );
+        });
+      });
+    };
+
+    const updateHotspotVisuals = (elapsedTime: number) => {
+      const activeCallsByHotspot = new Map<string, number>();
+      vehicles.forEach((vehicle) => {
+        if (vehicle.kind !== 'taxi' || vehicle.isOccupied || !vehicle.pickupHotspot) {
+          return;
+        }
+        activeCallsByHotspot.set(
+          vehicle.pickupHotspot.id,
+          (activeCallsByHotspot.get(vehicle.pickupHotspot.id) ?? 0) + 1,
+        );
+      });
+
+      hotspotVisuals.forEach((visual, index) => {
+        const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
+        const activeCalls = activeCallsByHotspot.get(visual.hotspot.id) ?? 0;
+        const isActive = activeCalls > 0;
+        const baseMaterial = visual.base.material as THREE.MeshStandardMaterial;
+        const glowMaterial = visual.glow.material as THREE.MeshStandardMaterial;
+        const beaconMaterial = visual.beacon.material as THREE.MeshStandardMaterial;
+        const ringMaterial = visual.ring.material as THREE.MeshStandardMaterial;
+        const hailMaterial = visual.hailCube.material as THREE.MeshStandardMaterial;
+
+        visual.base.scale.setScalar(isActive ? 0.98 + pulse * 0.05 : 0.82);
+        visual.glow.scale.setScalar(isActive ? 0.96 + pulse * 0.08 : 0.72);
+        visual.beacon.scale.setScalar(isActive ? 0.92 + pulse * 0.16 : 0.68);
+        visual.ring.scale.setScalar(isActive ? 0.96 + pulse * 0.12 : 0.78);
+        visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
+
+        baseMaterial.emissiveIntensity = isActive ? 0.18 + pulse * 0.08 : 0.04;
+        glowMaterial.emissiveIntensity = isActive ? 0.24 + pulse * 0.12 : 0.06;
+        glowMaterial.opacity = isActive ? 0.62 + pulse * 0.14 : 0.2;
+        beaconMaterial.emissiveIntensity = isActive ? 0.24 + pulse * 0.22 : 0.08;
+        beaconMaterial.opacity = isActive ? 0.9 : 0.28;
+        ringMaterial.emissiveIntensity = isActive ? 0.22 + pulse * 0.18 : 0.05;
+        hailMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.32 : 0.1;
+
+        visual.callerGroup.visible = isActive;
+        visual.callerGroup.position.y = 0.04 + (isActive ? Math.sin(elapsedTime * 3.1 + index) * 0.05 : 0);
+        visual.waveArmPivot.rotation.z = isActive
+          ? -0.8 - Math.sin(elapsedTime * 5.4 + index * 0.8) * 0.42
+          : -0.72;
+        visual.hailCube.scale.setScalar(isActive ? 0.94 + pulse * 0.14 : 0.86);
+        visual.callBadge.visible = isActive;
+        visual.callBadge.position.y = 2.1 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.08 : 0);
+      });
+    };
+
+    const updatePedestrians = (elapsedTime: number) => {
+      let visibleCount = 0;
+      pedestrianVisuals.forEach((pedestrian) => {
+        const signal = signalById.get(pedestrian.signalId);
+        if (!signal) {
+          pedestrian.group.visible = false;
+          return;
+        }
+
+        const state = signalState(signal, elapsedTime);
+        const isVisible =
+          state.pedestrian === 'walk' ||
+          (state.pedestrian === 'flash' && Math.sin(elapsedTime * 14 + pedestrian.phaseOffset) > 0);
+
+        pedestrian.group.visible = isVisible;
+        if (!isVisible) {
+          return;
+        }
+
+        visibleCount += 1;
+        const progressBase = (elapsedTime * pedestrian.speed + pedestrian.phaseOffset) % 1;
+        const progress = pedestrian.direction === 1 ? progressBase : 1 - progressBase;
+        const travel = THREE.MathUtils.lerp(-PEDESTRIAN_SPAN, PEDESTRIAN_SPAN, progress);
+        const bob = Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
+
+        if (pedestrian.axis === 'ns') {
+          pedestrian.group.position.set(
+            signal.point.x + pedestrian.lateralOffset,
+            bob,
+            signal.point.z + travel,
+          );
+          pedestrian.group.rotation.y = 0;
+        } else {
+          pedestrian.group.position.set(
+            signal.point.x + travel,
+            bob,
+            signal.point.z + pedestrian.lateralOffset,
+          );
+          pedestrian.group.rotation.y = Math.PI / 2;
+        }
+      });
+      activePedestrians = visibleCount;
+    };
+
+    const updateVehicles = (delta: number, elapsedTime: number) => {
+      const intersectionOccupancy = new Map<string, { ns: number; ew: number }>();
+      const samples = vehicles.map((vehicle) => {
+        const sample = sampleRoute(vehicle.route, vehicle.distance);
+        const lanePosition = offsetToRight(sample.position, sample.heading, vehicle.route.laneOffset);
+        const right = new THREE.Vector3(sample.heading.z, 0, -sample.heading.x).normalize();
+        return { vehicle, sample, lanePosition, right };
+      });
+
+      samples.forEach(({ vehicle, sample }) => {
+        vehicle.currentSignalId = null;
+        signalVisuals.forEach((signal) => {
+          const signalDistance = sample.position.distanceTo(signal.point);
+          if (signalDistance < SIGNAL_RADIUS) {
+            vehicle.currentSignalId = signal.id;
+          }
+          if (signalDistance >= INTERSECTION_OCCUPANCY_RADIUS) {
+            return;
+          }
+
+          const nearIntersectionStop = vehicle.route.stops
+            .map((stop) => ({
+              stop,
+              ahead: routeDistanceAhead(vehicle.route, vehicle.distance, stop.distance),
+            }))
+            .filter(
+              (entry) =>
+                entry.stop.signalId === signal.id &&
+                entry.ahead >= 0 &&
+                entry.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD,
+            )
+            .sort((left, right) => left.ahead - right.ahead)[0];
+
+          if (!nearIntersectionStop) {
+            return;
+          }
+
+          const claim = intersectionOccupancy.get(signal.id) ?? { ns: 0, ew: 0 };
+          if (nearIntersectionStop.stop.axis === 'ns') {
+            claim.ns += 1;
+          } else {
+            claim.ew += 1;
+          }
+          intersectionOccupancy.set(signal.id, claim);
+        });
+      });
+
+      let waitingVehicles = 0;
+      let activeTrips = 0;
+
+      vehicles.forEach((vehicle, vehicleIndex) => {
+        const current = samples[vehicleIndex];
+        let targetSpeed = vehicle.baseSpeed;
+        let holdPosition = false;
+
+        if (vehicle.serviceTimer > 0) {
+          vehicle.serviceTimer = Math.max(0, vehicle.serviceTimer - delta);
+          targetSpeed = 0;
+          holdPosition = true;
+          waitingVehicles += 1;
+
+          if (vehicle.serviceTimer === 0 && vehicle.kind === 'taxi') {
+            if (!vehicle.isOccupied && vehicle.pickupHotspot) {
+              vehicle.isOccupied = true;
+              vehicle.pickupHotspot = null;
+              setTaxiAppearance(vehicle);
+              const dropRoute = buildShortestRoute(
+                graph,
+                signalByKey,
+                vehicle.route.endKey,
+                vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
+                `${vehicle.id}-dropoff-${completedTrips}`,
+                vehicle.dropoffHotspot?.roadName ?? vehicle.dropoffHotspot?.label ?? null,
+              );
+              if (dropRoute) {
+                vehicle.route = dropRoute;
+                vehicle.distance = 0;
+                vehicle.roadName = dropRoute.name;
+                vehicle.planMode = 'dropoff';
+              }
+            } else if (vehicle.isOccupied && vehicle.dropoffHotspot) {
+              completedTrips += 1;
+              const nextJob = planTaxiJob(
+                vehicle.route.endKey,
+                hotspots,
+                graph,
+                signalByKey,
+                completedTrips + vehicleIndex + 1,
+                vehicle.id,
+              );
+              if (nextJob) {
+                vehicle.pickupHotspot = nextJob.pickupHotspot;
+                vehicle.dropoffHotspot = nextJob.dropoffHotspot;
+                vehicle.route = nextJob.pickupRoute;
+                vehicle.distance = 0;
+                vehicle.roadName = nextJob.pickupRoute.name;
+                vehicle.planMode = 'pickup';
+                vehicle.isOccupied = false;
+                setTaxiAppearance(vehicle);
+              }
+            }
+          }
+        }
+
+        if (!holdPosition) {
+          for (let otherIndex = 0; otherIndex < samples.length; otherIndex += 1) {
+            if (otherIndex === vehicleIndex) {
+              continue;
+            }
+            const other = samples[otherIndex];
+            const alignment = current.sample.heading.dot(other.sample.heading);
+            if (alignment < 0.35) {
+              continue;
+            }
+            const deltaVector = other.lanePosition.clone().sub(current.lanePosition);
+            const longitudinal = deltaVector.dot(current.sample.heading);
+            if (longitudinal <= 0 || longitudinal > vehicle.safeGap + 8) {
+              continue;
+            }
+            const lateral = Math.abs(deltaVector.dot(current.right));
+            const laneTolerance = Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) * 0.48;
+            if (lateral > laneTolerance) {
+              continue;
+            }
+            const gapLimit = Math.max(0, (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1);
+            targetSpeed = Math.min(targetSpeed, gapLimit);
+          }
+        }
+
+        const nextStop = vehicle.route.stops
+          .map((stop) => ({
+            stop,
+            ahead: routeDistanceAhead(vehicle.route, vehicle.distance, stop.distance),
+          }))
+          .filter((entry) => entry.ahead < 18)
+          .sort((left, right) => left.ahead - right.ahead)[0];
+
+        if (!holdPosition && nextStop) {
+          const signal = signalById.get(nextStop.stop.signalId);
+          if (signal) {
+            const state = signalState(signal, elapsedTime);
+            const occupancyState = intersectionOccupancy.get(signal.id);
+            const conflictingAxisOccupied =
+              occupancyState &&
+              (nextStop.stop.axis === 'ns' ? occupancyState.ew > 0 : occupancyState.ns > 0);
+            const canGo = canVehicleProceed(
+              nextStop.stop,
+              state,
+              Boolean(conflictingAxisOccupied),
+            );
+            const blockedByIntersection =
+              Boolean(conflictingAxisOccupied) && nextStop.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD;
+            if (!canGo || blockedByIntersection) {
+              const stopGap = Math.max(0, nextStop.ahead - 0.8);
+              targetSpeed = Math.min(targetSpeed, Math.max(0, stopGap * 1.32));
+              if (stopGap < 1.1) {
+                waitingVehicles += 1;
+              }
+            }
+          }
+        }
+
+        if (!holdPosition && !vehicle.route.isLoop) {
+          const destinationGap = Math.max(0, vehicle.route.totalLength - vehicle.distance);
+          if (destinationGap < HOTSPOT_SLOWDOWN_DISTANCE) {
+            const curbGap = Math.max(0, destinationGap - 0.65);
+            targetSpeed = Math.min(targetSpeed, Math.max(0, curbGap * 1.4));
+            if (destinationGap < HOTSPOT_TRIGGER_DISTANCE) {
+              vehicle.serviceTimer = SERVICE_STOP_DURATION;
+              targetSpeed = 0;
+              holdPosition = true;
+              waitingVehicles += 1;
+            }
+          }
+        }
+
+        vehicle.speed = holdPosition
+          ? 0
+          : THREE.MathUtils.damp(vehicle.speed, targetSpeed, 3.2, delta);
+        if (!holdPosition) {
+          vehicle.distance = clampRouteDistance(vehicle.route, vehicle.distance + vehicle.speed * delta);
+        }
+
+        syncVehicleTransform(vehicle);
+        if (vehicle.kind === 'taxi' && vehicle.isOccupied) {
+          activeTrips += 1;
+        }
+      });
+
+      statsAccumulator += delta;
+      if (statsAccumulator > 0.18) {
+        statsAccumulator = 0;
+        setStats({
+          taxis: vehicles.filter((vehicle) => vehicle.kind === 'taxi').length,
+          traffic: vehicles.filter((vehicle) => vehicle.kind === 'traffic').length,
+          waiting: waitingVehicles,
+          signals: signalVisuals.length,
+          activeTrips,
+          completedTrips,
+          pedestrians: activePedestrians,
+        });
+      }
+    };
+
+    const onResize = () => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+      labelRenderer.setSize(width, height);
+    };
+
+    const controlKeyCodes = new Set([
+      'KeyW',
+      'KeyA',
+      'KeyQ',
+      'KeyS',
+      'KeyD',
+      'KeyE',
+      'ShiftLeft',
+      'ShiftRight',
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+    ]);
+
+    const isInteractiveTarget = (target: EventTarget | null) => {
+      const element = target as HTMLElement | null;
+      if (!element) {
+        return false;
+      }
+      const tagName = element.tagName;
+      return (
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        tagName === 'BUTTON' ||
+        element.isContentEditable
+      );
+    };
+
+    const stopDragging = () => {
+      cameraRig.dragging = false;
+      cameraRig.pointerId = -1;
+      renderer.domElement.style.cursor = 'grab';
+    };
+
+    const onContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) {
+        return;
+      }
+      cameraRig.dragging = true;
+      cameraRig.pointerId = event.pointerId;
+      cameraRig.pointerX = event.clientX;
+      cameraRig.pointerY = event.clientY;
+      renderer.domElement.style.cursor = 'grabbing';
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!cameraRig.dragging || event.pointerId !== cameraRig.pointerId) {
+        return;
+      }
+
+      const deltaX = event.clientX - cameraRig.pointerX;
+      const deltaY = event.clientY - cameraRig.pointerY;
+      cameraRig.pointerX = event.clientX;
+      cameraRig.pointerY = event.clientY;
+      if (cameraModeRef.current === 'follow') {
+        followOrbit.yawOffset = wrapAngle(
+          followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
+        );
+      } else {
+        cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
+      }
+      cameraRig.pitch = THREE.MathUtils.clamp(
+        cameraRig.pitch - deltaY * CAMERA_DRAG_SENSITIVITY,
+        CAMERA_MIN_PITCH,
+        CAMERA_MAX_PITCH,
+      );
+      syncCamera();
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerId !== cameraRig.pointerId) {
+        return;
+      }
+      stopDragging();
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      cameraRig.distance = THREE.MathUtils.clamp(
+        cameraRig.distance + event.deltaY * 0.08,
+        CAMERA_MIN_DISTANCE,
+        CAMERA_MAX_DISTANCE,
+      );
+      syncCamera();
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!controlKeyCodes.has(event.code)) {
+        return;
+      }
+      if (!isInteractiveTarget(event.target)) {
+        event.preventDefault();
+      }
+      pressedKeys.add(event.code);
+    };
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (!controlKeyCodes.has(event.code)) {
+        return;
+      }
+      pressedKeys.delete(event.code);
+    };
+
+    const onWindowBlur = () => {
+      pressedKeys.clear();
+      stopDragging();
+    };
+
+    window.addEventListener('resize', onResize);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    renderer.domElement.addEventListener('contextmenu', onContextMenu);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+
+    const animate = () => {
+      animationFrame = window.requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.05);
+      const elapsedTime = clock.elapsedTime;
+      const currentMode = cameraModeRef.current;
+      if (currentMode !== activeCameraMode) {
+        activeCameraMode = currentMode;
+        applyModePreset(currentMode);
+      }
+
+      if (currentMode === 'drive') {
+        cameraLookLift = CAMERA_LOOK_HEIGHT;
+        const forwardInput = Number(pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp')) - Number(
+          pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown'),
+        );
+        const strafeInput = Number(pressedKeys.has('KeyD') || pressedKeys.has('ArrowRight')) - Number(
+          pressedKeys.has('KeyA') || pressedKeys.has('ArrowLeft'),
+        );
+        const turnInput = Number(pressedKeys.has('KeyE')) - Number(
+          pressedKeys.has('KeyQ'),
+        );
+        const boostScale =
+          pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight') ? 1.8 : 1;
+        const moveSpeed = CAMERA_DRIVE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
+        const strafeSpeed = CAMERA_STRAFE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
+        const turnSpeed = CAMERA_TURN_SPEED * CAMERA_BASE_TURN_SCALE;
+
+        if (turnInput !== 0) {
+          cameraRig.yaw += turnInput * turnSpeed * delta;
+        }
+        if (forwardInput !== 0 || strafeInput !== 0) {
+          const lookDirection = cameraRig.focus.clone().sub(camera.position).setY(0);
+          if (lookDirection.lengthSq() < 0.0001) {
+            lookDirection.set(-Math.sin(cameraRig.yaw), 0, -Math.cos(cameraRig.yaw));
+          }
+          lookDirection.normalize();
+          const strafeDirection = new THREE.Vector3(
+            -lookDirection.z,
+            0,
+            lookDirection.x,
+          ).normalize();
+          cameraRig.focus.addScaledVector(
+            strafeDirection,
+            strafeInput * strafeSpeed * delta,
+          );
+          cameraRig.focus.addScaledVector(
+            lookDirection,
+            forwardInput * moveSpeed * delta,
+          );
+        }
+        cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.6, delta);
+      } else if (currentMode === 'overview') {
+        const blend = 1 - Math.exp(-delta * 3.2);
+        cameraLookLift = CAMERA_LOOK_HEIGHT;
+        cameraRig.focus.lerp(centerPoint, blend);
+        cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.72, CAMERA_MAX_PITCH);
+        cameraRig.distance = THREE.MathUtils.clamp(
+          Math.max(cameraRig.distance, overviewMinDistance),
+          overviewMinDistance,
+          CAMERA_MAX_DISTANCE,
+        );
+      } else {
+        if (followTaxiIdRef.current !== activeFollowTaxiId) {
+          activeFollowTaxiId = followTaxiIdRef.current;
+          followOrbit.yawOffset = 0.22;
+        }
+        const followedTaxi = resolveFollowTaxi();
+        cameraLookLift = 0.8;
+        if (followedTaxi) {
+          const followBlend = 1 - Math.exp(-delta * 4.8);
+          const desiredFocus = followedTaxi.group.position.clone();
+          desiredFocus.y = 1.8;
+          cameraRig.focus.lerp(desiredFocus, followBlend);
+          const desiredYaw = taxiHeading(followedTaxi) + Math.PI + followOrbit.yawOffset;
+          cameraRig.yaw = dampAngle(cameraRig.yaw, desiredYaw, 5.4, delta);
+          cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.46, 0.9);
+          cameraRig.distance = THREE.MathUtils.clamp(cameraRig.distance, 20, 58);
+        } else {
+          cameraRig.focus.lerp(centerPoint, 1 - Math.exp(-delta * 2.8));
+          cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.2, delta);
+        }
+      }
+      syncCamera();
+
+      updateSignalVisuals(elapsedTime);
+      updateHotspotVisuals(elapsedTime);
+      updatePedestrians(elapsedTime);
+      updateVehicles(delta, elapsedTime);
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    };
+
+    animate();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      renderer.domElement.removeEventListener('contextmenu', onContextMenu);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('wheel', onWheel);
+      renderer.dispose();
+      labelObjects.forEach((label) => label.removeFromParent());
+      container.removeChild(renderer.domElement);
+      container.removeChild(labelRenderer.domElement);
+    };
+  }, [data, showLabels]);
+
+  const roadNames = useMemo(() => buildMajorRoadNames(data?.roads ?? null), [data]);
+  const buildingNames = useMemo(() => buildMajorBuildingNames(data?.buildings ?? null), [data]);
+  const taxiOptions = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const buildings = buildBuildingMasses(data.buildings, data.center);
+    const graph = buildRoadGraph(data.roads, data.center);
+    const signals = buildSignals(data.roads, data.center);
+    const signalByKey = new Map(signals.map((signal) => [signal.key, signal]));
+    const routes = buildLoopRoutes(data.roads, data.center, signalByKey);
+    const taxiRoutes = routes.filter((route) => route.roadClass !== 'local').slice(0, 10);
+    if (!taxiRoutes.length) {
+      return [];
+    }
+
+    const hotspots = buildTaxiHotspots(taxiRoutes, buildings);
+    if (!hotspots.length) {
+      return [];
+    }
+
+    return Array.from({ length: TAXI_COUNT }, (_, index) => {
+      const spawnHotspot = hotspots[(index * 2) % hotspots.length];
+      const job = planTaxiJob(
+        spawnHotspot.nodeKey,
+        hotspots,
+        graph,
+        signalByKey,
+        index + 1,
+        `taxi-${index}`,
+      );
+      if (!job) {
+        return null;
+      }
+
+      return {
+        id: `taxi-${index}`,
+        label: `Taxi ${index + 1}`,
+        detail:
+          job.pickupHotspot.label ??
+          job.pickupRoute.name ??
+          job.dropoffHotspot.label ??
+          '도심 순환 중',
+      } satisfies TaxiOption;
+    }).filter((taxi): taxi is TaxiOption => Boolean(taxi));
+  }, [data]);
+  const serviceLabels = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    const buildings = buildBuildingMasses(data.buildings, data.center);
+    const signals = buildSignals(data.roads, data.center);
+    const signalByKey = new Map(signals.map((signal) => [signal.key, signal]));
+    const routes = buildLoopRoutes(data.roads, data.center, signalByKey);
+    const taxiRoutes = routes.filter((route) => route.roadClass !== 'local').slice(0, 10);
+    return [...new Set(buildTaxiHotspots(taxiRoutes, buildings).map((hotspot) => hotspot.label))].slice(0, 6);
+  }, [data]);
+  const selectedTaxiId =
+    taxiOptions.find((taxi) => taxi.id === followTaxiId)?.id ?? taxiOptions[0]?.id ?? '';
+  useEffect(() => {
+    followTaxiIdRef.current = selectedTaxiId;
+  }, [selectedTaxiId]);
+  const selectedTaxi = useMemo(
+    () => taxiOptions.find((taxi) => taxi.id === selectedTaxiId) ?? taxiOptions[0] ?? null,
+    [selectedTaxiId, taxiOptions],
+  );
+  const cameraModeLabel =
+    cameraMode === 'overview' ? 'Overview' : cameraMode === 'follow' ? 'Follow Taxi' : 'Drive';
+  const controlHint =
+    cameraMode === 'overview'
+      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다.'
+      : cameraMode === 'follow'
+        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다.`
+        : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. Shift로 가속할 수 있습니다.';
+
+  return (
+    <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
+      <div ref={containerRef} className="h-full w-full" />
+
+      <div className="absolute left-4 top-4 z-10 w-[400px] rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md">
+        <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
+          OSM + Three.js Taxi Sim
+        </p>
+        <h1 className="text-[28px] font-semibold leading-tight">
+          역삼동 블록 시티 택시 시뮬레이션
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          OpenStreetMap 도로망 위에 실제 경로 탐색 기반 택시 운행을 얹었습니다. 택시는
+          우측 차선으로 주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며,
+          승차지에서 손님을 태운 뒤 목적지까지 최단 경로로 이동합니다.
+        </p>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Taxis</div>
+            <div className="mt-1 text-lg font-semibold text-amber-200">{stats.taxis}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Traffic</div>
+            <div className="mt-1 text-lg font-semibold text-sky-200">{stats.traffic}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Signals</div>
+            <div className="mt-1 text-lg font-semibold text-emerald-200">{stats.signals}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Waiting</div>
+            <div className="mt-1 text-lg font-semibold text-rose-200">{stats.waiting}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Active Trips</div>
+            <div className="mt-1 text-lg font-semibold text-cyan-200">{stats.activeTrips}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Completed</div>
+            <div className="mt-1 text-lg font-semibold text-lime-200">{stats.completedTrips}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Pedestrians</div>
+            <div className="mt-1 text-lg font-semibold text-violet-200">{stats.pedestrians}</div>
+          </div>
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="text-slate-400">Routing</div>
+            <div className="mt-1 text-lg font-semibold text-slate-100">Shortest Path</div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+          <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Camera</div>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              ['overview', 'Overview'],
+              ['drive', 'Drive'],
+              ['follow', 'Follow Taxi'],
+            ] as Array<[CameraMode, string]>).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setCameraMode(mode)}
+                className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${
+                  cameraMode === mode
+                    ? 'border-cyan-300/40 bg-cyan-300/18 text-cyan-50'
+                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+              Follow Target
+            </div>
+            <select
+              value={selectedTaxiId}
+              onChange={(event) => {
+                setFollowTaxiId(event.target.value);
+                setCameraMode('follow');
+              }}
+              disabled={!taxiOptions.length}
+              className="w-full rounded-2xl border border-white/10 bg-slate-900/75 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {taxiOptions.map((taxi) => (
+                <option key={taxi.id} value={taxi.id}>
+                  {taxi.label} · {taxi.detail}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+            {controlHint}
+          </div>
+        </div>
+
+        <label className="mt-5 flex items-center gap-3 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={showLabels}
+            onChange={(event) => setShowLabels(event.target.checked)}
+            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400"
+          />
+          도로/건물 라벨 보기
+        </label>
+
+        <div className="mt-5 grid gap-3 text-sm">
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+              Major Roads
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {roadNames.map((road) => (
+                <span
+                  key={road}
+                  className="rounded-full border border-cyan-300/12 bg-cyan-300/8 px-2 py-1 text-cyan-100"
+                >
+                  {road}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+              Named Buildings
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {buildingNames.map((building) => (
+                <span
+                  key={building}
+                  className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-slate-100"
+                >
+                  {building}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+              Taxi Hotspots
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {serviceLabels.map((service) => (
+                <span
+                  key={service}
+                  className="rounded-full border border-amber-300/15 bg-amber-200/10 px-2 py-1 text-amber-100"
+                >
+                  {service}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400">
+          상태: <span className="text-slate-100">{status}</span>
+          <br />
+          카메라: <span className="text-slate-100">{cameraModeLabel}</span>
+          <br />
+          조작: {controlHint}
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 left-4 z-10 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-300 shadow-xl backdrop-blur-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#6f8fce]" />
+            건물
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#2c4d7c]" />
+            주요 도로
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#eef4ff]" />
+            횡단보도
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ffcb44]" />
+            택시
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ffcf57]" />
+            승차 포인트
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#f6f7ff]" />
+            보행자 신호
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
