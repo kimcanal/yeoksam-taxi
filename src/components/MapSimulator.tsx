@@ -137,6 +137,7 @@ type VehiclePalette = {
 type VehicleKind = 'taxi' | 'traffic';
 type VehiclePlanMode = 'traffic' | 'pickup' | 'dropoff';
 type CameraMode = 'drive' | 'overview' | 'follow';
+type WeatherMode = 'clear' | 'cloudy' | 'heavy-rain' | 'heavy-snow';
 
 type Vehicle = {
   id: string;
@@ -172,6 +173,12 @@ type Stats = {
 
 type TaxiOption = {
   id: string;
+  label: string;
+  detail: string;
+};
+
+type WeatherOption = {
+  id: WeatherMode;
   label: string;
   detail: string;
 };
@@ -259,6 +266,39 @@ type HotspotVisual = {
   callBadge: CSS2DObject;
 };
 
+type EnvironmentState = {
+  skyColor: number;
+  fogColor: number;
+  fogNear: number;
+  fogFar: number;
+  ambientColor: number;
+  ambientIntensity: number;
+  hemiSkyColor: number;
+  hemiGroundColor: number;
+  hemiIntensity: number;
+  sunColor: number;
+  sunIntensity: number;
+  sunPosition: THREE.Vector3;
+  groundColor: number;
+  roadColors: Record<RoadProperties['roadClass'], number>;
+  roadRoughness: number;
+  roadMetalness: number;
+  laneMarkerColor: number;
+  laneMarkerEmissive: number;
+  laneMarkerIntensity: number;
+  crosswalkColor: number;
+  crosswalkEmissive: number;
+  crosswalkIntensity: number;
+  stopLineColor: number;
+  stopLineEmissive: number;
+  stopLineIntensity: number;
+  buildingTint: number;
+  precipitation: 'none' | 'rain' | 'snow';
+  precipitationOpacity: number;
+  precipitationIntensity: number;
+  vehicleSpeedMultiplier: number;
+};
+
 const TAXI_PALETTE: VehiclePalette = {
   body: 0xffcb44,
   cabin: 0xfff1a4,
@@ -272,6 +312,146 @@ const TRAFFIC_PALETTES: VehiclePalette[] = [
   { body: 0x7f9aff, cabin: 0xe2e8ff, sign: null },
   { body: 0xffb15c, cabin: 0xffead1, sign: null },
 ];
+
+const MINUTES_PER_DAY = 24 * 60;
+
+const WEATHER_OPTIONS: WeatherOption[] = [
+  { id: 'clear', label: '맑음', detail: '기본 시야와 표준 주행 속도' },
+  { id: 'cloudy', label: '흐림', detail: '광량 감소, 가벼운 감속' },
+  { id: 'heavy-rain', label: '폭우', detail: '빗줄기와 젖은 도로, 시야는 보수적으로 유지' },
+  { id: 'heavy-snow', label: '폭설', detail: '눈발과 차가운 톤, 과한 안개 없이 표현' },
+];
+
+const TIME_PRESETS = [
+  { label: '06:00', minutes: 6 * 60, detail: '새벽' },
+  { label: '12:00', minutes: 12 * 60, detail: '한낮' },
+  { label: '18:30', minutes: 18 * 60 + 30, detail: '노을' },
+  { label: '23:00', minutes: 23 * 60, detail: '심야' },
+];
+
+function normalizeDayMinutes(minutes: number) {
+  return ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+}
+
+function format24Hour(minutes: number) {
+  const normalized = normalizeDayMinutes(minutes);
+  const hour = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function timeBandLabel(minutes: number) {
+  const normalized = normalizeDayMinutes(minutes);
+  if (normalized < 300) return '심야';
+  if (normalized < 420) return '새벽';
+  if (normalized < 720) return '오전';
+  if (normalized < 1020) return '오후';
+  if (normalized < 1260) return '저녁';
+  return '야간';
+}
+
+function daylightFactor(minutes: number) {
+  const normalized = normalizeDayMinutes(minutes);
+  const daylightAngle = ((normalized - 6 * 60) / (12 * 60)) * Math.PI;
+  return THREE.MathUtils.clamp(Math.sin(daylightAngle), 0, 1);
+}
+
+function twilightFactor(minutes: number) {
+  const normalized = normalizeDayMinutes(minutes);
+  const sunriseWindow = 1 - THREE.MathUtils.clamp(Math.abs(normalized - 6 * 60) / 110, 0, 1);
+  const sunsetWindow = 1 - THREE.MathUtils.clamp(Math.abs(normalized - 18 * 60) / 130, 0, 1);
+  return Math.max(sunriseWindow, sunsetWindow);
+}
+
+function mixHexColor(start: number, end: number, alpha: number) {
+  return new THREE.Color(start).lerp(new THREE.Color(end), THREE.MathUtils.clamp(alpha, 0, 1)).getHex();
+}
+
+function scaleHexColor(value: number, factor: number) {
+  return new THREE.Color(value).multiplyScalar(factor).getHex();
+}
+
+function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): EnvironmentState {
+  const normalizedMinutes = normalizeDayMinutes(minutes);
+  const daylight = daylightFactor(normalizedMinutes);
+  const twilight = twilightFactor(normalizedMinutes);
+  const sunAngle = (normalizedMinutes / MINUTES_PER_DAY) * Math.PI * 2 - Math.PI / 2;
+  const cloudCover =
+    weatherMode === 'clear' ? 0.05 : weatherMode === 'cloudy' ? 0.24 : weatherMode === 'heavy-rain' ? 0.48 : 0.38;
+  const skyDayColor =
+    weatherMode === 'clear'
+      ? 0x7fc8ff
+      : weatherMode === 'cloudy'
+        ? 0x9cb2c2
+        : weatherMode === 'heavy-rain'
+          ? 0x738899
+          : 0xccd9e8;
+  const skyNightColor =
+    weatherMode === 'heavy-snow' ? 0x11192a : weatherMode === 'heavy-rain' ? 0x0a121d : 0x08111c;
+  const fogDayColor =
+    weatherMode === 'clear'
+      ? 0xa4d7ef
+      : weatherMode === 'cloudy'
+        ? 0xa6b7c3
+        : weatherMode === 'heavy-rain'
+          ? 0x7d8d99
+          : 0xdce5ee;
+  const fogNightColor =
+    weatherMode === 'heavy-snow' ? 0x162131 : weatherMode === 'heavy-rain' ? 0x0c1520 : 0x0a121c;
+  const weatherSpeedMultiplier =
+    weatherMode === 'clear' ? 1 : weatherMode === 'cloudy' ? 0.97 : weatherMode === 'heavy-rain' ? 0.9 : 0.82;
+  const nightSpeedMultiplier = daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
+
+  return {
+    skyColor: mixHexColor(skyNightColor, skyDayColor, daylight + twilight * 0.1),
+    fogColor: mixHexColor(fogNightColor, fogDayColor, daylight * 0.88 + twilight * 0.08),
+    fogNear: weatherMode === 'heavy-rain' ? 96 : weatherMode === 'heavy-snow' ? 104 : daylight < 0.18 ? 108 : 124,
+    fogFar: weatherMode === 'heavy-rain' ? 336 : weatherMode === 'heavy-snow' ? 322 : daylight < 0.18 ? 334 : 376,
+    ambientColor: mixHexColor(0x7695bc, 0xffffff, daylight * 0.8 + 0.16),
+    ambientIntensity: THREE.MathUtils.lerp(0.28, 0.76, daylight) * (1 - cloudCover * 0.22),
+    hemiSkyColor: mixHexColor(0x24374f, skyDayColor, daylight * 0.82 + 0.16),
+    hemiGroundColor: mixHexColor(0x0f1722, 0x2b3d4f, daylight * 0.38 + 0.18),
+    hemiIntensity: THREE.MathUtils.lerp(0.34, 0.88, daylight) * (1 - cloudCover * 0.14),
+    sunColor:
+      daylight > 0.2
+        ? mixHexColor(0xffc18a, weatherMode === 'heavy-snow' ? 0xfafcff : 0xfff1d8, daylight)
+        : mixHexColor(0x6988ad, 0xffc18a, twilight),
+    sunIntensity: Math.max(0.12, daylight * (1.08 - cloudCover * 0.24) + twilight * 0.16),
+    sunPosition: new THREE.Vector3(
+      Math.cos(sunAngle) * 160,
+      THREE.MathUtils.lerp(22, 186, Math.max(0, Math.sin(sunAngle))),
+      Math.sin(sunAngle + 0.7) * 115,
+    ),
+    groundColor: mixHexColor(
+      weatherMode === 'heavy-snow' ? 0x1c2735 : 0x0e1620,
+      weatherMode === 'heavy-snow' ? 0xdfe7ef : 0x182330,
+      daylight * (weatherMode === 'heavy-snow' ? 0.66 : 0.46) + 0.12,
+    ),
+    roadColors: {
+      arterial: scaleHexColor(mixHexColor(0x1c2c42, 0x2c4d7c, daylight * 0.85 + 0.1), 1 - cloudCover * 0.08),
+      connector: scaleHexColor(mixHexColor(0x182434, 0x27425f, daylight * 0.82 + 0.1), 1 - cloudCover * 0.08),
+      local: scaleHexColor(mixHexColor(0x15202e, 0x223243, daylight * 0.8 + 0.12), 1 - cloudCover * 0.07),
+    },
+    roadRoughness: weatherMode === 'heavy-rain' ? 0.78 : weatherMode === 'heavy-snow' ? 0.84 : 0.95,
+    roadMetalness: weatherMode === 'heavy-rain' ? 0.14 : weatherMode === 'heavy-snow' ? 0.05 : 0.02,
+    laneMarkerColor: weatherMode === 'heavy-snow' ? 0xfbfdff : 0xffefb0,
+    laneMarkerEmissive: daylight < 0.22 ? 0xb98f2c : weatherMode === 'heavy-rain' ? 0x6f5720 : 0x866000,
+    laneMarkerIntensity: daylight < 0.2 ? 0.34 : weatherMode === 'heavy-rain' ? 0.2 : 0.16,
+    crosswalkColor: weatherMode === 'heavy-snow' ? 0xffffff : 0xf0f6ff,
+    crosswalkEmissive: daylight < 0.2 ? 0x4c5664 : 0x39424f,
+    crosswalkIntensity: daylight < 0.2 ? 0.18 : 0.08,
+    stopLineColor: weatherMode === 'heavy-snow' ? 0xffffff : 0xf7fbff,
+    stopLineEmissive: daylight < 0.2 ? 0x526579 : 0x394959,
+    stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
+    buildingTint: mixHexColor(0x70859d, 0xffffff, daylight * 0.62 + 0.12),
+    precipitation:
+      weatherMode === 'heavy-rain' ? 'rain' : weatherMode === 'heavy-snow' ? 'snow' : 'none',
+    precipitationOpacity:
+      weatherMode === 'heavy-rain' ? 0.24 : weatherMode === 'heavy-snow' ? 0.42 : 0,
+    precipitationIntensity: weatherMode === 'heavy-rain' ? 0.55 : weatherMode === 'heavy-snow' ? 0.4 : 0,
+    vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
+  };
+}
 
 function geoKey(position: Position) {
   return `${position[0].toFixed(5)}:${position[1].toFixed(5)}`;
@@ -1456,8 +1636,12 @@ export default function MapSimulator() {
   const [data, setData] = useState<SimulationData | null>(null);
   const [status, setStatus] = useState<'loading' | 'rendering' | 'ready' | 'error'>('loading');
   const [showLabels, setShowLabels] = useState(true);
+  const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(12 * 60);
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>('clear');
   const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
   const [followTaxiId, setFollowTaxiId] = useState('');
+  const simulationTimeRef = useRef(12 * 60);
+  const weatherModeRef = useRef<WeatherMode>('clear');
   const cameraModeRef = useRef<CameraMode>('drive');
   const followTaxiIdRef = useRef('');
   const [stats, setStats] = useState<Stats>({
@@ -1469,6 +1653,14 @@ export default function MapSimulator() {
     completedTrips: 0,
     pedestrians: 0,
   });
+
+  useEffect(() => {
+    simulationTimeRef.current = simulationTimeMinutes;
+  }, [simulationTimeMinutes]);
+
+  useEffect(() => {
+    weatherModeRef.current = weatherMode;
+  }, [weatherMode]);
 
   useEffect(() => {
     cameraModeRef.current = cameraMode;
@@ -1534,8 +1726,9 @@ export default function MapSimulator() {
 
     const container = containerRef.current;
     const scene = new THREE.Scene();
+    const sceneFog = new THREE.Fog(0x07111b, 120, 360);
     scene.background = new THREE.Color(0x07111b);
-    scene.fog = new THREE.Fog(0x07111b, 120, 360);
+    scene.fog = sceneFog;
 
     const camera = new THREE.PerspectiveCamera(
       48,
@@ -1550,6 +1743,8 @@ export default function MapSimulator() {
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.02;
     renderer.domElement.style.cursor = 'grab';
     renderer.domElement.style.touchAction = 'none';
     container.appendChild(renderer.domElement);
@@ -1561,8 +1756,10 @@ export default function MapSimulator() {
     labelRenderer.domElement.style.pointerEvents = 'none';
     container.appendChild(labelRenderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.68));
-    scene.add(new THREE.HemisphereLight(0xb6d5ff, 0x172333, 0.82));
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.68);
+    scene.add(ambientLight);
+    const hemisphereLight = new THREE.HemisphereLight(0xb6d5ff, 0x172333, 0.82);
+    scene.add(hemisphereLight);
 
     const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
     sun.position.set(110, 180, 80);
@@ -1668,14 +1865,87 @@ export default function MapSimulator() {
     sun.shadow.camera.bottom = -shadowSpan;
     sun.shadow.camera.updateProjectionMatrix();
 
+    const createPrecipitationLayer = (
+      count: number,
+      material: THREE.PointsMaterial,
+      minHeight: number,
+      maxHeight: number,
+    ) => {
+      const positions = new Float32Array(count * 3);
+      const seeds = new Float32Array(count);
+      const spanX = size.x + 180;
+      const spanZ = size.z + 180;
+      const minX = centerPoint.x - spanX / 2;
+      const maxX = centerPoint.x + spanX / 2;
+      const minZ = centerPoint.z - spanZ / 2;
+      const maxZ = centerPoint.z + spanZ / 2;
+
+      for (let index = 0; index < count; index += 1) {
+        const offset = index * 3;
+        positions[offset] = THREE.MathUtils.lerp(minX, maxX, Math.random());
+        positions[offset + 1] = THREE.MathUtils.lerp(minHeight, maxHeight, Math.random());
+        positions[offset + 2] = THREE.MathUtils.lerp(minZ, maxZ, Math.random());
+        seeds[index] = Math.random();
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const points = new THREE.Points(geometry, material);
+      points.visible = false;
+      scene.add(points);
+
+      return {
+        geometry,
+        material,
+        points,
+        seeds,
+        minHeight,
+        maxHeight,
+        minX,
+        maxX,
+        minZ,
+        maxZ,
+      };
+    };
+
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x101b26,
+      roughness: 0.98,
+      metalness: 0.02,
+    });
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(size.x + 120, size.z + 120),
-      new THREE.MeshStandardMaterial({ color: 0x101b26, roughness: 0.98, metalness: 0.02 }),
+      groundMaterial,
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(centerPoint.x, 0, centerPoint.z);
     ground.receiveShadow = true;
     scene.add(ground);
+
+    const rainLayer = createPrecipitationLayer(
+      720,
+      new THREE.PointsMaterial({
+        color: 0xb8ddff,
+        size: 0.28,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+      }),
+      12,
+      76,
+    );
+    const snowLayer = createPrecipitationLayer(
+      520,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.68,
+        transparent: true,
+        opacity: 0.38,
+        depthWrite: false,
+      }),
+      10,
+      70,
+    );
 
     const signalById = new Map<string, SignalData>();
     const signalByKey = new Map<string, SignalData>();
@@ -1690,6 +1960,8 @@ export default function MapSimulator() {
     let hotspotPool: Hotspot[] = [];
     let completedTrips = 0;
     let activePedestrians = 0;
+    let crosswalkMaterial: THREE.MeshStandardMaterial | null = null;
+    let stopLineMaterial: THREE.MeshStandardMaterial | null = null;
 
     const routeBuilder = (start: string, end: string, id: string, label: string | null) => {
       if (!graph) {
@@ -1846,14 +2118,15 @@ export default function MapSimulator() {
       });
     });
 
+    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffefb0,
+      emissive: 0x866000,
+      emissiveIntensity: 0.16,
+      roughness: 0.62,
+    });
     const laneMarkerMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.16, 0.03, 1),
-      new THREE.MeshStandardMaterial({
-        color: 0xffefb0,
-        emissive: 0x866000,
-        emissiveIntensity: 0.16,
-        roughness: 0.62,
-      }),
+      laneMarkerMaterial,
       laneMarkers.length,
     );
 
@@ -1867,9 +2140,10 @@ export default function MapSimulator() {
     laneMarkerMesh.instanceMatrix.needsUpdate = true;
     scene.add(laneMarkerMesh);
 
+    const buildingMaterial = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0.02 });
     const buildingMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0.02 }),
+      buildingMaterial,
       buildingFeatures.length,
     );
 
@@ -2086,14 +2360,15 @@ export default function MapSimulator() {
         return [...nsStripes, ...ewStripes];
       });
 
+      crosswalkMaterial = new THREE.MeshStandardMaterial({
+        color: 0xeef4ff,
+        emissive: 0x39424f,
+        emissiveIntensity: 0.08,
+        roughness: 0.7,
+      });
       const crosswalkMesh = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 0.02, 1),
-        new THREE.MeshStandardMaterial({
-          color: 0xeef4ff,
-          emissive: 0x39424f,
-          emissiveIntensity: 0.08,
-          roughness: 0.7,
-        }),
+        crosswalkMaterial,
         crosswalkStripes.length,
       );
 
@@ -2111,14 +2386,15 @@ export default function MapSimulator() {
         .filter((route) => route.roadClass !== 'local')
         .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
 
+      stopLineMaterial = new THREE.MeshStandardMaterial({
+        color: 0xf7fbff,
+        emissive: 0x394959,
+        emissiveIntensity: 0.12,
+        roughness: 0.54,
+      });
       const stopLineMesh = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 0.04, 0.32),
-        new THREE.MeshStandardMaterial({
-          color: 0xf7fbff,
-          emissive: 0x394959,
-          emissiveIntensity: 0.12,
-          roughness: 0.54,
-        }),
+        stopLineMaterial,
         stopLineMarkers.length,
       );
 
@@ -2381,6 +2657,7 @@ export default function MapSimulator() {
         signals: signalVisuals.length,
       }));
 
+      applyEnvironment(simulationTimeRef.current, weatherModeRef.current);
       applyModePreset(cameraModeRef.current);
       syncCamera();
       renderer.render(scene, camera);
@@ -2390,6 +2667,109 @@ export default function MapSimulator() {
     const clock = new THREE.Clock();
     let animationFrame = 0;
     let statsAccumulator = 0;
+    let appliedWeatherMode: WeatherMode | null = null;
+    let appliedTimeMinutes = -1;
+    let activeVehicleSpeedMultiplier = 1;
+
+    const applyEnvironment = (minutes: number, nextWeatherMode: WeatherMode) => {
+      const environment = buildEnvironmentState(minutes, nextWeatherMode);
+      const daylight = daylightFactor(minutes);
+      const background = scene.background as THREE.Color | null;
+
+      background?.setHex(environment.skyColor);
+      sceneFog.color.setHex(environment.fogColor);
+      sceneFog.near = environment.fogNear;
+      sceneFog.far = environment.fogFar;
+
+      ambientLight.color.setHex(environment.ambientColor);
+      ambientLight.intensity = environment.ambientIntensity;
+      hemisphereLight.color.setHex(environment.hemiSkyColor);
+      hemisphereLight.groundColor.setHex(environment.hemiGroundColor);
+      hemisphereLight.intensity = environment.hemiIntensity;
+
+      sun.color.setHex(environment.sunColor);
+      sun.intensity = environment.sunIntensity;
+      sun.position.copy(environment.sunPosition);
+
+      groundMaterial.color.setHex(environment.groundColor);
+      roadMaterials.arterial.color.setHex(environment.roadColors.arterial);
+      roadMaterials.connector.color.setHex(environment.roadColors.connector);
+      roadMaterials.local.color.setHex(environment.roadColors.local);
+      (
+        [roadMaterials.arterial, roadMaterials.connector, roadMaterials.local] as THREE.MeshStandardMaterial[]
+      ).forEach((material) => {
+        material.roughness = environment.roadRoughness;
+        material.metalness = environment.roadMetalness;
+      });
+
+      laneMarkerMaterial.color.setHex(environment.laneMarkerColor);
+      laneMarkerMaterial.emissive.setHex(environment.laneMarkerEmissive);
+      laneMarkerMaterial.emissiveIntensity = environment.laneMarkerIntensity;
+      buildingMaterial.color.setHex(environment.buildingTint);
+      if (crosswalkMaterial) {
+        crosswalkMaterial.color.setHex(environment.crosswalkColor);
+        crosswalkMaterial.emissive.setHex(environment.crosswalkEmissive);
+        crosswalkMaterial.emissiveIntensity = environment.crosswalkIntensity;
+      }
+      if (stopLineMaterial) {
+        stopLineMaterial.color.setHex(environment.stopLineColor);
+        stopLineMaterial.emissive.setHex(environment.stopLineEmissive);
+        stopLineMaterial.emissiveIntensity = environment.stopLineIntensity;
+      }
+
+      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
+      rainLayer.points.visible = environment.precipitation === 'rain';
+      rainLayer.material.opacity = environment.precipitationOpacity;
+      rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;
+      snowLayer.points.visible = environment.precipitation === 'snow';
+      snowLayer.material.opacity = environment.precipitationOpacity;
+      snowLayer.material.size = 0.58 + environment.precipitationIntensity * 0.18;
+
+      renderer.toneMappingExposure =
+        daylight < 0.15 ? 0.92 : nextWeatherMode === 'heavy-rain' ? 0.98 : 1.04;
+    };
+
+    const updatePrecipitation = (delta: number, elapsedTime: number) => {
+      if (rainLayer.points.visible) {
+        const positions = rainLayer.geometry.attributes.position.array as Float32Array;
+        for (let index = 0; index < rainLayer.seeds.length; index += 1) {
+          const offset = index * 3;
+          positions[offset] += delta * 3.1;
+          positions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
+          positions[offset + 2] += delta * 5.1;
+
+          if (positions[offset] > rainLayer.maxX) positions[offset] = rainLayer.minX;
+          if (positions[offset + 2] > rainLayer.maxZ) positions[offset + 2] = rainLayer.minZ;
+          if (positions[offset + 1] < rainLayer.minHeight) {
+            positions[offset] = THREE.MathUtils.lerp(rainLayer.minX, rainLayer.maxX, Math.random());
+            positions[offset + 1] = rainLayer.maxHeight;
+            positions[offset + 2] = THREE.MathUtils.lerp(rainLayer.minZ, rainLayer.maxZ, Math.random());
+          }
+        }
+        rainLayer.geometry.attributes.position.needsUpdate = true;
+      }
+
+      if (snowLayer.points.visible) {
+        const positions = snowLayer.geometry.attributes.position.array as Float32Array;
+        for (let index = 0; index < snowLayer.seeds.length; index += 1) {
+          const offset = index * 3;
+          const sway = Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) * 0.52;
+          positions[offset] += sway * delta;
+          positions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
+          positions[offset + 2] += delta * (1.1 + snowLayer.seeds[index] * 0.8);
+
+          if (positions[offset] > snowLayer.maxX) positions[offset] = snowLayer.minX;
+          if (positions[offset] < snowLayer.minX) positions[offset] = snowLayer.maxX;
+          if (positions[offset + 2] > snowLayer.maxZ) positions[offset + 2] = snowLayer.minZ;
+          if (positions[offset + 1] < snowLayer.minHeight) {
+            positions[offset] = THREE.MathUtils.lerp(snowLayer.minX, snowLayer.maxX, Math.random());
+            positions[offset + 1] = snowLayer.maxHeight;
+            positions[offset + 2] = THREE.MathUtils.lerp(snowLayer.minZ, snowLayer.maxZ, Math.random());
+          }
+        }
+        snowLayer.geometry.attributes.position.needsUpdate = true;
+      }
+    };
 
     const updateSignalVisuals = (elapsedTime: number) => {
       signalVisuals.forEach((signal) => {
@@ -2564,7 +2944,7 @@ export default function MapSimulator() {
 
       vehicles.forEach((vehicle, vehicleIndex) => {
         const current = samples[vehicleIndex];
-        let targetSpeed = vehicle.baseSpeed;
+        let targetSpeed = vehicle.baseSpeed * activeVehicleSpeedMultiplier;
         let holdPosition = false;
 
         if (vehicle.serviceTimer > 0) {
@@ -2850,10 +3230,22 @@ export default function MapSimulator() {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
+    applyEnvironment(simulationTimeRef.current, weatherModeRef.current);
+
     const animate = () => {
       animationFrame = window.requestAnimationFrame(animate);
       const delta = Math.min(clock.getDelta(), 0.05);
       const elapsedTime = clock.elapsedTime;
+      const nextSimulationTime = simulationTimeRef.current;
+      const nextWeatherMode = weatherModeRef.current;
+      if (
+        nextSimulationTime !== appliedTimeMinutes ||
+        nextWeatherMode !== appliedWeatherMode
+      ) {
+        appliedTimeMinutes = nextSimulationTime;
+        appliedWeatherMode = nextWeatherMode;
+        applyEnvironment(nextSimulationTime, nextWeatherMode);
+      }
       const currentMode = cameraModeRef.current;
       if (currentMode !== activeCameraMode) {
         activeCameraMode = currentMode;
@@ -2937,6 +3329,7 @@ export default function MapSimulator() {
       updateSignalVisuals(elapsedTime);
       updateHotspotVisuals(elapsedTime);
       updatePedestrians(elapsedTime);
+      updatePrecipitation(delta, elapsedTime);
       updateVehicles(delta, elapsedTime);
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
@@ -2958,6 +3351,10 @@ export default function MapSimulator() {
       renderer.domElement.removeEventListener('contextmenu', onContextMenu);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('wheel', onWheel);
+      rainLayer.geometry.dispose();
+      rainLayer.material.dispose();
+      snowLayer.geometry.dispose();
+      snowLayer.material.dispose();
       renderer.dispose();
       labelObjects.forEach((label) => label.removeFromParent());
       container.removeChild(renderer.domElement);
@@ -3007,12 +3404,20 @@ export default function MapSimulator() {
       : cameraMode === 'follow'
         ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다.`
         : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. Shift로 가속할 수 있습니다.';
+  const selectedWeather =
+    WEATHER_OPTIONS.find((option) => option.id === weatherMode) ?? WEATHER_OPTIONS[0];
+  const formattedSimulationTime = format24Hour(simulationTimeMinutes);
+  const simulationTimeBand = timeBandLabel(simulationTimeMinutes);
+  const daylightValue = daylightFactor(simulationTimeMinutes);
+  const twilightValue = twilightFactor(simulationTimeMinutes);
+  const daylightLabel =
+    daylightValue > 0.18 ? '낮' : twilightValue > 0.25 ? '황혼' : '밤';
 
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
       <div ref={containerRef} className="h-full w-full" />
 
-      <div className="absolute left-4 top-4 z-10 w-[400px] rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md">
+      <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
           OSM + Three.js Taxi Sim
         </p>
@@ -3058,6 +3463,76 @@ export default function MapSimulator() {
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Routing</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">Shortest Path</div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                Time + Weather
+              </div>
+              <div className="mt-2 flex items-end gap-3">
+                <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
+                  {formattedSimulationTime}
+                </div>
+                <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+                  {daylightLabel} / {simulationTimeBand}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-right">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                Weather
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                {selectedWeather.label}
+              </div>
+              <div className="text-[11px] text-slate-400">{selectedWeather.detail}</div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {TIME_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => setSimulationTimeMinutes(preset.minutes)}
+                className={`rounded-2xl border px-2 py-2 text-xs transition ${
+                  simulationTimeMinutes === preset.minutes
+                    ? 'border-cyan-300/40 bg-cyan-300/18 text-cyan-50'
+                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                <div className="font-medium tabular-nums">{preset.label}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
+                  {preset.detail}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {WEATHER_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setWeatherMode(option.id)}
+                className={`rounded-2xl border px-3 py-3 text-left transition ${
+                  weatherMode === option.id
+                    ? 'border-cyan-300/40 bg-cyan-300/16 text-cyan-50'
+                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
+                }`}
+              >
+                <div className="text-sm font-medium">{option.label}</div>
+                <div className="mt-1 text-[11px] leading-5 text-slate-400">{option.detail}</div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+            가독성을 해치지 않도록 날씨 효과는 완화된 강도로 적용됩니다.
           </div>
         </div>
 
@@ -3188,6 +3663,10 @@ export default function MapSimulator() {
 
         <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400">
           상태: <span className="text-slate-100">{statusLabel}</span>
+          <br />
+          시간: <span className="text-slate-100 tabular-nums">{formattedSimulationTime}</span>
+          <br />
+          날씨: <span className="text-slate-100">{selectedWeather.label}</span>
           <br />
           카메라: <span className="text-slate-100">{cameraModeLabel}</span>
           <br />
