@@ -12,17 +12,11 @@
     "fetch:map": "npm run fetch:buildings && npm run fetch:roads"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.2.11",
-    "@deck.gl/geo-layers": "^9.2.11",
-    "@deck.gl/layers": "^9.2.11",
-    "@deck.gl/react": "^9.2.11",
     "lucide-react": "^1.7.0",
-    "maplibre-gl": "^5.22.0",
     "next": "16.2.2",
     "osmtogeojson": "^3.0.0-beta.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-map-gl": "^8.1.0",
     "three": "^0.183.2"
   },
   "devDependencies": {
