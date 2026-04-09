@@ -42,6 +42,10 @@ const CAMERA_MAX_DISTANCE = 560;
 const CAMERA_MIN_PITCH = 0.34;
 const CAMERA_MAX_PITCH = 1.16;
 const CAMERA_LOOK_HEIGHT = 6;
+const TAXI_VIEW_CAMERA_HEIGHT = 1.86;
+const TAXI_VIEW_CAMERA_FORWARD_OFFSET = 0.28;
+const TAXI_VIEW_LOOK_AHEAD = 14;
+const TAXI_CLICK_MOVE_THRESHOLD = 8;
 const SHOW_DONG_BOUNDARIES = false;
 const DRIVE_RENDER_FPS = 60;
 const FOLLOW_RENDER_FPS = 60;
@@ -179,7 +183,8 @@ type VehiclePalette = {
 
 type VehicleKind = 'taxi' | 'traffic';
 type VehiclePlanMode = 'traffic' | 'pickup' | 'dropoff';
-type CameraMode = 'drive' | 'overview' | 'follow';
+type BaseCameraMode = 'drive' | 'overview' | 'follow';
+type CameraMode = BaseCameraMode | 'ride';
 type WeatherMode = 'clear' | 'cloudy' | 'heavy-rain' | 'heavy-snow';
 
 type Vehicle = {
@@ -673,6 +678,7 @@ function renderFpsCapFor(mode: CameraMode) {
     case 'overview':
       return OVERVIEW_RENDER_FPS;
     case 'follow':
+    case 'ride':
       return FOLLOW_RENDER_FPS;
     default:
       return DRIVE_RENDER_FPS;
@@ -736,6 +742,7 @@ function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
     case 'overview':
       return OVERVIEW_PIXEL_RATIO;
     case 'follow':
+    case 'ride':
       return FOLLOW_PIXEL_RATIO;
     default:
       return DRIVE_PIXEL_RATIO;
@@ -1417,7 +1424,7 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
 
 function hotspotCallElement() {
   const element = document.createElement('div');
-  element.textContent = 'o/ CALL TAXI';
+  element.textContent = '승차';
   element.style.padding = '3px 10px';
   element.style.borderRadius = '999px';
   element.style.border = '1px solid rgba(255,229,161,0.45)';
@@ -2160,8 +2167,8 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
       roughness: 0.72,
       metalness: 0,
     });
-    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.26, 0.72), signMaterial);
-    sign.position.set(0, 2.42, -0.25);
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.32, 0.82), signMaterial);
+    sign.position.set(0, 2.45, -0.25);
     group.add(sign);
   }
 
@@ -2311,10 +2318,10 @@ function setTaxiAppearance(vehicle: Vehicle) {
     vehicle.bodyMaterial.color.setHex(0xe3a928);
     vehicle.bodyMaterial.emissive.setHex(0x3c2700);
     vehicle.bodyMaterial.emissiveIntensity = 0.22;
-    vehicle.signMaterial?.color.setHex(0x9ee8ff);
-    vehicle.signMaterial?.emissive.setHex(0x19586c);
+    vehicle.signMaterial?.color.setHex(0x58f090);
+    vehicle.signMaterial?.emissive.setHex(0x0d5f28);
     if (vehicle.signMaterial) {
-      vehicle.signMaterial.emissiveIntensity = 0.36;
+      vehicle.signMaterial.emissiveIntensity = 0.48;
     }
     return;
   }
@@ -2322,10 +2329,10 @@ function setTaxiAppearance(vehicle: Vehicle) {
   vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
   vehicle.bodyMaterial.emissive.setHex(0x221700);
   vehicle.bodyMaterial.emissiveIntensity = 0.08;
-  vehicle.signMaterial?.color.setHex(vehicle.palette.sign ?? 0xfff9d8);
-  vehicle.signMaterial?.emissive.setHex(0x6d5800);
+  vehicle.signMaterial?.color.setHex(0xff5e66);
+  vehicle.signMaterial?.emissive.setHex(0x671119);
   if (vehicle.signMaterial) {
-    vehicle.signMaterial.emissiveIntensity = 0.16;
+    vehicle.signMaterial.emissiveIntensity = 0.44;
   }
 }
 
@@ -2426,6 +2433,7 @@ export default function MapSimulator() {
   const weatherModeRef = useRef<WeatherMode>('clear');
   const cameraModeRef = useRef<CameraMode>('drive');
   const followTaxiIdRef = useRef('');
+  const rideExitModeRef = useRef<BaseCameraMode>('drive');
   const showFpsRef = useRef(false);
   const fpsModeRef = useRef<FpsMode>('auto');
   const [stats, setStats] = useState<Stats>({
@@ -2664,8 +2672,14 @@ export default function MapSimulator() {
     let hoveredBoundaryIndex = -1;
     let pointerClientX = 0;
     let pointerClientY = 0;
+    let pointerDownClientX = 0;
+    let pointerDownClientY = 0;
+    let pointerDragged = false;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
     let simulationTimeout = 0;
+    const rideCameraPosition = new THREE.Vector3();
+    const rideLookTarget = new THREE.Vector3();
+    let rideLookInitialized = false;
 
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
@@ -3234,6 +3248,41 @@ export default function MapSimulator() {
     const resolveFollowTaxi = () =>
       taxiById.get(followTaxiIdRef.current) ?? taxiVehicles[0] ?? null;
 
+    const findTaxiFromPointer = () => {
+      if (!taxiVehicles.length) {
+        return null;
+      }
+
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hit = raycaster.intersectObjects(
+        taxiVehicles.map((vehicle) => vehicle.group),
+        true,
+      )[0];
+      if (!hit) {
+        return null;
+      }
+
+      const hitVehicleId = (hit.object.userData?.vehicleId ?? hit.object.parent?.userData?.vehicleId) as
+        | string
+        | undefined;
+      if (!hitVehicleId) {
+        return null;
+      }
+      return taxiById.get(hitVehicleId) ?? null;
+    };
+
+    const enterRideMode = (vehicle: Vehicle) => {
+      if (cameraModeRef.current !== 'ride') {
+        rideExitModeRef.current =
+          cameraModeRef.current === 'overview' || cameraModeRef.current === 'follow'
+            ? cameraModeRef.current
+            : 'drive';
+      }
+      followTaxiIdRef.current = vehicle.id;
+      setFollowTaxiId(vehicle.id);
+      setCameraMode('ride');
+    };
+
     const taxiHeading = (vehicle: Vehicle) => {
       const sample = sampleRoute(vehicle.route, vehicle.distance);
       return Math.atan2(sample.heading.x, sample.heading.z);
@@ -3257,6 +3306,11 @@ export default function MapSimulator() {
           const nextOffset = wrapAngle(cameraRig.yaw - baseYaw);
           followOrbit.yawOffset = Math.abs(nextOffset) < 1.25 ? nextOffset : 0.22;
         }
+        return;
+      }
+
+      if (mode === 'ride') {
+        rideLookInitialized = false;
         return;
       }
 
@@ -3699,6 +3753,10 @@ export default function MapSimulator() {
           serviceTimer: 0,
           planMode: 'pickup',
         };
+        group.userData.vehicleId = vehicle.id;
+        group.traverse((child) => {
+          child.userData.vehicleId = vehicle.id;
+        });
         setTaxiAppearance(vehicle);
         syncVehicleTransform(vehicle);
         vehicles.push(vehicle);
@@ -3977,49 +4035,76 @@ export default function MapSimulator() {
     };
 
     const updateHotspotVisuals = (elapsedTime: number) => {
-      const activeCallsByHotspot = new Map<string, number>();
+      const activePickupsByHotspot = new Map<string, number>();
+      const activeDropoffsByHotspot = new Map<string, number>();
       vehicles.forEach((vehicle) => {
-        if (vehicle.kind !== 'taxi' || vehicle.isOccupied || !vehicle.pickupHotspot) {
+        if (vehicle.kind !== 'taxi') {
           return;
         }
-        activeCallsByHotspot.set(
-          vehicle.pickupHotspot.id,
-          (activeCallsByHotspot.get(vehicle.pickupHotspot.id) ?? 0) + 1,
-        );
+        if (!vehicle.isOccupied && vehicle.pickupHotspot) {
+          activePickupsByHotspot.set(
+            vehicle.pickupHotspot.id,
+            (activePickupsByHotspot.get(vehicle.pickupHotspot.id) ?? 0) + 1,
+          );
+        }
+        if (vehicle.isOccupied && vehicle.dropoffHotspot) {
+          activeDropoffsByHotspot.set(
+            vehicle.dropoffHotspot.id,
+            (activeDropoffsByHotspot.get(vehicle.dropoffHotspot.id) ?? 0) + 1,
+          );
+        }
       });
 
       hotspotVisuals.forEach((visual, index) => {
         const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
-        const activeCalls = activeCallsByHotspot.get(visual.hotspot.id) ?? 0;
-        const isActive = activeCalls > 0;
+        const pickupCalls = activePickupsByHotspot.get(visual.hotspot.id) ?? 0;
+        const dropoffCalls = activeDropoffsByHotspot.get(visual.hotspot.id) ?? 0;
+        const markerMode = pickupCalls > 0 ? 'pickup' : dropoffCalls > 0 ? 'dropoff' : 'idle';
+        const isActive = markerMode !== 'idle';
+        const accentColor =
+          markerMode === 'pickup' ? 0xff6b68 : markerMode === 'dropoff' ? 0x49e6a1 : 0x5f708c;
         const baseMaterial = visual.base.material as THREE.MeshStandardMaterial;
         const glowMaterial = visual.glow.material as THREE.MeshStandardMaterial;
         const beaconMaterial = visual.beacon.material as THREE.MeshStandardMaterial;
         const ringMaterial = visual.ring.material as THREE.MeshStandardMaterial;
         const hailMaterial = visual.hailCube.material as THREE.MeshStandardMaterial;
+        const badgeElement = visual.callBadge.element as HTMLDivElement;
 
-        visual.base.scale.setScalar(isActive ? 0.98 + pulse * 0.05 : 0.82);
-        visual.glow.scale.setScalar(isActive ? 0.96 + pulse * 0.08 : 0.72);
-        visual.beacon.scale.setScalar(isActive ? 0.92 + pulse * 0.16 : 0.68);
-        visual.ring.scale.setScalar(isActive ? 0.96 + pulse * 0.12 : 0.78);
+        baseMaterial.color.setHex(accentColor);
+        baseMaterial.emissive.setHex(accentColor);
+        glowMaterial.emissive.setHex(accentColor);
+        beaconMaterial.emissive.setHex(accentColor);
+        ringMaterial.emissive.setHex(accentColor);
+
+        visual.base.scale.setScalar(isActive ? 1.02 + pulse * 0.08 : 0.82);
+        visual.glow.scale.setScalar(isActive ? 1.08 + pulse * 0.14 : 0.72);
+        visual.beacon.scale.setScalar(isActive ? 1.04 + pulse * 0.22 : 0.68);
+        visual.ring.scale.setScalar(isActive ? 1.12 + pulse * 0.18 : 0.78);
         visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
 
-        baseMaterial.emissiveIntensity = isActive ? 0.18 + pulse * 0.08 : 0.04;
-        glowMaterial.emissiveIntensity = isActive ? 0.24 + pulse * 0.12 : 0.06;
-        glowMaterial.opacity = isActive ? 0.62 + pulse * 0.14 : 0.2;
-        beaconMaterial.emissiveIntensity = isActive ? 0.24 + pulse * 0.22 : 0.08;
+        baseMaterial.emissiveIntensity = isActive ? 0.22 + pulse * 0.12 : 0.04;
+        glowMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.18 : 0.06;
+        glowMaterial.opacity = isActive ? 0.72 + pulse * 0.16 : 0.2;
+        beaconMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.28 : 0.08;
         beaconMaterial.opacity = isActive ? 0.9 : 0.28;
-        ringMaterial.emissiveIntensity = isActive ? 0.22 + pulse * 0.18 : 0.05;
-        hailMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.32 : 0.1;
+        ringMaterial.emissiveIntensity = isActive ? 0.3 + pulse * 0.24 : 0.05;
+        hailMaterial.emissiveIntensity = markerMode === 'pickup' ? 0.34 + pulse * 0.32 : 0.06;
 
-        visual.callerGroup.visible = isActive;
-        visual.callerGroup.position.y = 0.04 + (isActive ? Math.sin(elapsedTime * 3.1 + index) * 0.05 : 0);
-        visual.waveArmPivot.rotation.z = isActive
+        visual.callerGroup.visible = markerMode === 'pickup';
+        visual.callerGroup.position.y = 0.04 + (markerMode === 'pickup' ? Math.sin(elapsedTime * 3.1 + index) * 0.05 : 0);
+        visual.waveArmPivot.rotation.z = markerMode === 'pickup'
           ? -0.8 - Math.sin(elapsedTime * 5.4 + index * 0.8) * 0.42
           : -0.72;
-        visual.hailCube.scale.setScalar(isActive ? 0.94 + pulse * 0.14 : 0.86);
+        visual.hailCube.scale.setScalar(markerMode === 'pickup' ? 0.94 + pulse * 0.14 : 0.72);
         visual.callBadge.visible = isActive;
-        visual.callBadge.position.y = 2.1 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.08 : 0);
+        visual.callBadge.position.y = 2.28 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.1 : 0);
+        badgeElement.textContent = markerMode === 'dropoff' ? '하차' : '승차';
+        badgeElement.style.borderColor =
+          markerMode === 'dropoff' ? 'rgba(122,255,196,0.45)' : 'rgba(255,138,138,0.5)';
+        badgeElement.style.background =
+          markerMode === 'dropoff' ? 'rgba(8,40,24,0.88)' : 'rgba(48,12,14,0.88)';
+        badgeElement.style.color =
+          markerMode === 'dropoff' ? '#d9fff0' : '#ffe0e0';
       });
     };
 
@@ -4304,8 +4389,39 @@ export default function MapSimulator() {
       }
     };
 
+    const setTaxiHover = (vehicle: Vehicle | null) => {
+      if (!vehicle) {
+        boundaryHintText.style.display = 'none';
+        setBoundaryDongHighlight([]);
+        if (!cameraRig.dragging) {
+          renderer.domElement.style.cursor = 'grab';
+        }
+        return;
+      }
+
+      const taxiNumber = Number(vehicle.id.replace('taxi-', '')) + 1;
+      boundaryHintText.textContent = `Taxi ${taxiNumber} · 클릭해서 택시 시점`;
+      boundaryHintText.style.left = `${pointerClientX}px`;
+      boundaryHintText.style.top = `${pointerClientY}px`;
+      boundaryHintText.style.display = 'block';
+      if (!cameraRig.dragging) {
+        renderer.domElement.style.cursor = 'pointer';
+      }
+    };
+
     const updateBoundaryHover = () => {
-      if (cameraRig.dragging || !pointerInside || !dongBoundarySegments.length) {
+      if (cameraRig.dragging || !pointerInside) {
+        setBoundaryHover(null);
+        return;
+      }
+
+      const hoveredTaxi = findTaxiFromPointer();
+      if (hoveredTaxi) {
+        setTaxiHover(hoveredTaxi);
+        return;
+      }
+
+      if (!dongBoundarySegments.length) {
         setBoundaryHover(null);
         return;
       }
@@ -4390,6 +4506,9 @@ export default function MapSimulator() {
       cameraRig.pointerId = event.pointerId;
       cameraRig.pointerX = event.clientX;
       cameraRig.pointerY = event.clientY;
+      pointerDownClientX = event.clientX;
+      pointerDownClientY = event.clientY;
+      pointerDragged = false;
       renderer.domElement.style.cursor = 'grabbing';
     };
 
@@ -4420,10 +4539,18 @@ export default function MapSimulator() {
       const deltaY = event.clientY - cameraRig.pointerY;
       cameraRig.pointerX = event.clientX;
       cameraRig.pointerY = event.clientY;
+      if (
+        Math.hypot(event.clientX - pointerDownClientX, event.clientY - pointerDownClientY) >
+        TAXI_CLICK_MOVE_THRESHOLD
+      ) {
+        pointerDragged = true;
+      }
       if (cameraModeRef.current === 'follow') {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
         );
+      } else if (cameraModeRef.current === 'ride') {
+        return;
       } else {
         cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
       }
@@ -4439,10 +4566,20 @@ export default function MapSimulator() {
       if (event.pointerId !== cameraRig.pointerId) {
         return;
       }
+      const shouldTreatAsClick = !pointerDragged;
       stopDragging();
+      if (shouldTreatAsClick) {
+        const clickedTaxi = findTaxiFromPointer();
+        if (clickedTaxi) {
+          enterRideMode(clickedTaxi);
+        }
+      }
     };
 
     const onWheel = (event: WheelEvent) => {
+      if (cameraModeRef.current === 'ride') {
+        return;
+      }
       event.preventDefault();
       cameraRig.distance = THREE.MathUtils.clamp(
         cameraRig.distance + event.deltaY * 0.08,
@@ -4453,6 +4590,13 @@ export default function MapSimulator() {
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Escape' && cameraModeRef.current === 'ride') {
+        if (!isInteractiveTarget(event.target)) {
+          event.preventDefault();
+        }
+        setCameraMode(rideExitModeRef.current);
+        return;
+      }
       if (event.code === 'KeyF') {
         if (!isInteractiveTarget(event.target)) {
           event.preventDefault();
@@ -4479,6 +4623,7 @@ export default function MapSimulator() {
     const onWindowBlur = () => {
       pressedKeys.clear();
       pointerInside = false;
+      pointerDragged = false;
       pointerNdc.set(2, 2);
       boundaryHintText.style.display = 'none';
       stopDragging();
@@ -4646,7 +4791,7 @@ export default function MapSimulator() {
           overviewMinDistance,
           maxMapDistance,
         );
-      } else {
+      } else if (currentMode === 'follow') {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;
           followOrbit.yawOffset = 0.22;
@@ -4666,8 +4811,45 @@ export default function MapSimulator() {
           cameraRig.focus.lerp(centerPoint, 1 - Math.exp(-delta * 2.8));
           cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.2, delta);
         }
+        syncCamera();
+      } else {
+        if (followTaxiIdRef.current !== activeFollowTaxiId) {
+          activeFollowTaxiId = followTaxiIdRef.current;
+          rideLookInitialized = false;
+        }
+        const viewedTaxi = resolveFollowTaxi();
+        if (viewedTaxi) {
+          const sample = sampleRoute(viewedTaxi.route, viewedTaxi.distance);
+          const heading = sample.heading.clone().normalize();
+          const rideBlend = 1 - Math.exp(-delta * 7.2);
+          rideCameraPosition
+            .copy(viewedTaxi.group.position)
+            .addScaledVector(heading, TAXI_VIEW_CAMERA_FORWARD_OFFSET);
+          rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
+
+          const desiredLookTarget = viewedTaxi.group.position
+            .clone()
+            .addScaledVector(heading, TAXI_VIEW_LOOK_AHEAD);
+          desiredLookTarget.y = rideCameraPosition.y + 0.08;
+
+          if (!rideLookInitialized) {
+            camera.position.copy(rideCameraPosition);
+            rideLookTarget.copy(desiredLookTarget);
+            rideLookInitialized = true;
+          } else {
+            camera.position.lerp(rideCameraPosition, rideBlend);
+            rideLookTarget.lerp(desiredLookTarget, rideBlend);
+          }
+          camera.lookAt(rideLookTarget);
+        } else {
+          setCameraMode(rideExitModeRef.current);
+          cameraModeRef.current = rideExitModeRef.current;
+          syncCamera();
+        }
       }
-      syncCamera();
+      if (currentMode !== 'follow' && currentMode !== 'ride') {
+        syncCamera();
+      }
 
       updateSignalVisuals(elapsedTime);
       updateHotspotVisuals(elapsedTime);
@@ -4821,7 +5003,13 @@ export default function MapSimulator() {
     [selectedTaxiId, taxiOptions],
   );
   const cameraModeLabel =
-    cameraMode === 'overview' ? 'Overview' : cameraMode === 'follow' ? 'Follow Taxi' : 'Drive';
+    cameraMode === 'overview'
+      ? 'Overview'
+      : cameraMode === 'follow'
+        ? 'Follow Taxi'
+        : cameraMode === 'ride'
+          ? 'Taxi View'
+          : 'Drive';
   const statusLabel =
     status === 'loading'
       ? 'loading data'
@@ -4830,10 +5018,12 @@ export default function MapSimulator() {
         : status;
   const controlHint =
     cameraMode === 'overview'
-      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. F로 FPS 오버레이를 켤 수 있습니다.'
+      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.'
       : cameraMode === 'follow'
-        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. F로 FPS 오버레이를 켤 수 있습니다.`
-        : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. Shift로 가속하고 F로 FPS 오버레이를 켤 수 있습니다.';
+        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. 택시를 클릭하면 더 가까운 택시 시점으로 전환됩니다.`
+        : cameraMode === 'ride'
+          ? `택시 시점: ${selectedTaxi?.label ?? '선택한 택시'}와 함께 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
+          : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.';
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ?? WEATHER_OPTIONS[0];
   const formattedSimulationTime = format24Hour(simulationTimeMinutes);
@@ -5072,20 +5262,31 @@ export default function MapSimulator() {
 
         <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
           <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Camera</div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {([
               ['overview', 'Overview'],
               ['drive', 'Drive'],
               ['follow', 'Follow Taxi'],
+              ['ride', 'Taxi View'],
             ] as Array<[CameraMode, string]>).map(([mode, label]) => (
               <button
                 key={mode}
                 type="button"
-                onClick={() => setCameraMode(mode)}
+                onClick={() => {
+                  if (mode === 'ride' && selectedTaxiId) {
+                    rideExitModeRef.current =
+                      cameraMode === 'overview' || cameraMode === 'follow'
+                        ? cameraMode
+                        : 'drive';
+                    setFollowTaxiId(selectedTaxiId);
+                  }
+                  setCameraMode(mode);
+                }}
+                disabled={mode === 'ride' && !selectedTaxiId}
                 className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${
                   cameraMode === mode
                     ? 'border-cyan-300/40 bg-cyan-300/18 text-cyan-50'
-                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
+                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45'
                 }`}
               >
                 {label}

@@ -7,6 +7,9 @@
 - Updated `Auto` target logic so 60Hz-like displays stay at 60 FPS, while 100Hz+ displays can use a half-refresh target.
 - Simplified the FPS overlay text to show `Target FPS` directly.
 - Clarified in project docs that district boundary rendering is currently disabled while a cleaner approach is being explored.
+- Added a click-to-enter `Taxi View` camera mode and `Esc` shortcut to exit back to the previous view.
+- Updated taxi roof signs to show red when the taxi is empty and green after pickup.
+- Made active pickup and dropoff hotspots more readable with separate `승차` and `하차` emphasis.
 
 ### Documented
 - Added roadmap notes for signal logic, deadlock handling, taxi-density controls, and future hourly CSV-based data integration.
