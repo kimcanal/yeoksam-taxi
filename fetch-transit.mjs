@@ -1,8 +1,9 @@
 import fs from "fs";
 import osmtogeojson from "osmtogeojson";
 import {
-  OVERPASS_URLS,
+  fetchOverpassJson,
   geometryTouchesDongs,
+  keepCachedGeoJson,
   loadTargetRegion,
   representativePointForGeometry,
   roundCoord,
@@ -79,42 +80,11 @@ function roundedPoint([lon, lat]) {
   return [roundCoord(lon), roundCoord(lat)];
 }
 
-async function fetchOverpassJson() {
-  let lastError;
-
-  for (const url of OVERPASS_URLS) {
-    try {
-      console.log(`Trying ${url}`);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "yeoksam-taxi/0.1",
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-
-      const raw = await response.text();
-
-      if (!response.ok) {
-        throw new Error(`${response.status} ${raw.slice(0, 200)}`);
-      }
-
-      return JSON.parse(raw);
-    } catch (error) {
-      lastError = error;
-      console.error(`Failed on ${url}`, error);
-    }
-  }
-
-  throw lastError;
-}
-
 console.log("Fetching transit landmarks for the 9 selected Gangnam dongs...");
 
 try {
-  const osmJson = await fetchOverpassJson();
+  const outputPath = "public/transit.geojson";
+  const osmJson = await fetchOverpassJson(query, { label: "transit landmarks" });
   const geojson = osmtogeojson(osmJson);
   const seen = new Set();
 
@@ -175,7 +145,7 @@ try {
     .filter(Boolean);
 
   fs.writeFileSync(
-    "public/transit.geojson",
+    outputPath,
     JSON.stringify({
       type: "FeatureCollection",
       features,
@@ -188,9 +158,11 @@ try {
   ).length;
 
   console.log(
-    `Saved ${features.length} transit features to public/transit.geojson (${busCount} bus stops, ${subwayCount} subway stations)`,
+    `Saved ${features.length} transit features to ${outputPath} (${busCount} bus stops, ${subwayCount} subway stations)`,
   );
 } catch (error) {
-  console.error("Unable to fetch transit landmarks from Overpass mirrors.", error);
-  process.exitCode = 1;
+  if (!keepCachedGeoJson("public/transit.geojson", "transit landmarks", error)) {
+    console.error("Unable to fetch transit landmarks from Overpass mirrors.", error);
+    process.exitCode = 1;
+  }
 }

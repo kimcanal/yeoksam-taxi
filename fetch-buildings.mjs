@@ -1,8 +1,9 @@
 import fs from "fs";
 import osmtogeojson from "osmtogeojson";
 import {
-  OVERPASS_URLS,
+  fetchOverpassJson,
   geometryTouchesDongs,
+  keepCachedGeoJson,
   loadTargetRegion,
 } from "./map-region.mjs";
 
@@ -147,42 +148,11 @@ function roundGeometry(geometry) {
   return geometry;
 }
 
-async function fetchOverpassJson() {
-  let lastError;
-
-  for (const url of OVERPASS_URLS) {
-    try {
-      console.log(`Trying ${url}`);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "yeoksam-taxi/0.1",
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-
-      const raw = await response.text();
-
-      if (!response.ok) {
-        throw new Error(`${response.status} ${raw.slice(0, 200)}`);
-      }
-
-      return JSON.parse(raw);
-    } catch (error) {
-      lastError = error;
-      console.error(`Failed on ${url}`, error);
-    }
-  }
-
-  throw lastError;
-}
-
 console.log("Fetching buildings for the 9 selected Gangnam dongs...");
 
 try {
-  const osmJson = await fetchOverpassJson();
+  const outputPath = "public/buildings.geojson";
+  const osmJson = await fetchOverpassJson(query, { label: "buildings" });
   const geojson = osmtogeojson(osmJson);
 
   const features = geojson.features
@@ -209,15 +179,17 @@ try {
     );
 
   fs.writeFileSync(
-    "public/buildings.geojson",
+    outputPath,
     JSON.stringify({
       type: "FeatureCollection",
       features,
     }),
   );
 
-  console.log(`Saved ${features.length} buildings to public/buildings.geojson`);
+  console.log(`Saved ${features.length} buildings to ${outputPath}`);
 } catch (error) {
-  console.error("Unable to fetch buildings from Overpass mirrors.", error);
-  process.exitCode = 1;
+  if (!keepCachedGeoJson("public/buildings.geojson", "buildings", error)) {
+    console.error("Unable to fetch buildings from Overpass mirrors.", error);
+    process.exitCode = 1;
+  }
 }

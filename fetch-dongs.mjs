@@ -1,9 +1,10 @@
 import fs from "fs";
 import osmtogeojson from "osmtogeojson";
 import {
-  OVERPASS_URLS,
   TARGET_DONGS,
   TARGET_DONG_SET,
+  fetchOverpassJson,
+  keepCachedGeoJson,
   roundCoord,
 } from "./map-region.mjs";
 
@@ -44,42 +45,11 @@ function roundGeometry(geometry) {
   return geometry;
 }
 
-async function fetchOverpassJson() {
-  let lastError;
-
-  for (const url of OVERPASS_URLS) {
-    try {
-      console.log(`Trying ${url}`);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "yeoksam-taxi/0.1",
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-
-      const raw = await response.text();
-
-      if (!response.ok) {
-        throw new Error(`${response.status} ${raw.slice(0, 200)}`);
-      }
-
-      return JSON.parse(raw);
-    } catch (error) {
-      lastError = error;
-      console.error(`Failed on ${url}`, error);
-    }
-  }
-
-  throw lastError;
-}
-
 console.log("Fetching Gangnam core dong boundaries...");
 
 try {
-  const osmJson = await fetchOverpassJson();
+  const outputPath = "public/dongs.geojson";
+  const osmJson = await fetchOverpassJson(query, { label: "dong boundaries" });
   const geojson = osmtogeojson(osmJson);
   const deduped = new Map();
 
@@ -114,15 +84,17 @@ try {
   }
 
   fs.writeFileSync(
-    "public/dongs.geojson",
+    outputPath,
     JSON.stringify({
       type: "FeatureCollection",
       features,
     }),
   );
 
-  console.log(`Saved ${features.length} dongs to public/dongs.geojson`);
+  console.log(`Saved ${features.length} dongs to ${outputPath}`);
 } catch (error) {
-  console.error("Unable to fetch dong boundaries from Overpass mirrors.", error);
-  process.exitCode = 1;
+  if (!keepCachedGeoJson("public/dongs.geojson", "dong boundaries", error)) {
+    console.error("Unable to fetch dong boundaries from Overpass mirrors.", error);
+    process.exitCode = 1;
+  }
 }

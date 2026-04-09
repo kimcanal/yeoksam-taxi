@@ -37,8 +37,10 @@ Open `http://localhost:3000`.
 
 The simulator uses:
 
+- `public/dongs.geojson`
 - `public/buildings.geojson`
 - `public/roads.geojson`
+- `public/transit.geojson`
 
 These files can be regenerated from OpenStreetMap with:
 
@@ -48,5 +50,9 @@ npm run fetch:map
 
 ## Notes
 
-- The current map data is based on a bounded area around Yeoksam, not full administrative dong polygons yet.
-- Taxi demand, signals, pedestrians, and vehicles are simulated inside the app on top of OSM-derived geometry.
+- The current prototype uses 9 administrative dongs in Gangnam-gu: `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`.
+- Dong boundaries are fetched from OpenStreetMap administrative relations through Overpass and rendered as 3D district regions.
+- Roads, buildings, and transit landmarks come from OSM geometry, but some visual properties are simplified for readability.
+- Building heights are partially inferred from `height`, `building:levels`, or fallback heuristics when OSM is incomplete.
+- Taxi demand, signals, pedestrians, routing behavior, and vehicle logic are simulated inside the app on top of OSM-derived geometry.
+- This is reliable enough for a spatial prototype and demo, but not a substitute for official real-time transport or cadastral data.

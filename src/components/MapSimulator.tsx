@@ -100,6 +100,25 @@ type BuildingFeatureCollection = FeatureCollection<Polygon | MultiPolygon, Build
 type DongFeatureCollection = FeatureCollection<Polygon | MultiPolygon, DongProperties>;
 type TransitFeatureCollection = FeatureCollection<Point, TransitProperties>;
 
+type AssetMeta = {
+  path: string;
+  lastModified: string | null;
+  featureCount: number;
+};
+
+type SimulationMeta = {
+  source: string;
+  boundarySource: string;
+  latestAssetUpdatedAt: string | null;
+  loadedAt: string;
+  assets: {
+    roads: AssetMeta;
+    buildings: AssetMeta;
+    dongs: AssetMeta;
+    transit: AssetMeta;
+  };
+};
+
 type RouteNode = {
   key: string;
   point: THREE.Vector3;
@@ -204,6 +223,7 @@ type SimulationData = {
   buildings: BuildingFeatureCollection;
   dongs: DongFeatureCollection;
   transit: TransitFeatureCollection;
+  meta: SimulationMeta;
 };
 
 type Hotspot = {
@@ -234,6 +254,17 @@ type DongRegion = {
   position: THREE.Vector3;
   rings: THREE.Vector3[][];
   color: number;
+};
+
+type DongBoundarySegment = {
+  id: string;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  center: THREE.Vector3;
+  angle: number;
+  length: number;
+  leftDong: string | null;
+  rightDong: string | null;
 };
 
 type ProjectedRoadSegment = {
@@ -387,6 +418,45 @@ function format24Hour(minutes: number) {
   const hour = Math.floor(normalized / 60);
   const minute = normalized % 60;
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function formatKstDateTime(value: string | number | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
+  return `${partMap.get('year')}-${partMap.get('month')}-${partMap.get('day')} ${partMap.get('hour')}:${partMap.get('minute')} KST`;
+}
+
+async function fetchGeoJsonAsset<T extends FeatureCollection>(
+  path: string,
+): Promise<{ data: T; meta: AssetMeta }> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${path}: ${response.status}`);
+  }
+
+  const data = (await response.json()) as T;
+  return {
+    data,
+    meta: {
+      path,
+      lastModified: formatKstDateTime(response.headers.get('last-modified') ?? ''),
+      featureCount: Array.isArray(data.features) ? data.features.length : 0,
+    },
+  };
 }
 
 function timeBandLabel(minutes: number) {
@@ -821,6 +891,129 @@ function buildDongRegions(dongs: DongFeatureCollection, center: { lat: number; l
     .filter(Boolean) as DongRegion[];
 }
 
+function pointInDongRing(point: THREE.Vector3, ring: THREE.Vector3[]) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const current = ring[index];
+    const prior = ring[previous];
+    const intersects =
+      (current.z > point.z) !== (prior.z > point.z) &&
+      point.x <
+        ((prior.x - current.x) * (point.z - current.z)) /
+          ((prior.z - current.z) || Number.EPSILON) +
+          current.x;
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function dongContainsPoint(dong: DongRegion, point: THREE.Vector3) {
+  return dong.rings.some((ring) => ring.length >= 3 && pointInDongRing(point, ring));
+}
+
+function canonicalBoundaryPoint(point: THREE.Vector3) {
+  return `${point.x.toFixed(3)}:${point.z.toFixed(3)}`;
+}
+
+function buildDongBoundarySegments(dongRegions: DongRegion[]) {
+  const segmentMap = new Map<
+    string,
+    {
+      start: THREE.Vector3;
+      end: THREE.Vector3;
+    }
+  >();
+
+  dongRegions.forEach((dong) => {
+    dong.rings.forEach((ring) => {
+      for (let index = 0; index < ring.length - 1; index += 1) {
+        const start = ring[index];
+        const end = ring[index + 1];
+        const length = distanceXZ(start, end);
+        if (length < 1.5) {
+          continue;
+        }
+
+        const useOriginalOrder =
+          start.x < end.x || (Math.abs(start.x - end.x) < 0.001 && start.z <= end.z);
+        const canonicalStart = useOriginalOrder ? start : end;
+        const canonicalEnd = useOriginalOrder ? end : start;
+        const key = `${canonicalBoundaryPoint(canonicalStart)}|${canonicalBoundaryPoint(canonicalEnd)}`;
+
+        if (!segmentMap.has(key)) {
+          segmentMap.set(key, {
+            start: canonicalStart.clone(),
+            end: canonicalEnd.clone(),
+          });
+        }
+      }
+    });
+  });
+
+  return [...segmentMap.entries()].map(([key, value]) => {
+    const direction = value.end.clone().sub(value.start);
+    const length = direction.length();
+    const center = value.start.clone().lerp(value.end, 0.5);
+    const normal = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+    const probeDistance = Math.min(Math.max(length * 0.08, 0.9), 2.2);
+    const leftProbe = center.clone().addScaledVector(normal, probeDistance);
+    const rightProbe = center.clone().addScaledVector(normal, -probeDistance);
+    const leftDong = dongRegions.find((dong) => dongContainsPoint(dong, leftProbe))?.name ?? null;
+    const rightDong = dongRegions.find((dong) => dongContainsPoint(dong, rightProbe))?.name ?? null;
+
+    return {
+      id: key,
+      start: value.start,
+      end: value.end,
+      center,
+      angle: Math.atan2(value.end.x - value.start.x, value.end.z - value.start.z),
+      length,
+      leftDong,
+      rightDong,
+    } satisfies DongBoundarySegment;
+  });
+}
+
+function boundaryHintElement() {
+  const element = document.createElement('div');
+  element.style.padding = '8px 14px';
+  element.style.borderRadius = '16px';
+  element.style.border = '1px solid rgba(162,255,187,0.28)';
+  element.style.background = 'rgba(5,28,18,0.88)';
+  element.style.color = '#d9ffe5';
+  element.style.fontSize = '12px';
+  element.style.fontWeight = '600';
+  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
+  element.style.letterSpacing = '0.02em';
+  element.style.whiteSpace = 'nowrap';
+  element.style.pointerEvents = 'none';
+  element.style.boxShadow = '0 10px 28px rgba(0,0,0,0.28)';
+  element.style.position = 'absolute';
+  element.style.left = '0';
+  element.style.top = '0';
+  element.style.transform = 'translate(14px, -18px)';
+  element.style.zIndex = '12';
+  element.style.display = 'none';
+  return element;
+}
+
+function dongShapeFromRing(ring: THREE.Vector3[]) {
+  const points = ring.map((point) => new THREE.Vector2(point.x, -point.z));
+  if (points.length > 1 && points[0].distanceTo(points[points.length - 1]) < 0.001) {
+    points.pop();
+  }
+  if (points.length < 3) {
+    return null;
+  }
+  if (THREE.ShapeUtils.isClockWise(points)) {
+    points.reverse();
+  }
+  return new THREE.Shape(points);
+}
+
 function nearestRoadContext(
   point: THREE.Vector3,
   roadSegments: ProjectedRoadSegment[],
@@ -1097,19 +1290,19 @@ function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'dis
         : kind === 'transit'
           ? 'rgba(5,32,44,0.92)'
         : kind === 'district'
-          ? 'rgba(6,34,48,0.9)'
-        : 'rgba(12,20,36,0.85)';
+          ? 'rgba(5,48,67,0.96)'
+          : 'rgba(12,20,36,0.85)';
   element.style.color =
     kind === 'road'
       ? '#cfe7ff'
       : kind === 'service'
         ? '#ffe7a8'
         : kind === 'transit'
-          ? '#a8eeff'
+        ? '#a8eeff'
         : kind === 'district'
-          ? '#9ce8ff'
+          ? '#d5f6ff'
           : '#f7fbff';
-  element.style.fontSize = kind === 'road' ? '11px' : kind === 'district' ? '12px' : '12px';
+  element.style.fontSize = kind === 'road' ? '11px' : kind === 'district' ? '13px' : '12px';
   element.style.fontWeight = kind === 'district' ? '700' : '500';
   element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
   element.style.letterSpacing = '0.02em';
@@ -2163,23 +2356,45 @@ export default function MapSimulator() {
     let cancelled = false;
 
     Promise.all([
-      fetch('/roads.geojson').then((response) => response.json() as Promise<RoadFeatureCollection>),
-      fetch('/buildings.geojson').then(
-        (response) => response.json() as Promise<BuildingFeatureCollection>,
-      ),
-      fetch('/dongs.geojson').then((response) => response.json() as Promise<DongFeatureCollection>),
-      fetch('/transit.geojson').then((response) => response.json() as Promise<TransitFeatureCollection>),
+      fetchGeoJsonAsset<RoadFeatureCollection>('/roads.geojson'),
+      fetchGeoJsonAsset<BuildingFeatureCollection>('/buildings.geojson'),
+      fetchGeoJsonAsset<DongFeatureCollection>('/dongs.geojson'),
+      fetchGeoJsonAsset<TransitFeatureCollection>('/transit.geojson'),
     ])
-      .then(([roads, buildings, dongs, transit]) => {
+      .then(([roadsAsset, buildingsAsset, dongsAsset, transitAsset]) => {
         if (cancelled) {
           return;
         }
+        const roads = roadsAsset.data;
+        const buildings = buildingsAsset.data;
+        const dongs = dongsAsset.data;
+        const transit = transitAsset.data;
+        const assetTimes = [
+          roadsAsset.meta.lastModified,
+          buildingsAsset.meta.lastModified,
+          dongsAsset.meta.lastModified,
+          transitAsset.meta.lastModified,
+        ]
+          .filter(Boolean)
+          .sort() as string[];
         const nextData = {
           center: dongs.features.length ? featureCollectionCenter(dongs) : DEFAULT_MAP_CENTER,
           roads,
           buildings,
           dongs,
           transit,
+          meta: {
+            source: 'OpenStreetMap + Overpass -> public/*.geojson',
+            boundarySource: 'OSM administrative relations (admin_level=8)',
+            latestAssetUpdatedAt: assetTimes.at(-1) ?? null,
+            loadedAt: formatKstDateTime(new Date()) ?? 'unknown',
+            assets: {
+              roads: roadsAsset.meta,
+              buildings: buildingsAsset.meta,
+              dongs: dongsAsset.meta,
+              transit: transitAsset.meta,
+            },
+          },
         };
         setStatus('rendering');
         requestAnimationFrame(() => {
@@ -2237,7 +2452,7 @@ export default function MapSimulator() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.02;
     renderer.domElement.style.cursor = 'grab';
@@ -2282,6 +2497,14 @@ export default function MapSimulator() {
       ),
     );
     const transitLandmarks = buildTransitLandmarks(data.transit, data.center, roadSegments);
+    const dongBoundarySegments = buildDongBoundarySegments(dongRegions);
+    const dongBoundaryWallHeight = THREE.MathUtils.clamp(
+      buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
+        Math.max(buildingFeatures.length, 1) *
+        1.85,
+      7.2,
+      10.4,
+    );
 
     const bounds = new THREE.Box3();
     roadSegments.forEach((segment) => {
@@ -2317,6 +2540,12 @@ export default function MapSimulator() {
     const followOrbit = { yawOffset: 0.22 };
     let activeCameraMode = cameraModeRef.current;
     let activeFollowTaxiId = followTaxiIdRef.current;
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2(2, 2);
+    let pointerInside = false;
+    let hoveredBoundaryIndex = -1;
+    let pointerClientX = 0;
+    let pointerClientY = 0;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
     let simulationTimeout = 0;
 
@@ -2418,6 +2647,35 @@ export default function MapSimulator() {
     ground.position.set(centerPoint.x, 0, centerPoint.z);
     ground.receiveShadow = true;
     scene.add(ground);
+
+    const dongFloorGroup = new THREE.Group();
+    const dongFloorMaterials: THREE.MeshBasicMaterial[] = [];
+    dongRegions.forEach((dong) => {
+      dong.rings.forEach((ring) => {
+        const shape = dongShapeFromRing(ring);
+        if (!shape) {
+          return;
+        }
+
+        const fillMaterial = new THREE.MeshBasicMaterial({
+          color: dong.color,
+          transparent: true,
+          opacity: 0.09,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        dongFloorMaterials.push(fillMaterial);
+        const fill = new THREE.Mesh(
+          new THREE.ShapeGeometry(shape),
+          fillMaterial,
+        );
+        fill.rotation.x = -Math.PI / 2;
+        fill.position.y = 0.018;
+        fill.renderOrder = 2;
+        dongFloorGroup.add(fill);
+      });
+    });
+    scene.add(dongFloorGroup);
 
     const celestialRadius = Math.max(size.x, size.z) + 320;
     const sunDiscMaterial = new THREE.MeshBasicMaterial({
@@ -2598,51 +2856,54 @@ export default function MapSimulator() {
       return route;
     };
 
-    const dongBoundarySegments = dongRegions.flatMap((dong) =>
-      dong.rings.flatMap((ring) => {
-        if (ring.length < 2) {
-          return [];
-        }
-
-        const segments = [];
-        for (let index = 0; index < ring.length - 1; index += 1) {
-          const start = ring[index];
-          const end = ring[index + 1];
-          const length = distanceXZ(start, end);
-          if (length < 1.5) {
-            continue;
-          }
-
-          segments.push({
-            color: dong.color,
-            center: start.clone().lerp(end, 0.5),
-            angle: Math.atan2(end.x - start.x, end.z - start.z),
-            length,
-          });
-        }
-        return segments;
-      }),
-    );
-
-    const dongBoundaryMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 0.05, 1),
-      new THREE.MeshStandardMaterial({
-        color: 0x4fb8d8,
-        emissive: 0x102634,
-        emissiveIntensity: 0.12,
-        roughness: 0.6,
-        metalness: 0.08,
-      }),
+    const dongBoundaryGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x5de08d,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    });
+    const dongBoundaryGlowMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.035, 1),
+      dongBoundaryGlowMaterial,
       dongBoundarySegments.length,
     );
 
     dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, 0.21, segment.center.z);
+      dummy.position.set(segment.center.x, 0.19, segment.center.z);
       dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(0.42, 1, segment.length + 0.2);
+      dummy.scale.set(0.92, 1, segment.length + 0.75);
+      dummy.updateMatrix();
+      dongBoundaryGlowMesh.setMatrixAt(index, dummy.matrix);
+      dongBoundaryGlowMesh.setColorAt(index, new THREE.Color(0x7dffb2));
+    });
+
+    dongBoundaryGlowMesh.instanceMatrix.needsUpdate = true;
+    if (dongBoundaryGlowMesh.instanceColor) {
+      dongBoundaryGlowMesh.instanceColor.needsUpdate = true;
+    }
+    dongBoundaryGlowMesh.renderOrder = 25;
+    scene.add(dongBoundaryGlowMesh);
+
+    const dongBoundaryLineMaterial = new THREE.MeshStandardMaterial({
+      color: 0x44d57f,
+      emissive: 0x0d4524,
+      emissiveIntensity: 0.2,
+      roughness: 0.32,
+      metalness: 0.08,
+    });
+    const dongBoundaryMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.05, 1),
+      dongBoundaryLineMaterial,
+      dongBoundarySegments.length,
+    );
+
+    dongBoundarySegments.forEach((segment, index) => {
+      dummy.position.set(segment.center.x, 0.235, segment.center.z);
+      dummy.rotation.set(0, segment.angle, 0);
+      dummy.scale.set(0.48, 1.15, segment.length + 0.28);
       dummy.updateMatrix();
       dongBoundaryMesh.setMatrixAt(index, dummy.matrix);
-      dongBoundaryMesh.setColorAt(index, new THREE.Color(segment.color));
+      dongBoundaryMesh.setColorAt(index, new THREE.Color(0x64ef9b));
     });
 
     dongBoundaryMesh.instanceMatrix.needsUpdate = true;
@@ -2651,6 +2912,40 @@ export default function MapSimulator() {
     }
     dongBoundaryMesh.renderOrder = 26;
     scene.add(dongBoundaryMesh);
+
+    const dongWallMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x76ffad,
+      emissive: 0x114126,
+      emissiveIntensity: 0.16,
+      transparent: true,
+      opacity: 0.18,
+      roughness: 0.16,
+      metalness: 0.04,
+      transmission: 0.18,
+      thickness: 0.8,
+      depthWrite: false,
+    });
+    const dongWallMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      dongWallMaterial,
+      dongBoundarySegments.length,
+    );
+
+    dongBoundarySegments.forEach((segment, index) => {
+      dummy.position.set(segment.center.x, dongBoundaryWallHeight / 2, segment.center.z);
+      dummy.rotation.set(0, segment.angle, 0);
+      dummy.scale.set(0.42, dongBoundaryWallHeight, segment.length + 0.16);
+      dummy.updateMatrix();
+      dongWallMesh.setMatrixAt(index, dummy.matrix);
+      dongWallMesh.setColorAt(index, new THREE.Color(0x8bffb7));
+    });
+
+    dongWallMesh.instanceMatrix.needsUpdate = true;
+    if (dongWallMesh.instanceColor) {
+      dongWallMesh.instanceColor.needsUpdate = true;
+    }
+    dongWallMesh.renderOrder = 24;
+    scene.add(dongWallMesh);
 
     const roadMaterials = {
       arterial: new THREE.MeshStandardMaterial({
@@ -2791,6 +3086,21 @@ export default function MapSimulator() {
     scene.add(buildingMesh);
 
     const labelObjects: CSS2DObject[] = [];
+    const boundaryHintText = boundaryHintElement();
+    container.appendChild(boundaryHintText);
+
+    const applyDistrictPresentation = (mode: CameraMode) => {
+      const isOverview = mode === 'overview';
+      dongFloorMaterials.forEach((material) => {
+        material.opacity = isOverview ? 0.09 : 0.045;
+      });
+      dongBoundaryGlowMaterial.opacity = isOverview ? 0.18 : 0.02;
+      dongBoundaryLineMaterial.emissiveIntensity = isOverview ? 0.2 : 0.11;
+      dongBoundaryLineMaterial.color.setHex(isOverview ? 0x44d57f : 0x3ebf72);
+      dongWallMaterial.opacity = isOverview ? 0.18 : 0.015;
+      dongWallMaterial.emissiveIntensity = isOverview ? 0.16 : 0.02;
+      dongWallMaterial.transmission = isOverview ? 0.18 : 0.03;
+    };
 
     const resolveFollowTaxi = () =>
       taxiById.get(followTaxiIdRef.current) ?? taxiVehicles[0] ?? null;
@@ -2824,12 +3134,13 @@ export default function MapSimulator() {
     };
 
     applyModePreset(activeCameraMode);
+    applyDistrictPresentation(activeCameraMode);
     syncCamera();
 
     dongRegions.forEach((dong) => {
       const label = new CSS2DObject(labelElement(dong.name, 'district'));
-      label.position.set(dong.position.x, 2.4, dong.position.z);
-      label.visible = showLabels;
+      label.position.set(dong.position.x, 2.8, dong.position.z);
+      label.visible = true;
       labelObjects.push(label);
       scene.add(label);
     });
@@ -3320,7 +3631,8 @@ export default function MapSimulator() {
       labelRenderer.render(scene, camera);
     }, 0);
 
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
     let animationFrame = 0;
     let statsAccumulator = 0;
     let appliedWeatherMode: WeatherMode | null = null;
@@ -3821,6 +4133,57 @@ export default function MapSimulator() {
       }
     };
 
+    const setBoundaryHover = (segment: DongBoundarySegment | null) => {
+      if (!segment) {
+        hoveredBoundaryIndex = -1;
+        boundaryHintText.style.display = 'none';
+        if (!cameraRig.dragging) {
+          renderer.domElement.style.cursor = 'grab';
+        }
+        return;
+      }
+
+      const direction = segment.end.clone().sub(segment.start);
+      const toCamera = camera.position.clone().sub(segment.center);
+      const cameraOnLeft = direction.x * toCamera.z - direction.z * toCamera.x > 0;
+      const nearDong = cameraOnLeft ? segment.leftDong : segment.rightDong;
+      const farDong = cameraOnLeft ? segment.rightDong : segment.leftDong;
+
+      boundaryHintText.textContent =
+        nearDong && farDong
+          ? `이쪽은 ${nearDong} · 건너편은 ${farDong}`
+          : nearDong
+            ? `이쪽은 ${nearDong}`
+            : farDong
+              ? `건너편은 ${farDong}`
+              : '행정동 경계';
+      boundaryHintText.style.left = `${pointerClientX}px`;
+      boundaryHintText.style.top = `${pointerClientY}px`;
+      boundaryHintText.style.display = 'block';
+      if (!cameraRig.dragging) {
+        renderer.domElement.style.cursor = 'pointer';
+      }
+    };
+
+    const updateBoundaryHover = () => {
+      if (cameraRig.dragging || !pointerInside || !dongBoundarySegments.length) {
+        setBoundaryHover(null);
+        return;
+      }
+
+      raycaster.setFromCamera(pointerNdc, camera);
+      const [hit] = raycaster.intersectObject(dongWallMesh, false);
+      const nextIndex = hit?.instanceId ?? -1;
+      if (nextIndex < 0) {
+        hoveredBoundaryIndex = -1;
+        setBoundaryHover(null);
+        return;
+      }
+
+      hoveredBoundaryIndex = nextIndex;
+      setBoundaryHover(dongBoundarySegments[nextIndex] ?? null);
+    };
+
     const onResize = () => {
       const width = container.clientWidth;
       const height = container.clientHeight;
@@ -3874,6 +4237,14 @@ export default function MapSimulator() {
       if (event.button !== 0) {
         return;
       }
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerInside = true;
+      pointerClientX = event.clientX - rect.left;
+      pointerClientY = event.clientY - rect.top;
+      pointerNdc.set(
+        (pointerClientX / rect.width) * 2 - 1,
+        -(pointerClientY / rect.height) * 2 + 1,
+      );
       cameraRig.dragging = true;
       cameraRig.pointerId = event.pointerId;
       cameraRig.pointerX = event.clientX;
@@ -3882,6 +4253,24 @@ export default function MapSimulator() {
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const withinBounds =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      pointerInside = withinBounds;
+      if (withinBounds) {
+        pointerClientX = event.clientX - rect.left;
+        pointerClientY = event.clientY - rect.top;
+        pointerNdc.set(
+          (pointerClientX / rect.width) * 2 - 1,
+          -(pointerClientY / rect.height) * 2 + 1,
+        );
+      } else {
+        pointerNdc.set(2, 2);
+      }
+
       if (!cameraRig.dragging || event.pointerId !== cameraRig.pointerId) {
         return;
       }
@@ -3941,7 +4330,16 @@ export default function MapSimulator() {
 
     const onWindowBlur = () => {
       pressedKeys.clear();
+      pointerInside = false;
+      pointerNdc.set(2, 2);
+      boundaryHintText.style.display = 'none';
       stopDragging();
+    };
+
+    const onPointerLeave = () => {
+      pointerInside = false;
+      pointerNdc.set(2, 2);
+      setBoundaryHover(null);
     };
 
     window.addEventListener('resize', onResize);
@@ -3952,14 +4350,16 @@ export default function MapSimulator() {
     window.addEventListener('keyup', onKeyUp);
     renderer.domElement.addEventListener('contextmenu', onContextMenu);
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
 
     applyEnvironment(simulationTimeRef.current, weatherModeRef.current);
 
-    const animate = () => {
+    const animate = (timestamp?: number) => {
       animationFrame = window.requestAnimationFrame(animate);
-      const delta = Math.min(clock.getDelta(), 0.05);
-      const elapsedTime = clock.elapsedTime;
+      timer.update(timestamp);
+      const delta = Math.min(timer.getDelta(), 0.05);
+      const elapsedTime = timer.getElapsed();
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
       if (
@@ -3974,6 +4374,7 @@ export default function MapSimulator() {
       if (currentMode !== activeCameraMode) {
         activeCameraMode = currentMode;
         applyModePreset(currentMode);
+        applyDistrictPresentation(currentMode);
       }
 
       if (currentMode === 'drive') {
@@ -4068,6 +4469,7 @@ export default function MapSimulator() {
       starsMaterial.opacity = activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
       sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
       moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
+      updateBoundaryHover();
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     };
@@ -4087,6 +4489,7 @@ export default function MapSimulator() {
       window.removeEventListener('keyup', onKeyUp);
       renderer.domElement.removeEventListener('contextmenu', onContextMenu);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
       renderer.domElement.removeEventListener('wheel', onWheel);
       rainLayer.geometry.dispose();
       rainLayer.material.dispose();
@@ -4101,8 +4504,10 @@ export default function MapSimulator() {
       sunHaloMaterial.dispose();
       sunsetGlowMaterial.dispose();
       moonMaterial.dispose();
+      timer.dispose();
       renderer.dispose();
       labelObjects.forEach((label) => label.removeFromParent());
+      container.removeChild(boundaryHintText);
       container.removeChild(renderer.domElement);
       container.removeChild(labelRenderer.domElement);
     };
@@ -4334,6 +4739,58 @@ export default function MapSimulator() {
           </div>
         </div>
 
+        <div className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+                Data Source
+              </div>
+              <div className="mt-1 text-sm font-semibold text-cyan-50">
+                {data?.meta.source ?? 'OpenStreetMap + Overpass'}
+              </div>
+            </div>
+            <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+              {data?.meta.boundarySource ?? 'OSM admin boundary'}
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
+              <div className="text-slate-500">Latest Asset Update</div>
+              <div className="mt-1 font-medium text-slate-100">
+                {data?.meta.latestAssetUpdatedAt ?? 'Last-Modified unavailable'}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
+              <div className="text-slate-500">Loaded In Viewer</div>
+              <div className="mt-1 font-medium text-slate-100">
+                {data?.meta.loadedAt ?? 'unknown'}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              dongs {data?.meta.assets.dongs.featureCount ?? 0}
+            </span>
+            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              roads {data?.meta.assets.roads.featureCount ?? 0}
+            </span>
+            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              buildings {data?.meta.assets.buildings.featureCount ?? 0}
+            </span>
+            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              transit {data?.meta.assets.transit.featureCount ?? 0}
+            </span>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+            동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM 지오메트리에서
+            가져옵니다. 다만 건물 높이와 차량·신호·보행자 동작은 시뮬레이션 목적에 맞게
+            일부 단순화했습니다. 초록색 경계벽에 커서를 올리면 양쪽 동 안내가 나타납니다.
+          </div>
+        </div>
+
         <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
           <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Camera</div>
           <div className="grid grid-cols-3 gap-2">
@@ -4390,7 +4847,7 @@ export default function MapSimulator() {
             onChange={(event) => setShowLabels(event.target.checked)}
             className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400"
           />
-          도로/건물/동/지하철 라벨 보기
+          도로/건물/지하철 라벨 보기
         </label>
 
         <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
@@ -4519,6 +4976,10 @@ export default function MapSimulator() {
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ffcf57]" />
             승차 포인트
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#76ffad]" />
+            유리 동 경계
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#2bb1d8]" />

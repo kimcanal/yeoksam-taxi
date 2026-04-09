@@ -22,7 +22,17 @@ export const OVERPASS_URLS = [
   "https://overpass.kumi.systems/api/interpreter",
 ];
 
+const OVERPASS_REQUEST_TIMEOUT_MS = 45000;
+const OVERPASS_MIRROR_ATTEMPTS = 2;
+const OVERPASS_RETRY_DELAY_MS = 1200;
+
 const QUERY_PADDING = 0.0022;
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 export function roundCoord(value) {
   return Number(value.toFixed(6));
@@ -220,4 +230,72 @@ export function geometryTouchesDongs(geometry, dongs) {
   }
 
   return dongs.some((dong) => geometryContainsPoint(dong.geometry, representativePoint));
+}
+
+export async function fetchOverpassJson(query, { label = "Overpass query" } = {}) {
+  let lastError;
+
+  for (const url of OVERPASS_URLS) {
+    for (let attempt = 1; attempt <= OVERPASS_MIRROR_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), OVERPASS_REQUEST_TIMEOUT_MS);
+
+      try {
+        console.log(
+          `Trying ${url} for ${label} (${attempt}/${OVERPASS_MIRROR_ATTEMPTS})`,
+        );
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "yeoksam-taxi/0.1",
+          },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: controller.signal,
+        });
+
+        const raw = await response.text();
+
+        if (!response.ok) {
+          throw new Error(`${response.status} ${raw.slice(0, 200)}`);
+        }
+
+        return JSON.parse(raw);
+      } catch (error) {
+        const normalizedError =
+          error?.name === "AbortError"
+            ? new Error(`Timed out after ${OVERPASS_REQUEST_TIMEOUT_MS}ms`)
+            : error;
+        lastError = normalizedError;
+        console.error(
+          `Failed on ${url} for ${label} (${attempt}/${OVERPASS_MIRROR_ATTEMPTS})`,
+          normalizedError,
+        );
+
+        if (attempt < OVERPASS_MIRROR_ATTEMPTS) {
+          await sleep(OVERPASS_RETRY_DELAY_MS * attempt);
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+export function keepCachedGeoJson(outputPath, label, error) {
+  if (!fs.existsSync(outputPath)) {
+    return false;
+  }
+
+  const stats = fs.statSync(outputPath);
+  console.warn(
+    `Using cached ${label} at ${outputPath} (${stats.size} bytes) because refresh failed.`,
+  );
+  if (error) {
+    console.warn(error);
+  }
+  return true;
 }
