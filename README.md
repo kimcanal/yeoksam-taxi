@@ -1,6 +1,6 @@
-# yeoksam_taxi
+# yeoksam-taxi
 
-`yeoksam_taxi` is a Next.js and Three.js taxi simulation built on top of OpenStreetMap data around Yeoksam, Seoul.
+`yeoksam-taxi` is a Next.js and Three.js taxi simulation built on top of OpenStreetMap data around Yeoksam, Seoul.
 
 ## Scripts
 
