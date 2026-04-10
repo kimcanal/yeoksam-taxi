@@ -4,8 +4,14 @@
 
 ### Changed
 - Replaced the FPS overlay checkbox with explicit `Auto`, `60 FPS`, and `Unlimited` target modes.
-- Updated `Auto` target logic so 60Hz-like displays stay at 60 FPS, while 100Hz+ displays can use a half-refresh target.
-- Simplified the FPS overlay text to show `Target FPS` directly.
+- Updated `Auto` target logic so 60Hz-like displays stay at 60 FPS, while 100Hz+ displays can use a half-refresh target without dropping the visible cap below 50 FPS.
+- Updated the FPS overlay to show both the selected mode and the active target value.
+- Added a separate `public/non-road.geojson` asset and map layer so OSM non-road polygons such as parks, plazas, parking, water, and facility grounds are distinct from drivable roads.
+- Split the routing graph into a separate `public/road-network.json` asset so shortest-path work no longer has to rebuild the graph from road GeoJSON at runtime.
+- Added a toggleable road-network overlay that exposes the routing graph as visible nodes and edges on top of the map.
+- Switched signal placement to OSM `traffic_signals` node data so visible signal objects are anchored to real map intersections instead of placeholder-only guesses.
+- Updated the road graph to preserve OSM one-way flow, link-road classes, and node-based turn restrictions for more realistic routing behavior.
+- Reduced per-frame simulation overhead by caching each vehicle's current route segment and next stop lookup instead of re-scanning full routes every frame.
 - Clarified in project docs that district boundary rendering is currently disabled while a cleaner approach is being explored.
 - Added a click-to-enter `Taxi View` camera mode and `Esc` shortcut to exit back to the previous view.
 - Updated taxi roof signs to show red when the taxi is empty and green after pickup.

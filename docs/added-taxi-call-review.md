@@ -20,6 +20,8 @@ working well enough for demos, and what still needs another pass before a merge.
   `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`
 - Uses OpenStreetMap + Overpass derived GeoJSON for roads, buildings,
   administrative areas, and transit landmarks
+- Adds a separate `non-road.geojson` polygon layer so parks, parking areas, plazas, water, and similar surfaces are not visually conflated with drivable roads
+- Separates the routing graph into a dedicated `road-network.json` asset for lighter graph operations
 - Keeps district-boundary data loaded, but leaves boundary rendering disabled
   until a cleaner visual treatment is ready
 
@@ -37,6 +39,9 @@ working well enough for demos, and what still needs another pass before a merge.
   - `Auto`
   - `60 FPS`
   - `Unlimited`
+  - `Auto` keeps visible rendering at 60 FPS on 60Hz-like displays and uses a half-refresh target on 100Hz+ displays, but does not intentionally dip below 50 FPS while visible.
+- Added a separate road-network overlay toggle so the routing graph can be inspected as node/edge geometry on top of the map.
+- Added a separate non-road surface layer toggle so road areas and non-road polygon areas can be inspected independently.
 
 ### Readability and Performance
 

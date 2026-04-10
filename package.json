@@ -9,9 +9,12 @@
     "lint": "eslint",
     "fetch:dongs": "node fetch-dongs.mjs",
     "fetch:buildings": "node fetch-buildings.mjs",
+    "fetch:non-road": "node fetch-non-road.mjs",
     "fetch:roads": "node fetch-roads.mjs",
+    "fetch:road-network": "node fetch-road-network.mjs",
+    "fetch:traffic-signals": "node fetch-traffic-signals.mjs",
     "fetch:transit": "node fetch-transit.mjs",
-    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads && npm run fetch:transit"
+    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:non-road && npm run fetch:roads && npm run fetch:traffic-signals && npm run fetch:transit"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",

@@ -1,8 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import {
+  CSS2DObject,
+  CSS2DRenderer,
+} from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type {
   Feature,
   FeatureCollection,
@@ -12,7 +15,7 @@ import type {
   Point,
   Polygon,
   Position,
-} from 'geojson';
+} from "geojson";
 
 const TAXI_COUNT = 12;
 const TRAFFIC_COUNT = 16;
@@ -21,6 +24,9 @@ const ROAD_WIDTH_SCALE = 0.6;
 const BUILDING_HEIGHT_SCALE = 0.2;
 const SIGNAL_RADIUS = 7;
 const SIGNAL_CYCLE = 24;
+const SIGNAL_CLUSTER_DISTANCE = 18;
+const SIGNAL_ROAD_SNAP_DISTANCE = 14;
+const SIGNAL_NODE_SNAP_DISTANCE = 16;
 const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
@@ -61,23 +67,63 @@ const ROAD_LAYER_Y = {
   connector: 0.121,
   arterial: 0.126,
 } as const;
+const NON_ROAD_LAYER_Y = {
+  facility: 0.048,
+  green: 0.056,
+  pedestrian: 0.064,
+  parking: 0.072,
+  water: 0.08,
+} as const;
+const ROAD_NETWORK_EDGE_Y_OFFSET = 0.42;
+const ROAD_NETWORK_NODE_Y = 0.72;
 
-type SignalAxis = 'ns' | 'ew';
-type TurnMovement = 'straight' | 'left' | 'right';
+type SignalAxis = "ns" | "ew";
+type SignalDirection = "north" | "east" | "south" | "west";
+type TurnMovement = "straight" | "left" | "right";
 type SignalPhase =
-  | 'ns_flow'
-  | 'ns_left'
-  | 'ew_flow'
-  | 'ew_left'
-  | 'ped_walk'
-  | 'ped_flash'
-  | 'clearance';
+  | "ns_flow"
+  | "ns_yellow"
+  | "ns_left"
+  | "ew_flow"
+  | "ew_yellow"
+  | "ew_left"
+  | "ped_walk"
+  | "ped_flash"
+  | "clearance";
 
 type RoadProperties = {
-  roadClass: 'arterial' | 'connector' | 'local';
+  roadClass: "arterial" | "connector" | "local";
   width: number;
   name: string | null;
   highway: string | null;
+  sourceWayId: string | null;
+  oneway: "no" | "forward" | "backward";
+};
+
+type TurnRestrictionMode = "no" | "only";
+
+type TurnRestriction = {
+  id: string;
+  viaKey: string;
+  fromWayId: string;
+  toWayId: string;
+  kind: string;
+  mode: TurnRestrictionMode;
+};
+
+type NonRoadCategory =
+  | "green"
+  | "pedestrian"
+  | "parking"
+  | "water"
+  | "facility";
+
+type NonRoadProperties = {
+  category: NonRoadCategory;
+  kind: string | null;
+  name: string | null;
+  sourceTag: string | null;
+  area: number;
 };
 
 type BuildingProperties = {
@@ -93,7 +139,7 @@ type DongProperties = {
   nameEn: string | null;
 };
 
-type TransitCategory = 'bus_stop' | 'subway_station';
+type TransitCategory = "bus_stop" | "subway_station";
 
 type TransitProperties = {
   category: TransitCategory;
@@ -105,14 +151,75 @@ type TransitProperties = {
   importance: number;
 };
 
+type TrafficSignalProperties = {
+  name: string | null;
+  signalType: string | null;
+  direction: string | null;
+  crossing: string | null;
+  buttonOperated: boolean;
+  turns: string | null;
+};
+
+type NonRoadFeature = Feature<Polygon | MultiPolygon, NonRoadProperties>;
 type RoadFeature = Feature<LineString | MultiLineString, RoadProperties>;
 type BuildingFeature = Feature<Polygon | MultiPolygon, BuildingProperties>;
 type DongFeature = Feature<Polygon | MultiPolygon, DongProperties>;
 type TransitFeature = Feature<Point, TransitProperties>;
-type RoadFeatureCollection = FeatureCollection<LineString | MultiLineString, RoadProperties>;
-type BuildingFeatureCollection = FeatureCollection<Polygon | MultiPolygon, BuildingProperties>;
-type DongFeatureCollection = FeatureCollection<Polygon | MultiPolygon, DongProperties>;
+type TrafficSignalFeatureCollection = FeatureCollection<
+  Point,
+  TrafficSignalProperties
+>;
+type NonRoadFeatureCollection = FeatureCollection<
+  Polygon | MultiPolygon,
+  NonRoadProperties
+>;
+type RoadFeatureCollection = FeatureCollection<
+  LineString | MultiLineString,
+  RoadProperties
+> & {
+  routing?: {
+    turnRestrictions?: TurnRestriction[];
+  };
+};
+type BuildingFeatureCollection = FeatureCollection<
+  Polygon | MultiPolygon,
+  BuildingProperties
+>;
+type DongFeatureCollection = FeatureCollection<
+  Polygon | MultiPolygon,
+  DongProperties
+>;
 type TransitFeatureCollection = FeatureCollection<Point, TransitProperties>;
+type SerializedRoadNetworkNode = {
+  key: string;
+  x: number;
+  z: number;
+};
+
+type SerializedRoadNetworkSegment = {
+  id: string;
+  from: string;
+  to: string;
+  roadClass: RoadProperties["roadClass"];
+  roadWidth: number;
+  length: number;
+  name: string | null;
+  wayId?: string | null;
+};
+
+type SerializedRoadNetwork = {
+  version: number;
+  center: { lat: number; lon: number };
+  nodes: SerializedRoadNetworkNode[];
+  segments: SerializedRoadNetworkSegment[];
+  turnRestrictions?: TurnRestriction[];
+  stats: {
+    nodeCount: number;
+    segmentCount: number;
+    directedEdgeCount: number;
+    turnRestrictionCount?: number;
+  };
+};
 
 type AssetMeta = {
   path: string;
@@ -126,10 +233,13 @@ type SimulationMeta = {
   latestAssetUpdatedAt: string | null;
   loadedAt: string;
   assets: {
+    nonRoad: AssetMeta | null;
     roads: AssetMeta;
     buildings: AssetMeta;
     dongs: AssetMeta;
     transit: AssetMeta;
+    trafficSignals: AssetMeta | null;
+    roadNetwork: AssetMeta | null;
   };
 };
 
@@ -143,15 +253,17 @@ type SignalData = {
   key: string;
   point: THREE.Vector3;
   offset: number;
+  approaches: SignalDirection[];
+  hasProtectedLeft: boolean;
 };
 
 type SignalFlow = {
   phase: SignalPhase;
-  ns: 'green' | 'red';
-  ew: 'green' | 'red';
+  ns: "green" | "yellow" | "red";
+  ew: "green" | "yellow" | "red";
   nsLeft: boolean;
   ewLeft: boolean;
-  pedestrian: 'walk' | 'flash' | 'stop';
+  pedestrian: "walk" | "flash" | "stop";
 };
 
 type StopMarker = {
@@ -161,10 +273,16 @@ type StopMarker = {
   turn: TurnMovement;
 };
 
+type RouteSample = {
+  position: THREE.Vector3;
+  heading: THREE.Vector3;
+  segmentIndex: number;
+};
+
 type RouteTemplate = {
   id: string;
   name: string | null;
-  roadClass: RoadProperties['roadClass'];
+  roadClass: RoadProperties["roadClass"];
   roadWidth: number;
   laneOffset: number;
   nodes: RouteNode[];
@@ -182,11 +300,18 @@ type VehiclePalette = {
   sign: number | null;
 };
 
-type VehicleKind = 'taxi' | 'traffic';
-type VehiclePlanMode = 'traffic' | 'pickup' | 'dropoff';
-type BaseCameraMode = 'drive' | 'overview' | 'follow';
-type CameraMode = BaseCameraMode | 'ride';
-type WeatherMode = 'clear' | 'cloudy' | 'heavy-rain' | 'heavy-snow';
+type VehicleKind = "taxi" | "traffic";
+type VehiclePlanMode = "traffic" | "pickup" | "dropoff";
+type BaseCameraMode = "drive" | "overview" | "follow";
+type CameraMode = BaseCameraMode | "ride";
+type WeatherMode = "clear" | "cloudy" | "heavy-rain" | "heavy-snow";
+type CircumstanceMode = "live" | "specific";
+
+type VehicleMotionState = RouteSample & {
+  lanePosition: THREE.Vector3;
+  right: THREE.Vector3;
+  nextStopIndex: number;
+};
 
 type Vehicle = {
   id: string;
@@ -208,6 +333,7 @@ type Vehicle = {
   dropoffHotspot: Hotspot | null;
   serviceTimer: number;
   planMode: VehiclePlanMode;
+  motion: VehicleMotionState;
 };
 
 type Stats = {
@@ -220,7 +346,7 @@ type Stats = {
   pedestrians: number;
 };
 
-type FpsMode = 'auto' | 'fixed60' | 'unlimited';
+type FpsMode = "auto" | "fixed60" | "unlimited";
 
 type FpsStats = {
   fps: number;
@@ -241,12 +367,26 @@ type WeatherOption = {
 
 type SimulationData = {
   center: { lat: number; lon: number };
+  nonRoad: NonRoadFeatureCollection;
   roads: RoadFeatureCollection;
   buildings: BuildingFeatureCollection;
   dongs: DongFeatureCollection;
   transit: TransitFeatureCollection;
+  trafficSignals: TrafficSignalFeatureCollection;
+  roadNetwork: SerializedRoadNetwork | null;
   meta: SimulationMeta;
 };
+
+const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+const EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION: TrafficSignalFeatureCollection =
+  {
+    type: "FeatureCollection",
+    features: [],
+  };
 
 type Hotspot = {
   id: string;
@@ -266,6 +406,7 @@ type BuildingMass = {
   position: THREE.Vector3;
   width: number;
   depth: number;
+  rotationY: number;
   color: number;
 };
 
@@ -290,7 +431,7 @@ type DongBoundarySegment = {
 };
 
 type ProjectedRoadSegment = {
-  roadClass: RoadProperties['roadClass'];
+  roadClass: RoadProperties["roadClass"];
   width: number;
   start: THREE.Vector3;
   end: THREE.Vector3;
@@ -306,7 +447,7 @@ type TransitLandmark = {
   sideSign: 1 | -1;
   yaw: number;
   importance: number;
-  roadClass: RoadProperties['roadClass'] | null;
+  roadClass: RoadProperties["roadClass"] | null;
   isMajor: boolean;
 };
 
@@ -314,7 +455,7 @@ type NearestRoadContext = {
   closest: THREE.Vector3;
   heading: THREE.Vector3;
   width: number;
-  roadClass: RoadProperties['roadClass'];
+  roadClass: RoadProperties["roadClass"];
   name: string | null;
   distance: number;
 };
@@ -323,24 +464,32 @@ type GraphEdge = {
   id: string;
   from: string;
   to: string;
-  roadClass: RoadProperties['roadClass'];
+  roadClass: RoadProperties["roadClass"];
   roadWidth: number;
   length: number;
   name: string | null;
+  wayId: string | null;
 };
 
 type RoadGraph = {
   nodes: Map<string, RouteNode>;
   adjacency: Map<string, GraphEdge[]>;
-  edgeIndex: Map<string, GraphEdge>;
+  edgeById: Map<string, GraphEdge>;
+  turnRestrictionsByViaKey: Map<string, TurnRestriction[]>;
+};
+
+type SignalLampVisual = {
+  mesh: THREE.Mesh;
+  axis: SignalAxis;
 };
 
 type SignalVisual = SignalData & {
   group: THREE.Group;
-  reds: THREE.Mesh[];
-  greens: THREE.Mesh[];
-  leftArrows: THREE.Mesh[];
-  pedestrianLamps: THREE.Mesh[];
+  reds: SignalLampVisual[];
+  yellows: SignalLampVisual[];
+  greens: SignalLampVisual[];
+  leftArrows: SignalLampVisual[];
+  pedestrianLamps: SignalLampVisual[];
 };
 
 type PedestrianVisual = {
@@ -379,7 +528,7 @@ type EnvironmentState = {
   sunIntensity: number;
   sunPosition: THREE.Vector3;
   groundColor: number;
-  roadColors: Record<RoadProperties['roadClass'], number>;
+  roadColors: Record<RoadProperties["roadClass"], number>;
   roadRoughness: number;
   roadMetalness: number;
   laneMarkerColor: number;
@@ -394,7 +543,7 @@ type EnvironmentState = {
   buildingTint: number;
   buildingEmissive: number;
   buildingEmissiveIntensity: number;
-  precipitation: 'none' | 'rain' | 'snow';
+  precipitation: "none" | "rain" | "snow";
   precipitationOpacity: number;
   precipitationIntensity: number;
   vehicleSpeedMultiplier: number;
@@ -416,30 +565,173 @@ const TRAFFIC_PALETTES: VehiclePalette[] = [
 ];
 
 const MINUTES_PER_DAY = 24 * 60;
+const SIMULATION_TIME_ZONE = "Asia/Seoul";
+const KST_UTC_OFFSET_MINUTES = 9 * 60;
+const DEG_TO_RAD = Math.PI / 180;
+const SOLAR_OBLIQUITY = 23.4397 * DEG_TO_RAD;
 
 const WEATHER_OPTIONS: WeatherOption[] = [
-  { id: 'clear', label: '맑음', detail: '기본 시야와 표준 주행 속도' },
-  { id: 'cloudy', label: '흐림', detail: '광량 감소, 가벼운 감속' },
-  { id: 'heavy-rain', label: '폭우', detail: '빗줄기와 젖은 도로, 시야는 보수적으로 유지' },
-  { id: 'heavy-snow', label: '폭설', detail: '눈발과 차가운 톤, 과한 안개 없이 표현' },
+  { id: "clear", label: "맑음", detail: "기본 시야와 표준 주행 속도" },
+  { id: "cloudy", label: "흐림", detail: "광량 감소, 가벼운 감속" },
+  {
+    id: "heavy-rain",
+    label: "폭우",
+    detail: "빗줄기와 젖은 도로, 시야는 보수적으로 유지",
+  },
+  {
+    id: "heavy-snow",
+    label: "폭설",
+    detail: "눈발과 차가운 톤, 과한 안개 없이 표현",
+  },
 ];
 
 const TIME_PRESETS = [
-  { label: '06:00', minutes: 6 * 60, detail: '새벽' },
-  { label: '12:00', minutes: 12 * 60, detail: '한낮' },
-  { label: '18:30', minutes: 18 * 60 + 30, detail: '노을' },
-  { label: '23:00', minutes: 23 * 60, detail: '심야' },
+  { label: "06:00", minutes: 6 * 60, detail: "새벽" },
+  { label: "12:00", minutes: 12 * 60, detail: "한낮" },
+  { label: "18:30", minutes: 18 * 60 + 30, detail: "노을" },
+  { label: "23:00", minutes: 23 * 60, detail: "심야" },
 ];
 
 function normalizeDayMinutes(minutes: number) {
-  return ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return (
+    ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
+    MINUTES_PER_DAY
+  );
 }
 
 function format24Hour(minutes: number) {
   const normalized = normalizeDayMinutes(minutes);
   const hour = Math.floor(normalized / 60);
   const minute = normalized % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function zonedDateTimeParts(date: Date, timeZone = SIMULATION_TIME_ZONE) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const partMap = new Map(
+    formatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+
+  return {
+    year: Number(partMap.get("year") ?? 1970),
+    month: Number(partMap.get("month") ?? 1),
+    day: Number(partMap.get("day") ?? 1),
+    hour: Number(partMap.get("hour") ?? 0),
+    minute: Number(partMap.get("minute") ?? 0),
+  };
+}
+
+function dateIsoFromParts(parts: { year: number; month: number; day: number }) {
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+function currentSimulationClock(date = new Date()) {
+  const parts = zonedDateTimeParts(date);
+  return {
+    dateIso: dateIsoFromParts(parts),
+    minutes: parts.hour * 60 + parts.minute,
+  };
+}
+
+function parseDateIso(dateIso: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+}
+
+function formatDateLabel(dateIso: string) {
+  const parsed = parseDateIso(dateIso);
+  if (!parsed) {
+    return dateIso;
+  }
+  return `${parsed.year}.${String(parsed.month).padStart(2, "0")}.${String(parsed.day).padStart(2, "0")}`;
+}
+
+function kstDateTimeToUtcDate(dateIso: string, minutes: number) {
+  const parsed = parseDateIso(dateIso);
+  if (!parsed) {
+    return new Date();
+  }
+
+  const normalizedMinutes = normalizeDayMinutes(minutes);
+  const utcMs =
+    Date.UTC(parsed.year, parsed.month - 1, parsed.day, 0, 0, 0, 0) +
+    normalizedMinutes * 60_000 -
+    KST_UTC_OFFSET_MINUTES * 60_000;
+
+  return new Date(utcMs);
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const alpha = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return alpha * alpha * (3 - 2 * alpha);
+}
+
+function solarPositionForDateTime(
+  dateIso: string,
+  minutes: number,
+  center: { lat: number; lon: number },
+) {
+  const date = kstDateTimeToUtcDate(dateIso, minutes);
+  const julianDate = date.getTime() / 86400000 - 0.5 + 2440588;
+  const days = julianDate - 2451545;
+  const meanAnomaly = DEG_TO_RAD * (357.5291 + 0.98560028 * days);
+  const equationOfCenter =
+    DEG_TO_RAD *
+    (1.9148 * Math.sin(meanAnomaly) +
+      0.02 * Math.sin(2 * meanAnomaly) +
+      0.0003 * Math.sin(3 * meanAnomaly));
+  const perihelion = DEG_TO_RAD * 102.9372;
+  const eclipticLongitude =
+    meanAnomaly + equationOfCenter + perihelion + Math.PI;
+  const declination = Math.asin(
+    Math.sin(eclipticLongitude) * Math.sin(SOLAR_OBLIQUITY),
+  );
+  const rightAscension = Math.atan2(
+    Math.sin(eclipticLongitude) * Math.cos(SOLAR_OBLIQUITY),
+    Math.cos(eclipticLongitude),
+  );
+  const longitudeWest = -center.lon * DEG_TO_RAD;
+  const siderealTime =
+    DEG_TO_RAD * (280.16 + 360.9856235 * days) - longitudeWest;
+  const hourAngle = siderealTime - rightAscension;
+  const latitudeRad = center.lat * DEG_TO_RAD;
+  const altitude = Math.asin(
+    Math.sin(latitudeRad) * Math.sin(declination) +
+      Math.cos(latitudeRad) * Math.cos(declination) * Math.cos(hourAngle),
+  );
+  const azimuthFromSouth = Math.atan2(
+    Math.sin(hourAngle),
+    Math.cos(hourAngle) * Math.sin(latitudeRad) -
+      Math.tan(declination) * Math.cos(latitudeRad),
+  );
+  const azimuthFromNorth = (azimuthFromSouth + Math.PI * 3) % (Math.PI * 2);
+  const cosAltitude = Math.cos(altitude);
+
+  return {
+    altitude,
+    azimuth: azimuthFromNorth,
+    direction: new THREE.Vector3(
+      Math.sin(azimuthFromNorth) * cosAltitude,
+      Math.sin(altitude),
+      -Math.cos(azimuthFromNorth) * cosAltitude,
+    ).normalize(),
+  };
 }
 
 function formatKstDateTime(value: string | number | Date) {
@@ -448,22 +740,23 @@ function formatKstDateTime(value: string | number | Date) {
     return null;
   }
 
-  const parts = new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   }).formatToParts(date);
 
   const partMap = new Map(parts.map((part) => [part.type, part.value]));
-  return `${partMap.get('year')}-${partMap.get('month')}-${partMap.get('day')} ${partMap.get('hour')}:${partMap.get('minute')} KST`;
+  return `${partMap.get("year")}-${partMap.get("month")}-${partMap.get("day")} ${partMap.get("hour")}:${partMap.get("minute")} KST`;
 }
 
-async function fetchGeoJsonAsset<T extends FeatureCollection>(
+async function fetchJsonAsset<T>(
   path: string,
+  countResolver: (data: T) => number,
 ): Promise<{ data: T; meta: AssetMeta }> {
   const response = await fetch(path);
   if (!response.ok) {
@@ -475,95 +768,214 @@ async function fetchGeoJsonAsset<T extends FeatureCollection>(
     data,
     meta: {
       path,
-      lastModified: formatKstDateTime(response.headers.get('last-modified') ?? ''),
-      featureCount: Array.isArray(data.features) ? data.features.length : 0,
+      lastModified: formatKstDateTime(
+        response.headers.get("last-modified") ?? "",
+      ),
+      featureCount: countResolver(data),
     },
   };
 }
 
+async function fetchGeoJsonAsset<T extends FeatureCollection>(
+  path: string,
+): Promise<{ data: T; meta: AssetMeta }> {
+  return fetchJsonAsset<T>(path, (data) =>
+    Array.isArray(data.features) ? data.features.length : 0,
+  );
+}
+
+async function fetchOptionalGeoJsonAsset<T extends FeatureCollection>(
+  path: string,
+  label: string,
+) {
+  try {
+    return await fetchGeoJsonAsset<T>(path);
+  } catch (error) {
+    console.warn(`Skipping optional ${label} asset.`, error);
+    return null;
+  }
+}
+
+async function fetchRoadNetworkAsset(path: string) {
+  try {
+    return await fetchJsonAsset<SerializedRoadNetwork>(
+      path,
+      (data) => data.stats.segmentCount,
+    );
+  } catch (error) {
+    console.warn("Falling back to client-side road-graph build.", error);
+    return null;
+  }
+}
+
 function timeBandLabel(minutes: number) {
   const normalized = normalizeDayMinutes(minutes);
-  if (normalized < 300) return '심야';
-  if (normalized < 420) return '새벽';
-  if (normalized < 720) return '오전';
-  if (normalized < 1020) return '오후';
-  if (normalized < 1260) return '저녁';
-  return '야간';
+  if (normalized < 300) return "심야";
+  if (normalized < 420) return "새벽";
+  if (normalized < 720) return "오전";
+  if (normalized < 1020) return "오후";
+  if (normalized < 1260) return "저녁";
+  return "야간";
 }
 
-function daylightFactor(minutes: number) {
-  const normalized = normalizeDayMinutes(minutes);
-  const daylightAngle = ((normalized - 6 * 60) / (12 * 60)) * Math.PI;
-  return THREE.MathUtils.clamp(Math.sin(daylightAngle), 0, 1);
+function daylightFactor(
+  dateIso: string,
+  minutes: number,
+  center: { lat: number; lon: number },
+) {
+  const altitudeDegrees =
+    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
+  return smoothstep(-3, 24, altitudeDegrees);
 }
 
-function twilightFactor(minutes: number) {
-  const normalized = normalizeDayMinutes(minutes);
-  const sunriseWindow = 1 - THREE.MathUtils.clamp(Math.abs(normalized - 6 * 60) / 110, 0, 1);
-  const sunsetWindow = 1 - THREE.MathUtils.clamp(Math.abs(normalized - 18 * 60) / 130, 0, 1);
-  return Math.max(sunriseWindow, sunsetWindow);
+function twilightFactor(
+  dateIso: string,
+  minutes: number,
+  center: { lat: number; lon: number },
+) {
+  const altitudeDegrees =
+    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
+  return Math.exp(-Math.pow(altitudeDegrees / 8, 2));
 }
 
-function sunsetFactor(minutes: number) {
-  const normalized = normalizeDayMinutes(minutes);
-  return 1 - THREE.MathUtils.clamp(Math.abs(normalized - (18 * 60 + 30)) / 95, 0, 1);
+function sunsetFactor(
+  dateIso: string,
+  minutes: number,
+  center: { lat: number; lon: number },
+) {
+  const altitudeDegrees =
+    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
+  return THREE.MathUtils.clamp(
+    Math.exp(-Math.pow(altitudeDegrees / 6.5, 2)),
+    0,
+    1,
+  );
 }
 
 function mixHexColor(start: number, end: number, alpha: number) {
-  return new THREE.Color(start).lerp(new THREE.Color(end), THREE.MathUtils.clamp(alpha, 0, 1)).getHex();
+  return new THREE.Color(start)
+    .lerp(new THREE.Color(end), THREE.MathUtils.clamp(alpha, 0, 1))
+    .getHex();
 }
 
 function scaleHexColor(value: number, factor: number) {
   return new THREE.Color(value).multiplyScalar(factor).getHex();
 }
 
-function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): EnvironmentState {
+function buildEnvironmentState(
+  dateIso: string,
+  minutes: number,
+  weatherMode: WeatherMode,
+  center: { lat: number; lon: number },
+): EnvironmentState {
   const normalizedMinutes = normalizeDayMinutes(minutes);
-  const daylight = daylightFactor(normalizedMinutes);
-  const twilight = twilightFactor(normalizedMinutes);
-  const sunset = sunsetFactor(normalizedMinutes);
-  const sunAngle = (normalizedMinutes / MINUTES_PER_DAY) * Math.PI * 2 - Math.PI / 2;
+  const solarPosition = solarPositionForDateTime(
+    dateIso,
+    normalizedMinutes,
+    center,
+  );
+  const altitudeDegrees = solarPosition.altitude / DEG_TO_RAD;
+  const daylight = smoothstep(-3, 24, altitudeDegrees);
+  const twilight = Math.exp(-Math.pow(altitudeDegrees / 8, 2));
+  const sunset = THREE.MathUtils.clamp(
+    Math.exp(-Math.pow(altitudeDegrees / 6.5, 2)),
+    0,
+    1,
+  );
+  const solarDirection = solarPosition.direction.clone();
   const cloudCover =
-    weatherMode === 'clear' ? 0.05 : weatherMode === 'cloudy' ? 0.24 : weatherMode === 'heavy-rain' ? 0.48 : 0.38;
+    weatherMode === "clear"
+      ? 0.05
+      : weatherMode === "cloudy"
+        ? 0.24
+        : weatherMode === "heavy-rain"
+          ? 0.48
+          : 0.38;
   const skyDayColor =
-    weatherMode === 'clear'
+    weatherMode === "clear"
       ? 0x7fc8ff
-      : weatherMode === 'cloudy'
+      : weatherMode === "cloudy"
         ? 0x9cb2c2
-        : weatherMode === 'heavy-rain'
+        : weatherMode === "heavy-rain"
           ? 0x738899
           : 0xe2edf8;
   const skyNightColor =
-    weatherMode === 'heavy-snow' ? 0x1b2736 : weatherMode === 'heavy-rain' ? 0x0a121d : 0x08111c;
+    weatherMode === "heavy-snow"
+      ? 0x314253
+      : weatherMode === "heavy-rain"
+        ? 0x182637
+        : 0x162536;
   const fogDayColor =
-    weatherMode === 'clear'
+    weatherMode === "clear"
       ? 0xa4d7ef
-      : weatherMode === 'cloudy'
+      : weatherMode === "cloudy"
         ? 0xa6b7c3
-        : weatherMode === 'heavy-rain'
+        : weatherMode === "heavy-rain"
           ? 0x7d8d99
           : 0xe8f0f7;
   const fogNightColor =
-    weatherMode === 'heavy-snow' ? 0x243243 : weatherMode === 'heavy-rain' ? 0x0c1520 : 0x0a121c;
+    weatherMode === "heavy-snow"
+      ? 0x41566e
+      : weatherMode === "heavy-rain"
+        ? 0x203142
+        : 0x203144;
   const weatherSpeedMultiplier =
-    weatherMode === 'clear' ? 1 : weatherMode === 'cloudy' ? 0.97 : weatherMode === 'heavy-rain' ? 0.9 : 0.82;
-  const nightSpeedMultiplier = daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
-  const sunsetSkyColor = weatherMode === 'heavy-snow' ? 0xffd8c2 : 0xff9d5c;
-  const sunsetFogColor = weatherMode === 'heavy-snow' ? 0xffe7d8 : 0xffb579;
-  const nightBuildingFactor = THREE.MathUtils.clamp((0.22 - daylight) / 0.22, 0, 1);
+    weatherMode === "clear"
+      ? 1
+      : weatherMode === "cloudy"
+        ? 0.97
+        : weatherMode === "heavy-rain"
+          ? 0.9
+          : 0.82;
+  const nightSpeedMultiplier =
+    daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
+  const sunsetSkyColor = weatherMode === "heavy-snow" ? 0xffd8c2 : 0xff9d5c;
+  const sunsetFogColor = weatherMode === "heavy-snow" ? 0xffe7d8 : 0xffb579;
+  const nightBuildingFactor = THREE.MathUtils.clamp(
+    (0.3 - daylight) / 0.3,
+    0,
+    1,
+  );
+  const readabilitySkyMix = THREE.MathUtils.clamp(
+    daylight * 0.82 + twilight * 0.16 + 0.18,
+    0,
+    1,
+  );
+  const readabilityFogMix = THREE.MathUtils.clamp(
+    daylight * 0.8 + twilight * 0.15 + 0.24,
+    0,
+    1,
+  );
+  const readableNightLight = THREE.MathUtils.clamp(
+    daylight * 0.9 + twilight * 0.28 + 0.34,
+    0,
+    1,
+  );
 
-  const baseSkyColor = mixHexColor(skyNightColor, skyDayColor, daylight + twilight * 0.1);
-  const baseFogColor = mixHexColor(fogNightColor, fogDayColor, daylight * 0.88 + twilight * 0.08);
+  const baseSkyColor = mixHexColor(
+    skyNightColor,
+    skyDayColor,
+    readabilitySkyMix,
+  );
+  const baseFogColor = mixHexColor(
+    fogNightColor,
+    fogDayColor,
+    readabilityFogMix,
+  );
   const neutralGroundColor =
-    weatherMode === 'heavy-snow' ? 0x2a3442 : weatherMode === 'heavy-rain' ? 0x101924 : 0x101b26;
+    weatherMode === "heavy-snow"
+      ? 0x334152
+      : weatherMode === "heavy-rain"
+        ? 0x162332
+        : 0x152332;
   const roadBaseColors =
-    weatherMode === 'heavy-snow'
+    weatherMode === "heavy-snow"
       ? {
           arterial: 0x466289,
           connector: 0x3c556f,
           local: 0x334557,
         }
-      : weatherMode === 'heavy-rain'
+      : weatherMode === "heavy-rain"
         ? {
             arterial: 0x2a466b,
             connector: 0x233b57,
@@ -575,7 +987,7 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
             local: 0x223243,
           };
   const lightingPreset =
-    weatherMode === 'clear'
+    weatherMode === "clear"
       ? {
           ambientColor: 0xf4f8ff,
           ambientIntensity: 0.76,
@@ -588,7 +1000,7 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
           fogFar: 410,
           exposure: 1.1,
         }
-      : weatherMode === 'cloudy'
+      : weatherMode === "cloudy"
         ? {
             ambientColor: 0xecf2fb,
             ambientIntensity: 0.74,
@@ -601,7 +1013,7 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
             fogFar: 392,
             exposure: 1.08,
           }
-        : weatherMode === 'heavy-rain'
+        : weatherMode === "heavy-rain"
           ? {
               ambientColor: 0xe5edf7,
               ambientIntensity: 0.72,
@@ -633,60 +1045,102 @@ function buildEnvironmentState(minutes: number, weatherMode: WeatherMode): Envir
     fogNear: lightingPreset.fogNear,
     fogFar: lightingPreset.fogFar,
     ambientColor: lightingPreset.ambientColor,
-    ambientIntensity: lightingPreset.ambientIntensity,
+    ambientIntensity: lightingPreset.ambientIntensity + (1 - daylight) * 0.05,
     hemiSkyColor: lightingPreset.hemiSkyColor,
     hemiGroundColor: lightingPreset.hemiGroundColor,
-    hemiIntensity: lightingPreset.hemiIntensity,
+    hemiIntensity: lightingPreset.hemiIntensity + (1 - daylight) * 0.04,
     sunColor: lightingPreset.sunColor,
-    sunIntensity: lightingPreset.sunIntensity,
-    sunPosition: new THREE.Vector3(
-      Math.cos(sunAngle) * 160,
-      THREE.MathUtils.lerp(22, 186, Math.max(0, Math.sin(sunAngle))),
-      Math.sin(sunAngle + 0.7) * 115,
+    sunIntensity: THREE.MathUtils.lerp(
+      lightingPreset.sunIntensity * 0.42,
+      lightingPreset.sunIntensity,
+      readableNightLight,
     ),
+    sunPosition: solarDirection.multiplyScalar(190),
     groundColor: neutralGroundColor,
     roadColors: {
       arterial: scaleHexColor(roadBaseColors.arterial, 1 - cloudCover * 0.04),
       connector: scaleHexColor(roadBaseColors.connector, 1 - cloudCover * 0.04),
       local: scaleHexColor(roadBaseColors.local, 1 - cloudCover * 0.03),
     },
-    roadRoughness: weatherMode === 'heavy-rain' ? 0.78 : weatherMode === 'heavy-snow' ? 0.84 : 0.95,
-    roadMetalness: weatherMode === 'heavy-rain' ? 0.14 : weatherMode === 'heavy-snow' ? 0.05 : 0.02,
-    laneMarkerColor: weatherMode === 'heavy-snow' ? 0xfbfdff : 0xffefb0,
-    laneMarkerEmissive: daylight < 0.22 ? 0xb98f2c : weatherMode === 'heavy-rain' ? 0x6f5720 : 0x866000,
-    laneMarkerIntensity: daylight < 0.2 ? 0.34 : weatherMode === 'heavy-rain' ? 0.2 : 0.16,
-    crosswalkColor: weatherMode === 'heavy-snow' ? 0xffffff : 0xf0f6ff,
+    roadRoughness:
+      weatherMode === "heavy-rain"
+        ? 0.78
+        : weatherMode === "heavy-snow"
+          ? 0.84
+          : 0.95,
+    roadMetalness:
+      weatherMode === "heavy-rain"
+        ? 0.14
+        : weatherMode === "heavy-snow"
+          ? 0.05
+          : 0.02,
+    laneMarkerColor: weatherMode === "heavy-snow" ? 0xfbfdff : 0xffefb0,
+    laneMarkerEmissive:
+      daylight < 0.22
+        ? 0xb98f2c
+        : weatherMode === "heavy-rain"
+          ? 0x6f5720
+          : 0x866000,
+    laneMarkerIntensity:
+      daylight < 0.2 ? 0.34 : weatherMode === "heavy-rain" ? 0.2 : 0.16,
+    crosswalkColor: weatherMode === "heavy-snow" ? 0xffffff : 0xf0f6ff,
     crosswalkEmissive: daylight < 0.2 ? 0x4c5664 : 0x39424f,
     crosswalkIntensity: daylight < 0.2 ? 0.18 : 0.08,
-    stopLineColor: weatherMode === 'heavy-snow' ? 0xffffff : 0xf7fbff,
+    stopLineColor: weatherMode === "heavy-snow" ? 0xffffff : 0xf7fbff,
     stopLineEmissive: daylight < 0.2 ? 0x526579 : 0x394959,
     stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
-    buildingTint: weatherMode === 'heavy-snow' ? 0xf3f8ff : weatherMode === 'heavy-rain' ? 0xf7fafc : 0xffffff,
-    buildingEmissive: mixHexColor(0x1f2c3a, 0x4a6488, nightBuildingFactor * 0.34 + twilight * 0.12),
-    buildingEmissiveIntensity: 0.12 + twilight * 0.05 + nightBuildingFactor * 0.16,
+    buildingTint:
+      weatherMode === "heavy-snow"
+        ? 0xf3f8ff
+        : weatherMode === "heavy-rain"
+          ? 0xf7fafc
+          : 0xffffff,
+    buildingEmissive: mixHexColor(
+      0x1f2c3a,
+      0x4a6488,
+      nightBuildingFactor * 0.34 + twilight * 0.12,
+    ),
+    buildingEmissiveIntensity:
+      0.14 + twilight * 0.06 + nightBuildingFactor * 0.2,
     precipitation:
-      weatherMode === 'heavy-rain' ? 'rain' : weatherMode === 'heavy-snow' ? 'snow' : 'none',
+      weatherMode === "heavy-rain"
+        ? "rain"
+        : weatherMode === "heavy-snow"
+          ? "snow"
+          : "none",
     precipitationOpacity:
-      weatherMode === 'heavy-rain' ? 0.24 : weatherMode === 'heavy-snow' ? 0.42 : 0,
-    precipitationIntensity: weatherMode === 'heavy-rain' ? 0.55 : weatherMode === 'heavy-snow' ? 0.4 : 0,
+      weatherMode === "heavy-rain"
+        ? 0.24
+        : weatherMode === "heavy-snow"
+          ? 0.42
+          : 0,
+    precipitationIntensity:
+      weatherMode === "heavy-rain"
+        ? 0.55
+        : weatherMode === "heavy-snow"
+          ? 0.4
+          : 0,
     vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
-    exposure: lightingPreset.exposure,
+    exposure: lightingPreset.exposure + (1 - daylight) * 0.05,
   };
 }
 
 function renderFpsCapFor(mode: CameraMode) {
   switch (mode) {
-    case 'overview':
+    case "overview":
       return OVERVIEW_RENDER_FPS;
-    case 'follow':
-    case 'ride':
+    case "follow":
+    case "ride":
       return FOLLOW_RENDER_FPS;
     default:
       return DRIVE_RENDER_FPS;
   }
 }
 
-function autoRenderFpsFor(mode: CameraMode, refreshRateEstimate: number | null) {
+function autoRenderFpsFor(
+  mode: CameraMode,
+  refreshRateEstimate: number | null,
+) {
   const baseCap = renderFpsCapFor(mode);
   if (refreshRateEstimate === null) {
     return baseCap;
@@ -701,7 +1155,8 @@ function autoRenderFpsFor(mode: CameraMode, refreshRateEstimate: number | null) 
   }
 
   if (refreshRateEstimate >= 100) {
-    return Math.round(refreshRateEstimate / 2);
+    // Keep high-refresh displays smooth without drifting into 30 FPS-like visible caps.
+    return Math.max(50, Math.round(refreshRateEstimate / 2));
   }
 
   return baseCap;
@@ -713,25 +1168,51 @@ function resolveRenderCap(
   refreshRateEstimate: number | null,
 ) {
   switch (fpsMode) {
-    case 'unlimited':
+    case "unlimited":
       return null;
-    case 'fixed60':
+    case "fixed60":
       return 60;
     default:
       return autoRenderFpsFor(mode, refreshRateEstimate);
   }
 }
 
-function renderCapLabel(cap: number | null, isHidden: boolean, fpsMode: FpsMode) {
+function renderCapLabel(
+  cap: number | null,
+  isHidden: boolean,
+  fpsMode: FpsMode,
+) {
   if (isHidden && cap !== null) {
-    return `${Math.round(cap)} (background)`;
+    return `${Math.round(cap)} FPS (background)`;
   }
 
-  if (fpsMode === 'unlimited' || cap === null) {
-    return 'Unlimited';
+  if (fpsMode === "unlimited" || cap === null) {
+    return "Unlimited";
   }
 
-  return `${Math.round(cap)}`;
+  return `${Math.round(cap)} FPS`;
+}
+
+function fpsModeLabel(fpsMode: FpsMode) {
+  switch (fpsMode) {
+    case "fixed60":
+      return "60 FPS";
+    case "unlimited":
+      return "Unlimited";
+    default:
+      return "Auto";
+  }
+}
+
+function fpsModeSummary(fpsMode: FpsMode) {
+  switch (fpsMode) {
+    case "fixed60":
+      return "Visible rendering stays locked at 60 FPS.";
+    case "unlimited":
+      return "Visible rendering runs uncapped until the device becomes the limit.";
+    default:
+      return "Auto keeps 60 FPS on 60Hz-like displays and uses half-refresh on 100Hz+ panels, while staying at 50 FPS or higher when visible.";
+  }
 }
 
 function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
@@ -740,10 +1221,10 @@ function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
   }
 
   switch (mode) {
-    case 'overview':
+    case "overview":
       return OVERVIEW_PIXEL_RATIO;
-    case 'follow':
-    case 'ride':
+    case "follow":
+    case "ride":
       return FOLLOW_PIXEL_RATIO;
     default:
       return DRIVE_PIXEL_RATIO;
@@ -758,21 +1239,25 @@ function visitGeometryPositions(
   geometry: LineString | MultiLineString | Polygon | MultiPolygon,
   visit: (position: Position) => void,
 ) {
-  if (geometry.type === 'LineString') {
+  if (geometry.type === "LineString") {
     geometry.coordinates.forEach(visit);
     return;
   }
 
-  if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') {
+  if (geometry.type === "MultiLineString" || geometry.type === "Polygon") {
     geometry.coordinates.forEach((line) => line.forEach(visit));
     return;
   }
 
-  geometry.coordinates.forEach((polygon) => polygon.forEach((ring) => ring.forEach(visit)));
+  geometry.coordinates.forEach((polygon) =>
+    polygon.forEach((ring) => ring.forEach(visit)),
+  );
 }
 
 function featureCollectionCenter(
-  featureCollection: FeatureCollection<LineString | MultiLineString | Polygon | MultiPolygon>,
+  featureCollection: FeatureCollection<
+    LineString | MultiLineString | Polygon | MultiPolygon
+  >,
 ) {
   let south = Number.POSITIVE_INFINITY;
   let west = Number.POSITIVE_INFINITY;
@@ -798,9 +1283,13 @@ function featureCollectionCenter(
   };
 }
 
-function projectPoint(position: Position, center: { lat: number; lon: number }) {
+function projectPoint(
+  position: Position,
+  center: { lat: number; lon: number },
+) {
   const latFactor = 110540 * POSITION_SCALE;
-  const lonFactor = 111320 * Math.cos((center.lat * Math.PI) / 180) * POSITION_SCALE;
+  const lonFactor =
+    111320 * Math.cos((center.lat * Math.PI) / 180) * POSITION_SCALE;
   return new THREE.Vector3(
     (position[0] - center.lon) * lonFactor,
     0,
@@ -808,8 +1297,11 @@ function projectPoint(position: Position, center: { lat: number; lon: number }) 
   );
 }
 
-function lineStringsOfRoad(feature: RoadFeature, center: { lat: number; lon: number }) {
-  if (feature.geometry.type === 'LineString') {
+function lineStringsOfRoad(
+  feature: RoadFeature,
+  center: { lat: number; lon: number },
+) {
+  if (feature.geometry.type === "LineString") {
     return [
       feature.geometry.coordinates.map((coordinate) => ({
         key: geoKey(coordinate),
@@ -826,25 +1318,116 @@ function lineStringsOfRoad(feature: RoadFeature, center: { lat: number; lon: num
   );
 }
 
-function outerRingOfBuilding(feature: BuildingFeature, center: { lat: number; lon: number }) {
+function buildProjectedRoadSegments(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+) {
+  return roads.features.flatMap((feature) =>
+    lineStringsOfRoad(feature, center).flatMap((line) =>
+      line.slice(1).map((node, index) => ({
+        roadClass: feature.properties.roadClass,
+        width: feature.properties.width * ROAD_WIDTH_SCALE,
+        start: line[index].point,
+        end: node.point,
+        name: feature.properties.name,
+      })),
+    ),
+  );
+}
+
+function outerRingOfBuilding(
+  feature: BuildingFeature,
+  center: { lat: number; lon: number },
+) {
   const ring =
-    feature.geometry.type === 'Polygon'
+    feature.geometry.type === "Polygon"
       ? feature.geometry.coordinates[0]
-      : feature.geometry.coordinates[0]?.[0] ?? [];
+      : (feature.geometry.coordinates[0]?.[0] ?? []);
 
   return ring.map((coordinate) => projectPoint(coordinate, center));
 }
 
-function outerRingsOfDong(feature: DongFeature, center: { lat: number; lon: number }) {
-  if (feature.geometry.type === 'Polygon') {
+function outerRingsOfDong(
+  feature: DongFeature,
+  center: { lat: number; lon: number },
+) {
+  if (feature.geometry.type === "Polygon") {
     const ring = feature.geometry.coordinates[0] ?? [];
-    return ring.length ? [ring.map((coordinate) => projectPoint(coordinate, center))] : [];
+    return ring.length
+      ? [ring.map((coordinate) => projectPoint(coordinate, center))]
+      : [];
   }
 
   return feature.geometry.coordinates
     .map((polygon) => polygon[0] ?? [])
     .filter((ring) => ring.length)
     .map((ring) => ring.map((coordinate) => projectPoint(coordinate, center)));
+}
+
+function shapePointsFromCoordinates(
+  ring: Position[],
+  center: { lat: number; lon: number },
+  clockwise: boolean,
+) {
+  const points = ring.map((coordinate) => {
+    const point = projectPoint(coordinate, center);
+    return new THREE.Vector2(point.x, -point.z);
+  });
+
+  if (
+    points.length > 1 &&
+    points[0].distanceTo(points[points.length - 1]) < 0.001
+  ) {
+    points.pop();
+  }
+
+  if (points.length < 3) {
+    return null;
+  }
+
+  if (THREE.ShapeUtils.isClockWise(points) !== clockwise) {
+    points.reverse();
+  }
+
+  return points;
+}
+
+function shapeFromPolygonCoordinates(
+  rings: Position[][],
+  center: { lat: number; lon: number },
+) {
+  const outerPoints = shapePointsFromCoordinates(rings[0] ?? [], center, false);
+  if (!outerPoints) {
+    return null;
+  }
+
+  const shape = new THREE.Shape(outerPoints);
+  rings.slice(1).forEach((ring) => {
+    const holePoints = shapePointsFromCoordinates(ring, center, true);
+    if (!holePoints) {
+      return;
+    }
+    shape.holes.push(new THREE.Path(holePoints));
+  });
+
+  return shape;
+}
+
+function shapesOfNonRoadFeature(
+  feature: NonRoadFeature,
+  center: { lat: number; lon: number },
+) {
+  if (feature.geometry.type === "Polygon") {
+    const shape = shapeFromPolygonCoordinates(
+      feature.geometry.coordinates,
+      center,
+    );
+    return shape ? [shape] : [];
+  }
+
+  return feature.geometry.coordinates
+    .map((polygon) => shapeFromPolygonCoordinates(polygon, center))
+    .filter(Boolean) as THREE.Shape[];
 }
 
 function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
@@ -854,7 +1437,9 @@ function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
 function buildCumulative(points: THREE.Vector3[]) {
   const cumulative = [0];
   for (let index = 1; index < points.length; index += 1) {
-    cumulative.push(cumulative[index - 1] + distanceXZ(points[index - 1], points[index]));
+    cumulative.push(
+      cumulative[index - 1] + distanceXZ(points[index - 1], points[index]),
+    );
   }
   return cumulative;
 }
@@ -873,7 +1458,11 @@ function clampRouteDistance(route: RouteTemplate, value: number) {
   return THREE.MathUtils.clamp(value, 0, route.totalLength);
 }
 
-function routeDistanceAhead(route: RouteTemplate, current: number, target: number) {
+function routeDistanceAhead(
+  route: RouteTemplate,
+  current: number,
+  target: number,
+) {
   if (route.isLoop) {
     const normalizedCurrent = normalizeDistance(current, route.totalLength);
     const normalizedTarget = normalizeDistance(target, route.totalLength);
@@ -889,31 +1478,39 @@ function routeDistanceAhead(route: RouteTemplate, current: number, target: numbe
   return target - current;
 }
 
-function offsetToRight(position: THREE.Vector3, heading: THREE.Vector3, offset: number) {
-  const right = new THREE.Vector3(heading.z, 0, -heading.x).normalize();
-  return position.clone().addScaledVector(right, offset);
+function createRouteSample(): RouteSample {
+  return {
+    position: new THREE.Vector3(),
+    heading: new THREE.Vector3(0, 0, 1),
+    segmentIndex: 0,
+  };
 }
 
-function wrapAngle(angle: number) {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
+function createVehicleMotionState(): VehicleMotionState {
+  return {
+    ...createRouteSample(),
+    lanePosition: new THREE.Vector3(),
+    right: new THREE.Vector3(1, 0, 0),
+    nextStopIndex: 0,
+  };
 }
 
-function dampAngle(current: number, target: number, lambda: number, delta: number) {
-  const gap = wrapAngle(target - current);
-  return wrapAngle(current + gap * (1 - Math.exp(-lambda * delta)));
-}
-
-function sampleRoute(route: RouteTemplate, distance: number) {
+function routeSegmentIndexAtDistance(
+  route: RouteTemplate,
+  distance: number,
+  segmentIndexHint = 0,
+) {
   if (route.nodes.length < 2 || route.totalLength <= 0) {
-    return {
-      position: route.nodes[0]?.point.clone() ?? new THREE.Vector3(),
-      heading: new THREE.Vector3(0, 0, 1),
-      segmentIndex: 0,
-    };
+    return 0;
   }
 
   const clampedDistance = clampRouteDistance(route, distance);
-  let segmentIndex = 0;
+  let segmentIndex = THREE.MathUtils.clamp(
+    segmentIndexHint,
+    0,
+    route.cumulative.length - 2,
+  );
+
   while (
     segmentIndex < route.cumulative.length - 2 &&
     route.cumulative[segmentIndex + 1] < clampedDistance
@@ -921,26 +1518,185 @@ function sampleRoute(route: RouteTemplate, distance: number) {
     segmentIndex += 1;
   }
 
+  while (segmentIndex > 0 && route.cumulative[segmentIndex] > clampedDistance) {
+    segmentIndex -= 1;
+  }
+
+  return segmentIndex;
+}
+
+function sampleRouteInto(
+  route: RouteTemplate,
+  distance: number,
+  target: RouteSample,
+  segmentIndexHint = 0,
+) {
+  if (route.nodes.length < 2 || route.totalLength <= 0) {
+    target.position.copy(route.nodes[0]?.point ?? new THREE.Vector3());
+    target.heading.set(0, 0, 1);
+    target.segmentIndex = 0;
+    return target;
+  }
+
+  const clampedDistance = clampRouteDistance(route, distance);
+  const segmentIndex = routeSegmentIndexAtDistance(
+    route,
+    clampedDistance,
+    segmentIndexHint,
+  );
   const start = route.nodes[segmentIndex].point;
   const end = route.nodes[segmentIndex + 1]?.point ?? start;
   const segmentStart = route.cumulative[segmentIndex];
   const segmentLength = Math.max(distanceXZ(start, end), 0.0001);
-  const heading = end.clone().sub(start);
-  if (heading.lengthSq() < 0.0001) {
-    heading.set(0, 0, 1);
+
+  target.heading.copy(end).sub(start);
+  if (target.heading.lengthSq() < 0.0001) {
+    target.heading.set(0, 0, 1);
   } else {
-    heading.normalize();
+    target.heading.normalize();
+  }
+
+  target.position
+    .copy(start)
+    .lerp(end, (clampedDistance - segmentStart) / segmentLength);
+  target.segmentIndex = segmentIndex;
+  return target;
+}
+
+function writeRightVector(heading: THREE.Vector3, target: THREE.Vector3) {
+  target.set(heading.z, 0, -heading.x);
+  if (target.lengthSq() < 0.0001) {
+    target.set(1, 0, 0);
+  } else {
+    target.normalize();
+  }
+  return target;
+}
+
+function resolveNextStop(
+  route: RouteTemplate,
+  currentDistance: number,
+  startIndex = 0,
+) {
+  if (!route.stops.length) {
+    return {
+      index: -1,
+      stop: null,
+      ahead: Number.POSITIVE_INFINITY,
+    };
+  }
+
+  if (!route.isLoop) {
+    let index = THREE.MathUtils.clamp(startIndex, 0, route.stops.length);
+    while (
+      index < route.stops.length &&
+      route.stops[index].distance < currentDistance - 0.001
+    ) {
+      index += 1;
+    }
+
+    if (index >= route.stops.length) {
+      return {
+        index: route.stops.length,
+        stop: null,
+        ahead: Number.POSITIVE_INFINITY,
+      };
+    }
+
+    return {
+      index,
+      stop: route.stops[index],
+      ahead: Math.max(0, route.stops[index].distance - currentDistance),
+    };
+  }
+
+  let bestIndex = THREE.MathUtils.clamp(startIndex, 0, route.stops.length - 1);
+  let bestAhead = Number.POSITIVE_INFINITY;
+
+  for (let offset = 0; offset < route.stops.length; offset += 1) {
+    const candidateIndex = (bestIndex + offset) % route.stops.length;
+    const ahead = routeDistanceAhead(
+      route,
+      currentDistance,
+      route.stops[candidateIndex].distance,
+    );
+    if (ahead < bestAhead) {
+      bestAhead = ahead;
+      bestIndex = candidateIndex;
+      if (ahead <= 0.001) {
+        break;
+      }
+    }
   }
 
   return {
-    position: start.clone().lerp(end, (clampedDistance - segmentStart) / segmentLength),
-    heading,
-    segmentIndex,
+    index: bestIndex,
+    stop: route.stops[bestIndex],
+    ahead: bestAhead,
   };
 }
 
+function offsetToRight(
+  position: THREE.Vector3,
+  heading: THREE.Vector3,
+  offset: number,
+) {
+  const right = writeRightVector(heading, new THREE.Vector3());
+  return position.clone().addScaledVector(right, offset);
+}
+
+function wrapAngle(angle: number) {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+function dampAngle(
+  current: number,
+  target: number,
+  lambda: number,
+  delta: number,
+) {
+  const gap = wrapAngle(target - current);
+  return wrapAngle(current + gap * (1 - Math.exp(-lambda * delta)));
+}
+
+function sampleRoute(
+  route: RouteTemplate,
+  distance: number,
+  segmentIndexHint = 0,
+) {
+  return sampleRouteInto(
+    route,
+    distance,
+    createRouteSample(),
+    segmentIndexHint,
+  );
+}
+
 function dominantAxis(start: THREE.Vector3, end: THREE.Vector3): SignalAxis {
-  return Math.abs(end.x - start.x) > Math.abs(end.z - start.z) ? 'ew' : 'ns';
+  return Math.abs(end.x - start.x) > Math.abs(end.z - start.z) ? "ew" : "ns";
+}
+
+function signalDirectionForVector(vector: THREE.Vector3): SignalDirection {
+  if (Math.abs(vector.x) > Math.abs(vector.z)) {
+    return vector.x >= 0 ? "east" : "west";
+  }
+  return vector.z >= 0 ? "south" : "north";
+}
+
+function signalAxisForDirection(direction: SignalDirection): SignalAxis {
+  return direction === "east" || direction === "west" ? "ew" : "ns";
+}
+
+function averagePoint(points: THREE.Vector3[]) {
+  if (!points.length) {
+    return new THREE.Vector3();
+  }
+
+  const total = points.reduce(
+    (sum, point) => sum.add(point),
+    new THREE.Vector3(),
+  );
+  return total.multiplyScalar(1 / points.length);
 }
 
 function classifyTurn(
@@ -952,10 +1708,10 @@ function classifyTurn(
   const outgoing = next.clone().sub(current).normalize();
   const dot = incoming.dot(outgoing);
   if (dot > 0.72) {
-    return 'straight';
+    return "straight";
   }
   const cross = incoming.x * outgoing.z - incoming.z * outgoing.x;
-  return cross > 0 ? 'right' : 'left';
+  return cross > 0 ? "right" : "left";
 }
 
 function colorForBuilding(height: number) {
@@ -964,18 +1720,25 @@ function colorForBuilding(height: number) {
   return 0x334760;
 }
 
-function buildDongRegions(dongs: DongFeatureCollection, center: { lat: number; lon: number }) {
+function buildDongRegions(
+  dongs: DongFeatureCollection,
+  center: { lat: number; lon: number },
+) {
   const colors = [0x68d4ff, 0x5fe0c4, 0xffc765, 0xff9171, 0x8cb8ff];
 
   return dongs.features
     .map((feature, index) => {
-      const rings = outerRingsOfDong(feature, center).filter((ring) => ring.length >= 3);
+      const rings = outerRingsOfDong(feature, center).filter(
+        (ring) => ring.length >= 3,
+      );
       if (!rings.length) {
         return null;
       }
 
       const bounds = new THREE.Box3();
-      rings.forEach((ring) => ring.forEach((point) => bounds.expandByPoint(point)));
+      rings.forEach((ring) =>
+        ring.forEach((point) => bounds.expandByPoint(point)),
+      );
 
       return {
         id: `dong-${index}`,
@@ -991,14 +1754,18 @@ function buildDongRegions(dongs: DongFeatureCollection, center: { lat: number; l
 
 function pointInDongRing(point: THREE.Vector3, ring: THREE.Vector3[]) {
   let inside = false;
-  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+  for (
+    let index = 0, previous = ring.length - 1;
+    index < ring.length;
+    previous = index, index += 1
+  ) {
     const current = ring[index];
     const prior = ring[previous];
     const intersects =
-      (current.z > point.z) !== (prior.z > point.z) &&
+      current.z > point.z !== prior.z > point.z &&
       point.x <
         ((prior.x - current.x) * (point.z - current.z)) /
-          ((prior.z - current.z) || Number.EPSILON) +
+          (prior.z - current.z || Number.EPSILON) +
           current.x;
 
     if (intersects) {
@@ -1009,7 +1776,9 @@ function pointInDongRing(point: THREE.Vector3, ring: THREE.Vector3[]) {
 }
 
 function dongContainsPoint(dong: DongRegion, point: THREE.Vector3) {
-  return dong.rings.some((ring) => ring.length >= 3 && pointInDongRing(point, ring));
+  return dong.rings.some(
+    (ring) => ring.length >= 3 && pointInDongRing(point, ring),
+  );
 }
 
 function canonicalBoundaryPoint(point: THREE.Vector3) {
@@ -1036,7 +1805,8 @@ function buildDongBoundarySegments(dongRegions: DongRegion[]) {
         }
 
         const useOriginalOrder =
-          start.x < end.x || (Math.abs(start.x - end.x) < 0.001 && start.z <= end.z);
+          start.x < end.x ||
+          (Math.abs(start.x - end.x) < 0.001 && start.z <= end.z);
         const canonicalStart = useOriginalOrder ? start : end;
         const canonicalEnd = useOriginalOrder ? end : start;
         const key = `${canonicalBoundaryPoint(canonicalStart)}|${canonicalBoundaryPoint(canonicalEnd)}`;
@@ -1056,21 +1826,30 @@ function buildDongBoundarySegments(dongRegions: DongRegion[]) {
       const direction = value.end.clone().sub(value.start);
       const length = direction.length();
       const center = value.start.clone().lerp(value.end, 0.5);
-      const normal = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+      const normal = new THREE.Vector3(
+        -direction.z,
+        0,
+        direction.x,
+      ).normalize();
       const probeDistance = Math.min(Math.max(length * 0.08, 0.9), 2.2);
       const leftProbe = center.clone().addScaledVector(normal, probeDistance);
       const rightProbe = center.clone().addScaledVector(normal, -probeDistance);
       const leftDong =
-        dongRegions.find((dong) => dongContainsPoint(dong, leftProbe))?.name ?? null;
+        dongRegions.find((dong) => dongContainsPoint(dong, leftProbe))?.name ??
+        null;
       const rightDong =
-        dongRegions.find((dong) => dongContainsPoint(dong, rightProbe))?.name ?? null;
+        dongRegions.find((dong) => dongContainsPoint(dong, rightProbe))?.name ??
+        null;
 
       return {
         id: key,
         start: value.start,
         end: value.end,
         center,
-        angle: Math.atan2(value.end.x - value.start.x, value.end.z - value.start.z),
+        angle: Math.atan2(
+          value.end.x - value.start.x,
+          value.end.z - value.start.z,
+        ),
         length,
         leftDong,
         rightDong,
@@ -1085,31 +1864,34 @@ function buildDongBoundarySegments(dongRegions: DongRegion[]) {
 }
 
 function boundaryHintElement() {
-  const element = document.createElement('div');
-  element.style.padding = '8px 14px';
-  element.style.borderRadius = '16px';
-  element.style.border = '1px solid rgba(162,255,187,0.28)';
-  element.style.background = 'rgba(5,28,18,0.88)';
-  element.style.color = '#d9ffe5';
-  element.style.fontSize = '12px';
-  element.style.fontWeight = '600';
-  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
-  element.style.letterSpacing = '0.02em';
-  element.style.whiteSpace = 'nowrap';
-  element.style.pointerEvents = 'none';
-  element.style.boxShadow = '0 10px 28px rgba(0,0,0,0.28)';
-  element.style.position = 'absolute';
-  element.style.left = '0';
-  element.style.top = '0';
-  element.style.transform = 'translate(14px, -18px)';
-  element.style.zIndex = '12';
-  element.style.display = 'none';
+  const element = document.createElement("div");
+  element.style.padding = "8px 14px";
+  element.style.borderRadius = "16px";
+  element.style.border = "1px solid rgba(162,255,187,0.28)";
+  element.style.background = "rgba(5,28,18,0.88)";
+  element.style.color = "#d9ffe5";
+  element.style.fontSize = "12px";
+  element.style.fontWeight = "600";
+  element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
+  element.style.letterSpacing = "0.02em";
+  element.style.whiteSpace = "nowrap";
+  element.style.pointerEvents = "none";
+  element.style.boxShadow = "0 10px 28px rgba(0,0,0,0.28)";
+  element.style.position = "absolute";
+  element.style.left = "0";
+  element.style.top = "0";
+  element.style.transform = "translate(14px, -18px)";
+  element.style.zIndex = "12";
+  element.style.display = "none";
   return element;
 }
 
 function dongShapeFromRing(ring: THREE.Vector3[]) {
   const points = ring.map((point) => new THREE.Vector2(point.x, -point.z));
-  if (points.length > 1 && points[0].distanceTo(points[points.length - 1]) < 0.001) {
+  if (
+    points.length > 1 &&
+    points[0].distanceTo(points[points.length - 1]) < 0.001
+  ) {
     points.pop();
   }
   if (points.length < 3) {
@@ -1158,6 +1940,47 @@ function nearestRoadContext(
   return best;
 }
 
+function nearbyRoadSegments(
+  point: THREE.Vector3,
+  roadSegments: ProjectedRoadSegment[],
+  maxDistance: number,
+) {
+  return roadSegments.filter((segment) => {
+    const delta = segment.end.clone().sub(segment.start);
+    const lengthSq = delta.lengthSq();
+    if (lengthSq < 0.0001) {
+      return false;
+    }
+
+    const t = THREE.MathUtils.clamp(
+      point.clone().sub(segment.start).dot(delta) / lengthSq,
+      0,
+      1,
+    );
+    const closest = segment.start.clone().lerp(segment.end, t);
+    return distanceXZ(point, closest) <= maxDistance;
+  });
+}
+
+function nearestGraphNode(
+  point: THREE.Vector3,
+  graph: RoadGraph,
+  maxDistance: number,
+): RouteNode | null {
+  let best: RouteNode | null = null;
+  let bestDistance = maxDistance;
+
+  graph.nodes.forEach((node) => {
+    const distance = distanceXZ(point, node.point);
+    if (distance < bestDistance) {
+      best = node;
+      bestDistance = distance;
+    }
+  });
+
+  return best;
+}
+
 function filterTransitBySpacing(
   landmarks: TransitLandmark[],
   minimumDistance: number,
@@ -1171,14 +1994,19 @@ function filterTransitBySpacing(
         return importanceGap;
       }
 
-      return (left.name ?? '').localeCompare(right.name ?? '', 'ko');
+      return (left.name ?? "").localeCompare(right.name ?? "", "ko");
     })
     .forEach((landmark) => {
       if (kept.length >= maximumCount) {
         return;
       }
 
-      if (kept.every((entry) => distanceXZ(entry.position, landmark.position) >= minimumDistance)) {
+      if (
+        kept.every(
+          (entry) =>
+            distanceXZ(entry.position, landmark.position) >= minimumDistance,
+        )
+      ) {
         kept.push(landmark);
       }
     });
@@ -1193,7 +2021,7 @@ function buildTransitLandmarks(
 ) {
   const raw = transit.features
     .map((feature, index) => {
-      if (feature.geometry.type !== 'Point') {
+      if (feature.geometry.type !== "Point") {
         return null;
       }
 
@@ -1201,13 +2029,24 @@ function buildTransitLandmarks(
       const nearestRoad = nearestRoadContext(originalPoint, roadSegments);
       const fallbackHeading = new THREE.Vector3(0, 0, 1);
 
-      if (feature.properties.category === 'bus_stop') {
-        if (!nearestRoad || nearestRoad.distance > 12 || nearestRoad.roadClass !== 'arterial') {
+      if (feature.properties.category === "bus_stop") {
+        if (
+          !nearestRoad ||
+          nearestRoad.distance > 12 ||
+          nearestRoad.roadClass !== "arterial"
+        ) {
           return null;
         }
 
-        const right = new THREE.Vector3(nearestRoad.heading.z, 0, -nearestRoad.heading.x).normalize();
-        const sideSign = right.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0 ? 1 : -1;
+        const right = new THREE.Vector3(
+          nearestRoad.heading.z,
+          0,
+          -nearestRoad.heading.x,
+        ).normalize();
+        const sideSign =
+          right.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0
+            ? 1
+            : -1;
         const importance =
           feature.properties.importance +
           roadRank(nearestRoad.roadClass) * 2 +
@@ -1215,26 +2054,34 @@ function buildTransitLandmarks(
 
         return {
           id: `transit-${index}`,
-          category: 'bus_stop' as const,
+          category: "bus_stop" as const,
           name: feature.properties.name,
           position: nearestRoad.closest
             .clone()
-            .addScaledVector(right, sideSign * (nearestRoad.width * 0.58 + 1.35))
+            .addScaledVector(
+              right,
+              sideSign * (nearestRoad.width * 0.58 + 1.35),
+            )
             .setY(0.12),
           heading: nearestRoad.heading.clone(),
           sideSign,
           yaw: Math.atan2(nearestRoad.heading.x, nearestRoad.heading.z),
           importance,
           roadClass: nearestRoad.roadClass,
-          isMajor: nearestRoad.roadClass === 'arterial' || importance >= 9,
+          isMajor: nearestRoad.roadClass === "arterial" || importance >= 9,
         } satisfies TransitLandmark;
       }
 
       const nearestHeading = nearestRoad?.heading.clone() ?? fallbackHeading;
-      const nearestRight = new THREE.Vector3(nearestHeading.z, 0, -nearestHeading.x).normalize();
+      const nearestRight = new THREE.Vector3(
+        nearestHeading.z,
+        0,
+        -nearestHeading.x,
+      ).normalize();
       const sideSign =
         nearestRoad && nearestRoad.distance < 22
-          ? nearestRight.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0
+          ? nearestRight.dot(originalPoint.clone().sub(nearestRoad.closest)) >=
+            0
             ? 1
             : -1
           : 1;
@@ -1242,20 +2089,26 @@ function buildTransitLandmarks(
         nearestRoad && nearestRoad.distance < 22
           ? nearestRoad.closest
               .clone()
-              .addScaledVector(nearestRight, sideSign * (nearestRoad.width * 0.42 + 2.3))
+              .addScaledVector(
+                nearestRight,
+                sideSign * (nearestRoad.width * 0.42 + 2.3),
+              )
               .setY(0.12)
           : originalPoint.clone().setY(0.12);
 
       return {
         id: `transit-${index}`,
-        category: 'subway_station' as const,
+        category: "subway_station" as const,
         name: feature.properties.name,
         position,
         heading: nearestHeading,
         sideSign,
         yaw: Math.atan2(nearestHeading.x, nearestHeading.z),
         importance:
-          feature.properties.importance + 2 + (feature.properties.name ? 4 : 0) + (nearestRoad?.name ? 1 : 0),
+          feature.properties.importance +
+          2 +
+          (feature.properties.name ? 4 : 0) +
+          (nearestRoad?.name ? 1 : 0),
         roadClass: nearestRoad?.roadClass ?? null,
         isMajor: Boolean(feature.properties.name),
       } satisfies TransitLandmark;
@@ -1263,12 +2116,12 @@ function buildTransitLandmarks(
     .filter(Boolean) as TransitLandmark[];
 
   const subwayStations = filterTransitBySpacing(
-    raw.filter((feature) => feature.category === 'subway_station'),
+    raw.filter((feature) => feature.category === "subway_station"),
     62,
     8,
   );
   const busStops = filterTransitBySpacing(
-    raw.filter((feature) => feature.category === 'bus_stop'),
+    raw.filter((feature) => feature.category === "bus_stop"),
     62,
     8,
   );
@@ -1276,22 +2129,22 @@ function buildTransitLandmarks(
   return [...subwayStations, ...busStops];
 }
 
-function roadRank(roadClass: RoadProperties['roadClass']) {
+function roadRank(roadClass: RoadProperties["roadClass"]) {
   switch (roadClass) {
-    case 'arterial':
+    case "arterial":
       return 3;
-    case 'connector':
+    case "connector":
       return 2;
     default:
       return 1;
   }
 }
 
-function roadTravelCost(roadClass: RoadProperties['roadClass']) {
+function roadTravelCost(roadClass: RoadProperties["roadClass"]) {
   switch (roadClass) {
-    case 'arterial':
+    case "arterial":
       return 0.9;
-    case 'connector':
+    case "connector":
       return 1;
     default:
       return 1.18;
@@ -1301,6 +2154,11 @@ function roadTravelCost(roadClass: RoadProperties['roadClass']) {
 type QueueEntry = {
   key: string;
   cost: number;
+};
+
+type PathSearchResult = {
+  nodeKeys: string[];
+  edgeIds: string[];
 };
 
 function queuePush(queue: QueueEntry[], entry: QueueEntry) {
@@ -1374,70 +2232,74 @@ function mostCommonLabel(values: Array<string | null | undefined>) {
   return bestLabel;
 }
 
-function labelElement(text: string, kind: 'road' | 'building' | 'service' | 'district' | 'transit') {
-  const element = document.createElement('div');
+function labelElement(
+  text: string,
+  kind: "road" | "building" | "service" | "district" | "transit",
+) {
+  const element = document.createElement("div");
   element.textContent = text;
   element.style.padding =
-    kind === 'road'
-      ? '2px 8px'
-      : kind === 'service'
-        ? '3px 10px'
-        : kind === 'transit'
-          ? '4px 11px'
-        : kind === 'district'
-          ? '4px 12px'
-          : '3px 9px';
-  element.style.borderRadius = '999px';
-  element.style.border = '1px solid rgba(255,255,255,0.12)';
+    kind === "road"
+      ? "2px 8px"
+      : kind === "service"
+        ? "3px 10px"
+        : kind === "transit"
+          ? "4px 11px"
+          : kind === "district"
+            ? "4px 12px"
+            : "3px 9px";
+  element.style.borderRadius = "999px";
+  element.style.border = "1px solid rgba(255,255,255,0.12)";
   element.style.background =
-    kind === 'road'
-      ? 'rgba(8,18,34,0.72)'
-      : kind === 'service'
-        ? 'rgba(51,36,7,0.86)'
-        : kind === 'transit'
-          ? 'rgba(5,32,44,0.92)'
-        : kind === 'district'
-          ? 'rgba(5,48,67,0.96)'
-          : 'rgba(12,20,36,0.85)';
+    kind === "road"
+      ? "rgba(8,18,34,0.72)"
+      : kind === "service"
+        ? "rgba(51,36,7,0.86)"
+        : kind === "transit"
+          ? "rgba(5,32,44,0.92)"
+          : kind === "district"
+            ? "rgba(5,48,67,0.96)"
+            : "rgba(12,20,36,0.85)";
   element.style.color =
-    kind === 'road'
-      ? '#cfe7ff'
-      : kind === 'service'
-        ? '#ffe7a8'
-        : kind === 'transit'
-        ? '#a8eeff'
-        : kind === 'district'
-          ? '#d5f6ff'
-          : '#f7fbff';
-  element.style.fontSize = kind === 'road' ? '11px' : kind === 'district' ? '13px' : '12px';
-  element.style.fontWeight = kind === 'district' ? '700' : '500';
-  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
-  element.style.letterSpacing = '0.02em';
-  element.style.whiteSpace = 'nowrap';
-  element.style.pointerEvents = 'none';
+    kind === "road"
+      ? "#cfe7ff"
+      : kind === "service"
+        ? "#ffe7a8"
+        : kind === "transit"
+          ? "#a8eeff"
+          : kind === "district"
+            ? "#d5f6ff"
+            : "#f7fbff";
+  element.style.fontSize =
+    kind === "road" ? "11px" : kind === "district" ? "13px" : "12px";
+  element.style.fontWeight = kind === "district" ? "700" : "500";
+  element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
+  element.style.letterSpacing = "0.02em";
+  element.style.whiteSpace = "nowrap";
+  element.style.pointerEvents = "none";
   element.style.transition =
-    kind === 'district'
-      ? 'background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease'
-      : 'none';
-  element.style.boxShadow = '0 8px 18px rgba(0,0,0,0.25)';
+    kind === "district"
+      ? "background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease"
+      : "none";
+  element.style.boxShadow = "0 8px 18px rgba(0,0,0,0.25)";
   return element;
 }
 
 function hotspotCallElement() {
-  const element = document.createElement('div');
-  element.textContent = '승차';
-  element.style.padding = '3px 10px';
-  element.style.borderRadius = '999px';
-  element.style.border = '1px solid rgba(255,229,161,0.45)';
-  element.style.background = 'rgba(38,29,8,0.88)';
-  element.style.color = '#ffefbe';
-  element.style.fontSize = '11px';
-  element.style.fontWeight = '600';
-  element.style.fontFamily = 'Pretendard, SUIT Variable, sans-serif';
-  element.style.letterSpacing = '0.04em';
-  element.style.whiteSpace = 'nowrap';
-  element.style.pointerEvents = 'none';
-  element.style.boxShadow = '0 8px 18px rgba(0,0,0,0.32)';
+  const element = document.createElement("div");
+  element.textContent = "승차";
+  element.style.padding = "3px 10px";
+  element.style.borderRadius = "999px";
+  element.style.border = "1px solid rgba(255,229,161,0.45)";
+  element.style.background = "rgba(38,29,8,0.88)";
+  element.style.color = "#ffefbe";
+  element.style.fontSize = "11px";
+  element.style.fontWeight = "600";
+  element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
+  element.style.letterSpacing = "0.04em";
+  element.style.whiteSpace = "nowrap";
+  element.style.pointerEvents = "none";
+  element.style.boxShadow = "0 8px 18px rgba(0,0,0,0.32)";
   return element;
 }
 
@@ -1445,6 +2307,8 @@ function buildBuildingMasses(
   buildings: BuildingFeatureCollection,
   center: { lat: number; lon: number },
 ) {
+  const BUILDING_FOOTPRINT_INSET = 1.1;
+
   return buildings.features
     .map((feature, index) => {
       const ring = outerRingOfBuilding(feature, center);
@@ -1452,121 +2316,94 @@ function buildBuildingMasses(
         return null;
       }
 
-      const footprint = new THREE.Box3();
-      ring.forEach((point) => footprint.expandByPoint(point));
-      const footprintSize = footprint.getSize(new THREE.Vector3());
-      const footprintCenter = footprint.getCenter(new THREE.Vector3());
-      if (footprintSize.x < 0.8 || footprintSize.z < 0.8) {
+      let longestEdgeLength = 0;
+      let rotationY = 0;
+      for (let index = 0; index < ring.length - 1; index += 1) {
+        const current = ring[index];
+        const next = ring[index + 1];
+        const edgeLength = distanceXZ(current, next);
+        if (edgeLength <= longestEdgeLength) {
+          continue;
+        }
+        longestEdgeLength = edgeLength;
+        rotationY = Math.atan2(next.x - current.x, next.z - current.z);
+      }
+
+      const anchor = ring
+        .reduce((sum, point) => sum.add(point), new THREE.Vector3())
+        .multiplyScalar(1 / ring.length);
+      const cos = Math.cos(rotationY);
+      const sin = Math.sin(rotationY);
+      let minX = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let minZ = Number.POSITIVE_INFINITY;
+      let maxZ = Number.NEGATIVE_INFINITY;
+
+      ring.forEach((point) => {
+        const dx = point.x - anchor.x;
+        const dz = point.z - anchor.z;
+        const localX = dx * cos - dz * sin;
+        const localZ = dx * sin + dz * cos;
+        minX = Math.min(minX, localX);
+        maxX = Math.max(maxX, localX);
+        minZ = Math.min(minZ, localZ);
+        maxZ = Math.max(maxZ, localZ);
+      });
+
+      const rawWidth = maxX - minX;
+      const rawDepth = maxZ - minZ;
+      const width = Math.max(0.8, rawWidth - BUILDING_FOOTPRINT_INSET);
+      const depth = Math.max(0.8, rawDepth - BUILDING_FOOTPRINT_INSET);
+      if (width < 0.8 || depth < 0.8) {
         return null;
       }
+
+      const localCenterX = (minX + maxX) / 2;
+      const localCenterZ = (minZ + maxZ) / 2;
+      const footprintCenter = new THREE.Vector3(
+        anchor.x + localCenterX * cos + localCenterZ * sin,
+        0,
+        anchor.z - localCenterX * sin + localCenterZ * cos,
+      );
 
       return {
         id: `building-${index}`,
         label: feature.properties.label,
-        height: Math.max(2, (feature.properties.height ?? 15) * BUILDING_HEIGHT_SCALE),
+        height: Math.max(
+          2,
+          (feature.properties.height ?? 15) * BUILDING_HEIGHT_SCALE,
+        ),
         position: footprintCenter,
-        width: footprintSize.x,
-        depth: footprintSize.z,
+        width,
+        depth,
+        rotationY,
         color: colorForBuilding(feature.properties.height ?? 15),
       } satisfies BuildingMass;
     })
     .filter(Boolean) as BuildingMass[];
 }
 
-function createBusStopStructure(seed: number, sideSign: 1 | -1, isMajor: boolean) {
-  const roofColor = [0x27a4d8, 0x22b08c, 0x4b8cff][seed % 3];
-  const group = new THREE.Group();
-  const shelterLength = isMajor ? 2.28 : 1.9;
-  const shelterWidth = isMajor ? 1.08 : 0.92;
-
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(shelterWidth, 0.12, shelterLength),
-    new THREE.MeshStandardMaterial({ color: 0xdce7f2, roughness: 0.92 }),
-  );
-  base.position.y = 0.06;
-  base.receiveShadow = true;
-  group.add(base);
-
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(shelterWidth + 0.12, 0.12, shelterLength + 0.2),
-    new THREE.MeshStandardMaterial({
-      color: roofColor,
-      emissive: roofColor,
-      emissiveIntensity: isMajor ? 0.12 : 0.08,
-      roughness: 0.52,
-    }),
-  );
-  roof.position.y = 1.76;
-  roof.castShadow = true;
-  group.add(roof);
-
-  const backWall = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 1.26, shelterLength - 0.34),
-    new THREE.MeshStandardMaterial({ color: 0xc8d8e5, roughness: 0.62, metalness: 0.04 }),
-  );
-  backWall.position.set(0.34 * sideSign, 0.84, 0);
-  backWall.castShadow = true;
-  group.add(backWall);
-
-  [-(shelterLength * 0.38), shelterLength * 0.38].forEach((zOffset) => {
-    const post = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 1.62, 0.08),
-      new THREE.MeshStandardMaterial({ color: 0x6e8192, roughness: 0.72 }),
-    );
-    post.position.set(0.2 * sideSign, 0.84, zOffset);
-    post.castShadow = true;
-    group.add(post);
-  });
-
-  const bench = new THREE.Mesh(
-    new THREE.BoxGeometry(0.28, 0.18, isMajor ? 1.02 : 0.74),
-    new THREE.MeshStandardMaterial({ color: 0x53667b, roughness: 0.82 }),
-  );
-  bench.position.set(0.06 * sideSign, 0.42, 0);
-  bench.castShadow = true;
-  group.add(bench);
-
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 1.88, 8),
-    new THREE.MeshStandardMaterial({ color: 0xf4fbff, roughness: 0.48 }),
-  );
-  pole.position.set(-0.5 * sideSign, 0.94, -0.88);
-  pole.castShadow = true;
-  group.add(pole);
-
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(0.22, 0.64, 0.12),
-    new THREE.MeshStandardMaterial({
-      color: 0x1f8ecb,
-      emissive: 0x1f8ecb,
-      emissiveIntensity: 0.16,
-      roughness: 0.42,
-    }),
-  );
-  sign.position.set(-0.5 * sideSign, 1.6, -0.88);
-  group.add(sign);
-
-  if (isMajor) {
-    const routeBoard = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.88, 0.68),
-      new THREE.MeshStandardMaterial({
-        color: 0xf2f8ff,
-        emissive: 0x16384d,
-        emissiveIntensity: 0.08,
-        roughness: 0.42,
-      }),
-    );
-    routeBoard.position.set(-0.22 * sideSign, 1.05, 0.56);
-    routeBoard.castShadow = true;
-    group.add(routeBoard);
-  }
-
-  return group;
-}
-
-function createSubwayStationStructure(seed: number, sideSign: 1 | -1, isMajor: boolean) {
+function createSubwayStationStructure(
+  seed: number,
+  sideSign: 1 | -1,
+  isMajor: boolean,
+) {
   const accent = [0x31a8ff, 0x3bbcff, 0x5aa8ff][seed % 3];
   const group = new THREE.Group();
+
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(isMajor ? 1.18 : 0.98, isMajor ? 1.78 : 1.46, 28),
+    new THREE.MeshBasicMaterial({
+      color: accent,
+      transparent: true,
+      opacity: isMajor ? 0.28 : 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.04;
+  group.add(halo);
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(isMajor ? 2.6 : 2.1, 0.18, isMajor ? 2.1 : 1.72),
@@ -1658,24 +2495,39 @@ function createSubwayStationStructure(seed: number, sideSign: 1 | -1, isMajor: b
   sign.position.set(-0.92 * sideSign, isMajor ? 2.0 : 1.82, -0.68);
   group.add(sign);
 
-  Array.from({ length: isMajor ? 5 : 4 }, (_, index) => index).forEach((stepIndex) => {
-    const step = new THREE.Mesh(
-      new THREE.BoxGeometry(0.42, 0.16, isMajor ? 1.14 : 0.98),
-      new THREE.MeshStandardMaterial({ color: 0xb7c7d8, roughness: 0.84 }),
-    );
-    step.position.set(
-      (0.78 - stepIndex * 0.18) * -sideSign,
-      0.08 + stepIndex * 0.13,
-      0.42,
-    );
-    step.castShadow = true;
-    group.add(step);
-  });
+  const stationMarker = new THREE.Mesh(
+    new THREE.BoxGeometry(isMajor ? 0.4 : 0.34, isMajor ? 0.4 : 0.34, 0.12),
+    new THREE.MeshStandardMaterial({
+      color: 0xf4fbff,
+      emissive: 0xf4fbff,
+      emissiveIntensity: isMajor ? 0.34 : 0.24,
+      roughness: 0.24,
+      metalness: 0.08,
+    }),
+  );
+  stationMarker.position.set(-0.92 * sideSign, isMajor ? 2.02 : 1.84, -0.6);
+  group.add(stationMarker);
+
+  Array.from({ length: isMajor ? 5 : 4 }, (_, index) => index).forEach(
+    (stepIndex) => {
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.16, isMajor ? 1.14 : 0.98),
+        new THREE.MeshStandardMaterial({ color: 0xb7c7d8, roughness: 0.84 }),
+      );
+      step.position.set(
+        (0.78 - stepIndex * 0.18) * -sideSign,
+        0.08 + stepIndex * 0.13,
+        0.42,
+      );
+      step.castShadow = true;
+      group.add(step);
+    },
+  );
 
   return group;
 }
 
-function buildSignals(
+function buildFallbackSignals(
   roads: RoadFeatureCollection,
   center: { lat: number; lon: number },
 ) {
@@ -1684,7 +2536,9 @@ function buildSignals(
     {
       point: THREE.Vector3;
       roadIds: Set<string>;
+      namedRoads: Set<string>;
       rank: number;
+      approaches: THREE.Vector3[];
     }
   >();
 
@@ -1694,33 +2548,292 @@ function buildSignals(
         const entry = nodeMap.get(node.key) ?? {
           point: node.point,
           roadIds: new Set<string>(),
+          namedRoads: new Set<string>(),
           rank: 0,
+          approaches: [],
         };
         entry.roadIds.add(String(feature.id ?? `road-${featureIndex}`));
-        entry.rank = Math.max(entry.rank, roadRank(feature.properties.roadClass));
-        if (nodeIndex > 0 && nodeIndex < line.length - 1) {
-          nodeMap.set(node.key, entry);
+        if (feature.properties.name) {
+          entry.namedRoads.add(feature.properties.name);
         }
+        entry.rank = Math.max(
+          entry.rank,
+          roadRank(feature.properties.roadClass),
+        );
+        if (nodeIndex > 0) {
+          const incoming = line[nodeIndex - 1].point.clone().sub(node.point);
+          if (incoming.lengthSq() > 0.5) {
+            entry.approaches.push(incoming.normalize());
+          }
+        }
+        if (nodeIndex < line.length - 1) {
+          const outgoing = line[nodeIndex + 1].point.clone().sub(node.point);
+          if (outgoing.lengthSq() > 0.5) {
+            entry.approaches.push(outgoing.normalize());
+          }
+        }
+        nodeMap.set(node.key, entry);
       });
     });
   });
 
-  return [...nodeMap.entries()]
-    .filter(([, entry]) => entry.roadIds.size >= 2 && entry.rank >= 2)
-    .sort((left, right) => {
-      const roadGap = right[1].roadIds.size - left[1].roadIds.size;
-      if (roadGap !== 0) {
-        return roadGap;
-      }
-      return right[1].rank - left[1].rank;
+  const candidates = [...nodeMap.entries()]
+    .map(([key, entry]) => {
+      const approaches = Array.from(
+        new Set(
+          entry.approaches
+            .filter((approach) => approach.lengthSq() > 0.25)
+            .map((approach) => signalDirectionForVector(approach)),
+        ),
+      );
+      const axisCount = new Set(
+        approaches.map((approach) => signalAxisForDirection(approach)),
+      ).size;
+      const score =
+        entry.rank * 14 +
+        entry.roadIds.size * 5 +
+        approaches.length * 6 +
+        entry.namedRoads.size * 3;
+
+      return {
+        key,
+        point: entry.point.clone(),
+        rank: entry.rank,
+        roadCount: entry.roadIds.size,
+        axisCount,
+        approachCount: approaches.length,
+        approaches,
+        score,
+      };
     })
-    .slice(0, 28)
-    .map(([key, entry], index) => ({
+    .filter(
+      (candidate) =>
+        candidate.roadCount >= 2 &&
+        candidate.axisCount >= 2 &&
+        candidate.approachCount >= 3 &&
+        candidate.rank >= 2,
+    )
+    .sort((left, right) => {
+      const scoreGap = right.score - left.score;
+      if (scoreGap !== 0) {
+        return scoreGap;
+      }
+      return right.roadCount - left.roadCount;
+    });
+
+  const kept = candidates.filter((candidate, index, list) =>
+    list
+      .slice(0, index)
+      .every((existing) => distanceXZ(existing.point, candidate.point) >= 24),
+  );
+
+  return kept.slice(0, 18).map((candidate, index) => ({
+    id: `signal-${index}`,
+    key: candidate.key,
+    point: candidate.point.clone(),
+    offset: index * 1.8,
+    approaches: candidate.approaches,
+    hasProtectedLeft: candidate.approaches.length >= 4,
+  })) satisfies SignalData[];
+}
+
+function buildSignalsFromOsm(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+  graph: RoadGraph,
+  trafficSignals: TrafficSignalFeatureCollection,
+) {
+  const roadSegments = buildProjectedRoadSegments(roads, center);
+  if (!roadSegments.length || !trafficSignals.features.length) {
+    return [] as SignalData[];
+  }
+
+  const clustered: Array<{
+    points: THREE.Vector3[];
+    names: Set<string>;
+    types: Set<string>;
+    turnHints: Set<string>;
+    buttonOperatedCount: number;
+  }> = [];
+
+  trafficSignals.features.forEach((feature) => {
+    if (feature.geometry.type !== "Point") {
+      return;
+    }
+
+    const point = projectPoint(feature.geometry.coordinates, center);
+    const nearestRoad = nearestRoadContext(point, roadSegments);
+    if (!nearestRoad || nearestRoad.distance > SIGNAL_ROAD_SNAP_DISTANCE) {
+      return;
+    }
+
+    let bestCluster: (typeof clustered)[number] | null = null;
+    let bestDistance = SIGNAL_CLUSTER_DISTANCE;
+    clustered.forEach((cluster) => {
+      const centroid = averagePoint(cluster.points);
+      const distance = distanceXZ(point, centroid);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestCluster = cluster;
+      }
+    });
+
+    const target: (typeof clustered)[number] = bestCluster ?? {
+      points: [] as THREE.Vector3[],
+      names: new Set<string>(),
+      types: new Set<string>(),
+      turnHints: new Set<string>(),
+      buttonOperatedCount: 0,
+    };
+    if (!bestCluster) {
+      clustered.push(target);
+    }
+
+    target.points.push(point);
+    if (feature.properties.name) {
+      target.names.add(feature.properties.name);
+    }
+    if (feature.properties.signalType) {
+      target.types.add(feature.properties.signalType);
+    }
+    if (feature.properties.turns) {
+      target.turnHints.add(feature.properties.turns);
+    }
+    if (feature.properties.buttonOperated) {
+      target.buttonOperatedCount += 1;
+    }
+  });
+
+  const byAnchorKey = new Map<string, SignalData & { score: number }>();
+
+  clustered.forEach((cluster) => {
+    const clusterPoint = averagePoint(cluster.points);
+    const anchorNode = nearestGraphNode(
+      clusterPoint,
+      graph,
+      SIGNAL_NODE_SNAP_DISTANCE,
+    );
+    if (!anchorNode) {
+      return;
+    }
+
+    const point = anchorNode.point.clone();
+    const nearbySegmentsForSignal = nearbyRoadSegments(
+      point,
+      roadSegments,
+      SIGNAL_ROAD_SNAP_DISTANCE,
+    );
+    if (!nearbySegmentsForSignal.length) {
+      return;
+    }
+
+    const approaches = Array.from(
+      new Set(
+        nearbySegmentsForSignal.flatMap((segment) => {
+          const directions: SignalDirection[] = [];
+          const startVector = segment.start.clone().sub(point);
+          const endVector = segment.end.clone().sub(point);
+          if (startVector.lengthSq() > 9) {
+            directions.push(signalDirectionForVector(startVector));
+          }
+          if (endVector.lengthSq() > 9) {
+            directions.push(signalDirectionForVector(endVector));
+          }
+          return directions;
+        }),
+      ),
+    );
+    const axisCount = new Set(
+      approaches.map((approach) => signalAxisForDirection(approach)),
+    ).size;
+    if (approaches.length < 3 || axisCount < 2) {
+      return;
+    }
+
+    const rank = nearbySegmentsForSignal.reduce(
+      (best, segment) => Math.max(best, roadRank(segment.roadClass)),
+      1,
+    );
+    const score =
+      cluster.points.length * 12 +
+      approaches.length * 8 +
+      rank * 10 +
+      nearbySegmentsForSignal.length;
+    const hasProtectedLeft =
+      approaches.length >= 4 &&
+      (rank >= 3 || cluster.turnHints.size > 0 || cluster.points.length >= 2);
+    const candidate = {
+      id: `signal-${byAnchorKey.size}`,
+      key: anchorNode.key,
+      point,
+      offset: byAnchorKey.size * 1.8,
+      approaches,
+      hasProtectedLeft,
+      score,
+    };
+    const existing = byAnchorKey.get(anchorNode.key);
+    if (!existing || candidate.score > existing.score) {
+      byAnchorKey.set(anchorNode.key, candidate);
+    }
+  });
+
+  return [...byAnchorKey.values()]
+    .sort((left, right) => right.score - left.score)
+    .map((signal, index) => ({
       id: `signal-${index}`,
-      key,
-      point: entry.point.clone(),
+      key: signal.key,
+      point: signal.point,
       offset: index * 1.8,
-    })) satisfies SignalData[];
+      approaches: signal.approaches,
+      hasProtectedLeft: signal.hasProtectedLeft,
+    }));
+}
+
+function buildSignals(
+  roads: RoadFeatureCollection,
+  center: { lat: number; lon: number },
+  graph: RoadGraph,
+  trafficSignals: TrafficSignalFeatureCollection,
+) {
+  const actualSignals = buildSignalsFromOsm(
+    roads,
+    center,
+    graph,
+    trafficSignals,
+  );
+  if (actualSignals.length) {
+    return actualSignals;
+  }
+  return buildFallbackSignals(roads, center);
+}
+
+function indexTurnRestrictionsByViaKey(
+  restrictions: TurnRestriction[],
+  nodes: Map<string, RouteNode>,
+  edgeById: Map<string, GraphEdge>,
+) {
+  const wayIds = new Set(
+    [...edgeById.values()]
+      .map((edge) => edge.wayId)
+      .filter((wayId): wayId is string => Boolean(wayId)),
+  );
+  const byViaKey = new Map<string, TurnRestriction[]>();
+
+  restrictions.forEach((restriction) => {
+    if (
+      !nodes.has(restriction.viaKey) ||
+      !wayIds.has(restriction.fromWayId) ||
+      !wayIds.has(restriction.toWayId)
+    ) {
+      return;
+    }
+
+    const current = byViaKey.get(restriction.viaKey) ?? [];
+    current.push(restriction);
+    byViaKey.set(restriction.viaKey, current);
+  });
+
+  return byViaKey;
 }
 
 function buildRoadGraph(
@@ -1729,7 +2842,13 @@ function buildRoadGraph(
 ): RoadGraph {
   const nodes = new Map<string, RouteNode>();
   const adjacency = new Map<string, GraphEdge[]>();
-  const edgeIndex = new Map<string, GraphEdge>();
+  const edgeById = new Map<string, GraphEdge>();
+  const pushEdge = (edge: GraphEdge) => {
+    const edges = adjacency.get(edge.from) ?? [];
+    edges.push(edge);
+    adjacency.set(edge.from, edges);
+    edgeById.set(edge.id, edge);
+  };
 
   roads.features.forEach((feature, featureIndex) => {
     lineStringsOfRoad(feature, center).forEach((line, lineIndex) => {
@@ -1749,49 +2868,333 @@ function buildRoadGraph(
 
         const roadWidth = feature.properties.width * ROAD_WIDTH_SCALE;
         const baseId = `${feature.id ?? featureIndex}-${lineIndex}-${index}`;
-        const forward: GraphEdge = {
-          id: `${baseId}-f`,
-          from: from.key,
-          to: to.key,
+        const baseEdge = {
           roadClass: feature.properties.roadClass,
           roadWidth,
           length,
           name: feature.properties.name,
+          wayId: feature.properties.sourceWayId,
+        } satisfies Omit<GraphEdge, "id" | "from" | "to">;
+
+        const forward: GraphEdge = {
+          id: `${baseId}-f`,
+          from: from.key,
+          to: to.key,
+          ...baseEdge,
         };
         const backward: GraphEdge = {
-          ...forward,
           id: `${baseId}-r`,
           from: to.key,
           to: from.key,
+          ...baseEdge,
         };
 
-        const forwardList = adjacency.get(forward.from) ?? [];
-        forwardList.push(forward);
-        adjacency.set(forward.from, forwardList);
-
-        const backwardList = adjacency.get(backward.from) ?? [];
-        backwardList.push(backward);
-        adjacency.set(backward.from, backwardList);
-
-        edgeIndex.set(`${forward.from}|${forward.to}`, forward);
-        edgeIndex.set(`${backward.from}|${backward.to}`, backward);
+        if (feature.properties.oneway === "forward") {
+          pushEdge(forward);
+        } else if (feature.properties.oneway === "backward") {
+          pushEdge(backward);
+        } else {
+          pushEdge(forward);
+          pushEdge(backward);
+        }
       }
     });
   });
 
-  return { nodes, adjacency, edgeIndex };
+  return {
+    nodes,
+    adjacency,
+    edgeById,
+    turnRestrictionsByViaKey: indexTurnRestrictionsByViaKey(
+      roads.routing?.turnRestrictions ?? [],
+      nodes,
+      edgeById,
+    ),
+  };
 }
 
-function shortestPath(graph: RoadGraph, startKey: string, endKey: string) {
-  if (startKey === endKey) {
-    return [startKey];
+function deserializeRoadGraph(data: SerializedRoadNetwork): RoadGraph {
+  const nodes = new Map<string, RouteNode>(
+    data.nodes.map((node) => [
+      node.key,
+      { key: node.key, point: new THREE.Vector3(node.x, 0, node.z) },
+    ]),
+  );
+  const adjacency = new Map<string, GraphEdge[]>();
+  const edgeById = new Map<string, GraphEdge>();
+  const pushEdge = (edge: GraphEdge) => {
+    const edges = adjacency.get(edge.from) ?? [];
+    edges.push(edge);
+    adjacency.set(edge.from, edges);
+    edgeById.set(edge.id, edge);
+  };
+
+  data.segments.forEach((segment) => {
+    if (data.version >= 2) {
+      pushEdge({
+        id: segment.id,
+        from: segment.from,
+        to: segment.to,
+        roadClass: segment.roadClass,
+        roadWidth: segment.roadWidth,
+        length: segment.length,
+        name: segment.name,
+        wayId: segment.wayId ?? null,
+      });
+      return;
+    }
+
+    const base = {
+      roadClass: segment.roadClass,
+      roadWidth: segment.roadWidth,
+      length: segment.length,
+      name: segment.name,
+      wayId: segment.wayId ?? null,
+    } satisfies Omit<GraphEdge, "id" | "from" | "to">;
+
+    pushEdge({
+      id: `${segment.id}-f`,
+      from: segment.from,
+      to: segment.to,
+      ...base,
+    });
+    pushEdge({
+      id: `${segment.id}-r`,
+      from: segment.to,
+      to: segment.from,
+      ...base,
+    });
+  });
+
+  return {
+    nodes,
+    adjacency,
+    edgeById,
+    turnRestrictionsByViaKey: indexTurnRestrictionsByViaKey(
+      data.turnRestrictions ?? [],
+      nodes,
+      edgeById,
+    ),
+  };
+}
+
+function buildRoadNetworkOverlay(graph: RoadGraph) {
+  const group = new THREE.Group();
+  group.name = "road-network-overlay";
+
+  const edgePositions = {
+    arterial: [] as number[],
+    connector: [] as number[],
+    local: [] as number[],
+  };
+  const seenEdges = new Set<string>();
+
+  graph.edgeById.forEach((edge) => {
+    const fromNode = graph.nodes.get(edge.from);
+    const toNode = graph.nodes.get(edge.to);
+    if (!fromNode || !toNode) {
+      return;
+    }
+
+    const canonicalKey =
+      edge.from < edge.to
+        ? `${edge.from}|${edge.to}`
+        : `${edge.to}|${edge.from}`;
+    if (seenEdges.has(canonicalKey)) {
+      return;
+    }
+    seenEdges.add(canonicalKey);
+
+    const y = ROAD_LAYER_Y[edge.roadClass] + ROAD_NETWORK_EDGE_Y_OFFSET;
+    edgePositions[edge.roadClass].push(
+      fromNode.point.x,
+      y,
+      fromNode.point.z,
+      toNode.point.x,
+      y,
+      toNode.point.z,
+    );
+  });
+
+  const edgeMaterials = {
+    arterial: new THREE.LineBasicMaterial({
+      color: 0x7cf9ff,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+    }),
+    connector: new THREE.LineBasicMaterial({
+      color: 0x4ed6ff,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+    }),
+    local: new THREE.LineBasicMaterial({
+      color: 0x3e87af,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+    }),
+  };
+
+  (["arterial", "connector", "local"] as const).forEach((roadClass) => {
+    const positions = edgePositions[roadClass];
+    if (!positions.length) {
+      return;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    const lines = new THREE.LineSegments(geometry, edgeMaterials[roadClass]);
+    lines.renderOrder =
+      roadClass === "arterial" ? 92 : roadClass === "connector" ? 91 : 90;
+    group.add(lines);
+  });
+
+  const nodePositions = {
+    intersection: [] as number[],
+    endpoint: [] as number[],
+    passthrough: [] as number[],
+  };
+
+  graph.adjacency.forEach((edges, key) => {
+    const node = graph.nodes.get(key);
+    if (!node) {
+      return;
+    }
+
+    const degree = new Set(edges.map((edge) => edge.to)).size;
+    const bucket =
+      degree >= 3 ? "intersection" : degree === 1 ? "endpoint" : "passthrough";
+    nodePositions[bucket].push(node.point.x, ROAD_NETWORK_NODE_Y, node.point.z);
+  });
+
+  const addNodePoints = (
+    positions: number[],
+    color: number,
+    size: number,
+    opacity: number,
+    renderOrder: number,
+  ) => {
+    if (!positions.length) {
+      return;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    const points = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        color,
+        size,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+      }),
+    );
+    points.renderOrder = renderOrder;
+    group.add(points);
+  };
+
+  addNodePoints(nodePositions.passthrough, 0xa9eaff, 0.6, 0.18, 93);
+  addNodePoints(nodePositions.endpoint, 0xffb388, 1.35, 0.7, 94);
+  addNodePoints(nodePositions.intersection, 0xfff1a5, 1.9, 0.92, 95);
+
+  return group;
+}
+
+function disposeObject3DResources(object: THREE.Object3D) {
+  object.traverse((child) => {
+    const resourceHolder = child as THREE.Object3D & {
+      geometry?: { dispose?: () => void };
+      material?: { dispose?: () => void } | { dispose?: () => void }[];
+    };
+    resourceHolder.geometry?.dispose?.();
+    if (Array.isArray(resourceHolder.material)) {
+      resourceHolder.material.forEach((material) => material.dispose?.());
+    } else {
+      resourceHolder.material?.dispose?.();
+    }
+  });
+}
+
+function turnStateKey(nodeKey: string, incomingEdgeId: string | null) {
+  return `${nodeKey}|${incomingEdgeId ?? ""}`;
+}
+
+function parseTurnStateKey(key: string) {
+  const separatorIndex = key.indexOf("|");
+  if (separatorIndex < 0) {
+    return { nodeKey: key, incomingEdgeId: null };
   }
 
+  const incomingEdgeId = key.slice(separatorIndex + 1);
+  return {
+    nodeKey: key.slice(0, separatorIndex),
+    incomingEdgeId: incomingEdgeId || null,
+  };
+}
+
+function isUTurn(incomingEdge: GraphEdge, outgoingEdge: GraphEdge) {
+  return outgoingEdge.to === incomingEdge.from;
+}
+
+function isTurnRestricted(
+  graph: RoadGraph,
+  viaKey: string,
+  incomingEdge: GraphEdge,
+  outgoingEdge: GraphEdge,
+) {
+  if (!incomingEdge.wayId || !outgoingEdge.wayId) {
+    return false;
+  }
+
+  const restrictions = graph.turnRestrictionsByViaKey.get(viaKey) ?? [];
+  return restrictions.some((restriction) => {
+    if (restriction.fromWayId !== incomingEdge.wayId) {
+      return false;
+    }
+
+    const isUTurnRule = restriction.kind.endsWith("u_turn");
+    const matchesAllowedWay = outgoingEdge.wayId === restriction.toWayId;
+
+    if (restriction.mode === "no") {
+      if (!matchesAllowedWay) {
+        return false;
+      }
+      return isUTurnRule ? isUTurn(incomingEdge, outgoingEdge) : true;
+    }
+
+    if (isUTurnRule) {
+      return !(matchesAllowedWay && isUTurn(incomingEdge, outgoingEdge));
+    }
+
+    return !matchesAllowedWay;
+  });
+}
+
+function shortestPath(
+  graph: RoadGraph,
+  startKey: string,
+  endKey: string,
+): PathSearchResult | null {
+  if (startKey === endKey) {
+    return { nodeKeys: [startKey], edgeIds: [] };
+  }
+
+  const startStateKey = turnStateKey(startKey, null);
   const frontier: QueueEntry[] = [];
   const visited = new Set<string>();
-  const distances = new Map<string, number>([[startKey, 0]]);
-  const previous = new Map<string, string>();
-  queuePush(frontier, { key: startKey, cost: 0 });
+  const distances = new Map<string, number>([[startStateKey, 0]]);
+  const previous = new Map<string, { stateKey: string; edgeId: string }>();
+  let bestEndStateKey: string | null = null;
+  queuePush(frontier, { key: startStateKey, cost: 0 });
 
   while (frontier.length) {
     const current = queuePop(frontier);
@@ -1799,52 +3202,76 @@ function shortestPath(graph: RoadGraph, startKey: string, endKey: string) {
       continue;
     }
 
-    if (current.cost > (distances.get(current.key) ?? Number.POSITIVE_INFINITY)) {
+    if (
+      current.cost > (distances.get(current.key) ?? Number.POSITIVE_INFINITY)
+    ) {
       continue;
     }
 
-    if (current.key === endKey) {
+    const { nodeKey, incomingEdgeId } = parseTurnStateKey(current.key);
+    if (nodeKey === endKey) {
+      bestEndStateKey = current.key;
       break;
     }
 
     visited.add(current.key);
+    const incomingEdge = incomingEdgeId
+      ? graph.edgeById.get(incomingEdgeId) ?? null
+      : null;
 
-    (graph.adjacency.get(current.key) ?? []).forEach((edge) => {
-      const nextCost = current.cost + edge.length * roadTravelCost(edge.roadClass);
-      const knownCost = distances.get(edge.to) ?? Number.POSITIVE_INFINITY;
+    (graph.adjacency.get(nodeKey) ?? []).forEach((edge) => {
+      if (incomingEdge && isTurnRestricted(graph, nodeKey, incomingEdge, edge)) {
+        return;
+      }
+
+      const nextStateKey = turnStateKey(edge.to, edge.id);
+      const nextCost =
+        current.cost + edge.length * roadTravelCost(edge.roadClass);
+      const knownCost =
+        distances.get(nextStateKey) ?? Number.POSITIVE_INFINITY;
       if (nextCost < knownCost) {
-        distances.set(edge.to, nextCost);
-        previous.set(edge.to, current.key);
-        queuePush(frontier, { key: edge.to, cost: nextCost });
+        distances.set(nextStateKey, nextCost);
+        previous.set(nextStateKey, {
+          stateKey: current.key,
+          edgeId: edge.id,
+        });
+        queuePush(frontier, { key: nextStateKey, cost: nextCost });
       }
     });
   }
 
-  if (!previous.has(endKey)) {
+  if (!bestEndStateKey) {
     return null;
   }
 
-  const path = [endKey];
-  let cursor = endKey;
-  while (cursor !== startKey) {
-    const prior = previous.get(cursor);
-    if (!prior) {
+  const nodeKeys = [endKey];
+  const edgeIds: string[] = [];
+  let cursor = bestEndStateKey;
+  while (cursor !== startStateKey) {
+    const step = previous.get(cursor);
+    if (!step) {
       return null;
     }
-    path.push(prior);
-    cursor = prior;
+
+    edgeIds.push(step.edgeId);
+    nodeKeys.push(parseTurnStateKey(step.stateKey).nodeKey);
+    cursor = step.stateKey;
   }
 
-  return path.reverse();
+  return {
+    nodeKeys: nodeKeys.reverse(),
+    edgeIds: edgeIds.reverse(),
+  };
 }
 
 function buildPathRoute(
   graph: RoadGraph,
   signalByKey: Map<string, SignalData>,
-  nodeKeys: string[],
+  path: PathSearchResult,
   id: string,
   label: string | null,
 ) {
+  const { nodeKeys, edgeIds } = path;
   if (nodeKeys.length < 2) {
     return null;
   }
@@ -1852,15 +3279,17 @@ function buildPathRoute(
   const nodes = nodeKeys
     .map((key) => graph.nodes.get(key))
     .filter(Boolean)
-    .map((node) => ({ key: node?.key ?? '', point: node?.point.clone() ?? new THREE.Vector3() }));
+    .map((node) => ({
+      key: node?.key ?? "",
+      point: node?.point.clone() ?? new THREE.Vector3(),
+    }));
 
   if (nodes.length < 2) {
     return null;
   }
 
-  const edgeProps = nodeKeys
-    .slice(0, -1)
-    .map((fromKey, index) => graph.edgeIndex.get(`${fromKey}|${nodeKeys[index + 1]}`))
+  const edgeProps = edgeIds
+    .map((edgeId) => graph.edgeById.get(edgeId))
     .filter(Boolean) as GraphEdge[];
 
   const cumulative = buildCumulative(nodes.map((node) => node.point));
@@ -1869,11 +3298,15 @@ function buildPathRoute(
     return null;
   }
 
-  const roadClass = edgeProps.reduce<RoadProperties['roadClass']>((best, edge) => {
-    return roadRank(edge.roadClass) > roadRank(best) ? edge.roadClass : best;
-  }, edgeProps[0]?.roadClass ?? 'local');
+  const roadClass = edgeProps.reduce<RoadProperties["roadClass"]>(
+    (best, edge) => {
+      return roadRank(edge.roadClass) > roadRank(best) ? edge.roadClass : best;
+    },
+    edgeProps[0]?.roadClass ?? "local",
+  );
   const roadWidth =
-    edgeProps.reduce((sum, edge) => sum + edge.roadWidth, 0) / Math.max(edgeProps.length, 1);
+    edgeProps.reduce((sum, edge) => sum + edge.roadWidth, 0) /
+    Math.max(edgeProps.length, 1);
 
   const stops: StopMarker[] = [];
   for (let index = 1; index < nodes.length - 1; index += 1) {
@@ -1891,7 +3324,11 @@ function buildPathRoute(
       signalId: signal.id,
       distance: Math.max(0, cumulative[index] - 2.8),
       axis: dominantAxis(nodes[index - 1].point, nodes[index].point),
-      turn: classifyTurn(nodes[index - 1].point, nodes[index].point, nodes[index + 1].point),
+      turn: classifyTurn(
+        nodes[index - 1].point,
+        nodes[index].point,
+        nodes[index + 1].point,
+      ),
     });
   }
 
@@ -1919,11 +3356,11 @@ function buildShortestRoute(
   id: string,
   label: string | null,
 ) {
-  const nodeKeys = shortestPath(graph, startKey, endKey);
-  if (!nodeKeys || nodeKeys.length < 2) {
+  const path = shortestPath(graph, startKey, endKey);
+  if (!path || path.nodeKeys.length < 2) {
     return null;
   }
-  return buildPathRoute(graph, signalByKey, nodeKeys, id, label);
+  return buildPathRoute(graph, signalByKey, path, id, label);
 }
 
 function buildLoopRoutes(
@@ -1932,6 +3369,7 @@ function buildLoopRoutes(
   signalByKey: Map<string, SignalData>,
 ) {
   const candidates = roads.features
+    .filter((feature) => feature.properties.oneway === "no")
     .flatMap((feature, featureIndex) =>
       lineStringsOfRoad(feature, center).map((line, lineIndex) => ({
         id: `${feature.id ?? featureIndex}-${lineIndex}`,
@@ -1942,7 +3380,9 @@ function buildLoopRoutes(
         length: buildCumulative(line.map((node) => node.point)).at(-1) ?? 0,
       })),
     )
-    .filter((candidate) => candidate.nodes.length >= 2 && candidate.length >= 34);
+    .filter(
+      (candidate) => candidate.nodes.length >= 2 && candidate.length >= 34,
+    );
 
   return candidates
     .sort((left, right) => {
@@ -1959,12 +3399,17 @@ function buildLoopRoutes(
     .map((candidate) => {
       const roundTripNodes = [
         ...candidate.nodes,
-        ...candidate.nodes.slice(0, -1).reverse().map((node) => ({
-          key: node.key,
-          point: node.point.clone(),
-        })),
+        ...candidate.nodes
+          .slice(0, -1)
+          .reverse()
+          .map((node) => ({
+            key: node.key,
+            point: node.point.clone(),
+          })),
       ];
-      const cumulative = buildCumulative(roundTripNodes.map((node) => node.point));
+      const cumulative = buildCumulative(
+        roundTripNodes.map((node) => node.point),
+      );
       const totalLength = cumulative[cumulative.length - 1] ?? 0;
 
       const stops: StopMarker[] = [];
@@ -1982,7 +3427,10 @@ function buildLoopRoutes(
         stops.push({
           signalId: signal.id,
           distance: Math.max(0, cumulative[index] - 2.8),
-          axis: dominantAxis(roundTripNodes[index - 1].point, roundTripNodes[index].point),
+          axis: dominantAxis(
+            roundTripNodes[index - 1].point,
+            roundTripNodes[index].point,
+          ),
           turn: classifyTurn(
             roundTripNodes[index - 1].point,
             roundTripNodes[index].point,
@@ -1996,7 +3444,11 @@ function buildLoopRoutes(
         name: candidate.name,
         roadClass: candidate.roadClass,
         roadWidth: candidate.roadWidth,
-        laneOffset: THREE.MathUtils.clamp(candidate.roadWidth * 0.22, 0.45, 0.95),
+        laneOffset: THREE.MathUtils.clamp(
+          candidate.roadWidth * 0.22,
+          0.45,
+          0.95,
+        ),
         nodes: roundTripNodes,
         cumulative,
         totalLength,
@@ -2038,7 +3490,8 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
       return [] as Hotspot[];
     }
 
-    const fractions = route.totalLength > 180 ? [0.14, 0.38, 0.63, 0.86] : [0.22, 0.58, 0.84];
+    const fractions =
+      route.totalLength > 180 ? [0.14, 0.38, 0.63, 0.86] : [0.22, 0.58, 0.84];
     return fractions.map((fraction, hotspotIndex) => {
       const targetDistance = route.totalLength * fraction + routeIndex * 4.5;
       let nodeIndex = 1;
@@ -2054,7 +3507,8 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
 
       const currentPoint = route.nodes[nodeIndex].point;
       const previousPoint = route.nodes[Math.max(0, nodeIndex - 1)].point;
-      const nextPoint = route.nodes[Math.min(route.nodes.length - 1, nodeIndex + 1)].point;
+      const nextPoint =
+        route.nodes[Math.min(route.nodes.length - 1, nodeIndex + 1)].point;
       const heading = nextPoint.clone().sub(previousPoint);
       if (heading.lengthSq() < 0.0001) {
         heading.set(0, 0, 1);
@@ -2062,7 +3516,11 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
         heading.normalize();
       }
 
-      const lanePosition = offsetToRight(currentPoint, heading, route.laneOffset + 0.95);
+      const lanePosition = offsetToRight(
+        currentPoint,
+        heading,
+        route.laneOffset + 0.95,
+      );
       return {
         id: `${route.id}-hotspot-${hotspotIndex}`,
         nodeKey: route.nodes[nodeIndex].key,
@@ -2070,7 +3528,12 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
         distance: route.cumulative[nodeIndex],
         position: lanePosition.clone().setY(0.14),
         point: lanePosition.clone(),
-        label: hotspotLabelForRoute(route, lanePosition, buildings, hotspotIndex),
+        label: hotspotLabelForRoute(
+          route,
+          lanePosition,
+          buildings,
+          hotspotIndex,
+        ),
         roadName: route.name,
       } satisfies Hotspot;
     });
@@ -2079,28 +3542,168 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
 
 function signalState(signal: SignalData, elapsedTime: number): SignalFlow {
   const phase = (elapsedTime + signal.offset) % SIGNAL_CYCLE;
-  if (phase < 5.8) {
-    return { phase: 'ns_flow', ns: 'green', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
+  if (signal.hasProtectedLeft) {
+    if (phase < 4.8) {
+      return {
+        phase: "ns_flow",
+        ns: "green",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 5.9) {
+      return {
+        phase: "ns_yellow",
+        ns: "yellow",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 7.5) {
+      return {
+        phase: "ns_left",
+        ns: "red",
+        ew: "red",
+        nsLeft: true,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 8.2) {
+      return {
+        phase: "clearance",
+        ns: "red",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 13) {
+      return {
+        phase: "ew_flow",
+        ns: "red",
+        ew: "green",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 14.1) {
+      return {
+        phase: "ew_yellow",
+        ns: "red",
+        ew: "yellow",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 15.7) {
+      return {
+        phase: "ew_left",
+        ns: "red",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: true,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 16.4) {
+      return {
+        phase: "clearance",
+        ns: "red",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+  } else {
+    if (phase < 6) {
+      return {
+        phase: "ns_flow",
+        ns: "green",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 7.2) {
+      return {
+        phase: "ns_yellow",
+        ns: "yellow",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 7.9) {
+      return {
+        phase: "clearance",
+        ns: "red",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 13.9) {
+      return {
+        phase: "ew_flow",
+        ns: "red",
+        ew: "green",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 15.1) {
+      return {
+        phase: "ew_yellow",
+        ns: "red",
+        ew: "yellow",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
+    if (phase < 15.8) {
+      return {
+        phase: "clearance",
+        ns: "red",
+        ew: "red",
+        nsLeft: false,
+        ewLeft: false,
+        pedestrian: "stop",
+      };
+    }
   }
-  if (phase < 7.8) {
-    return { phase: 'ns_left', ns: 'red', ew: 'red', nsLeft: true, ewLeft: false, pedestrian: 'stop' };
+
+  if (phase < 19.2) {
+    return {
+      phase: "ped_walk",
+      ns: "red",
+      ew: "red",
+      nsLeft: false,
+      ewLeft: false,
+      pedestrian: "walk",
+    };
   }
-  if (phase < 8.8) {
-    return { phase: 'clearance', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
-  }
-  if (phase < 14.6) {
-    return { phase: 'ew_flow', ns: 'red', ew: 'green', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
-  }
-  if (phase < 16.6) {
-    return { phase: 'ew_left', ns: 'red', ew: 'red', nsLeft: false, ewLeft: true, pedestrian: 'stop' };
-  }
-  if (phase < 17.6) {
-    return { phase: 'clearance', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'stop' };
-  }
-  if (phase < 21.2) {
-    return { phase: 'ped_walk', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'walk' };
-  }
-  return { phase: 'ped_flash', ns: 'red', ew: 'red', nsLeft: false, ewLeft: false, pedestrian: 'flash' };
+  return {
+    phase: "ped_flash",
+    ns: "red",
+    ew: "red",
+    nsLeft: false,
+    ewLeft: false,
+    pedestrian: "flash",
+  };
 }
 
 function canVehicleProceed(
@@ -2108,16 +3711,20 @@ function canVehicleProceed(
   state: SignalFlow,
   conflictingAxisOccupied: boolean,
 ) {
-  if (state.phase === 'clearance' || state.phase === 'ped_walk' || state.phase === 'ped_flash') {
+  if (
+    state.phase === "clearance" ||
+    state.phase === "ped_walk" ||
+    state.phase === "ped_flash"
+  ) {
     return false;
   }
-  if (stop.turn === 'left') {
-    if (stop.axis === 'ns') {
-      return state.nsLeft || (state.ns === 'green' && !conflictingAxisOccupied);
+  if (stop.turn === "left") {
+    if (stop.axis === "ns") {
+      return state.nsLeft || (state.ns === "green" && !conflictingAxisOccupied);
     }
-    return state.ewLeft || (state.ew === 'green' && !conflictingAxisOccupied);
+    return state.ewLeft || (state.ew === "green" && !conflictingAxisOccupied);
   }
-  return stop.axis === 'ns' ? state.ns === 'green' : state.ew === 'green';
+  return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
 }
 
 function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
@@ -2129,14 +3736,18 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   });
 
   const body = new THREE.Mesh(
-    new THREE.BoxGeometry(kind === 'taxi' ? 1.8 : 1.62, 1.2, kind === 'taxi' ? 4.3 : 4.05),
+    new THREE.BoxGeometry(
+      kind === "taxi" ? 1.8 : 1.62,
+      1.2,
+      kind === "taxi" ? 4.3 : 4.05,
+    ),
     bodyMaterial,
   );
   body.position.y = 0.7;
   group.add(body);
 
   const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(kind === 'taxi' ? 1.24 : 1.14, 0.95, 2.05),
+    new THREE.BoxGeometry(kind === "taxi" ? 1.24 : 1.14, 0.95, 2.05),
     new THREE.MeshStandardMaterial({
       color: palette.cabin,
       roughness: 0.65,
@@ -2160,7 +3771,7 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   group.add(windshield);
 
   let signMaterial: THREE.MeshStandardMaterial | null = null;
-  if (kind === 'taxi') {
+  if (kind === "taxi") {
     signMaterial = new THREE.MeshStandardMaterial({
       color: palette.sign ?? 0xfff9d8,
       emissive: 0x6d5800,
@@ -2168,21 +3779,28 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
       roughness: 0.72,
       metalness: 0,
     });
-    const sign = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.32, 0.82), signMaterial);
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(1.08, 0.32, 0.82),
+      signMaterial,
+    );
     sign.position.set(0, 2.45, -0.25);
     group.add(sign);
   }
 
   const shadow = new THREE.Mesh(
     new THREE.PlaneGeometry(2.4, 4.9),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.14,
+    }),
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   group.add(shadow);
 
   let clickTarget: THREE.Mesh | null = null;
-  if (kind === 'taxi') {
+  if (kind === "taxi") {
     clickTarget = new THREE.Mesh(
       new THREE.BoxGeometry(3.2, 3.2, 6.8),
       new THREE.MeshBasicMaterial({
@@ -2228,13 +3846,19 @@ function createPedestrianGroup(seed: number) {
 }
 
 function createCallerGroup(seed: number) {
-  const topPalette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][seed % 5];
+  const topPalette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][
+    seed % 5
+  ];
   const bottomPalette = [0x253244, 0x26394d, 0x2f3845, 0x29313f][seed % 4];
   const group = new THREE.Group();
 
   const shadow = new THREE.Mesh(
     new THREE.PlaneGeometry(1.1, 0.72),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.14 }),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.14,
+    }),
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
@@ -2309,25 +3933,17 @@ function buildMajorRoadNames(roads: RoadFeatureCollection | null) {
   return [
     ...new Set(
       roads.features
-        .filter((feature) => feature.properties.name && feature.properties.roadClass !== 'local')
+        .filter(
+          (feature) =>
+            feature.properties.name && feature.properties.roadClass !== "local",
+        )
         .map((feature) => feature.properties.name as string),
     ),
   ].slice(0, 6);
 }
 
-function buildMajorBuildingNames(buildings: BuildingFeatureCollection | null) {
-  if (!buildings) {
-    return [];
-  }
-  return buildings.features
-    .filter((feature) => feature.properties.label)
-    .sort((left, right) => (right.properties.height ?? 0) - (left.properties.height ?? 0))
-    .slice(0, 6)
-    .map((feature) => feature.properties.label as string);
-}
-
 function setTaxiAppearance(vehicle: Vehicle) {
-  if (vehicle.kind !== 'taxi') {
+  if (vehicle.kind !== "taxi") {
     return;
   }
   if (vehicle.isOccupied) {
@@ -2352,11 +3968,38 @@ function setTaxiAppearance(vehicle: Vehicle) {
   }
 }
 
+function updateVehicleMotionState(vehicle: Vehicle) {
+  sampleRouteInto(
+    vehicle.route,
+    vehicle.distance,
+    vehicle.motion,
+    vehicle.motion.segmentIndex,
+  );
+  writeRightVector(vehicle.motion.heading, vehicle.motion.right);
+  vehicle.motion.lanePosition
+    .copy(vehicle.motion.position)
+    .addScaledVector(vehicle.motion.right, vehicle.route.laneOffset);
+}
+
 function syncVehicleTransform(vehicle: Vehicle) {
-  const sample = sampleRoute(vehicle.route, vehicle.distance);
-  const lanePosition = offsetToRight(sample.position, sample.heading, vehicle.route.laneOffset);
-  vehicle.group.position.copy(lanePosition);
-  vehicle.group.rotation.y = Math.atan2(sample.heading.x, sample.heading.z);
+  vehicle.group.position.copy(vehicle.motion.lanePosition);
+  vehicle.group.rotation.y = Math.atan2(
+    vehicle.motion.heading.x,
+    vehicle.motion.heading.z,
+  );
+}
+
+function assignVehicleRoute(
+  vehicle: Vehicle,
+  route: RouteTemplate,
+  distance = 0,
+) {
+  vehicle.route = route;
+  vehicle.distance = distance;
+  vehicle.roadName = route.name;
+  vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(route, distance, 0);
+  vehicle.motion.nextStopIndex = resolveNextStop(route, distance, 0).index;
+  updateVehicleMotionState(vehicle);
 }
 
 function planTaxiJob(
@@ -2375,7 +4018,10 @@ function planTaxiJob(
   const originPoint = graph.nodes.get(startKey)?.point ?? new THREE.Vector3();
   const pickups = hotspots
     .filter((hotspot) => hotspot.nodeKey !== startKey)
-    .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(originPoint) }))
+    .map((hotspot) => ({
+      hotspot,
+      distance: hotspot.point.distanceTo(originPoint),
+    }))
     .sort((left, right) => left.distance - right.distance);
 
   if (!pickups.length) {
@@ -2385,25 +4031,43 @@ function planTaxiJob(
   const pickupPool = pickups.slice(1, Math.min(pickups.length, 12));
   const orderedPickups = pickupPool.length ? pickupPool : pickups;
 
-  for (let attempt = 0; attempt < Math.min(orderedPickups.length * 2, 18); attempt += 1) {
-    const pickup = orderedPickups[(seed + attempt * 3) % orderedPickups.length].hotspot;
+  for (
+    let attempt = 0;
+    attempt < Math.min(orderedPickups.length * 2, 18);
+    attempt += 1
+  ) {
+    const pickup =
+      orderedPickups[(seed + attempt * 3) % orderedPickups.length].hotspot;
     const drops = hotspots
-      .filter((hotspot) => hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey)
-      .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(pickup.point) }))
+      .filter(
+        (hotspot) =>
+          hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
+      )
+      .map((hotspot) => ({
+        hotspot,
+        distance: hotspot.point.distanceTo(pickup.point),
+      }))
       .filter((entry) => entry.distance > 26)
       .sort((left, right) => right.distance - left.distance);
 
     const orderedDrops = drops.length
       ? drops
       : hotspots
-          .filter((hotspot) => hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey)
-          .map((hotspot) => ({ hotspot, distance: hotspot.point.distanceTo(pickup.point) }));
+          .filter(
+            (hotspot) =>
+              hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
+          )
+          .map((hotspot) => ({
+            hotspot,
+            distance: hotspot.point.distanceTo(pickup.point),
+          }));
 
     if (!orderedDrops.length) {
       continue;
     }
 
-    const dropoff = orderedDrops[(seed * 2 + attempt) % orderedDrops.length].hotspot;
+    const dropoff =
+      orderedDrops[(seed * 2 + attempt) % orderedDrops.length].hotspot;
     const pickupRoute = routeBuilder(
       startKey,
       pickup.nodeKey,
@@ -2432,26 +4096,42 @@ function planTaxiJob(
 export default function MapSimulator() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<SimulationData | null>(null);
-  const [status, setStatus] = useState<'loading' | 'rendering' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<
+    "loading" | "rendering" | "ready" | "error"
+  >("loading");
   const [showLabels, setShowLabels] = useState(false);
+  const [showNonRoad, setShowNonRoad] = useState(true);
   const [showTransit, setShowTransit] = useState(false);
-  const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(12 * 60);
-  const [weatherMode, setWeatherMode] = useState<WeatherMode>('clear');
-  const [cameraMode, setCameraMode] = useState<CameraMode>('drive');
-  const [followTaxiId, setFollowTaxiId] = useState('');
+  const [showRoadNetwork, setShowRoadNetwork] = useState(false);
+  const [circumstanceMode, setCircumstanceMode] =
+    useState<CircumstanceMode>("live");
+  const [simulationDate, setSimulationDate] = useState(
+    () => currentSimulationClock().dateIso,
+  );
+  const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(
+    () => currentSimulationClock().minutes,
+  );
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("drive");
+  const [followTaxiId, setFollowTaxiId] = useState("");
   const [showFps, setShowFps] = useState(false);
-  const [fpsMode, setFpsMode] = useState<FpsMode>('auto');
+  const [fpsMode, setFpsMode] = useState<FpsMode>("auto");
   const [fpsStats, setFpsStats] = useState<FpsStats>({
     fps: 0,
-    capLabel: renderCapLabel(renderFpsCapFor('drive'), false, 'auto'),
+    capLabel: renderCapLabel(renderFpsCapFor("drive"), false, "auto"),
   });
-  const simulationTimeRef = useRef(12 * 60);
-  const weatherModeRef = useRef<WeatherMode>('clear');
-  const cameraModeRef = useRef<CameraMode>('drive');
-  const followTaxiIdRef = useRef('');
-  const rideExitModeRef = useRef<BaseCameraMode>('drive');
+  const simulationDateRef = useRef(currentSimulationClock().dateIso);
+  const simulationTimeRef = useRef(currentSimulationClock().minutes);
+  const weatherModeRef = useRef<WeatherMode>("clear");
+  const cameraModeRef = useRef<CameraMode>("drive");
+  const followTaxiIdRef = useRef("");
+  const rideExitModeRef = useRef<BaseCameraMode>("drive");
   const showFpsRef = useRef(false);
-  const fpsModeRef = useRef<FpsMode>('auto');
+  const fpsModeRef = useRef<FpsMode>("auto");
+  const showNonRoadRef = useRef(true);
+  const nonRoadGroupRef = useRef<THREE.Group | null>(null);
+  const showRoadNetworkRef = useRef(false);
+  const roadNetworkGroupRef = useRef<THREE.Group | null>(null);
   const [stats, setStats] = useState<Stats>({
     taxis: TAXI_COUNT,
     traffic: TRAFFIC_COUNT,
@@ -2463,12 +4143,36 @@ export default function MapSimulator() {
   });
 
   useEffect(() => {
+    simulationDateRef.current = simulationDate;
+  }, [simulationDate]);
+
+  useEffect(() => {
     simulationTimeRef.current = simulationTimeMinutes;
   }, [simulationTimeMinutes]);
 
   useEffect(() => {
     weatherModeRef.current = weatherMode;
   }, [weatherMode]);
+
+  useEffect(() => {
+    if (circumstanceMode !== "live") {
+      return;
+    }
+
+    const syncClock = () => {
+      const clock = currentSimulationClock();
+      setSimulationDate((current) =>
+        current === clock.dateIso ? current : clock.dateIso,
+      );
+      setSimulationTimeMinutes((current) =>
+        current === clock.minutes ? current : clock.minutes,
+      );
+    };
+
+    syncClock();
+    const intervalId = window.setInterval(syncClock, 15_000);
+    return () => window.clearInterval(intervalId);
+  }, [circumstanceMode]);
 
   useEffect(() => {
     cameraModeRef.current = cameraMode;
@@ -2483,60 +4187,114 @@ export default function MapSimulator() {
   }, [fpsMode]);
 
   useEffect(() => {
+    showNonRoadRef.current = showNonRoad;
+    if (nonRoadGroupRef.current) {
+      nonRoadGroupRef.current.visible = showNonRoad;
+    }
+  }, [showNonRoad]);
+
+  useEffect(() => {
+    showRoadNetworkRef.current = showRoadNetwork;
+    if (roadNetworkGroupRef.current) {
+      roadNetworkGroupRef.current.visible = showRoadNetwork;
+    }
+  }, [showRoadNetwork]);
+
+  useEffect(() => {
     let cancelled = false;
 
     Promise.all([
-      fetchGeoJsonAsset<RoadFeatureCollection>('/roads.geojson'),
-      fetchGeoJsonAsset<BuildingFeatureCollection>('/buildings.geojson'),
-      fetchGeoJsonAsset<DongFeatureCollection>('/dongs.geojson'),
-      fetchGeoJsonAsset<TransitFeatureCollection>('/transit.geojson'),
+      fetchOptionalGeoJsonAsset<NonRoadFeatureCollection>(
+        "/non-road.geojson",
+        "non-road",
+      ),
+      fetchGeoJsonAsset<RoadFeatureCollection>("/roads.geojson"),
+      fetchGeoJsonAsset<BuildingFeatureCollection>("/buildings.geojson"),
+      fetchGeoJsonAsset<DongFeatureCollection>("/dongs.geojson"),
+      fetchGeoJsonAsset<TransitFeatureCollection>("/transit.geojson"),
+      fetchOptionalGeoJsonAsset<TrafficSignalFeatureCollection>(
+        "/traffic-signals.geojson",
+        "traffic-signals",
+      ),
+      fetchRoadNetworkAsset("/road-network.json"),
     ])
-      .then(([roadsAsset, buildingsAsset, dongsAsset, transitAsset]) => {
-        if (cancelled) {
-          return;
-        }
-        const roads = roadsAsset.data;
-        const buildings = buildingsAsset.data;
-        const dongs = dongsAsset.data;
-        const transit = transitAsset.data;
-        const assetTimes = [
-          roadsAsset.meta.lastModified,
-          buildingsAsset.meta.lastModified,
-          dongsAsset.meta.lastModified,
-          transitAsset.meta.lastModified,
-        ]
-          .filter(Boolean)
-          .sort() as string[];
-        const nextData = {
-          center: dongs.features.length ? featureCollectionCenter(dongs) : DEFAULT_MAP_CENTER,
-          roads,
-          buildings,
-          dongs,
-          transit,
-          meta: {
-            source: 'OpenStreetMap + Overpass -> public/*.geojson',
-            boundarySource: 'OSM administrative relations (admin_level=8)',
-            latestAssetUpdatedAt: assetTimes.at(-1) ?? null,
-            loadedAt: formatKstDateTime(new Date()) ?? 'unknown',
-            assets: {
-              roads: roadsAsset.meta,
-              buildings: buildingsAsset.meta,
-              dongs: dongsAsset.meta,
-              transit: transitAsset.meta,
-            },
-          },
-        };
-        setStatus('rendering');
-        requestAnimationFrame(() => {
-          if (!cancelled) {
-            setData(nextData);
+      .then(
+        ([
+          nonRoadAsset,
+          roadsAsset,
+          buildingsAsset,
+          dongsAsset,
+          transitAsset,
+          trafficSignalsAsset,
+          roadNetworkAsset,
+        ]) => {
+          if (cancelled) {
+            return;
           }
-        });
-      })
+          const nonRoad =
+            nonRoadAsset?.data ?? EMPTY_NON_ROAD_FEATURE_COLLECTION;
+          const roads = roadsAsset.data;
+          const buildings = buildingsAsset.data;
+          const dongs = dongsAsset.data;
+          const transit = transitAsset.data;
+          const trafficSignals =
+            trafficSignalsAsset?.data ??
+            EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION;
+          const roadNetwork = roadNetworkAsset?.data ?? null;
+          const assetTimes = [
+            nonRoadAsset?.meta.lastModified ?? null,
+            roadsAsset.meta.lastModified,
+            buildingsAsset.meta.lastModified,
+            dongsAsset.meta.lastModified,
+            transitAsset.meta.lastModified,
+            trafficSignalsAsset?.meta.lastModified ?? null,
+            roadNetworkAsset?.meta.lastModified ?? null,
+          ]
+            .filter(Boolean)
+            .sort() as string[];
+          const center =
+            roadNetwork?.center ??
+            (dongs.features.length
+              ? featureCollectionCenter(dongs)
+              : DEFAULT_MAP_CENTER);
+          const nextData = {
+            center,
+            nonRoad,
+            roads,
+            buildings,
+            dongs,
+            transit,
+            trafficSignals,
+            roadNetwork,
+            meta: {
+              source:
+                "OpenStreetMap + Overpass -> public/*.geojson + public/road-network.json",
+              boundarySource: "OSM administrative relations (admin_level=8)",
+              latestAssetUpdatedAt: assetTimes.at(-1) ?? null,
+              loadedAt: formatKstDateTime(new Date()) ?? "unknown",
+              assets: {
+                nonRoad: nonRoadAsset?.meta ?? null,
+                roads: roadsAsset.meta,
+                buildings: buildingsAsset.meta,
+                dongs: dongsAsset.meta,
+                transit: transitAsset.meta,
+                trafficSignals: trafficSignalsAsset?.meta ?? null,
+                roadNetwork: roadNetworkAsset?.meta ?? null,
+              },
+            },
+          };
+          setStatus("rendering");
+          requestAnimationFrame(() => {
+            if (!cancelled) {
+              setData(nextData);
+            }
+          });
+        },
+      )
       .catch((error) => {
         console.error(error);
         if (!cancelled) {
-          setStatus('error');
+          setStatus("error");
         }
       });
 
@@ -2551,7 +4309,7 @@ export default function MapSimulator() {
     }
 
     const frame = requestAnimationFrame(() => {
-      setStatus('ready');
+      setStatus("ready");
     });
 
     return () => {
@@ -2565,7 +4323,7 @@ export default function MapSimulator() {
     }
 
     const container = containerRef.current;
-    let isPageHidden = document.visibilityState === 'hidden';
+    let isPageHidden = document.visibilityState === "hidden";
     const scene = new THREE.Scene();
     const sceneFog = new THREE.Fog(0x07111b, 120, 360);
     scene.background = new THREE.Color(0x07111b);
@@ -2581,14 +4339,14 @@ export default function MapSimulator() {
 
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
-      powerPreference: 'high-performance',
+      powerPreference: "high-performance",
     });
     renderer.setPixelRatio(
       Math.min(
         window.devicePixelRatio,
         renderPixelRatioFor(
           cameraModeRef.current,
-          document.visibilityState === 'hidden',
+          document.visibilityState === "hidden",
         ),
       ),
     );
@@ -2597,15 +4355,15 @@ export default function MapSimulator() {
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.02;
-    renderer.domElement.style.cursor = 'grab';
-    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = "grab";
+    renderer.domElement.style.touchAction = "none";
     container.appendChild(renderer.domElement);
 
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(container.clientWidth, container.clientHeight);
-    labelRenderer.domElement.style.position = 'absolute';
-    labelRenderer.domElement.style.inset = '0';
-    labelRenderer.domElement.style.pointerEvents = 'none';
+    labelRenderer.domElement.style.position = "absolute";
+    labelRenderer.domElement.style.inset = "0";
+    labelRenderer.domElement.style.pointerEvents = "none";
     container.appendChild(labelRenderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.68);
@@ -2624,25 +4382,33 @@ export default function MapSimulator() {
     sun.shadow.camera.top = 180;
     sun.shadow.camera.bottom = -180;
     scene.add(sun);
+    scene.add(sun.target);
 
     const buildingFeatures = buildBuildingMasses(data.buildings, data.center);
     const dongRegions = buildDongRegions(data.dongs, data.center);
-    const roadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap((feature) =>
-      lineStringsOfRoad(feature, data.center).flatMap((line) =>
-        line.slice(1).map((node, index) => ({
-          roadClass: feature.properties.roadClass,
-          width: feature.properties.width * ROAD_WIDTH_SCALE,
-          start: line[index].point,
-          end: node.point,
-          name: feature.properties.name,
-        })),
-      ),
+    const roadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap(
+      (feature) =>
+        lineStringsOfRoad(feature, data.center).flatMap((line) =>
+          line.slice(1).map((node, index) => ({
+            roadClass: feature.properties.roadClass,
+            width: feature.properties.width * ROAD_WIDTH_SCALE,
+            start: line[index].point,
+            end: node.point,
+            name: feature.properties.name,
+          })),
+        ),
     );
-    const transitLandmarks = buildTransitLandmarks(data.transit, data.center, roadSegments);
-    const dongBoundarySegments = SHOW_DONG_BOUNDARIES ? buildDongBoundarySegments(dongRegions) : [];
+    const transitLandmarks = buildTransitLandmarks(
+      data.transit,
+      data.center,
+      roadSegments,
+    );
+    const dongBoundarySegments = SHOW_DONG_BOUNDARIES
+      ? buildDongBoundarySegments(dongRegions)
+      : [];
     const dongBoundaryWallHeight = THREE.MathUtils.clamp(
-      buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
-        Math.max(buildingFeatures.length, 1) *
+      (buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
+        Math.max(buildingFeatures.length, 1)) *
         1.85,
       7.2,
       10.4,
@@ -2655,8 +4421,13 @@ export default function MapSimulator() {
     });
     const size = bounds.getSize(new THREE.Vector3());
     const centerPoint = bounds.getCenter(new THREE.Vector3());
-    const movementBounds = bounds.clone().expandByVector(new THREE.Vector3(48, 0, 48));
-    const maxMapDistance = Math.max(CAMERA_MAX_DISTANCE, Math.max(size.x, size.z) * 1.28);
+    const movementBounds = bounds
+      .clone()
+      .expandByVector(new THREE.Vector3(48, 0, 48));
+    const maxMapDistance = Math.max(
+      CAMERA_MAX_DISTANCE,
+      Math.max(size.x, size.z) * 1.28,
+    );
     const overviewMinDistance = THREE.MathUtils.clamp(
       Math.max(size.x, size.z) * 0.94,
       96,
@@ -2667,7 +4438,10 @@ export default function MapSimulator() {
     const cameraRig = {
       focus: centerPoint.clone(),
       yaw: Math.atan2(initialOffset.x, initialOffset.z),
-      pitch: Math.atan2(initialOffset.y, Math.hypot(initialOffset.x, initialOffset.z)),
+      pitch: Math.atan2(
+        initialOffset.y,
+        Math.hypot(initialOffset.x, initialOffset.z),
+      ),
       distance: THREE.MathUtils.clamp(
         initialOffset.length(),
         CAMERA_MIN_DISTANCE,
@@ -2696,6 +4470,7 @@ export default function MapSimulator() {
     const rideCameraPosition = new THREE.Vector3();
     const rideLookTarget = new THREE.Vector3();
     let rideLookInitialized = false;
+    let nonRoadGroup: THREE.Group | null = null;
 
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
@@ -2726,7 +4501,11 @@ export default function MapSimulator() {
       ).multiplyScalar(cameraRig.distance);
 
       camera.position.copy(cameraRig.focus).add(offset);
-      camera.lookAt(cameraRig.focus.x, cameraRig.focus.y + cameraLookLift, cameraRig.focus.z);
+      camera.lookAt(
+        cameraRig.focus.x,
+        cameraRig.focus.y + cameraLookLift,
+        cameraRig.focus.z,
+      );
     };
 
     syncCamera();
@@ -2757,13 +4536,20 @@ export default function MapSimulator() {
       for (let index = 0; index < count; index += 1) {
         const offset = index * 3;
         positions[offset] = THREE.MathUtils.lerp(minX, maxX, Math.random());
-        positions[offset + 1] = THREE.MathUtils.lerp(minHeight, maxHeight, Math.random());
+        positions[offset + 1] = THREE.MathUtils.lerp(
+          minHeight,
+          maxHeight,
+          Math.random(),
+        );
         positions[offset + 2] = THREE.MathUtils.lerp(minZ, maxZ, Math.random());
         seeds[index] = Math.random();
       }
 
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(positions, 3),
+      );
       const points = new THREE.Points(geometry, material);
       points.visible = false;
       scene.add(points);
@@ -2825,13 +4611,108 @@ export default function MapSimulator() {
     });
     scene.add(dongFloorGroup);
 
+    const nonRoadShapes = {
+      facility: [] as THREE.Shape[],
+      green: [] as THREE.Shape[],
+      pedestrian: [] as THREE.Shape[],
+      parking: [] as THREE.Shape[],
+      water: [] as THREE.Shape[],
+    };
+
+    data.nonRoad.features.forEach((feature) => {
+      shapesOfNonRoadFeature(feature, data.center).forEach((shape) => {
+        nonRoadShapes[feature.properties.category].push(shape);
+      });
+    });
+
+    const nonRoadMaterials = {
+      facility: new THREE.MeshBasicMaterial({
+        color: 0x46506b,
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -2,
+      }),
+      green: new THREE.MeshBasicMaterial({
+        color: 0x315f38,
+        transparent: true,
+        opacity: 0.34,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -3,
+      }),
+      pedestrian: new THREE.MeshBasicMaterial({
+        color: 0x626366,
+        transparent: true,
+        opacity: 0.18,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -4,
+      }),
+      parking: new THREE.MeshBasicMaterial({
+        color: 0x76706a,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -5,
+      }),
+      water: new THREE.MeshBasicMaterial({
+        color: 0x2f5f86,
+        transparent: true,
+        opacity: 0.28,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -3,
+        polygonOffsetUnits: -6,
+      }),
+    };
+
+    nonRoadGroup = new THREE.Group();
+    nonRoadGroup.name = "non-road-surfaces";
+
+    (["facility", "green", "pedestrian", "parking", "water"] as const).forEach(
+      (category) => {
+        const shapes = nonRoadShapes[category];
+        if (!shapes.length) {
+          return;
+        }
+
+        const mesh = new THREE.Mesh(
+          new THREE.ShapeGeometry(shapes),
+          nonRoadMaterials[category],
+        );
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = NON_ROAD_LAYER_Y[category];
+        mesh.renderOrder = 6;
+        nonRoadGroup?.add(mesh);
+      },
+    );
+
+    nonRoadGroup.visible = showNonRoadRef.current;
+    scene.add(nonRoadGroup);
+    nonRoadGroupRef.current = nonRoadGroup;
+
     const celestialRadius = Math.max(size.x, size.z) + 320;
     const sunDiscMaterial = new THREE.MeshBasicMaterial({
       color: 0xffd9a8,
       transparent: true,
       opacity: 0,
     });
-    const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(8.5, 20, 20), sunDiscMaterial);
+    const sunDisc = new THREE.Mesh(
+      new THREE.SphereGeometry(8.5, 20, 20),
+      sunDiscMaterial,
+    );
     scene.add(sunDisc);
 
     const sunHaloMaterial = new THREE.MeshBasicMaterial({
@@ -2839,7 +4720,10 @@ export default function MapSimulator() {
       transparent: true,
       opacity: 0,
     });
-    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(15.5, 20, 20), sunHaloMaterial);
+    const sunHalo = new THREE.Mesh(
+      new THREE.SphereGeometry(15.5, 20, 20),
+      sunHaloMaterial,
+    );
     scene.add(sunHalo);
 
     const sunsetGlowMaterial = new THREE.MeshBasicMaterial({
@@ -2847,7 +4731,10 @@ export default function MapSimulator() {
       transparent: true,
       opacity: 0,
     });
-    const sunsetGlow = new THREE.Mesh(new THREE.SphereGeometry(23, 20, 20), sunsetGlowMaterial);
+    const sunsetGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(23, 20, 20),
+      sunsetGlowMaterial,
+    );
     scene.add(sunsetGlow);
 
     const moonMaterial = new THREE.MeshBasicMaterial({
@@ -2855,7 +4742,10 @@ export default function MapSimulator() {
       transparent: true,
       opacity: 0,
     });
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(5.8, 18, 18), moonMaterial);
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(5.8, 18, 18),
+      moonMaterial,
+    );
     scene.add(moon);
 
     const starPositions = new Float32Array(280 * 3);
@@ -2864,12 +4754,17 @@ export default function MapSimulator() {
       const elevation = THREE.MathUtils.lerp(0.24, 1.14, Math.random());
       const radius = celestialRadius + Math.random() * 120;
       const offset = index * 3;
-      starPositions[offset] = centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius;
+      starPositions[offset] =
+        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius;
       starPositions[offset + 1] = Math.sin(elevation) * radius * 0.82 + 110;
-      starPositions[offset + 2] = centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius;
+      starPositions[offset + 2] =
+        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius;
     }
     const starsGeometry = new THREE.BufferGeometry();
-    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starsGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(starPositions, 3),
+    );
     const starsMaterial = new THREE.PointsMaterial({
       color: 0xf4f8ff,
       size: 1.7,
@@ -2889,9 +4784,11 @@ export default function MapSimulator() {
     });
     const cloudClusters = Array.from({ length: 5 }, (_, index) => {
       const cluster = new THREE.Group();
-      const azimuth = (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
+      const azimuth =
+        (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
       const elevation = THREE.MathUtils.lerp(0.24, 0.5, (index % 5) / 5);
-      const radius = celestialRadius * THREE.MathUtils.lerp(0.56, 0.72, (index % 4) / 4);
+      const radius =
+        celestialRadius * THREE.MathUtils.lerp(0.56, 0.72, (index % 4) / 4);
       const anchor = new THREE.Vector3(
         centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
         Math.sin(elevation) * radius * 0.76 + 72 + (index % 3) * 10,
@@ -2923,9 +4820,11 @@ export default function MapSimulator() {
     });
     const stormCloudClusters = Array.from({ length: 4 }, (_, index) => {
       const cluster = new THREE.Group();
-      const azimuth = (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
+      const azimuth =
+        (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
       const elevation = THREE.MathUtils.lerp(0.16, 0.28, (index % 3) / 3);
-      const radius = celestialRadius * THREE.MathUtils.lerp(0.48, 0.62, (index % 4) / 4);
+      const radius =
+        celestialRadius * THREE.MathUtils.lerp(0.48, 0.62, (index % 4) / 4);
       const anchor = new THREE.Vector3(
         centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
         Math.sin(elevation) * radius * 0.62 + 56 + (index % 2) * 7,
@@ -2991,8 +4890,14 @@ export default function MapSimulator() {
     let activePedestrians = 0;
     let crosswalkMaterial: THREE.MeshStandardMaterial | null = null;
     let stopLineMaterial: THREE.MeshStandardMaterial | null = null;
+    let roadNetworkOverlay: THREE.Group | null = null;
 
-    const routeBuilder = (start: string, end: string, id: string, label: string | null) => {
+    const routeBuilder = (
+      start: string,
+      end: string,
+      id: string,
+      label: string | null,
+    ) => {
       if (!graph) {
         return null;
       }
@@ -3000,7 +4905,14 @@ export default function MapSimulator() {
       if (routeCache.has(cacheKey)) {
         return routeCache.get(cacheKey) ?? null;
       }
-      const route = buildShortestRoute(graph, signalByKey, start, end, id, label);
+      const route = buildShortestRoute(
+        graph,
+        signalByKey,
+        start,
+        end,
+        id,
+        label,
+      );
       routeCache.set(cacheKey, route);
       return route;
     };
@@ -3073,7 +4985,11 @@ export default function MapSimulator() {
     );
 
     dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, dongBoundaryWallHeight / 2, segment.center.z);
+      dummy.position.set(
+        segment.center.x,
+        dongBoundaryWallHeight / 2,
+        segment.center.z,
+      );
       dummy.rotation.set(0, segment.angle, 0);
       dummy.scale.set(0.42, dongBoundaryWallHeight, segment.length + 0.16);
       dummy.updateMatrix();
@@ -3125,7 +5041,7 @@ export default function MapSimulator() {
       roadGeometries[segment.roadClass].push(segment);
     });
 
-    (['arterial', 'connector', 'local'] as const).forEach((roadClass) => {
+    (["arterial", "connector", "local"] as const).forEach((roadClass) => {
       const segments = roadGeometries[roadClass];
       const mesh = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 0.25, 1),
@@ -3136,7 +5052,10 @@ export default function MapSimulator() {
       segments.forEach((segment, index) => {
         const length = distanceXZ(segment.start, segment.end);
         const center = segment.start.clone().lerp(segment.end, 0.5);
-        const angle = Math.atan2(segment.end.x - segment.start.x, segment.end.z - segment.start.z);
+        const angle = Math.atan2(
+          segment.end.x - segment.start.x,
+          segment.end.z - segment.start.z,
+        );
         dummy.position.set(center.x, ROAD_LAYER_Y[roadClass], center.z);
         dummy.rotation.set(0, angle, 0);
         dummy.scale.set(segment.width, 1, length + 1.2);
@@ -3145,22 +5064,29 @@ export default function MapSimulator() {
       });
 
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.renderOrder = roadClass === 'arterial' ? 20 : roadClass === 'connector' ? 10 : 0;
+      mesh.renderOrder =
+        roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
       scene.add(mesh);
     });
 
     const laneMarkers = roadSegments.flatMap((segment) => {
-      if (segment.roadClass === 'local') {
+      if (segment.roadClass === "local") {
         return [];
       }
       const length = distanceXZ(segment.start, segment.end);
       if (length < 12) {
         return [];
       }
-      const dashLength = segment.roadClass === 'arterial' ? 4.8 : 3.7;
-      const gapLength = segment.roadClass === 'arterial' ? 4.2 : 3.5;
-      const angle = Math.atan2(segment.end.x - segment.start.x, segment.end.z - segment.start.z);
-      const markerCount = Math.max(1, Math.floor((length - 4) / (dashLength + gapLength)));
+      const dashLength = segment.roadClass === "arterial" ? 4.8 : 3.7;
+      const gapLength = segment.roadClass === "arterial" ? 4.2 : 3.5;
+      const angle = Math.atan2(
+        segment.end.x - segment.start.x,
+        segment.end.z - segment.start.z,
+      );
+      const markerCount = Math.max(
+        1,
+        Math.floor((length - 4) / (dashLength + gapLength)),
+      );
 
       return Array.from({ length: markerCount }, (_, markerIndex) => {
         const dashCenter = Math.min(
@@ -3210,8 +5136,12 @@ export default function MapSimulator() {
     );
 
     buildingFeatures.forEach((building, index) => {
-      dummy.position.set(building.position.x, building.height / 2, building.position.z);
-      dummy.rotation.set(0, 0, 0);
+      dummy.position.set(
+        building.position.x,
+        building.height / 2,
+        building.position.z,
+      );
+      dummy.rotation.set(0, building.rotationY, 0);
       dummy.scale.set(building.width, building.height, building.depth);
       dummy.updateMatrix();
       buildingMesh.setMatrixAt(index, dummy.matrix);
@@ -3229,7 +5159,7 @@ export default function MapSimulator() {
     container.appendChild(boundaryHintText);
 
     const applyDistrictPresentation = (mode: CameraMode) => {
-      const isOverview = mode === 'overview';
+      const isOverview = mode === "overview";
       dongFloorMaterials.forEach((material) => {
         material.opacity = isOverview ? 0.065 : 0.03;
       });
@@ -3241,7 +5171,10 @@ export default function MapSimulator() {
 
     const applyRenderBudget = (mode: CameraMode) => {
       renderer.setPixelRatio(
-        Math.min(window.devicePixelRatio, renderPixelRatioFor(mode, isPageHidden)),
+        Math.min(
+          window.devicePixelRatio,
+          renderPixelRatioFor(mode, isPageHidden),
+        ),
       );
       renderer.setSize(container.clientWidth, container.clientHeight, false);
     };
@@ -3250,15 +5183,19 @@ export default function MapSimulator() {
       const activeDongs = new Set(dongNames.filter(Boolean));
       districtLabelElements.forEach((element, dongName) => {
         const isActive = activeDongs.has(dongName);
-        element.style.background = isActive ? 'rgba(18,84,45,0.97)' : 'rgba(5,48,67,0.96)';
+        element.style.background = isActive
+          ? "rgba(18,84,45,0.97)"
+          : "rgba(5,48,67,0.96)";
         element.style.borderColor = isActive
-          ? 'rgba(162,255,187,0.5)'
-          : 'rgba(255,255,255,0.12)';
-        element.style.color = isActive ? '#f2fff5' : '#d5f6ff';
+          ? "rgba(162,255,187,0.5)"
+          : "rgba(255,255,255,0.12)";
+        element.style.color = isActive ? "#f2fff5" : "#d5f6ff";
         element.style.boxShadow = isActive
-          ? '0 0 0 1px rgba(162,255,187,0.12), 0 10px 24px rgba(0,0,0,0.32)'
-          : '0 8px 18px rgba(0,0,0,0.25)';
-        element.style.transform = isActive ? 'translateY(-1px) scale(1.03)' : 'none';
+          ? "0 0 0 1px rgba(162,255,187,0.12), 0 10px 24px rgba(0,0,0,0.32)"
+          : "0 8px 18px rgba(0,0,0,0.25)";
+        element.style.transform = isActive
+          ? "translateY(-1px) scale(1.03)"
+          : "none";
       });
     };
 
@@ -3276,9 +5213,8 @@ export default function MapSimulator() {
         return null;
       }
 
-      const hitVehicleId = (hit.object.userData?.vehicleId ?? hit.object.parent?.userData?.vehicleId) as
-        | string
-        | undefined;
+      const hitVehicleId = (hit.object.userData?.vehicleId ??
+        hit.object.parent?.userData?.vehicleId) as string | undefined;
       if (!hitVehicleId) {
         return null;
       }
@@ -3286,15 +5222,16 @@ export default function MapSimulator() {
     };
 
     const enterRideMode = (vehicle: Vehicle) => {
-      if (cameraModeRef.current !== 'ride') {
+      if (cameraModeRef.current !== "ride") {
         rideExitModeRef.current =
-          cameraModeRef.current === 'overview' || cameraModeRef.current === 'follow'
+          cameraModeRef.current === "overview" ||
+          cameraModeRef.current === "follow"
             ? cameraModeRef.current
-            : 'drive';
+            : "drive";
       }
       followTaxiIdRef.current = vehicle.id;
       setFollowTaxiId(vehicle.id);
-      setCameraMode('ride');
+      setCameraMode("ride");
     };
 
     const taxiHeading = (vehicle: Vehicle) => {
@@ -3303,27 +5240,31 @@ export default function MapSimulator() {
     };
 
     const applyModePreset = (mode: CameraMode) => {
-      if (mode === 'overview') {
+      if (mode === "overview") {
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
         cameraRig.pitch = Math.max(cameraRig.pitch, 0.86);
-        cameraRig.distance = Math.max(cameraRig.distance, overviewMinDistance * 1.04);
+        cameraRig.distance = Math.max(
+          cameraRig.distance,
+          overviewMinDistance * 1.04,
+        );
         return;
       }
 
-      if (mode === 'follow') {
+      if (mode === "follow") {
         const followedTaxi = resolveFollowTaxi();
         cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.46, 0.9);
         cameraRig.distance = THREE.MathUtils.clamp(cameraRig.distance, 20, 58);
         if (followedTaxi) {
           const baseYaw = taxiHeading(followedTaxi) + Math.PI;
           const nextOffset = wrapAngle(cameraRig.yaw - baseYaw);
-          followOrbit.yawOffset = Math.abs(nextOffset) < 1.25 ? nextOffset : 0.22;
+          followOrbit.yawOffset =
+            Math.abs(nextOffset) < 1.25 ? nextOffset : 0.22;
         }
         return;
       }
 
-      if (mode === 'ride') {
+      if (mode === "ride") {
         rideLookInitialized = false;
         return;
       }
@@ -3337,7 +5278,7 @@ export default function MapSimulator() {
     syncCamera();
 
     dongRegions.forEach((dong) => {
-      const label = new CSS2DObject(labelElement(dong.name, 'district'));
+      const label = new CSS2DObject(labelElement(dong.name, "district"));
       label.position.set(dong.position.x, 2.8, dong.position.z);
       label.visible = true;
       districtLabelElements.set(dong.name, label.element as HTMLDivElement);
@@ -3350,7 +5291,9 @@ export default function MapSimulator() {
       .sort((left, right) => right.height - left.height)
       .slice(0, 7)
       .forEach((building) => {
-        const label = new CSS2DObject(labelElement(building.label as string, 'building'));
+        const label = new CSS2DObject(
+          labelElement(building.label as string, "building"),
+        );
         label.position.set(
           building.position.x,
           Math.min(building.height + 4, 38),
@@ -3362,41 +5305,53 @@ export default function MapSimulator() {
       });
 
     if (showTransit) {
-      transitLandmarks.forEach((landmark, index) => {
-        const structure =
-          landmark.category === 'bus_stop'
-            ? createBusStopStructure(index, landmark.sideSign, landmark.isMajor)
-            : createSubwayStationStructure(index, landmark.sideSign, landmark.isMajor);
-        structure.position.copy(landmark.position);
-        structure.rotation.y = landmark.yaw;
-        structure.scale.setScalar(
-          landmark.category === 'bus_stop'
-            ? landmark.isMajor
-              ? 0.94
-              : 0.8
-            : landmark.isMajor
-              ? 1.02
-              : 0.8,
-        );
-        scene.add(structure);
+      transitLandmarks
+        .filter((landmark) => landmark.category === "subway_station")
+        .forEach((landmark, index) => {
+          const structure = createSubwayStationStructure(
+            index,
+            landmark.sideSign,
+            landmark.isMajor,
+          );
+          structure.position.copy(landmark.position);
+          structure.rotation.y = landmark.yaw;
+          structure.scale.setScalar(landmark.isMajor ? 1.14 : 0.94);
+          scene.add(structure);
 
-        if (landmark.category === 'subway_station' && landmark.name && landmark.isMajor) {
-          const label = new CSS2DObject(labelElement(landmark.name, 'transit'));
-          label.position.set(landmark.position.x, 3.1, landmark.position.z);
-          label.visible = showLabels;
-          labelObjects.push(label);
-          scene.add(label);
-        }
-      });
+          if (landmark.name) {
+            const label = new CSS2DObject(
+              labelElement(landmark.name, "transit"),
+            );
+            label.position.set(
+              landmark.position.x,
+              landmark.isMajor ? 3.5 : 3.15,
+              landmark.position.z,
+            );
+            label.visible = showLabels;
+            labelObjects.push(label);
+            scene.add(label);
+          }
+        });
     }
 
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
 
     simulationTimeout = window.setTimeout(() => {
-      graph = buildRoadGraph(data.roads, data.center);
+      graph = data.roadNetwork
+        ? deserializeRoadGraph(data.roadNetwork)
+        : buildRoadGraph(data.roads, data.center);
       const currentGraph = graph;
-      const signals = buildSignals(data.roads, data.center);
+      roadNetworkOverlay = buildRoadNetworkOverlay(currentGraph);
+      roadNetworkOverlay.visible = showRoadNetworkRef.current;
+      scene.add(roadNetworkOverlay);
+      roadNetworkGroupRef.current = roadNetworkOverlay;
+      const signals = buildSignals(
+        data.roads,
+        data.center,
+        currentGraph,
+        data.trafficSignals,
+      );
       signals.forEach((signal) => {
         signalById.set(signal.id, signal);
         signalByKey.set(signal.key, signal);
@@ -3404,14 +5359,16 @@ export default function MapSimulator() {
 
       const loopRoutes = buildLoopRoutes(data.roads, data.center, signalByKey);
       const taxiSourceRoutes = loopRoutes
-        .filter((route) => route.roadClass !== 'local')
+        .filter((route) => route.roadClass !== "local")
         .slice(0, Math.max(TAXI_COUNT, 12));
       const trafficRoutes = loopRoutes.slice(0, Math.max(TRAFFIC_COUNT, 20));
       if (!taxiSourceRoutes.length || !trafficRoutes.length) {
         return;
       }
 
-      const taxiRouteById = new Map(taxiSourceRoutes.map((route) => [route.id, route]));
+      const taxiRouteById = new Map(
+        taxiSourceRoutes.map((route) => [route.id, route]),
+      );
       hotspotPool = buildTaxiHotspots(taxiSourceRoutes, buildingFeatures);
       if (!hotspotPool.length) {
         return;
@@ -3419,76 +5376,120 @@ export default function MapSimulator() {
 
       const nextSignalVisuals = signals.map((signal) => {
         const group = new THREE.Group();
-        const reds: THREE.Mesh[] = [];
-        const greens: THREE.Mesh[] = [];
-        const leftArrows: THREE.Mesh[] = [];
-        const pedestrianLamps: THREE.Mesh[] = [];
+        const reds: SignalLampVisual[] = [];
+        const yellows: SignalLampVisual[] = [];
+        const greens: SignalLampVisual[] = [];
+        const leftArrows: SignalLampVisual[] = [];
+        const pedestrianLamps: SignalLampVisual[] = [];
 
-        const mastLayout = [
-          { offset: new THREE.Vector3(0, 0, -3.35), yaw: 0 },
-          { offset: new THREE.Vector3(3.35, 0, 0), yaw: Math.PI / 2 },
-          { offset: new THREE.Vector3(0, 0, 3.35), yaw: Math.PI },
-          { offset: new THREE.Vector3(-3.35, 0, 0), yaw: -Math.PI / 2 },
-        ];
+        const mastDistance = signal.approaches.length >= 4 ? 2.9 : 2.55;
+        const mastLayout = signal.approaches.map((direction) => {
+          switch (direction) {
+            case "north":
+              return {
+                axis: "ns" as const,
+                offset: new THREE.Vector3(0, 0, -mastDistance),
+                yaw: 0,
+              };
+            case "south":
+              return {
+                axis: "ns" as const,
+                offset: new THREE.Vector3(0, 0, mastDistance),
+                yaw: Math.PI,
+              };
+            case "east":
+              return {
+                axis: "ew" as const,
+                offset: new THREE.Vector3(mastDistance, 0, 0),
+                yaw: Math.PI / 2,
+              };
+            default:
+              return {
+                axis: "ew" as const,
+                offset: new THREE.Vector3(-mastDistance, 0, 0),
+                yaw: -Math.PI / 2,
+              };
+          }
+        });
 
-        mastLayout.forEach(({ offset, yaw }) => {
+        mastLayout.forEach(({ axis, offset, yaw }) => {
           const mast = new THREE.Group();
           mast.position.copy(offset);
           mast.rotation.y = yaw;
 
           const pole = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.14, 0.14, 4.2, 8),
-            new THREE.MeshStandardMaterial({ color: 0x9aa5b1, roughness: 0.6 }),
+            new THREE.CylinderGeometry(0.1, 0.1, 3.35, 8),
+            new THREE.MeshStandardMaterial({
+              color: 0x8d98a6,
+              roughness: 0.62,
+            }),
           );
-          pole.position.set(0, 2.1, 0);
+          pole.position.set(0, 1.675, 0);
           pole.castShadow = true;
           mast.add(pole);
 
-          const arm = new THREE.Mesh(
-            new THREE.BoxGeometry(1.15, 0.12, 0.12),
-            new THREE.MeshStandardMaterial({ color: 0x8d99a8, roughness: 0.55 }),
-          );
-          arm.position.set(0.58, 3.92, 0);
-          mast.add(arm);
-
           const head = new THREE.Mesh(
-            new THREE.BoxGeometry(1.42, 2.42, 0.68),
+            new THREE.BoxGeometry(0.58, 1.24, 0.42),
             new THREE.MeshStandardMaterial({ color: 0x10161f, roughness: 0.5 }),
           );
-          head.position.set(1.32, 3.7, 0);
+          head.position.set(0.02, 2.62, 0);
           mast.add(head);
 
           const red = new THREE.Mesh(
-            new THREE.SphereGeometry(0.17, 12, 12),
-            new THREE.MeshStandardMaterial({ color: 0x431015, emissive: 0x230709 }),
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x431015,
+              emissive: 0x230709,
+            }),
           );
-          red.position.set(1.02, 4, 0.38);
+          red.position.set(0.02, 2.92, 0.24);
           mast.add(red);
-          reds.push(red);
+          reds.push({ mesh: red, axis });
+
+          const yellow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x4a3612,
+              emissive: 0x2a1806,
+            }),
+          );
+          yellow.position.set(0.02, 2.67, 0.24);
+          mast.add(yellow);
+          yellows.push({ mesh: yellow, axis });
 
           const green = new THREE.Mesh(
-            new THREE.SphereGeometry(0.17, 12, 12),
-            new THREE.MeshStandardMaterial({ color: 0x123f22, emissive: 0x081a0f }),
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x123f22,
+              emissive: 0x081a0f,
+            }),
           );
-          green.position.set(1.02, 3.36, 0.38);
+          green.position.set(0.02, 2.42, 0.24);
           mast.add(green);
-          greens.push(green);
+          greens.push({ mesh: green, axis });
 
           const leftArrow = new THREE.Mesh(
-            new THREE.BoxGeometry(0.38, 0.38, 0.18),
-            new THREE.MeshStandardMaterial({ color: 0x0f2218, emissive: 0x07120b }),
+            new THREE.BoxGeometry(0.24, 0.24, 0.14),
+            new THREE.MeshStandardMaterial({
+              color: 0x0f2218,
+              emissive: 0x07120b,
+            }),
           );
-          leftArrow.position.set(1.72, 3.7, 0.38);
+          leftArrow.position.set(0.36, 2.66, 0.18);
+          leftArrow.visible = signal.hasProtectedLeft;
           mast.add(leftArrow);
-          leftArrows.push(leftArrow);
+          leftArrows.push({ mesh: leftArrow, axis });
 
           const pedestrianLamp = new THREE.Mesh(
-            new THREE.BoxGeometry(0.42, 0.42, 0.18),
-            new THREE.MeshStandardMaterial({ color: 0x222833, emissive: 0x10151d }),
+            new THREE.BoxGeometry(0.24, 0.24, 0.14),
+            new THREE.MeshStandardMaterial({
+              color: 0x222833,
+              emissive: 0x10151d,
+            }),
           );
-          pedestrianLamp.position.set(1.72, 3.06, 0.38);
+          pedestrianLamp.position.set(-0.36, 2.18, 0.18);
           mast.add(pedestrianLamp);
-          pedestrianLamps.push(pedestrianLamp);
+          pedestrianLamps.push({ mesh: pedestrianLamp, axis });
 
           group.add(mast);
         });
@@ -3500,6 +5501,7 @@ export default function MapSimulator() {
           ...signal,
           group,
           reds,
+          yellows,
           greens,
           leftArrows,
           pedestrianLamps,
@@ -3508,22 +5510,28 @@ export default function MapSimulator() {
       signalVisuals.push(...nextSignalVisuals);
 
       const crosswalkStripes = signalVisuals.flatMap((signal) => {
-        const nsStripes = Array.from({ length: CROSSWALK_STRIPE_COUNT }, (_, index) => ({
-          center: signal.point
-            .clone()
-            .add(new THREE.Vector3(0, 0.03, (index - 2.5) * CROSSWALK_STEP)),
-          angle: 0,
-          width: CROSSWALK_WIDTH,
-          depth: 0.42,
-        }));
-        const ewStripes = Array.from({ length: CROSSWALK_STRIPE_COUNT }, (_, index) => ({
-          center: signal.point
-            .clone()
-            .add(new THREE.Vector3((index - 2.5) * CROSSWALK_STEP, 0.03, 0)),
-          angle: Math.PI / 2,
-          width: CROSSWALK_WIDTH,
-          depth: 0.42,
-        }));
+        const nsStripes = Array.from(
+          { length: CROSSWALK_STRIPE_COUNT },
+          (_, index) => ({
+            center: signal.point
+              .clone()
+              .add(new THREE.Vector3(0, 0.03, (index - 2.5) * CROSSWALK_STEP)),
+            angle: 0,
+            width: CROSSWALK_WIDTH,
+            depth: 0.42,
+          }),
+        );
+        const ewStripes = Array.from(
+          { length: CROSSWALK_STRIPE_COUNT },
+          (_, index) => ({
+            center: signal.point
+              .clone()
+              .add(new THREE.Vector3((index - 2.5) * CROSSWALK_STEP, 0.03, 0)),
+            angle: Math.PI / 2,
+            width: CROSSWALK_WIDTH,
+            depth: 0.42,
+          }),
+        );
         return [...nsStripes, ...ewStripes];
       });
 
@@ -3550,7 +5558,7 @@ export default function MapSimulator() {
       scene.add(crosswalkMesh);
 
       const stopLineMarkers = loopRoutes
-        .filter((route) => route.roadClass !== 'local')
+        .filter((route) => route.roadClass !== "local")
         .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
 
       stopLineMaterial = new THREE.MeshStandardMaterial({
@@ -3573,7 +5581,11 @@ export default function MapSimulator() {
           marker.route.laneOffset,
         );
         dummy.position.set(lanePosition.x, 0.18, lanePosition.z);
-        dummy.rotation.set(0, Math.atan2(sample.heading.x, sample.heading.z), 0);
+        dummy.rotation.set(
+          0,
+          Math.atan2(sample.heading.x, sample.heading.z),
+          0,
+        );
         dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);
         dummy.updateMatrix();
         stopLineMesh.setMatrixAt(index, dummy.matrix);
@@ -3583,11 +5595,15 @@ export default function MapSimulator() {
 
       const nextHotspotVisuals = hotspotPool.map((hotspot, index) => {
         const group = new THREE.Group();
-        const baseColor = index % 3 === 0 ? 0xffcf57 : index % 3 === 1 ? 0x71d8ff : 0xff8d71;
+        const baseColor =
+          index % 3 === 0 ? 0xffcf57 : index % 3 === 1 ? 0x71d8ff : 0xff8d71;
         const hotspotRoute = taxiRouteById.get(hotspot.routeId);
         const hotspotSample = hotspotRoute
           ? sampleRoute(hotspotRoute, hotspot.distance)
-          : { position: hotspot.position.clone(), heading: new THREE.Vector3(0, 0, 1) };
+          : {
+              position: hotspot.position.clone(),
+              heading: new THREE.Vector3(0, 0, 1),
+            };
 
         const base = new THREE.Mesh(
           new THREE.CylinderGeometry(1.2, 1.45, 0.18, 20),
@@ -3685,43 +5701,43 @@ export default function MapSimulator() {
 
       const nextPedestrianVisuals: PedestrianVisual[] = signalVisuals.flatMap(
         (signal, signalIndex) => [
-        {
-          signalId: signal.id,
-          axis: 'ns' as const,
-          group: createPedestrianGroup(signalIndex),
-          phaseOffset: signalIndex * 0.17,
-          speed: 0.18 + (signalIndex % 3) * 0.03,
-          lateralOffset: -2.1,
-          direction: 1 as const,
-        },
-        {
-          signalId: signal.id,
-          axis: 'ns' as const,
-          group: createPedestrianGroup(signalIndex + 2),
-          phaseOffset: signalIndex * 0.13 + 0.4,
-          speed: 0.16 + (signalIndex % 2) * 0.02,
-          lateralOffset: 2.1,
-          direction: -1 as const,
-        },
-        {
-          signalId: signal.id,
-          axis: 'ew' as const,
-          group: createPedestrianGroup(signalIndex + 4),
-          phaseOffset: signalIndex * 0.11 + 0.2,
-          speed: 0.19 + (signalIndex % 4) * 0.02,
-          lateralOffset: -2.1,
-          direction: 1 as const,
-        },
-        {
-          signalId: signal.id,
-          axis: 'ew' as const,
-          group: createPedestrianGroup(signalIndex + 7),
-          phaseOffset: signalIndex * 0.09 + 0.6,
-          speed: 0.17 + (signalIndex % 3) * 0.02,
-          lateralOffset: 2.1,
-          direction: -1 as const,
-        },
-      ],
+          {
+            signalId: signal.id,
+            axis: "ns" as const,
+            group: createPedestrianGroup(signalIndex),
+            phaseOffset: signalIndex * 0.17,
+            speed: 0.18 + (signalIndex % 3) * 0.03,
+            lateralOffset: -2.1,
+            direction: 1 as const,
+          },
+          {
+            signalId: signal.id,
+            axis: "ns" as const,
+            group: createPedestrianGroup(signalIndex + 2),
+            phaseOffset: signalIndex * 0.13 + 0.4,
+            speed: 0.16 + (signalIndex % 2) * 0.02,
+            lateralOffset: 2.1,
+            direction: -1 as const,
+          },
+          {
+            signalId: signal.id,
+            axis: "ew" as const,
+            group: createPedestrianGroup(signalIndex + 4),
+            phaseOffset: signalIndex * 0.11 + 0.2,
+            speed: 0.19 + (signalIndex % 4) * 0.02,
+            lateralOffset: -2.1,
+            direction: 1 as const,
+          },
+          {
+            signalId: signal.id,
+            axis: "ew" as const,
+            group: createPedestrianGroup(signalIndex + 7),
+            phaseOffset: signalIndex * 0.09 + 0.6,
+            speed: 0.17 + (signalIndex % 3) * 0.02,
+            lateralOffset: 2.1,
+            direction: -1 as const,
+          },
+        ],
       );
       nextPedestrianVisuals.forEach((pedestrian) => {
         pedestrian.group.visible = false;
@@ -3743,12 +5759,13 @@ export default function MapSimulator() {
           continue;
         }
 
-        const { group, bodyMaterial, signMaterial, clickTarget } = createVehicleGroup('taxi', TAXI_PALETTE);
+        const { group, bodyMaterial, signMaterial, clickTarget } =
+          createVehicleGroup("taxi", TAXI_PALETTE);
         scene.add(group);
 
         const vehicle: Vehicle = {
           id: `taxi-${index}`,
-          kind: 'taxi',
+          kind: "taxi",
           route: job.pickupRoute,
           group,
           bodyMaterial,
@@ -3765,8 +5782,14 @@ export default function MapSimulator() {
           pickupHotspot: job.pickupHotspot,
           dropoffHotspot: job.dropoffHotspot,
           serviceTimer: 0,
-          planMode: 'pickup',
+          planMode: "pickup",
+          motion: createVehicleMotionState(),
         };
+        vehicle.motion.nextStopIndex = resolveNextStop(
+          job.pickupRoute,
+          0,
+          0,
+        ).index;
         group.userData.vehicleId = vehicle.id;
         group.traverse((child) => {
           child.userData.vehicleId = vehicle.id;
@@ -3775,6 +5798,7 @@ export default function MapSimulator() {
           taxiClickTargets.push(clickTarget);
         }
         setTaxiAppearance(vehicle);
+        updateVehicleMotionState(vehicle);
         syncVehicleTransform(vehicle);
         vehicles.push(vehicle);
         taxiVehicles.push(vehicle);
@@ -3784,12 +5808,15 @@ export default function MapSimulator() {
       for (let index = 0; index < TRAFFIC_COUNT; index += 1) {
         const route = trafficRoutes[index % trafficRoutes.length];
         const palette = TRAFFIC_PALETTES[index % TRAFFIC_PALETTES.length];
-        const { group, bodyMaterial, signMaterial } = createVehicleGroup('traffic', palette);
+        const { group, bodyMaterial, signMaterial } = createVehicleGroup(
+          "traffic",
+          palette,
+        );
         scene.add(group);
 
         const vehicle: Vehicle = {
           id: `traffic-${index}`,
-          kind: 'traffic',
+          kind: "traffic",
           route,
           group,
           bodyMaterial,
@@ -3806,8 +5833,20 @@ export default function MapSimulator() {
           pickupHotspot: null,
           dropoffHotspot: null,
           serviceTimer: 0,
-          planMode: 'traffic',
+          planMode: "traffic",
+          motion: createVehicleMotionState(),
         };
+        vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
+          route,
+          vehicle.distance,
+          0,
+        );
+        vehicle.motion.nextStopIndex = resolveNextStop(
+          route,
+          vehicle.distance,
+          0,
+        ).index;
+        updateVehicleMotionState(vehicle);
         syncVehicleTransform(vehicle);
         vehicles.push(vehicle);
       }
@@ -3817,7 +5856,9 @@ export default function MapSimulator() {
         .slice(0, 6)
         .forEach((route) => {
           const sample = sampleRoute(route, route.totalLength * 0.4);
-          const label = new CSS2DObject(labelElement(route.name as string, 'road'));
+          const label = new CSS2DObject(
+            labelElement(route.name as string, "road"),
+          );
           label.position.copy(sample.position.clone().setY(1.6));
           label.visible = showLabels;
           labelObjects.push(label);
@@ -3831,7 +5872,11 @@ export default function MapSimulator() {
         signals: signalVisuals.length,
       }));
 
-      applyEnvironment(simulationTimeRef.current, weatherModeRef.current);
+      applyEnvironment(
+        simulationDateRef.current,
+        simulationTimeRef.current,
+        weatherModeRef.current,
+      );
       applyModePreset(cameraModeRef.current);
       syncCamera();
       renderer.render(scene, camera);
@@ -3844,26 +5889,36 @@ export default function MapSimulator() {
     let lastRafTimestamp = 0;
     let lastVisibleRenderTimestamp = 0;
     let lastCappedRenderTimestamp = 0;
-    let lastCapSignature = '';
+    let lastCapSignature = "";
     let refreshRateEstimate = 0;
     let statsAccumulator = 0;
     let fpsSampleElapsed = 0;
     let fpsFrameCount = 0;
+    let appliedDateIso: string | null = null;
     let appliedWeatherMode: WeatherMode | null = null;
     let appliedTimeMinutes = -1;
     let activeVehicleSpeedMultiplier = 1;
     let activeStarOpacity = 0;
 
-    const applyEnvironment = (minutes: number, nextWeatherMode: WeatherMode) => {
-      const environment = buildEnvironmentState(minutes, nextWeatherMode);
-      const daylight = daylightFactor(minutes);
-      const sunset = sunsetFactor(minutes);
+    const applyEnvironment = (
+      dateIso: string,
+      minutes: number,
+      nextWeatherMode: WeatherMode,
+    ) => {
+      const environment = buildEnvironmentState(
+        dateIso,
+        minutes,
+        nextWeatherMode,
+        data.center,
+      );
+      const daylight = daylightFactor(dateIso, minutes, data.center);
+      const sunset = sunsetFactor(dateIso, minutes, data.center);
       const cloudVisibility =
-        nextWeatherMode === 'clear'
+        nextWeatherMode === "clear"
           ? 1
-          : nextWeatherMode === 'cloudy'
+          : nextWeatherMode === "cloudy"
             ? 0.78
-            : nextWeatherMode === 'heavy-rain'
+            : nextWeatherMode === "heavy-rain"
               ? 0.42
               : 0.58;
       const background = scene.background as THREE.Color | null;
@@ -3881,14 +5936,17 @@ export default function MapSimulator() {
 
       sun.color.setHex(environment.sunColor);
       sun.intensity = environment.sunIntensity;
-      sun.position.set(centerPoint.x + 112, 188, centerPoint.z + 84);
 
       groundMaterial.color.setHex(environment.groundColor);
       roadMaterials.arterial.color.setHex(environment.roadColors.arterial);
       roadMaterials.connector.color.setHex(environment.roadColors.connector);
       roadMaterials.local.color.setHex(environment.roadColors.local);
       (
-        [roadMaterials.arterial, roadMaterials.connector, roadMaterials.local] as THREE.MeshStandardMaterial[]
+        [
+          roadMaterials.arterial,
+          roadMaterials.connector,
+          roadMaterials.local,
+        ] as THREE.MeshStandardMaterial[]
       ).forEach((material) => {
         material.roughness = environment.roadRoughness;
         material.metalness = environment.roadMetalness;
@@ -3899,7 +5957,8 @@ export default function MapSimulator() {
       laneMarkerMaterial.emissiveIntensity = environment.laneMarkerIntensity;
       buildingMaterial.color.setHex(environment.buildingTint);
       buildingMaterial.emissive.setHex(environment.buildingEmissive);
-      buildingMaterial.emissiveIntensity = environment.buildingEmissiveIntensity;
+      buildingMaterial.emissiveIntensity =
+        environment.buildingEmissiveIntensity;
       if (crosswalkMaterial) {
         crosswalkMaterial.color.setHex(environment.crosswalkColor);
         crosswalkMaterial.emissive.setHex(environment.crosswalkEmissive);
@@ -3912,109 +5971,172 @@ export default function MapSimulator() {
       }
 
       const skyDirection = environment.sunPosition.clone().normalize();
-      const sunAnchor = centerPoint.clone().addScaledVector(skyDirection, celestialRadius);
+      const keyLightDirection =
+        skyDirection.y > 0.06
+          ? skyDirection
+          : skyDirection
+              .clone()
+              .multiplyScalar(-1)
+              .setY(Math.abs(skyDirection.y) * 0.72 + 0.2)
+              .normalize();
+      sun.position.copy(
+        centerPoint
+          .clone()
+          .addScaledVector(keyLightDirection, celestialRadius * 0.56),
+      );
+      sun.target.position.copy(centerPoint);
+      sun.target.updateMatrixWorld();
+      const sunAnchor = centerPoint
+        .clone()
+        .addScaledVector(skyDirection, celestialRadius);
       sunDisc.position.copy(sunAnchor);
       sunHalo.position.copy(sunAnchor);
       sunsetGlow.position.copy(
         centerPoint
           .clone()
           .addScaledVector(
-            new THREE.Vector3(skyDirection.x, Math.max(0.12, skyDirection.y * 0.48), skyDirection.z).normalize(),
+            new THREE.Vector3(
+              skyDirection.x,
+              Math.max(0.12, skyDirection.y * 0.48),
+              skyDirection.z,
+            ).normalize(),
             celestialRadius * 0.84,
           ),
       );
 
       const moonDirection = skyDirection.clone().multiplyScalar(-1);
-      moonDirection.y = Math.max(0.22, moonDirection.y * 0.7 + 0.18);
+      moonDirection.y = Math.max(0.2, moonDirection.y * 0.76 + 0.22);
       moonDirection.normalize();
-      moon.position.copy(centerPoint.clone().addScaledVector(moonDirection, celestialRadius * 0.92));
+      moon.position.copy(
+        centerPoint
+          .clone()
+          .addScaledVector(moonDirection, celestialRadius * 0.92),
+      );
 
       sunDiscMaterial.color.setHex(sunset > 0.18 ? 0xffc572 : 0xffefbc);
-      sunDiscMaterial.opacity = THREE.MathUtils.clamp(daylight * 0.4 + sunset * 0.44, 0, 0.78) * cloudVisibility;
-      sunHaloMaterial.opacity = THREE.MathUtils.clamp(daylight * 0.14 + sunset * 0.3, 0, 0.28) * cloudVisibility;
-      sunsetGlowMaterial.opacity = THREE.MathUtils.clamp(sunset * 0.36, 0, 0.3) * cloudVisibility;
+      sunDiscMaterial.opacity =
+        THREE.MathUtils.clamp(daylight * 0.4 + sunset * 0.44, 0, 0.78) *
+        cloudVisibility;
+      sunHaloMaterial.opacity =
+        THREE.MathUtils.clamp(daylight * 0.14 + sunset * 0.3, 0, 0.28) *
+        cloudVisibility;
+      sunsetGlowMaterial.opacity =
+        THREE.MathUtils.clamp(sunset * 0.36, 0, 0.3) * cloudVisibility;
       moonMaterial.opacity =
         THREE.MathUtils.clamp((0.18 - daylight) / 0.18, 0, 0.82) *
-        (nextWeatherMode === 'heavy-rain' ? 0.42 : 0.76);
+        (nextWeatherMode === "heavy-rain" ? 0.42 : 0.76);
       activeStarOpacity =
         THREE.MathUtils.clamp((0.16 - daylight) / 0.16, 0, 0.68) *
-        (nextWeatherMode === 'heavy-rain' ? 0.22 : nextWeatherMode === 'cloudy' ? 0.5 : 0.78);
+        (nextWeatherMode === "heavy-rain"
+          ? 0.22
+          : nextWeatherMode === "cloudy"
+            ? 0.5
+            : 0.78);
       const cloudOpacityBase =
-        nextWeatherMode === 'clear'
+        nextWeatherMode === "clear"
           ? 0
-          : nextWeatherMode === 'cloudy'
+          : nextWeatherMode === "cloudy"
             ? 0.3
-            : nextWeatherMode === 'heavy-rain'
+            : nextWeatherMode === "heavy-rain"
               ? 0.42
               : 0.58;
       const cloudColor =
-        nextWeatherMode === 'heavy-rain'
+        nextWeatherMode === "heavy-rain"
           ? 0xc8d2de
-          : nextWeatherMode === 'heavy-snow'
+          : nextWeatherMode === "heavy-snow"
             ? 0xf6fbff
             : 0xf0f5fb;
       cloudMaterial.color.setHex(cloudColor);
       cloudMaterial.opacity =
-        nextWeatherMode === 'heavy-rain'
+        nextWeatherMode === "heavy-rain"
           ? 0.14
           : cloudOpacityBase * (daylight > 0.08 ? 1 : 0.86);
       cloudClusters.forEach(({ cluster }) => {
-        cluster.visible = nextWeatherMode !== 'heavy-rain' && cloudOpacityBase > 0.01;
+        cluster.visible =
+          nextWeatherMode !== "heavy-rain" && cloudOpacityBase > 0.01;
       });
-      const stormCloudOpacity = nextWeatherMode === 'heavy-rain' ? 0.54 : 0;
+      const stormCloudOpacity = nextWeatherMode === "heavy-rain" ? 0.54 : 0;
       stormCloudMaterial.opacity = stormCloudOpacity;
-      stormCloudMaterial.color.setHex(nextWeatherMode === 'heavy-rain' ? 0x6f8397 : 0x73879a);
+      stormCloudMaterial.color.setHex(
+        nextWeatherMode === "heavy-rain" ? 0x6f8397 : 0x73879a,
+      );
       stormCloudClusters.forEach(({ cluster }) => {
         cluster.visible = stormCloudOpacity > 0.01;
       });
 
       activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
-      rainLayer.points.visible = environment.precipitation === 'rain';
+      rainLayer.points.visible = environment.precipitation === "rain";
       rainLayer.material.opacity = environment.precipitationOpacity;
       rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;
-      snowLayer.points.visible = environment.precipitation === 'snow';
+      snowLayer.points.visible = environment.precipitation === "snow";
       snowLayer.material.opacity = environment.precipitationOpacity;
-      snowLayer.material.size = 0.58 + environment.precipitationIntensity * 0.18;
+      snowLayer.material.size =
+        0.58 + environment.precipitationIntensity * 0.18;
 
       renderer.toneMappingExposure = environment.exposure;
     };
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
       if (rainLayer.points.visible) {
-        const positions = rainLayer.geometry.attributes.position.array as Float32Array;
+        const positions = rainLayer.geometry.attributes.position
+          .array as Float32Array;
         for (let index = 0; index < rainLayer.seeds.length; index += 1) {
           const offset = index * 3;
           positions[offset] += delta * 3.1;
           positions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
           positions[offset + 2] += delta * 5.1;
 
-          if (positions[offset] > rainLayer.maxX) positions[offset] = rainLayer.minX;
-          if (positions[offset + 2] > rainLayer.maxZ) positions[offset + 2] = rainLayer.minZ;
+          if (positions[offset] > rainLayer.maxX)
+            positions[offset] = rainLayer.minX;
+          if (positions[offset + 2] > rainLayer.maxZ)
+            positions[offset + 2] = rainLayer.minZ;
           if (positions[offset + 1] < rainLayer.minHeight) {
-            positions[offset] = THREE.MathUtils.lerp(rainLayer.minX, rainLayer.maxX, Math.random());
+            positions[offset] = THREE.MathUtils.lerp(
+              rainLayer.minX,
+              rainLayer.maxX,
+              Math.random(),
+            );
             positions[offset + 1] = rainLayer.maxHeight;
-            positions[offset + 2] = THREE.MathUtils.lerp(rainLayer.minZ, rainLayer.maxZ, Math.random());
+            positions[offset + 2] = THREE.MathUtils.lerp(
+              rainLayer.minZ,
+              rainLayer.maxZ,
+              Math.random(),
+            );
           }
         }
         rainLayer.geometry.attributes.position.needsUpdate = true;
       }
 
       if (snowLayer.points.visible) {
-        const positions = snowLayer.geometry.attributes.position.array as Float32Array;
+        const positions = snowLayer.geometry.attributes.position
+          .array as Float32Array;
         for (let index = 0; index < snowLayer.seeds.length; index += 1) {
           const offset = index * 3;
-          const sway = Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) * 0.52;
+          const sway =
+            Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) *
+            0.52;
           positions[offset] += sway * delta;
           positions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
           positions[offset + 2] += delta * (1.1 + snowLayer.seeds[index] * 0.8);
 
-          if (positions[offset] > snowLayer.maxX) positions[offset] = snowLayer.minX;
-          if (positions[offset] < snowLayer.minX) positions[offset] = snowLayer.maxX;
-          if (positions[offset + 2] > snowLayer.maxZ) positions[offset + 2] = snowLayer.minZ;
+          if (positions[offset] > snowLayer.maxX)
+            positions[offset] = snowLayer.minX;
+          if (positions[offset] < snowLayer.minX)
+            positions[offset] = snowLayer.maxX;
+          if (positions[offset + 2] > snowLayer.maxZ)
+            positions[offset + 2] = snowLayer.minZ;
           if (positions[offset + 1] < snowLayer.minHeight) {
-            positions[offset] = THREE.MathUtils.lerp(snowLayer.minX, snowLayer.maxX, Math.random());
+            positions[offset] = THREE.MathUtils.lerp(
+              snowLayer.minX,
+              snowLayer.maxX,
+              Math.random(),
+            );
             positions[offset + 1] = snowLayer.maxHeight;
-            positions[offset + 2] = THREE.MathUtils.lerp(snowLayer.minZ, snowLayer.maxZ, Math.random());
+            positions[offset + 2] = THREE.MathUtils.lerp(
+              snowLayer.minZ,
+              snowLayer.maxZ,
+              Math.random(),
+            );
           }
         }
         snowLayer.geometry.attributes.position.needsUpdate = true;
@@ -4024,26 +6146,39 @@ export default function MapSimulator() {
     const updateSignalVisuals = (elapsedTime: number) => {
       signalVisuals.forEach((signal) => {
         const state = signalState(signal, elapsedTime);
-        signal.reds.forEach((lamp) => {
-          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
-            state.ns === 'red' && state.ew === 'red' ? 0xff2d55 : 0x240608,
+        signal.reds.forEach(({ mesh, axis }) => {
+          (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+            (axis === "ns" ? state.ns : state.ew) === "red"
+              ? 0xff2d55
+              : 0x240608,
           );
         });
-        signal.greens.forEach((lamp) => {
-          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
-            state.phase === 'ns_flow' || state.phase === 'ew_flow' ? 0x3cf07b : 0x08190d,
+        signal.yellows.forEach(({ mesh, axis }) => {
+          (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+            (axis === "ns" ? state.ns : state.ew) === "yellow"
+              ? 0xffc247
+              : 0x2a1806,
           );
         });
-        signal.leftArrows.forEach((lamp) => {
-          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
-            state.phase === 'ns_left' || state.phase === 'ew_left' ? 0x54f49d : 0x08190d,
+        signal.greens.forEach(({ mesh, axis }) => {
+          (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+            (axis === "ns" ? state.ns : state.ew) === "green"
+              ? 0x3cf07b
+              : 0x08190d,
           );
         });
-        signal.pedestrianLamps.forEach((lamp) => {
-          (lamp.material as THREE.MeshStandardMaterial).emissive.setHex(
-            state.pedestrian === 'walk'
+        signal.leftArrows.forEach(({ mesh, axis }) => {
+          (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+            mesh.visible && (axis === "ns" ? state.nsLeft : state.ewLeft)
+              ? 0x54f49d
+              : 0x08190d,
+          );
+        });
+        signal.pedestrianLamps.forEach(({ mesh }) => {
+          (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+            state.pedestrian === "walk"
               ? 0xf6f7ff
-              : state.pedestrian === 'flash' && Math.sin(elapsedTime * 12) > 0
+              : state.pedestrian === "flash" && Math.sin(elapsedTime * 12) > 0
                 ? 0xf9c756
                 : 0x111721,
           );
@@ -4055,7 +6190,7 @@ export default function MapSimulator() {
       const activePickupsByHotspot = new Map<string, number>();
       const activeDropoffsByHotspot = new Map<string, number>();
       vehicles.forEach((vehicle) => {
-        if (vehicle.kind !== 'taxi') {
+        if (vehicle.kind !== "taxi") {
           return;
         }
         if (!vehicle.isOccupied && vehicle.pickupHotspot) {
@@ -4075,16 +6210,24 @@ export default function MapSimulator() {
       hotspotVisuals.forEach((visual, index) => {
         const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
         const pickupCalls = activePickupsByHotspot.get(visual.hotspot.id) ?? 0;
-        const dropoffCalls = activeDropoffsByHotspot.get(visual.hotspot.id) ?? 0;
-        const markerMode = pickupCalls > 0 ? 'pickup' : dropoffCalls > 0 ? 'dropoff' : 'idle';
-        const isActive = markerMode !== 'idle';
+        const dropoffCalls =
+          activeDropoffsByHotspot.get(visual.hotspot.id) ?? 0;
+        const markerMode =
+          pickupCalls > 0 ? "pickup" : dropoffCalls > 0 ? "dropoff" : "idle";
+        const isActive = markerMode !== "idle";
         const accentColor =
-          markerMode === 'pickup' ? 0xff6b68 : markerMode === 'dropoff' ? 0x49e6a1 : 0x5f708c;
+          markerMode === "pickup"
+            ? 0xff6b68
+            : markerMode === "dropoff"
+              ? 0x49e6a1
+              : 0x5f708c;
         const baseMaterial = visual.base.material as THREE.MeshStandardMaterial;
         const glowMaterial = visual.glow.material as THREE.MeshStandardMaterial;
-        const beaconMaterial = visual.beacon.material as THREE.MeshStandardMaterial;
+        const beaconMaterial = visual.beacon
+          .material as THREE.MeshStandardMaterial;
         const ringMaterial = visual.ring.material as THREE.MeshStandardMaterial;
-        const hailMaterial = visual.hailCube.material as THREE.MeshStandardMaterial;
+        const hailMaterial = visual.hailCube
+          .material as THREE.MeshStandardMaterial;
         const badgeElement = visual.callBadge.element as HTMLDivElement;
 
         baseMaterial.color.setHex(accentColor);
@@ -4102,26 +6245,41 @@ export default function MapSimulator() {
         baseMaterial.emissiveIntensity = isActive ? 0.22 + pulse * 0.12 : 0.04;
         glowMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.18 : 0.06;
         glowMaterial.opacity = isActive ? 0.72 + pulse * 0.16 : 0.2;
-        beaconMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.28 : 0.08;
+        beaconMaterial.emissiveIntensity = isActive
+          ? 0.34 + pulse * 0.28
+          : 0.08;
         beaconMaterial.opacity = isActive ? 0.9 : 0.28;
         ringMaterial.emissiveIntensity = isActive ? 0.3 + pulse * 0.24 : 0.05;
-        hailMaterial.emissiveIntensity = markerMode === 'pickup' ? 0.34 + pulse * 0.32 : 0.06;
+        hailMaterial.emissiveIntensity =
+          markerMode === "pickup" ? 0.34 + pulse * 0.32 : 0.06;
 
-        visual.callerGroup.visible = markerMode === 'pickup';
-        visual.callerGroup.position.y = 0.04 + (markerMode === 'pickup' ? Math.sin(elapsedTime * 3.1 + index) * 0.05 : 0);
-        visual.waveArmPivot.rotation.z = markerMode === 'pickup'
-          ? -0.8 - Math.sin(elapsedTime * 5.4 + index * 0.8) * 0.42
-          : -0.72;
-        visual.hailCube.scale.setScalar(markerMode === 'pickup' ? 0.94 + pulse * 0.14 : 0.72);
+        visual.callerGroup.visible = markerMode === "pickup";
+        visual.callerGroup.position.y =
+          0.04 +
+          (markerMode === "pickup"
+            ? Math.sin(elapsedTime * 3.1 + index) * 0.05
+            : 0);
+        visual.waveArmPivot.rotation.z =
+          markerMode === "pickup"
+            ? -0.8 - Math.sin(elapsedTime * 5.4 + index * 0.8) * 0.42
+            : -0.72;
+        visual.hailCube.scale.setScalar(
+          markerMode === "pickup" ? 0.94 + pulse * 0.14 : 0.72,
+        );
         visual.callBadge.visible = isActive;
-        visual.callBadge.position.y = 2.28 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.1 : 0);
-        badgeElement.textContent = markerMode === 'dropoff' ? '하차' : '승차';
+        visual.callBadge.position.y =
+          2.28 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.1 : 0);
+        badgeElement.textContent = markerMode === "dropoff" ? "하차" : "승차";
         badgeElement.style.borderColor =
-          markerMode === 'dropoff' ? 'rgba(122,255,196,0.45)' : 'rgba(255,138,138,0.5)';
+          markerMode === "dropoff"
+            ? "rgba(122,255,196,0.45)"
+            : "rgba(255,138,138,0.5)";
         badgeElement.style.background =
-          markerMode === 'dropoff' ? 'rgba(8,40,24,0.88)' : 'rgba(48,12,14,0.88)';
+          markerMode === "dropoff"
+            ? "rgba(8,40,24,0.88)"
+            : "rgba(48,12,14,0.88)";
         badgeElement.style.color =
-          markerMode === 'dropoff' ? '#d9fff0' : '#ffe0e0';
+          markerMode === "dropoff" ? "#d9fff0" : "#ffe0e0";
       });
     };
 
@@ -4136,8 +6294,9 @@ export default function MapSimulator() {
 
         const state = signalState(signal, elapsedTime);
         const isVisible =
-          state.pedestrian === 'walk' ||
-          (state.pedestrian === 'flash' && Math.sin(elapsedTime * 14 + pedestrian.phaseOffset) > 0);
+          state.pedestrian === "walk" ||
+          (state.pedestrian === "flash" &&
+            Math.sin(elapsedTime * 14 + pedestrian.phaseOffset) > 0);
 
         pedestrian.group.visible = isVisible;
         if (!isVisible) {
@@ -4145,12 +6304,19 @@ export default function MapSimulator() {
         }
 
         visibleCount += 1;
-        const progressBase = (elapsedTime * pedestrian.speed + pedestrian.phaseOffset) % 1;
-        const progress = pedestrian.direction === 1 ? progressBase : 1 - progressBase;
-        const travel = THREE.MathUtils.lerp(-PEDESTRIAN_SPAN, PEDESTRIAN_SPAN, progress);
-        const bob = Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
+        const progressBase =
+          (elapsedTime * pedestrian.speed + pedestrian.phaseOffset) % 1;
+        const progress =
+          pedestrian.direction === 1 ? progressBase : 1 - progressBase;
+        const travel = THREE.MathUtils.lerp(
+          -PEDESTRIAN_SPAN,
+          PEDESTRIAN_SPAN,
+          progress,
+        );
+        const bob =
+          Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
 
-        if (pedestrian.axis === 'ns') {
+        if (pedestrian.axis === "ns") {
           pedestrian.group.position.set(
             signal.point.x + pedestrian.lateralOffset,
             bob,
@@ -4170,50 +6336,46 @@ export default function MapSimulator() {
     };
 
     const updateVehicles = (delta: number, elapsedTime: number) => {
-      const intersectionOccupancy = new Map<string, { ns: number; ew: number }>();
+      const intersectionOccupancy = new Map<
+        string,
+        { ns: number; ew: number }
+      >();
       const samples = vehicles.map((vehicle) => {
-        const sample = sampleRoute(vehicle.route, vehicle.distance);
-        const lanePosition = offsetToRight(sample.position, sample.heading, vehicle.route.laneOffset);
-        const right = new THREE.Vector3(sample.heading.z, 0, -sample.heading.x).normalize();
-        return { vehicle, sample, lanePosition, right };
-      });
-
-      samples.forEach(({ vehicle, sample }) => {
+        updateVehicleMotionState(vehicle);
+        const nextStopState = resolveNextStop(
+          vehicle.route,
+          vehicle.distance,
+          vehicle.motion.nextStopIndex,
+        );
+        vehicle.motion.nextStopIndex = nextStopState.index;
         vehicle.currentSignalId = null;
-        signalVisuals.forEach((signal) => {
-          const signalDistance = sample.position.distanceTo(signal.point);
+
+        const signal = nextStopState.stop
+          ? signalById.get(nextStopState.stop.signalId) ?? null
+          : null;
+        if (signal) {
+          const signalDistance = vehicle.motion.position.distanceTo(signal.point);
           if (signalDistance < SIGNAL_RADIUS) {
             vehicle.currentSignalId = signal.id;
           }
-          if (signalDistance >= INTERSECTION_OCCUPANCY_RADIUS) {
-            return;
+          if (
+            signalDistance < INTERSECTION_OCCUPANCY_RADIUS &&
+            nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD
+          ) {
+            const claim = intersectionOccupancy.get(signal.id) ?? {
+              ns: 0,
+              ew: 0,
+            };
+            if (nextStopState.stop?.axis === "ns") {
+              claim.ns += 1;
+            } else {
+              claim.ew += 1;
+            }
+            intersectionOccupancy.set(signal.id, claim);
           }
+        }
 
-          const nearIntersectionStop = vehicle.route.stops
-            .map((stop) => ({
-              stop,
-              ahead: routeDistanceAhead(vehicle.route, vehicle.distance, stop.distance),
-            }))
-            .filter(
-              (entry) =>
-                entry.stop.signalId === signal.id &&
-                entry.ahead >= 0 &&
-                entry.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD,
-            )
-            .sort((left, right) => left.ahead - right.ahead)[0];
-
-          if (!nearIntersectionStop) {
-            return;
-          }
-
-          const claim = intersectionOccupancy.get(signal.id) ?? { ns: 0, ew: 0 };
-          if (nearIntersectionStop.stop.axis === 'ns') {
-            claim.ns += 1;
-          } else {
-            claim.ew += 1;
-          }
-          intersectionOccupancy.set(signal.id, claim);
-        });
+        return { vehicle, motion: vehicle.motion, nextStopState };
       });
 
       let waitingVehicles = 0;
@@ -4221,6 +6383,7 @@ export default function MapSimulator() {
 
       vehicles.forEach((vehicle, vehicleIndex) => {
         const current = samples[vehicleIndex];
+        let nextStopState = current.nextStopState;
         let targetSpeed = vehicle.baseSpeed * activeVehicleSpeedMultiplier;
         let holdPosition = false;
 
@@ -4230,7 +6393,7 @@ export default function MapSimulator() {
           holdPosition = true;
           waitingVehicles += 1;
 
-          if (vehicle.serviceTimer === 0 && vehicle.kind === 'taxi') {
+          if (vehicle.serviceTimer === 0 && vehicle.kind === "taxi") {
             if (!vehicle.isOccupied && vehicle.pickupHotspot) {
               vehicle.isOccupied = true;
               vehicle.pickupHotspot = null;
@@ -4239,13 +6402,15 @@ export default function MapSimulator() {
                 vehicle.route.endKey,
                 vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
                 `${vehicle.id}-dropoff-${completedTrips}`,
-                vehicle.dropoffHotspot?.roadName ?? vehicle.dropoffHotspot?.label ?? null,
+                vehicle.dropoffHotspot?.roadName ??
+                  vehicle.dropoffHotspot?.label ??
+                  null,
               );
               if (dropRoute) {
-                vehicle.route = dropRoute;
-                vehicle.distance = 0;
-                vehicle.roadName = dropRoute.name;
-                vehicle.planMode = 'dropoff';
+                assignVehicleRoute(vehicle, dropRoute, 0);
+                vehicle.planMode = "dropoff";
+                nextStopState = resolveNextStop(vehicle.route, vehicle.distance, 0);
+                vehicle.motion.nextStopIndex = nextStopState.index;
               }
             } else if (vehicle.isOccupied && vehicle.dropoffHotspot) {
               completedTrips += 1;
@@ -4263,67 +6428,78 @@ export default function MapSimulator() {
               if (nextJob) {
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
                 vehicle.dropoffHotspot = nextJob.dropoffHotspot;
-                vehicle.route = nextJob.pickupRoute;
-                vehicle.distance = 0;
-                vehicle.roadName = nextJob.pickupRoute.name;
-                vehicle.planMode = 'pickup';
+                assignVehicleRoute(vehicle, nextJob.pickupRoute, 0);
+                vehicle.planMode = "pickup";
                 vehicle.isOccupied = false;
                 setTaxiAppearance(vehicle);
+                nextStopState = resolveNextStop(vehicle.route, vehicle.distance, 0);
+                vehicle.motion.nextStopIndex = nextStopState.index;
               }
             }
           }
         }
 
         if (!holdPosition) {
-          for (let otherIndex = 0; otherIndex < samples.length; otherIndex += 1) {
+          for (
+            let otherIndex = 0;
+            otherIndex < samples.length;
+            otherIndex += 1
+          ) {
             if (otherIndex === vehicleIndex) {
               continue;
             }
             const other = samples[otherIndex];
-            const alignment = current.sample.heading.dot(other.sample.heading);
+            const alignment = current.motion.heading.dot(other.motion.heading);
             if (alignment < 0.35) {
               continue;
             }
-            const deltaVector = other.lanePosition.clone().sub(current.lanePosition);
-            const longitudinal = deltaVector.dot(current.sample.heading);
+            const deltaX =
+              other.motion.lanePosition.x - current.motion.lanePosition.x;
+            const deltaZ =
+              other.motion.lanePosition.z - current.motion.lanePosition.z;
+            const longitudinal =
+              deltaX * current.motion.heading.x +
+              deltaZ * current.motion.heading.z;
             if (longitudinal <= 0 || longitudinal > vehicle.safeGap + 8) {
               continue;
             }
-            const lateral = Math.abs(deltaVector.dot(current.right));
-            const laneTolerance = Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) * 0.48;
+            const lateral = Math.abs(
+              deltaX * current.motion.right.x + deltaZ * current.motion.right.z,
+            );
+            const laneTolerance =
+              Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) *
+              0.48;
             if (lateral > laneTolerance) {
               continue;
             }
-            const gapLimit = Math.max(0, (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1);
+            const gapLimit = Math.max(
+              0,
+              (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1,
+            );
             targetSpeed = Math.min(targetSpeed, gapLimit);
           }
         }
 
-        const nextStop = vehicle.route.stops
-          .map((stop) => ({
-            stop,
-            ahead: routeDistanceAhead(vehicle.route, vehicle.distance, stop.distance),
-          }))
-          .filter((entry) => entry.ahead < 18)
-          .sort((left, right) => left.ahead - right.ahead)[0];
-
-        if (!holdPosition && nextStop) {
-          const signal = signalById.get(nextStop.stop.signalId);
+        if (!holdPosition && nextStopState.stop && nextStopState.ahead < 18) {
+          const signal = signalById.get(nextStopState.stop.signalId);
           if (signal) {
             const state = signalState(signal, elapsedTime);
             const occupancyState = intersectionOccupancy.get(signal.id);
             const conflictingAxisOccupied =
               occupancyState &&
-              (nextStop.stop.axis === 'ns' ? occupancyState.ew > 0 : occupancyState.ns > 0);
+              (nextStopState.stop.axis === "ns"
+                ? occupancyState.ew > 0
+                : occupancyState.ns > 0);
             const canGo = canVehicleProceed(
-              nextStop.stop,
+              nextStopState.stop,
               state,
               Boolean(conflictingAxisOccupied),
             );
             const blockedByIntersection =
-              Boolean(conflictingAxisOccupied) && nextStop.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD;
+              Boolean(conflictingAxisOccupied) &&
+              nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD;
             if (!canGo || blockedByIntersection) {
-              const stopGap = Math.max(0, nextStop.ahead - 0.8);
+              const stopGap = Math.max(0, nextStopState.ahead - 0.8);
               targetSpeed = Math.min(targetSpeed, Math.max(0, stopGap * 1.32));
               if (stopGap < 1.1) {
                 waitingVehicles += 1;
@@ -4333,7 +6509,10 @@ export default function MapSimulator() {
         }
 
         if (!holdPosition && !vehicle.route.isLoop) {
-          const destinationGap = Math.max(0, vehicle.route.totalLength - vehicle.distance);
+          const destinationGap = Math.max(
+            0,
+            vehicle.route.totalLength - vehicle.distance,
+          );
           if (destinationGap < HOTSPOT_SLOWDOWN_DISTANCE) {
             const curbGap = Math.max(0, destinationGap - 0.65);
             targetSpeed = Math.min(targetSpeed, Math.max(0, curbGap * 1.4));
@@ -4350,11 +6529,15 @@ export default function MapSimulator() {
           ? 0
           : THREE.MathUtils.damp(vehicle.speed, targetSpeed, 3.2, delta);
         if (!holdPosition) {
-          vehicle.distance = clampRouteDistance(vehicle.route, vehicle.distance + vehicle.speed * delta);
+          vehicle.distance = clampRouteDistance(
+            vehicle.route,
+            vehicle.distance + vehicle.speed * delta,
+          );
+          updateVehicleMotionState(vehicle);
         }
 
         syncVehicleTransform(vehicle);
-        if (vehicle.kind === 'taxi' && vehicle.isOccupied) {
+        if (vehicle.kind === "taxi" && vehicle.isOccupied) {
           activeTrips += 1;
         }
       });
@@ -4363,8 +6546,9 @@ export default function MapSimulator() {
       if (statsAccumulator > 0.18) {
         statsAccumulator = 0;
         setStats({
-          taxis: vehicles.filter((vehicle) => vehicle.kind === 'taxi').length,
-          traffic: vehicles.filter((vehicle) => vehicle.kind === 'traffic').length,
+          taxis: vehicles.filter((vehicle) => vehicle.kind === "taxi").length,
+          traffic: vehicles.filter((vehicle) => vehicle.kind === "traffic")
+            .length,
           waiting: waitingVehicles,
           signals: signalVisuals.length,
           activeTrips,
@@ -4377,10 +6561,10 @@ export default function MapSimulator() {
     const setBoundaryHover = (segment: DongBoundarySegment | null) => {
       if (!segment) {
         hoveredBoundaryIndex = -1;
-        boundaryHintText.style.display = 'none';
+        boundaryHintText.style.display = "none";
         setBoundaryDongHighlight([]);
         if (!cameraRig.dragging) {
-          renderer.domElement.style.cursor = 'grab';
+          renderer.domElement.style.cursor = "grab";
         }
         return;
       }
@@ -4397,32 +6581,32 @@ export default function MapSimulator() {
           ? `${boundaryDongs[0]} · ${boundaryDongs[1]} 경계`
           : boundaryDongs[0]
             ? `${boundaryDongs[0]} 경계`
-            : '행정동 경계';
+            : "행정동 경계";
       boundaryHintText.style.left = `${pointerClientX}px`;
       boundaryHintText.style.top = `${pointerClientY}px`;
-      boundaryHintText.style.display = 'block';
+      boundaryHintText.style.display = "block";
       if (!cameraRig.dragging) {
-        renderer.domElement.style.cursor = 'pointer';
+        renderer.domElement.style.cursor = "pointer";
       }
     };
 
     const setTaxiHover = (vehicle: Vehicle | null) => {
       if (!vehicle) {
-        boundaryHintText.style.display = 'none';
+        boundaryHintText.style.display = "none";
         setBoundaryDongHighlight([]);
         if (!cameraRig.dragging) {
-          renderer.domElement.style.cursor = 'grab';
+          renderer.domElement.style.cursor = "grab";
         }
         return;
       }
 
-      const taxiNumber = Number(vehicle.id.replace('taxi-', '')) + 1;
+      const taxiNumber = Number(vehicle.id.replace("taxi-", "")) + 1;
       boundaryHintText.textContent = `Taxi ${taxiNumber} · 클릭해서 택시 시점`;
       boundaryHintText.style.left = `${pointerClientX}px`;
       boundaryHintText.style.top = `${pointerClientY}px`;
-      boundaryHintText.style.display = 'block';
+      boundaryHintText.style.display = "block";
       if (!cameraRig.dragging) {
-        renderer.domElement.style.cursor = 'pointer';
+        renderer.domElement.style.cursor = "pointer";
       }
     };
 
@@ -4467,19 +6651,19 @@ export default function MapSimulator() {
     };
 
     const controlKeyCodes = new Set([
-      'KeyW',
-      'KeyA',
-      'KeyQ',
-      'KeyS',
-      'KeyD',
-      'KeyE',
-      'KeyF',
-      'ShiftLeft',
-      'ShiftRight',
-      'ArrowUp',
-      'ArrowDown',
-      'ArrowLeft',
-      'ArrowRight',
+      "KeyW",
+      "KeyA",
+      "KeyQ",
+      "KeyS",
+      "KeyD",
+      "KeyE",
+      "KeyF",
+      "ShiftLeft",
+      "ShiftRight",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
     ]);
 
     const isInteractiveTarget = (target: EventTarget | null) => {
@@ -4489,10 +6673,10 @@ export default function MapSimulator() {
       }
       const tagName = element.tagName;
       return (
-        tagName === 'INPUT' ||
-        tagName === 'TEXTAREA' ||
-        tagName === 'SELECT' ||
-        tagName === 'BUTTON' ||
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        tagName === "SELECT" ||
+        tagName === "BUTTON" ||
         element.isContentEditable
       );
     };
@@ -4500,7 +6684,7 @@ export default function MapSimulator() {
     const stopDragging = () => {
       cameraRig.dragging = false;
       cameraRig.pointerId = -1;
-      renderer.domElement.style.cursor = 'grab';
+      renderer.domElement.style.cursor = "grab";
     };
 
     const onContextMenu = (event: MouseEvent) => {
@@ -4526,7 +6710,7 @@ export default function MapSimulator() {
       pointerDownClientX = event.clientX;
       pointerDownClientY = event.clientY;
       pointerDragged = false;
-      renderer.domElement.style.cursor = 'grabbing';
+      renderer.domElement.style.cursor = "grabbing";
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -4557,16 +6741,18 @@ export default function MapSimulator() {
       cameraRig.pointerX = event.clientX;
       cameraRig.pointerY = event.clientY;
       if (
-        Math.hypot(event.clientX - pointerDownClientX, event.clientY - pointerDownClientY) >
-        TAXI_CLICK_MOVE_THRESHOLD
+        Math.hypot(
+          event.clientX - pointerDownClientX,
+          event.clientY - pointerDownClientY,
+        ) > TAXI_CLICK_MOVE_THRESHOLD
       ) {
         pointerDragged = true;
       }
-      if (cameraModeRef.current === 'follow') {
+      if (cameraModeRef.current === "follow") {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
         );
-      } else if (cameraModeRef.current === 'ride') {
+      } else if (cameraModeRef.current === "ride") {
         return;
       } else {
         cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
@@ -4594,7 +6780,7 @@ export default function MapSimulator() {
     };
 
     const onWheel = (event: WheelEvent) => {
-      if (cameraModeRef.current === 'ride') {
+      if (cameraModeRef.current === "ride") {
         return;
       }
       event.preventDefault();
@@ -4607,14 +6793,14 @@ export default function MapSimulator() {
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Escape' && cameraModeRef.current === 'ride') {
+      if (event.code === "Escape" && cameraModeRef.current === "ride") {
         if (!isInteractiveTarget(event.target)) {
           event.preventDefault();
         }
         setCameraMode(rideExitModeRef.current);
         return;
       }
-      if (event.code === 'KeyF') {
+      if (event.code === "KeyF") {
         if (!isInteractiveTarget(event.target)) {
           event.preventDefault();
         }
@@ -4642,12 +6828,12 @@ export default function MapSimulator() {
       pointerInside = false;
       pointerDragged = false;
       pointerNdc.set(2, 2);
-      boundaryHintText.style.display = 'none';
+      boundaryHintText.style.display = "none";
       stopDragging();
     };
 
     const onVisibilityChange = () => {
-      isPageHidden = document.visibilityState === 'hidden';
+      isPageHidden = document.visibilityState === "hidden";
       applyRenderBudget(cameraModeRef.current);
     };
 
@@ -4657,19 +6843,23 @@ export default function MapSimulator() {
       setBoundaryHover(null);
     };
 
-    window.addEventListener('resize', onResize);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('blur', onWindowBlur);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    renderer.domElement.addEventListener('contextmenu', onContextMenu);
-    renderer.domElement.addEventListener('pointerdown', onPointerDown);
-    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
-    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("blur", onWindowBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    renderer.domElement.addEventListener("contextmenu", onContextMenu);
+    renderer.domElement.addEventListener("pointerdown", onPointerDown);
+    renderer.domElement.addEventListener("pointerleave", onPointerLeave);
+    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
-    applyEnvironment(simulationTimeRef.current, weatherModeRef.current);
+    applyEnvironment(
+      simulationDateRef.current,
+      simulationTimeRef.current,
+      weatherModeRef.current,
+    );
 
     const animate = (timestamp?: number) => {
       animationFrame = window.requestAnimationFrame(animate);
@@ -4685,17 +6875,20 @@ export default function MapSimulator() {
         refreshRateEstimate =
           refreshRateEstimate === 0
             ? instantRefreshRate
-            : THREE.MathUtils.lerp(refreshRateEstimate, instantRefreshRate, 0.1);
+            : THREE.MathUtils.lerp(
+                refreshRateEstimate,
+                instantRefreshRate,
+                0.1,
+              );
       }
-      const activeRenderCap =
-        isPageHidden
-          ? HIDDEN_RENDER_FPS
-          : resolveRenderCap(
-              cameraModeRef.current,
-              fpsModeRef.current,
-              refreshRateEstimate || null,
-            );
-      const capSignature = `${activeRenderCap ?? 'unlimited'}:${isPageHidden ? 'hidden' : 'visible'}`;
+      const activeRenderCap = isPageHidden
+        ? HIDDEN_RENDER_FPS
+        : resolveRenderCap(
+            cameraModeRef.current,
+            fpsModeRef.current,
+            refreshRateEstimate || null,
+          );
+      const capSignature = `${activeRenderCap ?? "unlimited"}:${isPageHidden ? "hidden" : "visible"}`;
       if (capSignature !== lastCapSignature) {
         lastCapSignature = capSignature;
         lastCappedRenderTimestamp = 0;
@@ -4727,7 +6920,9 @@ export default function MapSimulator() {
       } else {
         delta = Math.min(
           Math.max(
-            lastVisibleRenderTimestamp === 0 ? rawDeltaMs : frameTimestamp - lastVisibleRenderTimestamp,
+            lastVisibleRenderTimestamp === 0
+              ? rawDeltaMs
+              : frameTimestamp - lastVisibleRenderTimestamp,
             1,
           ) / 1000,
           0.05,
@@ -4735,19 +6930,26 @@ export default function MapSimulator() {
       }
 
       if (delta <= 0) {
-          return;
+        return;
       }
       lastVisibleRenderTimestamp = frameTimestamp;
       const elapsedTime = timer.getElapsed();
+      const nextSimulationDate = simulationDateRef.current;
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
       if (
+        nextSimulationDate !== appliedDateIso ||
         nextSimulationTime !== appliedTimeMinutes ||
         nextWeatherMode !== appliedWeatherMode
       ) {
+        appliedDateIso = nextSimulationDate;
         appliedTimeMinutes = nextSimulationTime;
         appliedWeatherMode = nextWeatherMode;
-        applyEnvironment(nextSimulationTime, nextWeatherMode);
+        applyEnvironment(
+          nextSimulationDate,
+          nextSimulationTime,
+          nextWeatherMode,
+        );
       }
       const currentMode = cameraModeRef.current;
       if (currentMode !== activeCameraMode) {
@@ -4757,30 +6959,40 @@ export default function MapSimulator() {
         applyRenderBudget(currentMode);
       }
 
-      if (currentMode === 'drive') {
+      if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const forwardInput = Number(pressedKeys.has('KeyW') || pressedKeys.has('ArrowUp')) - Number(
-          pressedKeys.has('KeyS') || pressedKeys.has('ArrowDown'),
-        );
-        const strafeInput = Number(pressedKeys.has('KeyD') || pressedKeys.has('ArrowRight')) - Number(
-          pressedKeys.has('KeyA') || pressedKeys.has('ArrowLeft'),
-        );
-        const turnInput = Number(pressedKeys.has('KeyE')) - Number(
-          pressedKeys.has('KeyQ'),
-        );
+        const forwardInput =
+          Number(pressedKeys.has("KeyW") || pressedKeys.has("ArrowUp")) -
+          Number(pressedKeys.has("KeyS") || pressedKeys.has("ArrowDown"));
+        const strafeInput =
+          Number(pressedKeys.has("KeyD") || pressedKeys.has("ArrowRight")) -
+          Number(pressedKeys.has("KeyA") || pressedKeys.has("ArrowLeft"));
+        const turnInput =
+          Number(pressedKeys.has("KeyE")) - Number(pressedKeys.has("KeyQ"));
         const boostScale =
-          pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight') ? 1.8 : 1;
-        const moveSpeed = CAMERA_DRIVE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
-        const strafeSpeed = CAMERA_STRAFE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
+          pressedKeys.has("ShiftLeft") || pressedKeys.has("ShiftRight")
+            ? 1.8
+            : 1;
+        const moveSpeed =
+          CAMERA_DRIVE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
+        const strafeSpeed =
+          CAMERA_STRAFE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
         const turnSpeed = CAMERA_TURN_SPEED * CAMERA_BASE_TURN_SCALE;
 
         if (turnInput !== 0) {
           cameraRig.yaw += turnInput * turnSpeed * delta;
         }
         if (forwardInput !== 0 || strafeInput !== 0) {
-          const lookDirection = cameraRig.focus.clone().sub(camera.position).setY(0);
+          const lookDirection = cameraRig.focus
+            .clone()
+            .sub(camera.position)
+            .setY(0);
           if (lookDirection.lengthSq() < 0.0001) {
-            lookDirection.set(-Math.sin(cameraRig.yaw), 0, -Math.cos(cameraRig.yaw));
+            lookDirection.set(
+              -Math.sin(cameraRig.yaw),
+              0,
+              -Math.cos(cameraRig.yaw),
+            );
           }
           lookDirection.normalize();
           const strafeDirection = new THREE.Vector3(
@@ -4797,18 +7009,27 @@ export default function MapSimulator() {
             forwardInput * moveSpeed * delta,
           );
         }
-        cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.6, delta);
-      } else if (currentMode === 'overview') {
+        cameraRig.focus.y = THREE.MathUtils.damp(
+          cameraRig.focus.y,
+          0,
+          4.6,
+          delta,
+        );
+      } else if (currentMode === "overview") {
         cameraLookLift = 1.8;
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
-        cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.82, CAMERA_MAX_PITCH);
+        cameraRig.pitch = THREE.MathUtils.clamp(
+          cameraRig.pitch,
+          0.82,
+          CAMERA_MAX_PITCH,
+        );
         cameraRig.distance = THREE.MathUtils.clamp(
           Math.max(cameraRig.distance, overviewMinDistance),
           overviewMinDistance,
           maxMapDistance,
         );
-      } else if (currentMode === 'follow') {
+      } else if (currentMode === "follow") {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;
           followOrbit.yawOffset = 0.22;
@@ -4820,13 +7041,23 @@ export default function MapSimulator() {
           const desiredFocus = followedTaxi.group.position.clone();
           desiredFocus.y = 1.8;
           cameraRig.focus.lerp(desiredFocus, followBlend);
-          const desiredYaw = taxiHeading(followedTaxi) + Math.PI + followOrbit.yawOffset;
+          const desiredYaw =
+            taxiHeading(followedTaxi) + Math.PI + followOrbit.yawOffset;
           cameraRig.yaw = dampAngle(cameraRig.yaw, desiredYaw, 5.4, delta);
           cameraRig.pitch = THREE.MathUtils.clamp(cameraRig.pitch, 0.46, 0.9);
-          cameraRig.distance = THREE.MathUtils.clamp(cameraRig.distance, 20, 58);
+          cameraRig.distance = THREE.MathUtils.clamp(
+            cameraRig.distance,
+            20,
+            58,
+          );
         } else {
           cameraRig.focus.lerp(centerPoint, 1 - Math.exp(-delta * 2.8));
-          cameraRig.focus.y = THREE.MathUtils.damp(cameraRig.focus.y, 0, 4.2, delta);
+          cameraRig.focus.y = THREE.MathUtils.damp(
+            cameraRig.focus.y,
+            0,
+            4.2,
+            delta,
+          );
         }
         syncCamera();
       } else {
@@ -4866,7 +7097,7 @@ export default function MapSimulator() {
           syncCamera();
         }
       }
-      if (currentMode !== 'follow' && currentMode !== 'ride') {
+      if (currentMode !== "follow" && currentMode !== "ride") {
         syncCamera();
       }
 
@@ -4876,14 +7107,20 @@ export default function MapSimulator() {
       updatePrecipitation(delta, elapsedTime);
       updateVehicles(delta, elapsedTime);
       cloudClusters.forEach(({ cluster, anchor, phase }) => {
-        cluster.position.x = anchor.x + Math.sin(elapsedTime * 0.035 + phase) * 5.5;
-        cluster.position.z = anchor.z + Math.cos(elapsedTime * 0.028 + phase) * 4.2;
-        cluster.position.y = anchor.y + Math.sin(elapsedTime * 0.06 + phase) * 0.9;
+        cluster.position.x =
+          anchor.x + Math.sin(elapsedTime * 0.035 + phase) * 5.5;
+        cluster.position.z =
+          anchor.z + Math.cos(elapsedTime * 0.028 + phase) * 4.2;
+        cluster.position.y =
+          anchor.y + Math.sin(elapsedTime * 0.06 + phase) * 0.9;
       });
       stormCloudClusters.forEach(({ cluster, anchor, phase }) => {
-        cluster.position.x = anchor.x + Math.sin(elapsedTime * 0.022 + phase) * 8.8;
-        cluster.position.z = anchor.z + Math.cos(elapsedTime * 0.018 + phase) * 7.1;
-        cluster.position.y = anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
+        cluster.position.x =
+          anchor.x + Math.sin(elapsedTime * 0.022 + phase) * 8.8;
+        cluster.position.z =
+          anchor.z + Math.cos(elapsedTime * 0.018 + phase) * 7.1;
+        cluster.position.y =
+          anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
       });
       fpsFrameCount += 1;
       fpsSampleElapsed += delta;
@@ -4891,7 +7128,11 @@ export default function MapSimulator() {
         if (showFpsRef.current) {
           setFpsStats({
             fps: Math.round(fpsFrameCount / fpsSampleElapsed),
-            capLabel: renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current),
+            capLabel: renderCapLabel(
+              activeRenderCap,
+              isPageHidden,
+              fpsModeRef.current,
+            ),
           });
         } else {
           setFpsStats((current) =>
@@ -4900,14 +7141,19 @@ export default function MapSimulator() {
               ? current
               : {
                   ...current,
-                  capLabel: renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current),
+                  capLabel: renderCapLabel(
+                    activeRenderCap,
+                    isPageHidden,
+                    fpsModeRef.current,
+                  ),
                 },
           );
         }
         fpsFrameCount = 0;
         fpsSampleElapsed = 0;
       }
-      starsMaterial.opacity = activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
+      starsMaterial.opacity =
+        activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
       sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
       moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
       updateBoundaryHover();
@@ -4922,17 +7168,17 @@ export default function MapSimulator() {
       if (simulationTimeout) {
         window.clearTimeout(simulationTimeout);
       }
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('blur', onWindowBlur);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      renderer.domElement.removeEventListener('contextmenu', onContextMenu);
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
-      renderer.domElement.removeEventListener('wheel', onWheel);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      renderer.domElement.removeEventListener("contextmenu", onContextMenu);
+      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
+      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
+      renderer.domElement.removeEventListener("wheel", onWheel);
       rainLayer.geometry.dispose();
       rainLayer.material.dispose();
       snowLayer.geometry.dispose();
@@ -4948,6 +7194,21 @@ export default function MapSimulator() {
       moonMaterial.dispose();
       timer.dispose();
       renderer.dispose();
+      const currentNonRoadGroup = nonRoadGroup;
+      if (currentNonRoadGroup) {
+        currentNonRoadGroup.removeFromParent();
+        disposeObject3DResources(currentNonRoadGroup);
+      }
+      if (nonRoadGroupRef.current === currentNonRoadGroup) {
+        nonRoadGroupRef.current = null;
+      }
+      if (roadNetworkOverlay) {
+        roadNetworkOverlay.removeFromParent();
+        disposeObject3DResources(roadNetworkOverlay);
+      }
+      if (roadNetworkGroupRef.current === roadNetworkOverlay) {
+        roadNetworkGroupRef.current = null;
+      }
       labelObjects.forEach((label) => label.removeFromParent());
       container.removeChild(boundaryHintText);
       container.removeChild(renderer.domElement);
@@ -4955,8 +7216,10 @@ export default function MapSimulator() {
     };
   }, [data, showLabels, showTransit]);
 
-  const roadNames = useMemo(() => buildMajorRoadNames(data?.roads ?? null), [data]);
-  const buildingNames = useMemo(() => buildMajorBuildingNames(data?.buildings ?? null), [data]);
+  const roadNames = useMemo(
+    () => buildMajorRoadNames(data?.roads ?? null),
+    [data],
+  );
   const dongNames = useMemo(
     () => data?.dongs.features.map((dong) => dong.properties.name) ?? [],
     [data],
@@ -4966,24 +7229,25 @@ export default function MapSimulator() {
       return [] as TransitLandmark[];
     }
 
-    const projectedRoadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap((feature) =>
-      lineStringsOfRoad(feature, data.center).flatMap((line) =>
-        line.slice(1).map((node, index) => ({
-          roadClass: feature.properties.roadClass,
-          width: feature.properties.width * ROAD_WIDTH_SCALE,
-          start: line[index].point,
-          end: node.point,
-          name: feature.properties.name,
-        })),
-      ),
+    const projectedRoadSegments = buildProjectedRoadSegments(
+      data.roads,
+      data.center,
     );
 
-    return buildTransitLandmarks(data.transit, data.center, projectedRoadSegments);
+    return buildTransitLandmarks(
+      data.transit,
+      data.center,
+      projectedRoadSegments,
+    );
   }, [data]);
   const transitCounts = useMemo(
     () => ({
-      busStops: transitHighlights.filter((feature) => feature.category === 'bus_stop').length,
-      subwayStations: transitHighlights.filter((feature) => feature.category === 'subway_station').length,
+      busStops: transitHighlights.filter(
+        (feature) => feature.category === "bus_stop",
+      ).length,
+      subwayStations: transitHighlights.filter(
+        (feature) => feature.category === "subway_station",
+      ).length,
     }),
     [transitHighlights],
   );
@@ -4992,7 +7256,10 @@ export default function MapSimulator() {
       Array.from(
         new Set(
           transitHighlights
-            .filter((feature) => feature.category === 'subway_station' && feature.isMajor)
+            .filter(
+              (feature) =>
+                feature.category === "subway_station" && feature.isMajor,
+            )
             .map((feature) => feature.name)
             .filter(Boolean) as string[],
         ),
@@ -5007,55 +7274,235 @@ export default function MapSimulator() {
         detail:
           dongNames[index % Math.max(dongNames.length, 1)] ??
           roadNames[index % Math.max(roadNames.length, 1)] ??
-          '강남 코어 순환',
+          "강남 코어 순환",
       })),
     [dongNames, roadNames],
   );
-  const serviceLabels = useMemo(() => dongNames.slice(0, 6), [dongNames]);
   const selectedTaxiId =
-    taxiOptions.find((taxi) => taxi.id === followTaxiId)?.id ?? taxiOptions[0]?.id ?? '';
+    taxiOptions.find((taxi) => taxi.id === followTaxiId)?.id ??
+    taxiOptions[0]?.id ??
+    "";
   useEffect(() => {
     followTaxiIdRef.current = selectedTaxiId;
   }, [selectedTaxiId]);
   const selectedTaxi = useMemo(
-    () => taxiOptions.find((taxi) => taxi.id === selectedTaxiId) ?? taxiOptions[0] ?? null,
+    () =>
+      taxiOptions.find((taxi) => taxi.id === selectedTaxiId) ??
+      taxiOptions[0] ??
+      null,
     [selectedTaxiId, taxiOptions],
   );
   const cameraModeLabel =
-    cameraMode === 'overview'
-      ? 'Overview'
-      : cameraMode === 'follow'
-        ? 'Follow Taxi'
-        : cameraMode === 'ride'
-          ? 'Taxi View'
-          : 'Drive';
+    cameraMode === "overview"
+      ? "Overview"
+      : cameraMode === "follow"
+        ? "Follow Taxi"
+        : cameraMode === "ride"
+          ? "Taxi View"
+          : "Drive";
   const statusLabel =
-    status === 'loading'
-      ? 'loading data'
-      : status === 'rendering'
-        ? 'building scene'
+    status === "loading"
+      ? "loading data"
+      : status === "rendering"
+        ? "building scene"
         : status;
   const controlHint =
-    cameraMode === 'overview'
-      ? '오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.'
-      : cameraMode === 'follow'
-        ? `팔로우: ${selectedTaxi?.label ?? '선택한 택시'}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. 택시를 클릭하면 더 가까운 택시 시점으로 전환됩니다.`
-        : cameraMode === 'ride'
-          ? `택시 시점: ${selectedTaxi?.label ?? '선택한 택시'} 뒤를 따라가며 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
-          : '드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.';
+    cameraMode === "overview"
+      ? "오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. 택시를 클릭하면 택시 시점으로 들어갑니다."
+      : cameraMode === "follow"
+        ? `팔로우: ${selectedTaxi?.label ?? "선택한 택시"}를 자동 추적하고, 드래그로 시점을 살짝 돌릴 수 있습니다. 택시를 클릭하면 더 가까운 택시 시점으로 전환됩니다.`
+        : cameraMode === "ride"
+          ? `택시 시점: ${selectedTaxi?.label ?? "선택한 택시"} 뒤를 따라가며 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
+          : "드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.";
   const selectedWeather =
-    WEATHER_OPTIONS.find((option) => option.id === weatherMode) ?? WEATHER_OPTIONS[0];
-  const formattedSimulationTime = format24Hour(simulationTimeMinutes);
-  const simulationTimeBand = timeBandLabel(simulationTimeMinutes);
-  const daylightValue = daylightFactor(simulationTimeMinutes);
-  const twilightValue = twilightFactor(simulationTimeMinutes);
+    WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
+    WEATHER_OPTIONS[0];
+  const normalizedSimulationTimeMinutes = normalizeDayMinutes(
+    simulationTimeMinutes,
+  );
+  const solarReferenceCenter = data?.center ?? DEFAULT_MAP_CENTER;
+  const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
+  const formattedSimulationDate = formatDateLabel(simulationDate);
+  const simulationTimeBand = timeBandLabel(normalizedSimulationTimeMinutes);
+  const daylightValue = daylightFactor(
+    simulationDate,
+    normalizedSimulationTimeMinutes,
+    solarReferenceCenter,
+  );
+  const twilightValue = twilightFactor(
+    simulationDate,
+    normalizedSimulationTimeMinutes,
+    solarReferenceCenter,
+  );
   const daylightLabel =
-    daylightValue > 0.18 ? '낮' : twilightValue > 0.25 ? '황혼' : '밤';
-  const fpsModeOptions: Array<{ id: FpsMode; label: string }> = [
-    { id: 'auto', label: 'Auto' },
-    { id: 'fixed60', label: '60 FPS' },
-    { id: 'unlimited', label: 'Unlimited' },
+    daylightValue > 0.18 ? "낮" : twilightValue > 0.25 ? "황혼" : "밤";
+  const circumstanceModeLabel =
+    circumstanceMode === "live" ? "Live" : "Specific";
+  const circumstanceOptions: Array<{ id: CircumstanceMode; label: string }> = [
+    { id: "live", label: "Live" },
+    { id: "specific", label: "Specific Date" },
   ];
+  const fpsModeOptions: Array<{ id: FpsMode; label: string }> = [
+    { id: "auto", label: "Auto" },
+    { id: "fixed60", label: "60 FPS" },
+    { id: "unlimited", label: "Unlimited" },
+  ];
+  const timeWeatherControls = (
+    <>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        {circumstanceOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setCircumstanceMode(option.id)}
+            className={`rounded-2xl border px-3 py-2 text-left transition ${
+              circumstanceMode === option.id
+                ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
+                : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+            }`}
+          >
+            <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+              Circumstance
+            </div>
+            <div className="mt-1 text-sm font-medium">{option.label}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+            Time + Weather
+          </div>
+          <div className="mt-2 flex items-end gap-3">
+            <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
+              {formattedSimulationTime}
+            </div>
+            <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+              {daylightLabel} / {simulationTimeBand}
+            </span>
+          </div>
+          <div className="mt-2 text-xs text-slate-400">
+            {formattedSimulationDate} · {circumstanceModeLabel}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-right">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            Weather
+          </div>
+          <div className="mt-1 text-sm font-semibold text-slate-100">
+            {selectedWeather.label}
+          </div>
+          <div className="text-[11px] text-slate-400">
+            {selectedWeather.detail}
+          </div>
+        </div>
+      </div>
+
+      {circumstanceMode === "specific" ? (
+        <>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {TIME_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => setSimulationTimeMinutes(preset.minutes)}
+                className={`rounded-2xl border px-2 py-2 text-xs transition ${
+                  simulationTimeMinutes === preset.minutes
+                    ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
+                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+                }`}
+              >
+                <div className="font-medium tabular-nums">{preset.label}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
+                  {preset.detail}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3">
+            <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.14em] text-slate-500">
+              <span>Time Slider</span>
+              <span className="tabular-nums text-cyan-100">
+                {formattedSimulationTime}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-3">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Date
+              </div>
+              <input
+                type="date"
+                value={simulationDate}
+                onChange={(event) => setSimulationDate(event.target.value)}
+                className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40"
+                aria-label="Simulation date"
+              />
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={MINUTES_PER_DAY - 1}
+              step={1}
+              value={normalizedSimulationTimeMinutes}
+              onChange={(event) =>
+                setSimulationTimeMinutes(Number(event.target.value))
+              }
+              className="mt-3 h-2 w-full cursor-pointer accent-cyan-300"
+              aria-label="Simulation time"
+            />
+            <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
+              <span>00:00</span>
+              <span>06:00</span>
+              <span>12:00</span>
+              <span>18:30</span>
+              <span>23:59</span>
+            </div>
+            <div className="mt-2 text-[11px] leading-5 text-slate-500">
+              Specific Date 모드에서는 날짜와 시간을 직접 고정해 해/달/별과 조명
+              변화를 확인할 수 있습니다.
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          Live 모드에서는 강남 기준 현재 KST 날짜와 시간을 따라갑니다.
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {WEATHER_OPTIONS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setWeatherMode(option.id)}
+            className={`rounded-2xl border px-3 py-3 text-left transition ${
+              weatherMode === option.id
+                ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
+                : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+            }`}
+          >
+            <div className="text-sm font-medium">{option.label}</div>
+            <div className="mt-1 text-[11px] leading-5 text-slate-400">
+              {option.detail}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+        날씨는 현재 `manual override`입니다. Live 모드여도 실제 기상 API를
+        붙이기 전까지는 시각 연출을 직접 고를 수 있게 유지합니다.
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+        시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
+        고정해 가독성을 유지합니다. 대중교통 구조물은 기본적으로 숨겨두었습니다.
+      </div>
+    </>
+  );
 
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
@@ -5063,10 +7510,17 @@ export default function MapSimulator() {
 
       {showFps ? (
         <div className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">FPS</div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
+            FPS
+          </div>
           <div className="mt-1 flex items-end gap-3">
-            <div className="text-2xl font-semibold tabular-nums text-lime-100">{fpsStats.fps}</div>
-            <div className="pb-1 text-xs text-slate-400">Target FPS: {fpsStats.capLabel}</div>
+            <div className="text-2xl font-semibold tabular-nums text-lime-100">
+              {fpsStats.fps}
+            </div>
+            <div className="space-y-0.5 pb-1 text-xs text-slate-400">
+              <div>Mode: {fpsModeLabel(fpsMode)}</div>
+              <div>Target: {fpsStats.capLabel}</div>
+            </div>
           </div>
           <div className="mt-2 grid grid-cols-3 gap-1.5">
             {fpsModeOptions.map((option) => {
@@ -5078,8 +7532,8 @@ export default function MapSimulator() {
                   onClick={() => setFpsMode(option.id)}
                   className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${
                     isSelected
-                      ? 'border-lime-300/40 bg-lime-400/10 text-lime-100'
-                      : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8'
+                      ? "border-lime-300/40 bg-lime-400/10 text-lime-100"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8"
                   }`}
                 >
                   <div className="font-medium">{option.label}</div>
@@ -5087,11 +7541,22 @@ export default function MapSimulator() {
               );
             })}
           </div>
+          <div className="mt-2 max-w-[240px] text-[11px] leading-4 text-slate-500">
+            {fpsModeSummary(fpsMode)}
+          </div>
           <div className="mt-1 text-[11px] text-slate-400">
             mode {cameraModeLabel.toLowerCase()} · `F`로 숨기기
           </div>
         </div>
       ) : null}
+
+      <div
+        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${
+          showFps ? "top-[11rem]" : "top-4"
+        }`}
+      >
+        {timeWeatherControls}
+      </div>
 
       <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
@@ -5101,41 +7566,58 @@ export default function MapSimulator() {
           강남 코어 9개 동 블록 시티 택시 시뮬레이션
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          역삼1·2동을 중심으로 논현, 삼성, 신사, 청담, 대치4동까지 이어지는 9개 동을
-          OSM 경계 기준으로 불러와 3D로 다시 렌더링했습니다. 택시는 우측 차선으로
-          주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며, 승차지에서 손님을
-          태운 뒤 목적지까지 최단 경로로 이동합니다. 기본 화면은 가독성 우선으로 두고,
-          버스 정류장과 지하철 구조물은 필요할 때만 켤 수 있게 정리했습니다.
+          역삼1·2동을 중심으로 논현, 삼성, 신사, 청담, 대치4동까지 이어지는 9개
+          동을 OSM 경계 기준으로 불러와 3D로 다시 렌더링했습니다. 택시는 우측
+          차선으로 주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며,
+          승차지에서 손님을 태운 뒤 목적지까지 최단 경로로 이동합니다. 신호등은
+          OSM `traffic_signals` 노드를 기준으로 묶어 쓰고, 황색과 보호 좌회전도
+          함께 반영합니다. 기본 화면은 가독성 우선으로 두고, 지하철 구조물은
+          필요할 때만 켤 수 있게 두고, 버스 정류장 시각화는 현재 잠시 보류한
+          상태입니다.
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Taxis</div>
-            <div className="mt-1 text-lg font-semibold text-amber-200">{stats.taxis}</div>
+            <div className="mt-1 text-lg font-semibold text-amber-200">
+              {stats.taxis}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Traffic</div>
-            <div className="mt-1 text-lg font-semibold text-sky-200">{stats.traffic}</div>
+            <div className="mt-1 text-lg font-semibold text-sky-200">
+              {stats.traffic}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Signals</div>
-            <div className="mt-1 text-lg font-semibold text-emerald-200">{stats.signals}</div>
+            <div className="mt-1 text-lg font-semibold text-emerald-200">
+              {stats.signals}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Waiting</div>
-            <div className="mt-1 text-lg font-semibold text-rose-200">{stats.waiting}</div>
+            <div className="mt-1 text-lg font-semibold text-rose-200">
+              {stats.waiting}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Active Trips</div>
-            <div className="mt-1 text-lg font-semibold text-cyan-200">{stats.activeTrips}</div>
+            <div className="mt-1 text-lg font-semibold text-cyan-200">
+              {stats.activeTrips}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Completed</div>
-            <div className="mt-1 text-lg font-semibold text-lime-200">{stats.completedTrips}</div>
+            <div className="mt-1 text-lg font-semibold text-lime-200">
+              {stats.completedTrips}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Pedestrians</div>
-            <div className="mt-1 text-lg font-semibold text-violet-200">{stats.pedestrians}</div>
+            <div className="mt-1 text-lg font-semibold text-violet-200">
+              {stats.pedestrians}
+            </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Bus Stops</div>
@@ -5151,79 +7633,14 @@ export default function MapSimulator() {
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
             <div className="text-slate-400">Routing</div>
-            <div className="mt-1 text-lg font-semibold text-slate-100">Shortest Path</div>
+            <div className="mt-1 text-lg font-semibold text-slate-100">
+              Shortest Path
+            </div>
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                Time + Weather
-              </div>
-              <div className="mt-2 flex items-end gap-3">
-                <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
-                  {formattedSimulationTime}
-                </div>
-                <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
-                  {daylightLabel} / {simulationTimeBand}
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-right">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                Weather
-              </div>
-              <div className="mt-1 text-sm font-semibold text-slate-100">
-                {selectedWeather.label}
-              </div>
-              <div className="text-[11px] text-slate-400">{selectedWeather.detail}</div>
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-4 gap-2">
-            {TIME_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => setSimulationTimeMinutes(preset.minutes)}
-                className={`rounded-2xl border px-2 py-2 text-xs transition ${
-                  simulationTimeMinutes === preset.minutes
-                    ? 'border-cyan-300/40 bg-cyan-300/18 text-cyan-50'
-                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
-                }`}
-              >
-                <div className="font-medium tabular-nums">{preset.label}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
-                  {preset.detail}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {WEATHER_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setWeatherMode(option.id)}
-                className={`rounded-2xl border px-3 py-3 text-left transition ${
-                  weatherMode === option.id
-                    ? 'border-cyan-300/40 bg-cyan-300/16 text-cyan-50'
-                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white'
-                }`}
-              >
-                <div className="text-sm font-medium">{option.label}</div>
-                <div className="mt-1 text-[11px] leading-5 text-slate-400">{option.detail}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
-            시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
-            고정해 가독성을 유지합니다. 대중교통 구조물은 기본적으로 숨겨두었습니다.
-          </div>
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm lg:hidden">
+          {timeWeatherControls}
         </div>
 
         <div className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
@@ -5233,11 +7650,11 @@ export default function MapSimulator() {
                 Data Source
               </div>
               <div className="mt-1 text-sm font-semibold text-cyan-50">
-                {data?.meta.source ?? 'OpenStreetMap + Overpass'}
+                {data?.meta.source ?? "OpenStreetMap + Overpass"}
               </div>
             </div>
             <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
-              {data?.meta.boundarySource ?? 'OSM admin boundary'}
+              {data?.meta.boundarySource ?? "OSM admin boundary"}
             </span>
           </div>
 
@@ -5245,13 +7662,13 @@ export default function MapSimulator() {
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
               <div className="text-slate-500">Latest Asset Update</div>
               <div className="mt-1 font-medium text-slate-100">
-                {data?.meta.latestAssetUpdatedAt ?? 'Last-Modified unavailable'}
+                {data?.meta.latestAssetUpdatedAt ?? "Last-Modified unavailable"}
               </div>
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
               <div className="text-slate-500">Loaded In Viewer</div>
               <div className="mt-1 font-medium text-slate-100">
-                {data?.meta.loadedAt ?? 'unknown'}
+                {data?.meta.loadedAt ?? "unknown"}
               </div>
             </div>
           </div>
@@ -5260,6 +7677,11 @@ export default function MapSimulator() {
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
               dongs {data?.meta.assets.dongs.featureCount ?? 0}
             </span>
+            {data?.meta.assets.nonRoad ? (
+              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+                non-road {data.meta.assets.nonRoad.featureCount}
+              </span>
+            ) : null}
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
               roads {data?.meta.assets.roads.featureCount ?? 0}
             </span>
@@ -5269,43 +7691,59 @@ export default function MapSimulator() {
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
               transit {data?.meta.assets.transit.featureCount ?? 0}
             </span>
+            {data?.meta.assets.trafficSignals ? (
+              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+                traffic signals {data.meta.assets.trafficSignals.featureCount}
+              </span>
+            ) : null}
+            {data?.meta.assets.roadNetwork ? (
+              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+                road graph {data.meta.assets.roadNetwork.featureCount}
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
-            동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM 지오메트리에서
-            가져옵니다. 다만 건물 높이와 차량·신호·보행자 동작은 시뮬레이션 목적에 맞게
-            일부 단순화했습니다. 행정동 경계 시각화는 현재 비활성화되어 있고, 이후 더 안정적인
-            표현 방식으로 다시 추가할 예정입니다.
+            동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM
+            지오메트리에서 가져옵니다. 신호등 위치는 OSM `traffic_signals`
+            노드를 기준으로 묶어 쓰고, 차량 phase는 도로 방향을 읽어
+            좌회전/직진/황색 흐름으로 단순화했습니다. 행정동 경계 시각화는 현재
+            비활성화되어 있고, 이후 더 안정적인 표현 방식으로 다시 추가할
+            예정입니다.
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
-          <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">Camera</div>
+          <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+            Camera
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            {([
-              ['overview', 'Overview'],
-              ['drive', 'Drive'],
-              ['follow', 'Follow Taxi'],
-              ['ride', 'Taxi View'],
-            ] as Array<[CameraMode, string]>).map(([mode, label]) => (
+            {(
+              [
+                ["overview", "Overview"],
+                ["drive", "Drive"],
+                ["follow", "Follow Taxi"],
+                ["ride", "Taxi View"],
+              ] as Array<[CameraMode, string]>
+            ).map(([mode, label]) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => {
-                  if (mode === 'ride' && selectedTaxiId) {
+                  if (mode === "ride" && selectedTaxiId) {
                     rideExitModeRef.current =
-                      cameraMode === 'overview' || cameraMode === 'follow'
+                      cameraMode === "overview" || cameraMode === "follow"
                         ? cameraMode
-                        : 'drive';
+                        : "drive";
                     setFollowTaxiId(selectedTaxiId);
                   }
                   setCameraMode(mode);
                 }}
-                disabled={mode === 'ride' && !selectedTaxiId}
+                disabled={mode === "ride" && !selectedTaxiId}
                 className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${
                   cameraMode === mode
-                    ? 'border-cyan-300/40 bg-cyan-300/18 text-cyan-50'
-                    : 'border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45'
+                    ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
+                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
                 }`}
               >
                 {label}
@@ -5332,7 +7770,8 @@ export default function MapSimulator() {
               ))}
             </select>
             <div className="mt-2 text-xs leading-5 text-slate-500">
-              빈차, 승객 탑승 중, 정차 중인 택시와 관계없이 언제든 선택해 시점을 붙일 수 있습니다.
+              빈차, 승객 탑승 중, 정차 중인 택시와 관계없이 언제든 선택해 시점을
+              붙일 수 있습니다.
             </div>
           </div>
 
@@ -5358,75 +7797,47 @@ export default function MapSimulator() {
             onChange={(event) => setShowTransit(event.target.checked)}
             className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-400"
           />
-          버스 정류장/지하철 구조물 보기
+          지하철 입구 구조물 보기
         </label>
+        <div className="mt-2 text-xs leading-5 text-slate-500">
+          실제 지하철역 위치를 고정 구조물로 강조합니다. 버스 정류장 시각화는
+          우선 보류하고 데이터만 유지합니다.
+        </div>
 
-        <div className="mt-5 grid gap-3 text-sm">
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Selected Dongs
+        {data?.meta.assets.nonRoad ? (
+          <>
+            <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={showNonRoad}
+                onChange={(event) => setShowNonRoad(event.target.checked)}
+                className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-400"
+              />
+              비도로 영역 보기
+            </label>
+            <div className="mt-2 text-xs leading-5 text-slate-500">
+              공원, 주차장, 광장, 수변, 시설 부지 같은 OSM polygon 기반 non-road
+              면을 도로 아래에 따로 보여줍니다.
             </div>
-            <div className="flex flex-wrap gap-2">
-              {dongNames.map((dong) => (
-                <span
-                  key={dong}
-                  className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-cyan-100"
-                >
-                  {dong}
-                </span>
-              ))}
-            </div>
-          </div>
+          </>
+        ) : null}
 
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Major Roads
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {roadNames.map((road) => (
-                <span
-                  key={road}
-                  className="rounded-full border border-cyan-300/12 bg-cyan-300/8 px-2 py-1 text-cyan-100"
-                >
-                  {road}
-                </span>
-              ))}
-            </div>
-          </div>
+        <label className="mt-3 flex items-center gap-3 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={showRoadNetwork}
+            onChange={(event) => setShowRoadNetwork(event.target.checked)}
+            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-lime-400"
+          />
+          도로 네트워크 레이어 보기
+        </label>
+        <div className="mt-2 text-xs leading-5 text-slate-500">
+          라우팅에 쓰는 도로 그래프를 얇은 edge 선과 node 점으로 겹쳐
+          보여줍니다.
+        </div>
 
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Named Buildings
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {buildingNames.map((building) => (
-                <span
-                  key={building}
-                  className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-slate-100"
-                >
-                  {building}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Core Zones
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {serviceLabels.map((service) => (
-                <span
-                  key={service}
-                  className="rounded-full border border-amber-300/15 bg-amber-200/10 px-2 py-1 text-amber-100"
-                >
-                  {service}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+        {subwayNames.length ? (
+          <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
               Subway Hubs
             </div>
@@ -5441,12 +7852,22 @@ export default function MapSimulator() {
               ))}
             </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400">
           상태: <span className="text-slate-100">{statusLabel}</span>
           <br />
-          시간: <span className="text-slate-100 tabular-nums">{formattedSimulationTime}</span>
+          기준: <span className="text-slate-100">{circumstanceModeLabel}</span>
+          <br />
+          날짜:{" "}
+          <span className="text-slate-100 tabular-nums">
+            {formattedSimulationDate}
+          </span>
+          <br />
+          시간:{" "}
+          <span className="text-slate-100 tabular-nums">
+            {formattedSimulationTime}
+          </span>
           <br />
           날씨: <span className="text-slate-100">{selectedWeather.label}</span>
           <br />
@@ -5479,12 +7900,8 @@ export default function MapSimulator() {
             승차 포인트
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#2bb1d8]" />
-            버스 정류장
-          </span>
-          <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#4ca7ff]" />
-            지하철역
+            지하철 입구
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#f6f7ff]" />
