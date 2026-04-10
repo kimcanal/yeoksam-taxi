@@ -15,6 +15,7 @@
 ### Documented
 - Added roadmap notes for signal logic, deadlock handling, taxi-density controls, and future hourly CSV-based data integration.
 - Added an `added-taxi-call` review document and an updated screenshot checklist for comparing the branch against `main`.
+- Added a README section that explains the OSM -> Overpass -> GeoJSON -> Three.js pipeline and clarifies that the viewer uses a local snapshot, not live map streaming.
 
 ### Fixed
 - Increased taxi clickability with a larger invisible hit target so `Taxi View` can be entered by clicking the taxi body area, not only the roof sign.
