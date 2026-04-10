@@ -16,6 +16,9 @@
 - Added a click-to-enter `Taxi View` camera mode and `Esc` shortcut to exit back to the previous view.
 - Updated taxi roof signs to show red when the taxi is empty and green after pickup.
 - Made active pickup and dropoff hotspots more readable with separate `승차` and `하차` emphasis.
+- Added sidebar `Subway Hubs` shortcuts that move the drive camera to major stations and automatically reveal subway entrance structures.
+- Added hover name hints for subway entrance structures so station names are visible without enabling full labels.
+- Adjusted service-stop taxi positioning so pickup/dropoff pauses pull slightly toward the curb instead of blocking the lane center.
 - Refreshed branch comparison docs from the old `extended-map` label to the current `added-taxi-call` branch.
 
 ### Documented
@@ -25,6 +28,7 @@
 
 ### Fixed
 - Increased taxi clickability with a larger invisible hit target so `Taxi View` can be entered by clicking the taxi body area, not only the roof sign.
+- Reduced exaggerated building massing for concave or courtyard-like OSM footprints by compacting low-fill simplified boxes.
 
 ## 2026-04-09
 

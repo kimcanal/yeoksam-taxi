@@ -31,6 +31,7 @@ const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
 const SERVICE_STOP_DURATION = 1.6;
+const SERVICE_PULL_OVER_OFFSET = 1.7;
 const INTERSECTION_OCCUPANCY_RADIUS = 3.8;
 const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
 const CROSSWALK_STRIPE_COUNT = 6;
@@ -48,6 +49,8 @@ const CAMERA_MAX_DISTANCE = 560;
 const CAMERA_MIN_PITCH = 0.34;
 const CAMERA_MAX_PITCH = 1.16;
 const CAMERA_LOOK_HEIGHT = 6;
+const SUBWAY_FOCUS_DISTANCE = 56;
+const SUBWAY_FOCUS_PITCH = 0.82;
 const TAXI_VIEW_CAMERA_HEIGHT = 4.1;
 const TAXI_VIEW_CAMERA_BACK_OFFSET = -10.5;
 const TAXI_VIEW_CAMERA_SIDE_OFFSET = 0.5;
@@ -449,6 +452,14 @@ type TransitLandmark = {
   importance: number;
   roadClass: RoadProperties["roadClass"] | null;
   isMajor: boolean;
+};
+
+type CameraFocusTarget = {
+  x: number;
+  z: number;
+  distance: number;
+  pitch: number;
+  label: string;
 };
 
 type NearestRoadContext = {
@@ -1434,6 +1445,29 @@ function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
   return Math.hypot(end.x - start.x, end.z - start.z);
 }
 
+function polygonAreaXZ(points: THREE.Vector3[]) {
+  let usablePoints = points;
+  if (usablePoints.length > 1) {
+    const first = usablePoints[0];
+    const last = usablePoints[usablePoints.length - 1];
+    if (first.distanceToSquared(last) < 0.0001) {
+      usablePoints = usablePoints.slice(0, -1);
+    }
+  }
+
+  if (usablePoints.length < 3) {
+    return 0;
+  }
+
+  let areaTwice = 0;
+  usablePoints.forEach((point, index) => {
+    const next = usablePoints[(index + 1) % usablePoints.length];
+    areaTwice += point.x * next.z - next.x * point.z;
+  });
+
+  return Math.abs(areaTwice) * 0.5;
+}
+
 function buildCumulative(points: THREE.Vector3[]) {
   const cumulative = [0];
   for (let index = 1; index < points.length; index += 1) {
@@ -2352,8 +2386,30 @@ function buildBuildingMasses(
 
       const rawWidth = maxX - minX;
       const rawDepth = maxZ - minZ;
-      const width = Math.max(0.8, rawWidth - BUILDING_FOOTPRINT_INSET);
-      const depth = Math.max(0.8, rawDepth - BUILDING_FOOTPRINT_INSET);
+      const footprintArea = polygonAreaXZ(ring);
+      const bboxArea = rawWidth * rawDepth;
+      const footprintFillRatio =
+        bboxArea > 0 ? THREE.MathUtils.clamp(footprintArea / bboxArea, 0, 1) : 1;
+      // Concave or courtyard footprints look overly inflated as one box, so
+      // compact them a bit while keeping the renderer lightweight.
+      const compactScale =
+        bboxArea >= 140 && footprintFillRatio < 0.92
+          ? Math.sqrt(
+              THREE.MathUtils.lerp(
+                THREE.MathUtils.clamp(footprintFillRatio, 0.24, 1),
+                1,
+                0.42,
+              ),
+            )
+          : 1;
+      const width = Math.max(
+        0.8,
+        Math.max(0.8, rawWidth - BUILDING_FOOTPRINT_INSET) * compactScale,
+      );
+      const depth = Math.max(
+        0.8,
+        Math.max(0.8, rawDepth - BUILDING_FOOTPRINT_INSET) * compactScale,
+      );
       if (width < 0.8 || depth < 0.8) {
         return null;
       }
@@ -3976,9 +4032,20 @@ function updateVehicleMotionState(vehicle: Vehicle) {
     vehicle.motion.segmentIndex,
   );
   writeRightVector(vehicle.motion.heading, vehicle.motion.right);
+  const pullOverOffset =
+    vehicle.kind === "taxi" && vehicle.serviceTimer > 0 && !vehicle.route.isLoop
+      ? THREE.MathUtils.clamp(
+          vehicle.route.roadWidth * 0.18 + SERVICE_PULL_OVER_OFFSET,
+          1.15,
+          2.4,
+        )
+      : 0;
   vehicle.motion.lanePosition
     .copy(vehicle.motion.position)
-    .addScaledVector(vehicle.motion.right, vehicle.route.laneOffset);
+    .addScaledVector(
+      vehicle.motion.right,
+      vehicle.route.laneOffset + pullOverOffset,
+    );
 }
 
 function syncVehicleTransform(vehicle: Vehicle) {
@@ -4114,6 +4181,7 @@ export default function MapSimulator() {
   const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
   const [cameraMode, setCameraMode] = useState<CameraMode>("drive");
   const [followTaxiId, setFollowTaxiId] = useState("");
+  const [selectedSubwayName, setSelectedSubwayName] = useState("");
   const [showFps, setShowFps] = useState(false);
   const [fpsMode, setFpsMode] = useState<FpsMode>("auto");
   const [fpsStats, setFpsStats] = useState<FpsStats>({
@@ -4132,6 +4200,7 @@ export default function MapSimulator() {
   const nonRoadGroupRef = useRef<THREE.Group | null>(null);
   const showRoadNetworkRef = useRef(false);
   const roadNetworkGroupRef = useRef<THREE.Group | null>(null);
+  const cameraFocusTargetRef = useRef<CameraFocusTarget | null>(null);
   const [stats, setStats] = useState<Stats>({
     taxis: TAXI_COUNT,
     traffic: TRAFFIC_COUNT,
@@ -4459,7 +4528,6 @@ export default function MapSimulator() {
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2(2, 2);
     let pointerInside = false;
-    let hoveredBoundaryIndex = -1;
     let pointerClientX = 0;
     let pointerClientY = 0;
     let pointerDownClientX = 0;
@@ -5155,8 +5223,15 @@ export default function MapSimulator() {
 
     const labelObjects: CSS2DObject[] = [];
     const districtLabelElements = new Map<string, HTMLDivElement>();
+    const transitHoverTargets: THREE.Object3D[] = [];
     const boundaryHintText = boundaryHintElement();
     container.appendChild(boundaryHintText);
+    const transitHoverMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    transitHoverMaterial.colorWrite = false;
 
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === "overview";
@@ -5219,6 +5294,19 @@ export default function MapSimulator() {
         return null;
       }
       return taxiById.get(hitVehicleId) ?? null;
+    };
+
+    const findTransitNameFromPointer = () => {
+      if (!transitHoverTargets.length) {
+        return null;
+      }
+
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hit = raycaster.intersectObjects(transitHoverTargets, false)[0];
+      const transitName = hit?.object.userData?.transitName as
+        | string
+        | undefined;
+      return transitName ?? null;
     };
 
     const enterRideMode = (vehicle: Vehicle) => {
@@ -5316,6 +5404,18 @@ export default function MapSimulator() {
           structure.position.copy(landmark.position);
           structure.rotation.y = landmark.yaw;
           structure.scale.setScalar(landmark.isMajor ? 1.14 : 0.94);
+          const hoverTarget = new THREE.Mesh(
+            new THREE.BoxGeometry(
+              landmark.isMajor ? 3.8 : 3.2,
+              landmark.isMajor ? 3.5 : 3,
+              landmark.isMajor ? 3.6 : 3,
+            ),
+            transitHoverMaterial,
+          );
+          hoverTarget.position.set(0, landmark.isMajor ? 1.56 : 1.36, 0);
+          hoverTarget.userData.transitName = landmark.name ?? "지하철역";
+          structure.add(hoverTarget);
+          transitHoverTargets.push(hoverTarget);
           scene.add(structure);
 
           if (landmark.name) {
@@ -6558,14 +6658,17 @@ export default function MapSimulator() {
       }
     };
 
+    const clearHoverHint = () => {
+      boundaryHintText.style.display = "none";
+      setBoundaryDongHighlight([]);
+      if (!cameraRig.dragging) {
+        renderer.domElement.style.cursor = "grab";
+      }
+    };
+
     const setBoundaryHover = (segment: DongBoundarySegment | null) => {
       if (!segment) {
-        hoveredBoundaryIndex = -1;
-        boundaryHintText.style.display = "none";
-        setBoundaryDongHighlight([]);
-        if (!cameraRig.dragging) {
-          renderer.domElement.style.cursor = "grab";
-        }
+        clearHoverHint();
         return;
       }
       const boundaryDongs = [
@@ -6592,21 +6695,34 @@ export default function MapSimulator() {
 
     const setTaxiHover = (vehicle: Vehicle | null) => {
       if (!vehicle) {
-        boundaryHintText.style.display = "none";
-        setBoundaryDongHighlight([]);
-        if (!cameraRig.dragging) {
-          renderer.domElement.style.cursor = "grab";
-        }
+        clearHoverHint();
         return;
       }
 
       const taxiNumber = Number(vehicle.id.replace("taxi-", "")) + 1;
+      setBoundaryDongHighlight([]);
       boundaryHintText.textContent = `Taxi ${taxiNumber} · 클릭해서 택시 시점`;
       boundaryHintText.style.left = `${pointerClientX}px`;
       boundaryHintText.style.top = `${pointerClientY}px`;
       boundaryHintText.style.display = "block";
       if (!cameraRig.dragging) {
         renderer.domElement.style.cursor = "pointer";
+      }
+    };
+
+    const setTransitHover = (stationName: string | null) => {
+      if (!stationName) {
+        clearHoverHint();
+        return;
+      }
+
+      setBoundaryDongHighlight([]);
+      boundaryHintText.textContent = stationName;
+      boundaryHintText.style.left = `${pointerClientX}px`;
+      boundaryHintText.style.top = `${pointerClientY}px`;
+      boundaryHintText.style.display = "block";
+      if (!cameraRig.dragging) {
+        renderer.domElement.style.cursor = "help";
       }
     };
 
@@ -6622,6 +6738,12 @@ export default function MapSimulator() {
         return;
       }
 
+      const hoveredTransitName = findTransitNameFromPointer();
+      if (hoveredTransitName) {
+        setTransitHover(hoveredTransitName);
+        return;
+      }
+
       if (!dongBoundarySegments.length) {
         setBoundaryHover(null);
         return;
@@ -6631,12 +6753,10 @@ export default function MapSimulator() {
       const [hit] = raycaster.intersectObject(dongWallMesh, false);
       const nextIndex = hit?.instanceId ?? -1;
       if (nextIndex < 0) {
-        hoveredBoundaryIndex = -1;
         setBoundaryHover(null);
         return;
       }
 
-      hoveredBoundaryIndex = nextIndex;
       setBoundaryHover(dongBoundarySegments[nextIndex] ?? null);
     };
 
@@ -7015,6 +7135,54 @@ export default function MapSimulator() {
           4.6,
           delta,
         );
+        if (
+          forwardInput !== 0 ||
+          strafeInput !== 0 ||
+          turnInput !== 0 ||
+          cameraRig.dragging
+        ) {
+          cameraFocusTargetRef.current = null;
+        } else if (cameraFocusTargetRef.current) {
+          const focusTarget = cameraFocusTargetRef.current;
+          const targetDistance = THREE.MathUtils.clamp(
+            focusTarget.distance,
+            CAMERA_MIN_DISTANCE,
+            maxMapDistance,
+          );
+          cameraRig.focus.x = THREE.MathUtils.damp(
+            cameraRig.focus.x,
+            focusTarget.x,
+            5.6,
+            delta,
+          );
+          cameraRig.focus.z = THREE.MathUtils.damp(
+            cameraRig.focus.z,
+            focusTarget.z,
+            5.6,
+            delta,
+          );
+          cameraRig.pitch = THREE.MathUtils.damp(
+            cameraRig.pitch,
+            focusTarget.pitch,
+            5.2,
+            delta,
+          );
+          cameraRig.distance = THREE.MathUtils.damp(
+            cameraRig.distance,
+            targetDistance,
+            5.2,
+            delta,
+          );
+
+          if (
+            Math.abs(cameraRig.focus.x - focusTarget.x) < 0.45 &&
+            Math.abs(cameraRig.focus.z - focusTarget.z) < 0.45 &&
+            Math.abs(cameraRig.pitch - focusTarget.pitch) < 0.02 &&
+            Math.abs(cameraRig.distance - targetDistance) < 0.7
+          ) {
+            cameraFocusTargetRef.current = null;
+          }
+        }
       } else if (currentMode === "overview") {
         cameraLookLift = 1.8;
         cameraRig.focus.copy(centerPoint);
@@ -7188,6 +7356,7 @@ export default function MapSimulator() {
       cloudPuffGeometry.dispose();
       cloudMaterial.dispose();
       stormCloudMaterial.dispose();
+      transitHoverMaterial.dispose();
       sunDiscMaterial.dispose();
       sunHaloMaterial.dispose();
       sunsetGlowMaterial.dispose();
@@ -7251,21 +7420,47 @@ export default function MapSimulator() {
     }),
     [transitHighlights],
   );
-  const subwayNames = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          transitHighlights
-            .filter(
-              (feature) =>
-                feature.category === "subway_station" && feature.isMajor,
-            )
-            .map((feature) => feature.name)
-            .filter(Boolean) as string[],
-        ),
-      ).slice(0, 8),
+  const subwayHubs = useMemo(
+    () => {
+      const byName = new Map<string, TransitLandmark>();
+      transitHighlights
+        .filter(
+          (feature) => feature.category === "subway_station" && feature.isMajor,
+        )
+        .forEach((feature) => {
+          const name = feature.name;
+          if (!name) {
+            return;
+          }
+
+          const existing = byName.get(name);
+          if (!existing || feature.importance > existing.importance) {
+            byName.set(name, feature);
+          }
+        });
+
+      return [...byName.values()]
+        .sort((left, right) => right.importance - left.importance)
+        .slice(0, 8);
+    },
     [transitHighlights],
   );
+  const handleSubwayFocus = (station: TransitLandmark) => {
+    const label = station.name ?? "지하철역";
+    setSelectedSubwayName(label);
+    setShowTransit(true);
+    cameraFocusTargetRef.current = {
+      x: station.position.x,
+      z: station.position.z,
+      distance: SUBWAY_FOCUS_DISTANCE,
+      pitch: SUBWAY_FOCUS_PITCH,
+      label,
+    };
+    if (cameraModeRef.current !== "drive") {
+      cameraModeRef.current = "drive";
+      setCameraMode("drive");
+    }
+  };
   const taxiOptions = useMemo(
     () =>
       Array.from({ length: TAXI_COUNT }, (_, index) => ({
@@ -7836,21 +8031,40 @@ export default function MapSimulator() {
           보여줍니다.
         </div>
 
-        {subwayNames.length ? (
+        {subwayHubs.length ? (
           <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
               Subway Hubs
             </div>
             <div className="flex flex-wrap gap-2">
-              {subwayNames.map((station) => (
-                <span
-                  key={station}
-                  className="rounded-full border border-sky-300/15 bg-sky-300/10 px-2 py-1 text-sky-100"
-                >
-                  {station}
-                </span>
-              ))}
+              {subwayHubs.map((station) => {
+                const label = station.name ?? "지하철역";
+                const isSelected = selectedSubwayName === label;
+                return (
+                  <button
+                    key={station.id}
+                    type="button"
+                    onClick={() => handleSubwayFocus(station)}
+                    className={`rounded-full border px-2 py-1 transition ${
+                      isSelected
+                        ? "border-sky-300/35 bg-sky-300/20 text-sky-50"
+                        : "border-sky-300/15 bg-sky-300/10 text-sky-100 hover:border-sky-300/28 hover:bg-sky-300/16"
+                    }`}
+                    title={`${label}로 이동`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
+            <div className="mt-2 text-xs leading-5 text-slate-500">
+              역 이름을 누르면 해당 지하철역 주변으로 카메라가 이동합니다.
+            </div>
+            {selectedSubwayName ? (
+              <div className="mt-2 text-xs text-sky-200">
+                현재 선택: {selectedSubwayName}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
