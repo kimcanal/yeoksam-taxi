@@ -78,6 +78,20 @@ Use these filenames when storing the comparison shots under `docs/screenshots/`.
 - `added-taxi-call-taxi-view.png`
   - current branch taxi-follow view showing pickup/dropoff readability
 
+## Current Screenshot Set
+
+### 1. Main Baseline Overview
+
+![Main baseline overview](screenshots/main-baseline-overview.png)
+
+### 2. Added-Taxi-Call Weather Overview
+
+![Added taxi call weather overview](screenshots/added-taxi-call-weather-overview.png)
+
+### 3. Added-Taxi-Call Taxi View
+
+![Added taxi call taxi view](screenshots/added-taxi-call-taxi-view.png)
+
 ## Recommended Next Steps
 
 1. Add the final screenshot files under `docs/screenshots/`

@@ -81,6 +81,20 @@ Before merging to `main`, keep a small comparison set under `docs/screenshots/`:
 - `added-taxi-call-weather-overview.png`
 - `added-taxi-call-taxi-view.png`
 
+## Screenshot Comparison
+
+### Main Baseline
+
+![Main baseline overview](docs/screenshots/main-baseline-overview.png)
+
+### Current Branch: Weather Overview
+
+![Added taxi call weather overview](docs/screenshots/added-taxi-call-weather-overview.png)
+
+### Current Branch: Taxi View
+
+![Added taxi call taxi view](docs/screenshots/added-taxi-call-taxi-view.png)
+
 ## Short Roadmap
 
 - Add better UX controls such as a taxi-count slider.
