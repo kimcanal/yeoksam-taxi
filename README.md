@@ -36,7 +36,7 @@ Open `http://localhost:3000`.
 ## Project Docs
 
 - `CHANGELOG.md`: dated update history
-- `docs/extended-map-review.md`: branch comparison notes and screenshot checklist
+- `docs/added-taxi-call-review.md`: current `added-taxi-call` vs `main` comparison
 
 ## Data
 
@@ -60,7 +60,26 @@ npm run fetch:map
 - Roads, buildings, and transit landmarks come from OSM geometry, but some visual properties are simplified for readability.
 - Building heights are partially inferred from `height`, `building:levels`, or fallback heuristics when OSM is incomplete.
 - Taxi demand, signals, pedestrians, routing behavior, and vehicle logic are simulated inside the app on top of OSM-derived geometry.
+- The current branch also includes weather/time presets, taxi roof-sign states, pickup/dropoff emphasis, and click-to-enter `Taxi View`.
 - This is reliable enough for a spatial prototype and demo, but not a substitute for official real-time transport or cadastral data.
+
+## Current Branch Snapshot
+
+The active demo branch is `added-taxi-call`.
+
+Compared with `main`, it currently adds:
+
+- 9-dong OSM scene coverage across the Gangnam core demo area
+- weather and time-of-day presets that mainly affect the sky/background
+- transit landmarks such as bus stops and subway structures
+- clickable taxi chase view with `Esc` to exit
+- clearer pickup and dropoff badges plus roof-sign occupancy cues
+
+Before merging to `main`, keep a small comparison set under `docs/screenshots/`:
+
+- `main-baseline-overview.png`
+- `added-taxi-call-weather-overview.png`
+- `added-taxi-call-taxi-view.png`
 
 ## Short Roadmap
 

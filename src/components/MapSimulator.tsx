@@ -2181,7 +2181,22 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   shadow.position.y = 0.02;
   group.add(shadow);
 
-  return { group, bodyMaterial, signMaterial };
+  let clickTarget: THREE.Mesh | null = null;
+  if (kind === 'taxi') {
+    clickTarget = new THREE.Mesh(
+      new THREE.BoxGeometry(3.2, 3.2, 6.8),
+      new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        colorWrite: false,
+      }),
+    );
+    clickTarget.position.y = 1.4;
+    group.add(clickTarget);
+  }
+
+  return { group, bodyMaterial, signMaterial, clickTarget };
 }
 
 function createPedestrianGroup(seed: number) {
@@ -2967,6 +2982,7 @@ export default function MapSimulator() {
     const pedestrianVisuals: PedestrianVisual[] = [];
     const vehicles: Vehicle[] = [];
     const taxiVehicles: Vehicle[] = [];
+    const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const routeCache = new Map<string, RouteTemplate | null>();
     let graph: RoadGraph | null = null;
@@ -3250,15 +3266,12 @@ export default function MapSimulator() {
       taxiById.get(followTaxiIdRef.current) ?? taxiVehicles[0] ?? null;
 
     const findTaxiFromPointer = () => {
-      if (!taxiVehicles.length) {
+      if (!taxiClickTargets.length) {
         return null;
       }
 
       raycaster.setFromCamera(pointerNdc, camera);
-      const hit = raycaster.intersectObjects(
-        taxiVehicles.map((vehicle) => vehicle.group),
-        true,
-      )[0];
+      const hit = raycaster.intersectObjects(taxiClickTargets, false)[0];
       if (!hit) {
         return null;
       }
@@ -3730,7 +3743,7 @@ export default function MapSimulator() {
           continue;
         }
 
-        const { group, bodyMaterial, signMaterial } = createVehicleGroup('taxi', TAXI_PALETTE);
+        const { group, bodyMaterial, signMaterial, clickTarget } = createVehicleGroup('taxi', TAXI_PALETTE);
         scene.add(group);
 
         const vehicle: Vehicle = {
@@ -3758,6 +3771,9 @@ export default function MapSimulator() {
         group.traverse((child) => {
           child.userData.vehicleId = vehicle.id;
         });
+        if (clickTarget) {
+          taxiClickTargets.push(clickTarget);
+        }
         setTaxiAppearance(vehicle);
         syncVehicleTransform(vehicle);
         vehicles.push(vehicle);

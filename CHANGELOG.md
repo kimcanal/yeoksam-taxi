@@ -10,10 +10,14 @@
 - Added a click-to-enter `Taxi View` camera mode and `Esc` shortcut to exit back to the previous view.
 - Updated taxi roof signs to show red when the taxi is empty and green after pickup.
 - Made active pickup and dropoff hotspots more readable with separate `승차` and `하차` emphasis.
+- Refreshed branch comparison docs from the old `extended-map` label to the current `added-taxi-call` branch.
 
 ### Documented
 - Added roadmap notes for signal logic, deadlock handling, taxi-density controls, and future hourly CSV-based data integration.
-- Added an `extended-map` review document and screenshot checklist for comparing the branch against `main`.
+- Added an `added-taxi-call` review document and an updated screenshot checklist for comparing the branch against `main`.
+
+### Fixed
+- Increased taxi clickability with a larger invisible hit target so `Taxi View` can be entered by clicking the taxi body area, not only the roof sign.
 
 ## 2026-04-09
 
