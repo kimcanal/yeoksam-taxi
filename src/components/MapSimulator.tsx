@@ -5275,6 +5275,12 @@ export default function MapSimulator() {
       10,
       70,
     );
+    const rainPositions = rainLayer.geometry.attributes.position
+      .array as Float32Array;
+    const snowPositions = snowLayer.geometry.attributes.position
+      .array as Float32Array;
+    const rainSeedCount = rainLayer.seeds.length;
+    const snowSeedCount = snowLayer.seeds.length;
 
     const signalById = new Map<string, SignalData>();
     const signalByKey = new Map<string, SignalData>();
@@ -6643,26 +6649,24 @@ export default function MapSimulator() {
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
       if (rainLayer.points.visible) {
-        const positions = rainLayer.geometry.attributes.position
-          .array as Float32Array;
-        for (let index = 0; index < rainLayer.seeds.length; index += 1) {
+        for (let index = 0; index < rainSeedCount; index += 1) {
           const offset = index * 3;
-          positions[offset] += delta * 3.1;
-          positions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
-          positions[offset + 2] += delta * 5.1;
+          rainPositions[offset] += delta * 3.1;
+          rainPositions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
+          rainPositions[offset + 2] += delta * 5.1;
 
-          if (positions[offset] > rainLayer.maxX)
-            positions[offset] = rainLayer.minX;
-          if (positions[offset + 2] > rainLayer.maxZ)
-            positions[offset + 2] = rainLayer.minZ;
-          if (positions[offset + 1] < rainLayer.minHeight) {
-            positions[offset] = THREE.MathUtils.lerp(
+          if (rainPositions[offset] > rainLayer.maxX)
+            rainPositions[offset] = rainLayer.minX;
+          if (rainPositions[offset + 2] > rainLayer.maxZ)
+            rainPositions[offset + 2] = rainLayer.minZ;
+          if (rainPositions[offset + 1] < rainLayer.minHeight) {
+            rainPositions[offset] = THREE.MathUtils.lerp(
               rainLayer.minX,
               rainLayer.maxX,
               Math.random(),
             );
-            positions[offset + 1] = rainLayer.maxHeight;
-            positions[offset + 2] = THREE.MathUtils.lerp(
+            rainPositions[offset + 1] = rainLayer.maxHeight;
+            rainPositions[offset + 2] = THREE.MathUtils.lerp(
               rainLayer.minZ,
               rainLayer.maxZ,
               Math.random(),
@@ -6673,31 +6677,30 @@ export default function MapSimulator() {
       }
 
       if (snowLayer.points.visible) {
-        const positions = snowLayer.geometry.attributes.position
-          .array as Float32Array;
-        for (let index = 0; index < snowLayer.seeds.length; index += 1) {
+        for (let index = 0; index < snowSeedCount; index += 1) {
           const offset = index * 3;
           const sway =
             Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) *
             0.52;
-          positions[offset] += sway * delta;
-          positions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
-          positions[offset + 2] += delta * (1.1 + snowLayer.seeds[index] * 0.8);
+          snowPositions[offset] += sway * delta;
+          snowPositions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
+          snowPositions[offset + 2] +=
+            delta * (1.1 + snowLayer.seeds[index] * 0.8);
 
-          if (positions[offset] > snowLayer.maxX)
-            positions[offset] = snowLayer.minX;
-          if (positions[offset] < snowLayer.minX)
-            positions[offset] = snowLayer.maxX;
-          if (positions[offset + 2] > snowLayer.maxZ)
-            positions[offset + 2] = snowLayer.minZ;
-          if (positions[offset + 1] < snowLayer.minHeight) {
-            positions[offset] = THREE.MathUtils.lerp(
+          if (snowPositions[offset] > snowLayer.maxX)
+            snowPositions[offset] = snowLayer.minX;
+          if (snowPositions[offset] < snowLayer.minX)
+            snowPositions[offset] = snowLayer.maxX;
+          if (snowPositions[offset + 2] > snowLayer.maxZ)
+            snowPositions[offset + 2] = snowLayer.minZ;
+          if (snowPositions[offset + 1] < snowLayer.minHeight) {
+            snowPositions[offset] = THREE.MathUtils.lerp(
               snowLayer.minX,
               snowLayer.maxX,
               Math.random(),
             );
-            positions[offset + 1] = snowLayer.maxHeight;
-            positions[offset + 2] = THREE.MathUtils.lerp(
+            snowPositions[offset + 1] = snowLayer.maxHeight;
+            snowPositions[offset + 2] = THREE.MathUtils.lerp(
               snowLayer.minZ,
               snowLayer.maxZ,
               Math.random(),
@@ -6768,9 +6771,10 @@ export default function MapSimulator() {
         hotspotActivityAccumulator = 0;
         activePickupsByHotspot.clear();
         activeDropoffsByHotspot.clear();
-        vehicles.forEach((vehicle) => {
+        for (let index = 0; index < vehicles.length; index += 1) {
+          const vehicle = vehicles[index]!;
           if (vehicle.kind !== "taxi") {
-            return;
+            continue;
           }
           if (!vehicle.isOccupied && vehicle.pickupHotspot) {
             activePickupsByHotspot.set(
@@ -6784,7 +6788,7 @@ export default function MapSimulator() {
               (activeDropoffsByHotspot.get(vehicle.dropoffHotspot.id) ?? 0) + 1,
             );
           }
-        });
+        }
       }
 
       hotspotVisuals.forEach((visual, index) => {

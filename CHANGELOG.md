@@ -19,6 +19,7 @@
 - Reduced hotspot animation churn by caching marker modes and accent colors so unchanged badge styles and material colors are not rewritten every frame.
 - Reduced hover interaction overhead by reusing raycast hit arrays and preparing one pointer ray per hover pass instead of rebuilding raycast state for each target category.
 - Reduced per-vehicle transform cost by caching motion yaw during route sampling and reusing it for transform sync and follow-camera heading.
+- Reduced weather and hotspot scan overhead by caching precipitation position buffers and replacing callback-based hotspot activity scans with straight loops.
 - Reduced scene-build allocations in nearest-road lookups by replacing clone-heavy segment projection math with shared scratch vectors.
 - Replaced all-vehicle proximity scans with nearby-cell bucketing so follow-distance checks scale better as taxi and traffic density increases.
 - Reworked signal phase offsets to follow corridor-aligned coordination bands so nearby intersections no longer feel randomly out of sync.
