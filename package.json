@@ -3,17 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/run-next-with-port.mjs dev",
     "build": "next build",
+    "dev": "node scripts/run-next-with-port.mjs dev",
     "start": "node scripts/run-next-with-port.mjs start",
     "lint": "eslint",
     "fetch:dongs": "node fetch-dongs.mjs",
     "fetch:buildings": "node fetch-buildings.mjs",
     "fetch:roads": "node fetch-roads.mjs",
     "fetch:transit": "node fetch-transit.mjs",
-    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads && npm run fetch:transit"
+    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:roads && npm run fetch:transit",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.2",
     "osmtogeojson": "^3.0.0-beta.5",
@@ -30,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.81.1"
   }
 }
