@@ -16,6 +16,8 @@ This project does not use Google Maps Platform for map rendering. The only Googl
 ## Scripts
 
 ```bash
+npm run launch
+npm run asset:update
 npm run dev
 npm run build
 npm run lint
@@ -30,16 +32,37 @@ npm run fetch:map
 
 ```bash
 npm install
+npm run launch
+```
+
+If you want the interactive menu:
+
+- `npm run launch` explains the main `npm run` options and then lets you choose:
+  - `dev` for HMR-driven local work
+  - `start` for a production server
+  - `build`, `lint`, or `asset:update` for non-server tasks
+- When you choose `dev` or `start`, the launcher then asks whether to:
+  - open immediately on the default `3000`
+  - open on a custom port such as `8000` for VDI
+- The launcher automatically binds to a detected interface IP so the Next.js startup banner uses a real reachable host instead of `0.0.0.0`.
+- It prefers a private IP when one exists and falls back to a public IP on hosts like this VDI where only a public NIC is present.
+- After you pick the port, the launcher prints a single recommended access URL before handing off to Next.js.
+
+If you already know what you want, you can still run the direct commands:
+
+```bash
 npm run dev
+npm run dev -- --hostname 163.239.77.91 --port 8000
+npm run start -- --hostname 163.239.77.91 --port 8000
 ```
 
 Open `http://localhost:3000`.
 
 ## FPS Modes
 
-- `Auto` keeps visible rendering at `60 FPS` on 60Hz-like displays.
-- On displays above `100Hz`, `Auto` uses a half-refresh target such as `72 FPS` on a 144Hz panel.
-- `Auto` does not intentionally let the visible target fall below `50 FPS`, because `30 FPS` felt too laggy for camera motion and taxi-follow views.
+- `Auto` snaps the measured `requestAnimationFrame` cadence to a common display-refresh band.
+- Below `100Hz`, `Auto` targets full refresh such as `60`, `72`, `75`, or `90 FPS`.
+- On `100Hz+` displays, `Auto` targets half-refresh such as `60` on `120Hz`, `72` on `144Hz`, and `83` on `165Hz`.
 - `60 FPS` forces a visible 60 FPS target.
 - `Unlimited` removes the visible render cap.
 
@@ -49,6 +72,12 @@ Open `http://localhost:3000`.
 - You can now toggle a separate road-network overlay that shows graph edges as thin lines and graph nodes as points on top of the rendered streets.
 - This layer is meant for inspection and future routing work, similar to a lightweight road-network debug view rather than a replacement for the main road rendering.
 - `npm run fetch:roads` regenerates both `public/roads.geojson` and the lighter `public/road-network.json` asset.
+
+## Simulation Density
+
+- The sidebar now includes live density sliders for both taxis and general traffic.
+- Changing either slider rebuilds only the vehicle layer with the new counts, so taxi targets, follow view, and aggregate stats stay aligned without resetting the full map scene.
+- Density changes are deferred slightly while dragging to avoid thrashing the vehicle layer on every intermediate slider tick.
 
 ## Project Docs
 
@@ -69,8 +98,12 @@ The simulator uses:
 These files can be regenerated from OpenStreetMap with:
 
 ```bash
-npm run fetch:map
+npm run asset:update
 ```
+
+- `npm run asset:update` is the recommended asset refresh command.
+- `npm run fetch:map` remains as a compatibility alias to the same updater.
+- Asset refresh can take a few minutes because Overpass mirrors may rate-limit and retry.
 
 ## How The Map Is Built
 
@@ -106,7 +139,7 @@ flowchart LR
   - `public/transit.geojson`
 - For routing and graph inspection, it also reads:
   - `public/road-network.json`
-- If OSM data changes, you need to run `npm run fetch:map` again to regenerate the local assets.
+- If OSM data changes, you need to run `npm run asset:update` again to regenerate the local assets.
 - Weather, taxi movement, routing, signal behavior, and pickup/dropoff events are app-side simulation layers on top of that saved OSM geometry.
 
 ## Notes
@@ -153,9 +186,9 @@ Before merging to `main`, keep a small comparison set under `docs/screenshots/`:
 
 ## Short Roadmap
 
-- Add better UX controls such as a taxi-count slider.
 - Replace placeholder-looking signal visuals and implement more realistic signal logic.
 - Reduce or resolve deadlock behavior at busy intersections.
+- Make density changes hot-swappable without rebuilding the full scene.
 - Revisit district visualization with a road-aligned ground overlay instead of the current disabled boundary view.
 - Add hourly CSV-based weather, taxi-demand, and traffic data for the 9 selected dongs before attempting real-time ingestion.
 - Define a merged dong-level time-series format for later forecasting/model experiments.

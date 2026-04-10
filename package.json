@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/run-next-with-port.mjs dev",
+    "launch": "bash scripts/run-next.sh",
+    "asset:update": "bash scripts/update-assets.sh",
+    "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/run-next-with-port.mjs start",
+    "start": "next start",
     "lint": "eslint",
     "fetch:dongs": "node fetch-dongs.mjs",
     "fetch:buildings": "node fetch-buildings.mjs",
@@ -14,7 +16,7 @@
     "fetch:road-network": "node fetch-road-network.mjs",
     "fetch:traffic-signals": "node fetch-traffic-signals.mjs",
     "fetch:transit": "node fetch-transit.mjs",
-    "fetch:map": "npm run fetch:dongs && npm run fetch:buildings && npm run fetch:non-road && npm run fetch:roads && npm run fetch:traffic-signals && npm run fetch:transit"
+    "fetch:map": "npm run asset:update"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",

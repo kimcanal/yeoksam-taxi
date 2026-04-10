@@ -59,6 +59,8 @@ working well enough for demos, and what still needs another pass before a merge.
   a bumper view
 - Pickup and dropoff markers remain visible from both free-camera and taxi-view
   modes
+- Taxi and general traffic density can now be adjusted from the sidebar without
+  editing code constants
 
 ## Known Gaps Before Merge
 
@@ -66,7 +68,7 @@ working well enough for demos, and what still needs another pass before a merge.
 - Signal logic is still simplified and does not yet model per-approach
   intersection timing
 - Vehicle deadlock can still happen at busy intersections
-- Taxi density is still fixed in code rather than controlled by a slider
+- Density changes still rebuild the scene rather than hot-swapping vehicles
 - Dong boundaries need a clearer ground or road-aligned overlay approach if they
   return later
 - Real-world hourly weather, taxi-demand, and traffic inputs are still deferred

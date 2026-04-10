@@ -4,8 +4,26 @@
 
 ### Changed
 - Replaced the FPS overlay checkbox with explicit `Auto`, `60 FPS`, and `Unlimited` target modes.
-- Updated `Auto` target logic so 60Hz-like displays stay at 60 FPS, while 100Hz+ displays can use a half-refresh target without dropping the visible cap below 50 FPS.
+- Updated `Auto` target logic to snap to common refresh-rate bands, use full refresh below 100Hz, and use half-refresh on 100Hz+ displays such as 72 FPS on 144Hz.
 - Updated the FPS overlay to show both the selected mode and the active target value.
+- Replaced the env-mapped Next port wrapper with a bash launcher that explains the main `npm run` options, prefers a detected private IP for binding, falls back to a public IP when needed, and lets you choose default `3000` or a custom port such as `8000`.
+- Added an `asset:update` wrapper and pointed launcher option `5` at it so OSM asset refresh now has clearer progress output, a stable alias, and an explicit road-graph regeneration step.
+- Added sidebar simulation-density sliders for taxis and general traffic so demo load can be tuned without editing constants in code.
+- Deferred density-driven scene rebuilds so dragging the new sliders does not thrash the whole scene on every intermediate value.
+- Switched density application to rebuild only the vehicle layer so changing taxi or traffic counts no longer tears down the full scene.
+- Stopped rebuilding the full Three.js scene when label or transit visibility changes by toggling existing objects in place.
+- Reduced hover, stats, and FPS overlay churn so pointer movement and frame sampling avoid redundant DOM and React state updates.
+- Reduced per-frame camera and ride-view allocations by reusing scratch vectors instead of cloning route samples and positions inside the hot render loop.
+- Reduced per-frame signal and hotspot overhead by reusing cached signal states, skipping unchanged lamp material updates, throttling hotspot activity scans, and avoiding cloud animation work when those layers are hidden.
+- Reduced per-frame traffic simulation churn by reusing vehicle frame caches, next-stop state objects, intersection demand maps, and proximity buckets instead of rebuilding them every animation tick.
+- Reduced hotspot animation churn by caching marker modes and accent colors so unchanged badge styles and material colors are not rewritten every frame.
+- Reduced hover interaction overhead by reusing raycast hit arrays and preparing one pointer ray per hover pass instead of rebuilding raycast state for each target category.
+- Reduced per-vehicle transform cost by caching motion yaw during route sampling and reusing it for transform sync and follow-camera heading.
+- Reduced scene-build allocations in nearest-road lookups by replacing clone-heavy segment projection math with shared scratch vectors.
+- Replaced all-vehicle proximity scans with nearby-cell bucketing so follow-distance checks scale better as taxi and traffic density increases.
+- Reworked signal phase offsets to follow corridor-aligned coordination bands so nearby intersections no longer feel randomly out of sync.
+- Added opposing-approach turn demand checks so unprotected left turns yield to oncoming straight and right-turn traffic instead of cutting across active flow.
+- Added basic intersection box blocking so vehicles hold before a green signal when the same-axis exit is still clogged just beyond the junction.
 - Added a separate `public/non-road.geojson` asset and map layer so OSM non-road polygons such as parks, plazas, parking, water, and facility grounds are distinct from drivable roads.
 - Split the routing graph into a separate `public/road-network.json` asset so shortest-path work no longer has to rebuild the graph from road GeoJSON at runtime.
 - Added a toggleable road-network overlay that exposes the routing graph as visible nodes and edges on top of the map.
