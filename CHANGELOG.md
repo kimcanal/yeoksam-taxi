@@ -12,6 +12,7 @@
 - Replaced repeated square-root signal proximity checks with squared-distance comparisons inside the vehicle simulation loop.
 - Rebalanced sky and weather rendering to keep the background calmer, make the sun/moon/stars/sunset read more clearly, and preserve visible cloud forms instead of washing the whole sky toward white.
 - Stopped scene fog from washing out the sky's celestial objects and cloud forms, so the sun, moon, stars, and clouds remain visible as actual sky elements instead of fading into the background color.
+- Moved vehicle simulation to a fixed 30Hz step with interpolated render transforms, so higher render FPS no longer forces the most expensive traffic logic to run every frame.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.

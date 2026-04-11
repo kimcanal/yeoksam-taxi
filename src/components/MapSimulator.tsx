@@ -38,6 +38,9 @@ const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
 const SERVICE_STOP_DURATION = 1.6;
+const VEHICLE_SIMULATION_FPS = 30;
+const VEHICLE_SIMULATION_STEP = 1 / VEHICLE_SIMULATION_FPS;
+const MAX_VEHICLE_SIMULATION_STEPS = 4;
 const SIGNAL_RADIUS_SQ = SIGNAL_RADIUS * SIGNAL_RADIUS;
 const CURBSIDE_EDGE_INSET_MIN = 0.45;
 const CURBSIDE_EDGE_INSET_MAX = 0.72;
@@ -395,7 +398,9 @@ type Vehicle = {
   dropoffHotspot: Hotspot | null;
   serviceTimer: number;
   planMode: VehiclePlanMode;
+  previousMotion: VehicleMotionState;
   motion: VehicleMotionState;
+  renderMotion: VehicleMotionState;
 };
 
 type VehicleSimulationSample = {
@@ -1704,6 +1709,20 @@ function createVehicleMotionState(): VehicleMotionState {
     yaw: 0,
     nextStopIndex: 0,
   };
+}
+
+function copyVehicleMotionState(
+  target: VehicleMotionState,
+  source: VehicleMotionState,
+) {
+  target.position.copy(source.position);
+  target.heading.copy(source.heading);
+  target.segmentIndex = source.segmentIndex;
+  target.lanePosition.copy(source.lanePosition);
+  target.right.copy(source.right);
+  target.yaw = source.yaw;
+  target.nextStopIndex = source.nextStopIndex;
+  return target;
 }
 
 function createNextStopState(): NextStopState {
@@ -4619,9 +4638,38 @@ function updateVehicleMotionState(vehicle: Vehicle) {
   );
 }
 
-function syncVehicleTransform(vehicle: Vehicle) {
-  vehicle.group.position.copy(vehicle.motion.lanePosition);
-  vehicle.group.rotation.y = vehicle.motion.yaw;
+function syncVehicleTransform(vehicle: Vehicle, alpha = 1) {
+  const nextAlpha = THREE.MathUtils.clamp(alpha, 0, 1);
+  const { previousMotion, motion, renderMotion } = vehicle;
+
+  if (nextAlpha >= 0.999) {
+    copyVehicleMotionState(renderMotion, motion);
+  } else {
+    renderMotion.position.copy(previousMotion.position).lerp(motion.position, nextAlpha);
+    renderMotion.heading.copy(previousMotion.heading).lerp(motion.heading, nextAlpha);
+    if (renderMotion.heading.lengthSq() < 0.0001) {
+      renderMotion.heading.copy(motion.heading);
+    } else {
+      renderMotion.heading.normalize();
+    }
+    renderMotion.segmentIndex = motion.segmentIndex;
+    renderMotion.lanePosition
+      .copy(previousMotion.lanePosition)
+      .lerp(motion.lanePosition, nextAlpha);
+    renderMotion.right.copy(previousMotion.right).lerp(motion.right, nextAlpha);
+    if (renderMotion.right.lengthSq() < 0.0001) {
+      renderMotion.right.copy(motion.right);
+    } else {
+      renderMotion.right.normalize();
+    }
+    renderMotion.yaw =
+      previousMotion.yaw +
+      wrapAngle(motion.yaw - previousMotion.yaw) * nextAlpha;
+    renderMotion.nextStopIndex = motion.nextStopIndex;
+  }
+
+  vehicle.group.position.copy(renderMotion.lanePosition);
+  vehicle.group.rotation.y = renderMotion.yaw;
 }
 
 function assignVehicleRoute(
@@ -4635,6 +4683,8 @@ function assignVehicleRoute(
   vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(route, distance, 0);
   vehicle.motion.nextStopIndex = resolveNextStop(route, distance, 0).index;
   updateVehicleMotionState(vehicle);
+  copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
+  copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
 }
 
 function planTaxiJob(
@@ -5700,6 +5750,7 @@ export default function MapSimulator() {
       taxiVehicles.length = 0;
       taxiClickTargets.length = 0;
       taxiById.clear();
+      vehicleSimulationAccumulator = 0;
     };
 
     const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
@@ -5751,7 +5802,9 @@ export default function MapSimulator() {
           dropoffHotspot: job.dropoffHotspot,
           serviceTimer: 0,
           planMode: "pickup",
+          previousMotion: createVehicleMotionState(),
           motion: createVehicleMotionState(),
+          renderMotion: createVehicleMotionState(),
         };
         vehicle.motion.nextStopIndex = resolveNextStop(
           job.pickupRoute,
@@ -5767,7 +5820,9 @@ export default function MapSimulator() {
         }
         setTaxiAppearance(vehicle);
         updateVehicleMotionState(vehicle);
-        syncVehicleTransform(vehicle);
+        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
+        copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
+        syncVehicleTransform(vehicle, 1);
         vehicles.push(vehicle);
         taxiVehicles.push(vehicle);
         taxiById.set(vehicle.id, vehicle);
@@ -5802,7 +5857,9 @@ export default function MapSimulator() {
           dropoffHotspot: null,
           serviceTimer: 0,
           planMode: "traffic",
+          previousMotion: createVehicleMotionState(),
           motion: createVehicleMotionState(),
+          renderMotion: createVehicleMotionState(),
         };
         vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
           route,
@@ -5815,7 +5872,9 @@ export default function MapSimulator() {
           0,
         ).index;
         updateVehicleMotionState(vehicle);
-        syncVehicleTransform(vehicle);
+        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
+        copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
+        syncVehicleTransform(vehicle, 1);
         vehicles.push(vehicle);
       }
 
@@ -6293,7 +6352,7 @@ export default function MapSimulator() {
       setCameraMode("ride");
     };
 
-    const taxiHeading = (vehicle: Vehicle) => vehicle.motion.yaw;
+    const taxiHeading = (vehicle: Vehicle) => vehicle.renderMotion.yaw;
 
     const applyModePreset = (mode: CameraMode) => {
       if (mode === "overview") {
@@ -6914,6 +6973,7 @@ export default function MapSimulator() {
     const intersectionExitOccupancy = new Map<string, SignalAxisOccupancy>();
     const proximityBuckets = new Map<string, VehicleSimulationSample[]>();
     const vehicleSimulationSamples: VehicleSimulationSample[] = [];
+    let vehicleSimulationAccumulator = 0;
 
     const applyEnvironment = (
       dateIso: string,
@@ -7405,6 +7465,10 @@ export default function MapSimulator() {
       proximityBuckets.forEach((bucket) => {
         bucket.length = 0;
       });
+      for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
+        const vehicle = vehicles[vehicleIndex]!;
+        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
+      }
 
       for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
         const vehicle = vehicles[vehicleIndex]!;
@@ -7723,7 +7787,6 @@ export default function MapSimulator() {
           updateVehicleMotionState(vehicle);
         }
 
-        syncVehicleTransform(vehicle);
         syncVehicleSampleBucket(proximityBuckets, current);
         if (vehicle.kind === "taxi" && vehicle.isOccupied) {
           activeTrips += 1;
@@ -8221,6 +8284,37 @@ export default function MapSimulator() {
       }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
+      updateSignalVisuals(elapsedTime);
+      vehicleSimulationAccumulator = Math.min(
+        vehicleSimulationAccumulator + delta,
+        VEHICLE_SIMULATION_STEP * MAX_VEHICLE_SIMULATION_STEPS,
+      );
+      let vehicleSimulationSteps = 0;
+      while (
+        vehicleSimulationAccumulator >= VEHICLE_SIMULATION_STEP &&
+        vehicleSimulationSteps < MAX_VEHICLE_SIMULATION_STEPS
+      ) {
+        updateVehicles(VEHICLE_SIMULATION_STEP, elapsedTime);
+        vehicleSimulationAccumulator -= VEHICLE_SIMULATION_STEP;
+        vehicleSimulationSteps += 1;
+      }
+      if (
+        vehicleSimulationSteps === MAX_VEHICLE_SIMULATION_STEPS &&
+        vehicleSimulationAccumulator >= VEHICLE_SIMULATION_STEP
+      ) {
+        vehicleSimulationAccumulator %= VEHICLE_SIMULATION_STEP;
+      }
+      const vehicleInterpolationAlpha = THREE.MathUtils.clamp(
+        vehicleSimulationAccumulator / VEHICLE_SIMULATION_STEP,
+        0,
+        1,
+      );
+      for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
+        syncVehicleTransform(
+          vehicles[vehicleIndex]!,
+          vehicleInterpolationAlpha,
+        );
+      }
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
@@ -8375,7 +8469,7 @@ export default function MapSimulator() {
         }
         const viewedTaxi = resolveFollowTaxi();
         if (viewedTaxi) {
-          rideHeading.copy(viewedTaxi.motion.heading);
+          rideHeading.copy(viewedTaxi.renderMotion.heading);
           if (rideHeading.lengthSq() < 0.0001) {
             rideHeading.set(0, 0, 1);
           } else {
@@ -8383,16 +8477,16 @@ export default function MapSimulator() {
           }
           const rideBlend = 1 - Math.exp(-delta * 7.2);
           rideCameraPosition
-            .copy(viewedTaxi.motion.lanePosition)
+            .copy(viewedTaxi.renderMotion.lanePosition)
             .addScaledVector(rideHeading, TAXI_VIEW_CAMERA_BACK_OFFSET)
             .addScaledVector(
-              viewedTaxi.motion.right,
+              viewedTaxi.renderMotion.right,
               TAXI_VIEW_CAMERA_SIDE_OFFSET,
             );
           rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
 
           rideDesiredLookTarget
-            .copy(viewedTaxi.motion.lanePosition)
+            .copy(viewedTaxi.renderMotion.lanePosition)
             .addScaledVector(rideHeading, TAXI_VIEW_LOOK_AHEAD);
           rideDesiredLookTarget.y = viewedTaxi.group.position.y + 1.6;
 
@@ -8415,11 +8509,9 @@ export default function MapSimulator() {
         syncCamera();
       }
 
-      updateSignalVisuals(elapsedTime);
       updateHotspotVisuals(delta, elapsedTime);
       updatePedestrians(elapsedTime);
       updatePrecipitation(delta, elapsedTime);
-      updateVehicles(delta, elapsedTime);
       if (cloudMaterial.opacity > 0.001) {
         cloudClusters.forEach(({ cluster, anchor, phase }) => {
           cluster.position.x =
