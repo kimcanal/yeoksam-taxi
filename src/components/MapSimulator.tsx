@@ -113,6 +113,8 @@ const NON_ROAD_LAYER_Y = {
 } as const;
 const ROAD_NETWORK_EDGE_Y_OFFSET = 0.42;
 const ROAD_NETWORK_NODE_Y = 0.72;
+const LARGE_LOW_RISE_BUILDING_AREA_M2 = 12_000;
+const LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M = 20;
 
 type SignalAxis = "ns" | "ew";
 type SignalDirection = "north" | "east" | "south" | "west";
@@ -3157,6 +3159,24 @@ function buildBuildingMasses(
 
   return buildings.features
     .map((feature, index) => {
+      const footprintAreaM2 = feature.properties.area ?? 0;
+      const heightMeters = feature.properties.height ?? 15;
+      const label = feature.properties.label ?? "";
+      const isLargeLowRiseComplex =
+        footprintAreaM2 >= LARGE_LOW_RISE_BUILDING_AREA_M2 &&
+        heightMeters <= LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M;
+      const isUndergroundRetailSlab =
+        /지하|underground/i.test(label) &&
+        footprintAreaM2 >= 4_000 &&
+        heightMeters <= LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M;
+
+      // Very large low-rise footprints such as underground malls or horizontal
+      // retail complexes collapse into one oversized slab when rendered as a
+      // single box. Skipping those keeps roads/signals readable.
+      if (isLargeLowRiseComplex || isUndergroundRetailSlab) {
+        return null;
+      }
+
       const ring = outerRingOfBuilding(feature, center);
       if (ring.length < 4) {
         return null;
@@ -3237,15 +3257,12 @@ function buildBuildingMasses(
       return {
         id: `building-${index}`,
         label: feature.properties.label,
-        height: Math.max(
-          2,
-          (feature.properties.height ?? 15) * BUILDING_HEIGHT_SCALE,
-        ),
+        height: Math.max(2, heightMeters * BUILDING_HEIGHT_SCALE),
         position: footprintCenter,
         width,
         depth,
         rotationY,
-        color: colorForBuilding(feature.properties.height ?? 15),
+        color: colorForBuilding(heightMeters),
       } satisfies BuildingMass;
     })
     .filter(Boolean) as BuildingMass[];
