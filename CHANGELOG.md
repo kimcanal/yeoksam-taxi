@@ -40,6 +40,7 @@
 - Tightened the README introduction so the current scope, intended use, and non-goals are visible at the top.
 - Refreshed the automated local scenario screenshots so the current gallery reflects the Korean presentation UI and updated preset guidance.
 - Documented that scenario screenshot capture now uses a presentation-friendly gallery layout instead of the full operator UI.
+- Polished the Module 1 alignment note for clearer presentation positioning and quicker scanning.
 
 ## 2026-04-10
 

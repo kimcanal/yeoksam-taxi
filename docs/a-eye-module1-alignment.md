@@ -1,17 +1,19 @@
 # A-Eye Module 1 Alignment
 
+This note keeps the story clean: the dispatch baseline stays in SUMO, and this repo carries the spatial layer that makes the story look and feel real.
+
 ## Why This Repo Exists
 
-`A-Eye` currently keeps one active implementation path:
+**Active baseline:** `A-Eye` currently keeps one active implementation path.
 
 - `Yeoksam 3x3 micro area`
 - `5-minute synthetic demand`
 - `rule-based dispatch`
 - `before / after SUMO export`
 
-That baseline is still the main evaluation path for dispatch comparison.
+That baseline remains the main evaluation path for dispatch comparison.
 
-This repo exists as the spatial companion to that baseline:
+**This repo's role:** a spatial companion to the baseline.
 
 - a `Module 1` style digital-twin viewer
 - a real-map geometry layer around Gangnam Station
@@ -30,7 +32,7 @@ Using 9 real administrative dongs is a better fit for this viewer because it:
 
 The simplified `3x3` layout is still useful for compact dispatch comparison and zone-level modeling.
 
-The two layers are therefore complementary:
+**Complementary layers:**
 
 - `3x3`: simplified dispatch-evaluation layer
 - `9 dongs`: spatial digital-twin layer
@@ -60,13 +62,13 @@ That is enough to support a micro-area digital-twin presentation layer.
 
 ## What This Repo Should Claim
 
-This repo can claim:
+**This repo can claim:**
 
 - a `Gangnam Station micro-area` digital-twin companion for `A-Eye`
 - a `9-dong OSM` spatial layer for Module 1 style presentation
 - prototype-grade road, signal, and curbside reasoning on top of real geometry
 
-This repo should not claim:
+**This repo should not claim:**
 
 - full Gangnam digital twin
 - full Seoul traffic replication
@@ -75,7 +77,7 @@ This repo should not claim:
 
 ## Practical Integration Rule
 
-The recommended interpretation going forward is:
+**Recommended interpretation going forward:**
 
 - keep `A-Eye` baseline evaluation on the existing simplified SUMO path
 - keep this repo focused on realistic spatial presentation and road-level behavior
