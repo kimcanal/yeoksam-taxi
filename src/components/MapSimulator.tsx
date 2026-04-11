@@ -329,6 +329,7 @@ type RouteTemplate = {
   nodes: RouteNode[];
   cumulative: number[];
   segmentLengths: number[];
+  segmentHeadings: THREE.Vector3[];
   totalLength: number;
   stops: StopMarker[];
   startKey: string;
@@ -1614,6 +1615,20 @@ function buildSegmentLengthsFromCumulative(cumulative: number[]) {
   return segmentLengths;
 }
 
+function buildSegmentHeadings(points: THREE.Vector3[]) {
+  const segmentHeadings: THREE.Vector3[] = [];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const heading = points[index + 1]!.clone().sub(points[index]!);
+    if (heading.lengthSq() < 0.0001) {
+      heading.set(0, 0, 1);
+    } else {
+      heading.normalize();
+    }
+    segmentHeadings.push(heading);
+  }
+  return segmentHeadings;
+}
+
 function normalizeDistance(value: number, totalLength: number) {
   if (totalLength <= 0) {
     return 0;
@@ -1793,12 +1808,16 @@ function sampleRouteInto(
   const end = route.nodes[segmentIndex + 1]?.point ?? start;
   const segmentStart = route.cumulative[segmentIndex];
   const segmentLength = Math.max(route.segmentLengths[segmentIndex] ?? 0, 0.0001);
-
-  target.heading.copy(end).sub(start);
-  if (target.heading.lengthSq() < 0.0001) {
-    target.heading.set(0, 0, 1);
+  const segmentHeading = route.segmentHeadings[segmentIndex];
+  if (segmentHeading) {
+    target.heading.copy(segmentHeading);
   } else {
-    target.heading.normalize();
+    target.heading.copy(end).sub(start);
+    if (target.heading.lengthSq() < 0.0001) {
+      target.heading.set(0, 0, 1);
+    } else {
+      target.heading.normalize();
+    }
   }
 
   target.position
@@ -3738,6 +3757,7 @@ function buildPathRoute(
 
   const cumulative = buildCumulative(nodes.map((node) => node.point));
   const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
+  const segmentHeadings = buildSegmentHeadings(nodes.map((node) => node.point));
   const totalLength = cumulative[cumulative.length - 1] ?? 0;
   if (totalLength < 2) {
     return null;
@@ -3786,6 +3806,7 @@ function buildPathRoute(
     nodes,
     cumulative,
     segmentLengths,
+    segmentHeadings,
     totalLength,
     stops,
     startKey: nodeKeys[0],
@@ -3857,6 +3878,9 @@ function buildLoopRoutes(
         roundTripNodes.map((node) => node.point),
       );
       const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
+      const segmentHeadings = buildSegmentHeadings(
+        roundTripNodes.map((node) => node.point),
+      );
       const totalLength = cumulative[cumulative.length - 1] ?? 0;
 
       const stops: StopMarker[] = [];
@@ -3899,6 +3923,7 @@ function buildLoopRoutes(
         nodes: roundTripNodes,
         cumulative,
         segmentLengths,
+        segmentHeadings,
         totalLength,
         stops,
         startKey: roundTripNodes[0].key,
