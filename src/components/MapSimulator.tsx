@@ -328,6 +328,7 @@ type RouteTemplate = {
   laneOffset: number;
   nodes: RouteNode[];
   cumulative: number[];
+  segmentLengths: number[];
   totalLength: number;
   stops: StopMarker[];
   startKey: string;
@@ -1605,6 +1606,14 @@ function buildCumulative(points: THREE.Vector3[]) {
   return cumulative;
 }
 
+function buildSegmentLengthsFromCumulative(cumulative: number[]) {
+  const segmentLengths: number[] = [];
+  for (let index = 0; index < cumulative.length - 1; index += 1) {
+    segmentLengths.push(cumulative[index + 1]! - cumulative[index]!);
+  }
+  return segmentLengths;
+}
+
 function normalizeDistance(value: number, totalLength: number) {
   if (totalLength <= 0) {
     return 0;
@@ -1783,7 +1792,7 @@ function sampleRouteInto(
   const start = route.nodes[segmentIndex].point;
   const end = route.nodes[segmentIndex + 1]?.point ?? start;
   const segmentStart = route.cumulative[segmentIndex];
-  const segmentLength = Math.max(distanceXZ(start, end), 0.0001);
+  const segmentLength = Math.max(route.segmentLengths[segmentIndex] ?? 0, 0.0001);
 
   target.heading.copy(end).sub(start);
   if (target.heading.lengthSq() < 0.0001) {
@@ -3728,6 +3737,7 @@ function buildPathRoute(
     .filter(Boolean) as GraphEdge[];
 
   const cumulative = buildCumulative(nodes.map((node) => node.point));
+  const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
   const totalLength = cumulative[cumulative.length - 1] ?? 0;
   if (totalLength < 2) {
     return null;
@@ -3775,6 +3785,7 @@ function buildPathRoute(
     laneOffset: THREE.MathUtils.clamp(roadWidth * 0.22, 0.45, 0.95),
     nodes,
     cumulative,
+    segmentLengths,
     totalLength,
     stops,
     startKey: nodeKeys[0],
@@ -3845,6 +3856,7 @@ function buildLoopRoutes(
       const cumulative = buildCumulative(
         roundTripNodes.map((node) => node.point),
       );
+      const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
       const totalLength = cumulative[cumulative.length - 1] ?? 0;
 
       const stops: StopMarker[] = [];
@@ -3886,6 +3898,7 @@ function buildLoopRoutes(
         ),
         nodes: roundTripNodes,
         cumulative,
+        segmentLengths,
         totalLength,
         stops,
         startKey: roundTripNodes[0].key,
@@ -5359,6 +5372,8 @@ export default function MapSimulator() {
       .array as Float32Array;
     const rainSeedCount = rainLayer.seeds.length;
     const snowSeedCount = snowLayer.seeds.length;
+    let activeRainSeedCount = rainSeedCount;
+    let activeSnowSeedCount = snowSeedCount;
     let appliedPrecipitationDensitySignature = "";
     const syncPrecipitationDensity = (mode: CameraMode) => {
       const drawRatio = precipitationDrawRatioFor(mode, isPageHidden);
@@ -5370,6 +5385,8 @@ export default function MapSimulator() {
       }
 
       appliedPrecipitationDensitySignature = nextSignature;
+      activeRainSeedCount = rainDrawCount;
+      activeSnowSeedCount = snowDrawCount;
       rainLayer.geometry.setDrawRange(0, rainDrawCount);
       snowLayer.geometry.setDrawRange(0, snowDrawCount);
     };
@@ -6833,7 +6850,7 @@ export default function MapSimulator() {
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
       if (rainLayer.points.visible) {
-        for (let index = 0; index < rainSeedCount; index += 1) {
+        for (let index = 0; index < activeRainSeedCount; index += 1) {
           const offset = index * 3;
           rainPositions[offset] += delta * 3.1;
           rainPositions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
@@ -6861,7 +6878,7 @@ export default function MapSimulator() {
       }
 
       if (snowLayer.points.visible) {
-        for (let index = 0; index < snowSeedCount; index += 1) {
+        for (let index = 0; index < activeSnowSeedCount; index += 1) {
           const offset = index * 3;
           const sway =
             Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) *
