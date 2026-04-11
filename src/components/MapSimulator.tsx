@@ -425,6 +425,10 @@ type FpsMode = "auto" | "fixed60" | "unlimited";
 type FpsStats = {
   fps: number;
   capLabel: string;
+  simulationMs: number;
+  renderMs: number;
+  simulationHz: number;
+  vehicles: number;
 };
 
 type WeatherOption = {
@@ -4809,6 +4813,10 @@ export default function MapSimulator() {
   const [fpsStats, setFpsStats] = useState<FpsStats>({
     fps: 0,
     capLabel: renderCapLabel(renderFpsCapFor("drive"), false, "auto"),
+    simulationMs: 0,
+    renderMs: 0,
+    simulationHz: 0,
+    vehicles: 0,
   });
   const deferredSimulationDensity = useDeferredValue(simulationDensity);
   const appliedTaxiCount = deferredSimulationDensity.taxis;
@@ -6959,6 +6967,9 @@ export default function MapSimulator() {
     let statsAccumulator = 0;
     let fpsSampleElapsed = 0;
     let fpsFrameCount = 0;
+    let simulationCpuSampleMs = 0;
+    let renderCpuSampleMs = 0;
+    let simulationStepSampleCount = 0;
     let appliedDateIso: string | null = null;
     let appliedWeatherMode: WeatherMode | null = null;
     let appliedTimeMinutes = -1;
@@ -8284,6 +8295,7 @@ export default function MapSimulator() {
       }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
+      const simulationCpuStart = performance.now();
       updateSignalVisuals(elapsedTime);
       vehicleSimulationAccumulator = Math.min(
         vehicleSimulationAccumulator + delta,
@@ -8315,6 +8327,8 @@ export default function MapSimulator() {
           vehicleInterpolationAlpha,
         );
       }
+      simulationStepSampleCount += vehicleSimulationSteps;
+      simulationCpuSampleMs += performance.now() - simulationCpuStart;
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
@@ -8509,6 +8523,7 @@ export default function MapSimulator() {
         syncCamera();
       }
 
+      const overlaySimulationCpuStart = performance.now();
       updateHotspotVisuals(delta, elapsedTime);
       updatePedestrians(elapsedTime);
       updatePrecipitation(delta, elapsedTime);
@@ -8532,41 +8547,60 @@ export default function MapSimulator() {
             anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
         });
       }
+      simulationCpuSampleMs += performance.now() - overlaySimulationCpuStart;
       fpsFrameCount += 1;
       fpsSampleElapsed += delta;
       if (fpsSampleElapsed >= 0.45) {
+        const nextCapLabel = renderCapLabel(
+          activeRenderCap,
+          isPageHidden,
+          fpsModeRef.current,
+        );
         if (showFpsRef.current) {
           const nextFps = Math.round(fpsFrameCount / fpsSampleElapsed);
-          const nextCapLabel = renderCapLabel(
-            activeRenderCap,
-            isPageHidden,
-            fpsModeRef.current,
+          const nextSimulationMs =
+            Math.round(
+              (simulationCpuSampleMs / Math.max(1, fpsFrameCount)) * 100,
+            ) / 100;
+          const nextRenderMs =
+            Math.round((renderCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
+            100;
+          const nextSimulationHz = Math.round(
+            simulationStepSampleCount / fpsSampleElapsed,
           );
+          const nextVehicles = vehicles.length;
           setFpsStats((current) =>
-            current.fps === nextFps && current.capLabel === nextCapLabel
+            current.fps === nextFps &&
+            current.capLabel === nextCapLabel &&
+            current.simulationMs === nextSimulationMs &&
+            current.renderMs === nextRenderMs &&
+            current.simulationHz === nextSimulationHz &&
+            current.vehicles === nextVehicles
               ? current
               : {
                   fps: nextFps,
                   capLabel: nextCapLabel,
+                  simulationMs: nextSimulationMs,
+                  renderMs: nextRenderMs,
+                  simulationHz: nextSimulationHz,
+                  vehicles: nextVehicles,
                 },
           );
         } else {
           setFpsStats((current) =>
-            current.capLabel ===
-            renderCapLabel(activeRenderCap, isPageHidden, fpsModeRef.current)
+            current.capLabel === nextCapLabel
               ? current
               : {
                   ...current,
-                  capLabel: renderCapLabel(
-                    activeRenderCap,
-                    isPageHidden,
-                    fpsModeRef.current,
-                  ),
+                  capLabel: nextCapLabel,
                 },
           );
         }
         fpsFrameCount = 0;
         fpsSampleElapsed = 0;
+        simulationCpuSampleMs = 0;
+        renderCpuSampleMs = 0;
+        simulationStepSampleCount = 0;
       }
       starsMaterial.opacity =
         activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
@@ -8614,8 +8648,10 @@ export default function MapSimulator() {
         hoverNeedsUpdate = false;
         hoverRefreshAccumulator = 0;
       }
+      const renderCpuStart = performance.now();
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
+      renderCpuSampleMs += performance.now() - renderCpuStart;
     };
 
     animate();
@@ -9007,7 +9043,7 @@ export default function MapSimulator() {
       {showFps ? (
         <div className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md">
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
-            FPS
+            Performance
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-2xl font-semibold tabular-nums text-lime-100">
@@ -9018,7 +9054,39 @@ export default function MapSimulator() {
               <div>Target: {fpsStats.capLabel}</div>
             </div>
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
+          <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] text-slate-300">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                Sim
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.simulationMs.toFixed(2)} ms
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                Render
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.renderMs.toFixed(2)} ms
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                Sim Hz
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.simulationHz}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                Vehicles
+              </div>
+              <div className="tabular-nums text-lime-100">{fpsStats.vehicles}</div>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
             {fpsModeOptions.map((option) => {
               const isSelected = fpsMode === option.id;
               return (
@@ -9048,7 +9116,7 @@ export default function MapSimulator() {
 
       <div
         className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${
-          showFps ? "top-[11rem]" : "top-4"
+          showFps ? "top-[16rem]" : "top-4"
         }`}
       >
         {timeWeatherControls}
