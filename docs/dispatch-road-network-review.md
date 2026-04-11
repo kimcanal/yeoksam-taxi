@@ -47,6 +47,14 @@ Instead of picking only by distance along the route, hotspot selection now penal
 
 That keeps generated pickup and dropoff points closer to stable mid-block road positions, which is a better fit for later dispatch logic.
 
+The simulator also now uses one shared curbside offset rule for:
+
+- hotspot marker placement
+- caller placement
+- the taxi's final pickup/dropoff approach
+
+That makes service stops read more like a curb pull-over instead of a lane-center halt.
+
 ## What OSM Still Does Not Give Us Cleanly
 
 OSM is good enough for a prototype road graph, but it is not a full dispatch-grade street operations dataset.

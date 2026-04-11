@@ -38,7 +38,10 @@ const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
 const SERVICE_STOP_DURATION = 1.6;
-const SERVICE_PULL_OVER_OFFSET = 1.7;
+const CURBSIDE_EDGE_INSET_MIN = 0.45;
+const CURBSIDE_EDGE_INSET_MAX = 0.72;
+const CURBSIDE_EXTRA_OFFSET_MAX = 1.05;
+const CURBSIDE_SIDEWALK_OFFSET = 0.92;
 const INTERSECTION_OCCUPANCY_RADIUS = 3.8;
 const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
 const INTERSECTION_EXIT_QUEUE_RADIUS = 8.8;
@@ -1928,6 +1931,39 @@ function offsetToRight(
 ) {
   const right = writeRightVector(heading, new THREE.Vector3());
   return position.clone().addScaledVector(right, offset);
+}
+
+function curbsideLaneOffset(route: Pick<RouteTemplate, "roadWidth" | "laneOffset">) {
+  const edgeInset = THREE.MathUtils.clamp(
+    route.roadWidth * 0.16,
+    CURBSIDE_EDGE_INSET_MIN,
+    CURBSIDE_EDGE_INSET_MAX,
+  );
+  return THREE.MathUtils.clamp(
+    route.roadWidth * 0.5 - edgeInset,
+    route.laneOffset + 0.16,
+    route.laneOffset + CURBSIDE_EXTRA_OFFSET_MAX,
+  );
+}
+
+function curbsideApproachBlend(vehicle: Vehicle) {
+  if (vehicle.kind !== "taxi" || vehicle.route.isLoop) {
+    return 0;
+  }
+  if (vehicle.serviceTimer > 0) {
+    return 1;
+  }
+
+  const destinationGap = Math.max(0, vehicle.route.totalLength - vehicle.distance);
+  if (destinationGap >= HOTSPOT_SLOWDOWN_DISTANCE) {
+    return 0;
+  }
+
+  return THREE.MathUtils.smoothstep(
+    1 - destinationGap / HOTSPOT_SLOWDOWN_DISTANCE,
+    0,
+    1,
+  );
 }
 
 function wrapAngle(angle: number) {
@@ -4117,7 +4153,7 @@ function buildTaxiHotspots(
       const lanePosition = offsetToRight(
         currentPoint,
         heading,
-        route.laneOffset + 0.95,
+        curbsideLaneOffset(route),
       );
       return {
         id: `${route.id}-hotspot-${hotspotIndex}`,
@@ -4554,20 +4590,18 @@ function updateVehicleMotionState(vehicle: Vehicle) {
     vehicle.motion.segmentIndex,
   );
   writeRightVector(vehicle.motion.heading, vehicle.motion.right);
-  const pullOverOffset =
-    vehicle.kind === "taxi" && vehicle.serviceTimer > 0 && !vehicle.route.isLoop
-      ? THREE.MathUtils.clamp(
-          vehicle.route.roadWidth * 0.18 + SERVICE_PULL_OVER_OFFSET,
-          1.15,
-          2.4,
+  const pullOverBlend = curbsideApproachBlend(vehicle);
+  const laneOffset =
+    pullOverBlend > 0
+      ? THREE.MathUtils.lerp(
+          vehicle.route.laneOffset,
+          curbsideLaneOffset(vehicle.route),
+          pullOverBlend,
         )
-      : 0;
+      : vehicle.route.laneOffset;
   vehicle.motion.lanePosition
     .copy(vehicle.motion.position)
-    .addScaledVector(
-      vehicle.motion.right,
-      vehicle.route.laneOffset + pullOverOffset,
-    );
+    .addScaledVector(vehicle.motion.right, laneOffset);
   vehicle.motion.yaw = Math.atan2(
     vehicle.motion.heading.x,
     vehicle.motion.heading.z,
@@ -6679,7 +6713,9 @@ export default function MapSimulator() {
         group.add(ring);
 
         const caller = createCallerGroup(index);
-        const curbOffset = (hotspotRoute?.roadWidth ?? 3.8) * 0.72 + 1.55;
+        const curbOffset = hotspotRoute
+          ? curbsideLaneOffset(hotspotRoute) + CURBSIDE_SIDEWALK_OFFSET
+          : 2.15;
         const callerAnchor = offsetToRight(
           hotspotSample.position,
           hotspotSample.heading,
@@ -7600,10 +7636,12 @@ export default function MapSimulator() {
         vehicle.speed = holdPosition
           ? 0
           : THREE.MathUtils.damp(vehicle.speed, targetSpeed, 3.2, delta);
-        if (!holdPosition) {
+        if (!holdPosition || (vehicle.kind === "taxi" && vehicle.serviceTimer > 0)) {
           vehicle.distance = clampRouteDistance(
             vehicle.route,
-            vehicle.distance + vehicle.speed * delta,
+            holdPosition
+              ? vehicle.distance
+              : vehicle.distance + vehicle.speed * delta,
           );
           updateVehicleMotionState(vehicle);
         }
