@@ -109,6 +109,7 @@ Open `http://localhost:3000`.
 
 - `npm run screenshot:install` downloads the Playwright Chromium bundle used for local captures.
 - `npm run screenshot:scenarios` builds the app, starts a local production server on `127.0.0.1:3200` or the next free port, applies each local scenario preset, and saves PNG files under `docs/screenshots/local-scenarios/`.
+- The capture script switches to an overview camera, hides the heavy control panels, and adds a compact scenario title card so the saved PNGs read like gallery shots instead of raw operator screens.
 - Current output filenames are:
   - `scenario-baseline-demo.png`
   - `scenario-gangnam-station-peak.png`

@@ -27,6 +27,7 @@
 - Added a scenario brief card that updates with the selected local preset so presentation narration now changes together with the scene state.
 - Added preset recommendation chips plus per-scenario speaker notes so the time, weather, density, and focus point for each local preset are readable at a glance during demos.
 - Localized the main presentation overlays, asset-summary cards, density controls, and validation panels to Korean so the in-app narration flow now matches the target presentation language.
+- Updated automated scenario capture to switch into a cleaner gallery composition with an overview camera, hidden operator panels, and a compact scenario title card.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
@@ -36,6 +37,7 @@
 - Replaced the outdated branch-specific screenshot section in the README with the current automated local scenario gallery.
 - Tightened the README introduction so the current scope, intended use, and non-goals are visible at the top.
 - Refreshed the automated local scenario screenshots so the current gallery reflects the Korean presentation UI and updated preset guidance.
+- Documented that scenario screenshot capture now uses a presentation-friendly gallery layout instead of the full operator UI.
 
 ## 2026-04-10
 

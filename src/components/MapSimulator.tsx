@@ -9457,7 +9457,10 @@ export default function MapSimulator() {
       <div ref={containerRef} className="h-full w-full" />
 
       {showFps ? (
-        <div className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md">
+        <div
+          data-ui-panel="fps-overlay"
+          className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
+        >
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
             성능
           </div>
@@ -9531,6 +9534,7 @@ export default function MapSimulator() {
       ) : null}
 
       <div
+        data-ui-panel="right-sidebar"
         className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${
           showFps ? "top-[16rem]" : "top-4"
         }`}
@@ -9538,7 +9542,10 @@ export default function MapSimulator() {
         {timeWeatherControls}
       </div>
 
-      <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
+      <div
+        data-ui-panel="left-sidebar"
+        className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]"
+      >
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
           A-Eye 모듈 1 보조 레이어
         </p>
@@ -9896,7 +9903,10 @@ export default function MapSimulator() {
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm lg:hidden">
+        <div
+          data-ui-panel="mobile-time-weather"
+          className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm lg:hidden"
+        >
           {timeWeatherControls}
         </div>
 
@@ -9987,6 +9997,7 @@ export default function MapSimulator() {
               <button
                 key={mode}
                 type="button"
+                data-camera-mode-button={mode}
                 onClick={() => {
                   if (mode === "ride" && selectedTaxiId) {
                     rideExitModeRef.current =
@@ -10162,7 +10173,10 @@ export default function MapSimulator() {
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 z-10 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-300 shadow-xl backdrop-blur-md">
+      <div
+        data-ui-panel="bottom-legend"
+        className="absolute bottom-4 left-4 z-10 rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-sm text-slate-300 shadow-xl backdrop-blur-md"
+      >
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#6f8fce]" />

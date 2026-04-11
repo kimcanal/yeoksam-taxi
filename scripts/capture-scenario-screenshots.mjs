@@ -11,7 +11,7 @@ const projectRoot = path.resolve(__dirname, "..");
 
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 3200;
-const DEFAULT_VIEWPORT = { width: 1720, height: 980 };
+const DEFAULT_VIEWPORT = { width: 1920, height: 1080 };
 const DEFAULT_OUTPUT_DIR = path.join(
   projectRoot,
   "docs",
@@ -19,11 +19,84 @@ const DEFAULT_OUTPUT_DIR = path.join(
   "local-scenarios",
 );
 const SCENARIOS = [
-  { id: "baseline", fileName: "scenario-baseline-demo.png" },
-  { id: "gangnam-peak", fileName: "scenario-gangnam-station-peak.png" },
-  { id: "rainy-evening", fileName: "scenario-rainy-evening.png" },
-  { id: "late-night", fileName: "scenario-late-night-loop.png" },
+  {
+    id: "baseline",
+    fileName: "scenario-baseline-demo.png",
+    label: "기본 시연",
+    summary: "9개 동 OSM 공간 레이어를 가장 중립적으로 소개하는 기준 장면",
+  },
+  {
+    id: "gangnam-peak",
+    fileName: "scenario-gangnam-station-peak.png",
+    label: "강남역 퇴근 피크",
+    summary: "강남역 퇴근 시간대의 혼잡한 도로 점유와 택시 대응 장면",
+  },
+  {
+    id: "rainy-evening",
+    fileName: "scenario-rainy-evening.png",
+    label: "우천 혼잡",
+    summary: "우천 조건에서 시야와 흐름 밀도가 함께 무거워지는 저녁 장면",
+  },
+  {
+    id: "late-night",
+    fileName: "scenario-late-night-loop.png",
+    label: "심야 순환",
+    summary: "일반 교통이 줄어든 뒤 택시 순환성이 또렷해지는 안정 장면",
+  },
 ];
+
+async function installCaptureChrome(page, scenario) {
+  await page.evaluate((scenarioMeta) => {
+    document.getElementById("scenario-capture-style")?.remove();
+    document.getElementById("scenario-capture-overlay")?.remove();
+
+    const style = document.createElement("style");
+    style.id = "scenario-capture-style";
+    style.textContent = `
+      [data-ui-panel] {
+        display: none !important;
+      }
+    `;
+    document.head.append(style);
+
+    const overlay = document.createElement("div");
+    overlay.id = "scenario-capture-overlay";
+    overlay.innerHTML = `
+      <div style="font-size:12px; letter-spacing:0.26em; text-transform:uppercase; color:rgba(151, 234, 255, 0.82);">
+        A-Eye Module 1
+      </div>
+      <div style="margin-top:10px; font-size:34px; font-weight:700; line-height:1.15; color:#f8fbff;">
+        ${scenarioMeta.label}
+      </div>
+      <div style="margin-top:10px; max-width:520px; font-size:14px; line-height:1.6; color:rgba(224, 232, 255, 0.84);">
+        ${scenarioMeta.summary}
+      </div>
+    `;
+    Object.assign(overlay.style, {
+      position: "fixed",
+      left: "28px",
+      top: "28px",
+      zIndex: "50",
+      width: "min(560px, calc(100vw - 56px))",
+      padding: "18px 22px",
+      borderRadius: "26px",
+      border: "1px solid rgba(255,255,255,0.1)",
+      background:
+        "linear-gradient(180deg, rgba(5,12,22,0.86), rgba(5,12,22,0.62))",
+      boxShadow: "0 22px 60px rgba(0, 0, 0, 0.34)",
+      backdropFilter: "blur(18px)",
+      pointerEvents: "none",
+    });
+    document.body.append(overlay);
+  }, scenario);
+}
+
+async function removeCaptureChrome(page) {
+  await page.evaluate(() => {
+    document.getElementById("scenario-capture-style")?.remove();
+    document.getElementById("scenario-capture-overlay")?.remove();
+  });
+}
 
 function parseArgs(argv) {
   const options = {
@@ -229,13 +302,17 @@ async function main() {
         { timeout: 60_000 },
       );
       console.log(`Scene ready in ${Date.now() - startedAt} ms`);
-      await page.waitForTimeout(1_500);
+      await page.locator('[data-camera-mode-button="overview"]').click();
+      await page.waitForTimeout(900);
+      await installCaptureChrome(page, scenario);
+      await page.waitForTimeout(250);
 
       const screenshotPath = path.join(options.outputDir, scenario.fileName);
       await page.screenshot({
         path: screenshotPath,
         fullPage: false,
       });
+      await removeCaptureChrome(page);
 
       console.log(`Saved ${path.relative(projectRoot, screenshotPath)}`);
     }
