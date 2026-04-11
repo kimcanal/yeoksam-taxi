@@ -7528,6 +7528,10 @@ export default function MapSimulator() {
     };
 
     const updateSignalVisuals = (elapsedTime: number) => {
+      if (!signalVisuals.length) {
+        frameSignalStates.clear();
+        return;
+      }
       frameSignalStates.clear();
       signalVisuals.forEach((signal) => {
         const state = signalState(signal, elapsedTime);
@@ -7582,8 +7586,16 @@ export default function MapSimulator() {
     };
 
     const updateHotspotVisuals = (delta: number, elapsedTime: number) => {
+      if (!hotspotVisuals.length) {
+        return;
+      }
+
       hotspotActivityAccumulator += delta;
-      if (hotspotActivityAccumulator >= HOTSPOT_ACTIVITY_REFRESH_INTERVAL) {
+      if (!vehicles.length) {
+        hotspotActivityAccumulator = 0;
+        activePickupsByHotspot.clear();
+        activeDropoffsByHotspot.clear();
+      } else if (hotspotActivityAccumulator >= HOTSPOT_ACTIVITY_REFRESH_INTERVAL) {
         hotspotActivityAccumulator = 0;
         activePickupsByHotspot.clear();
         activeDropoffsByHotspot.clear();
@@ -7705,6 +7717,11 @@ export default function MapSimulator() {
     };
 
     const updatePedestrians = (elapsedTime: number) => {
+      if (!pedestrianVisuals.length) {
+        activePedestrians = 0;
+        return;
+      }
+
       let visibleCount = 0;
       pedestrianVisuals.forEach((pedestrian) => {
         const signal = signalById.get(pedestrian.signalId);
@@ -7760,6 +7777,42 @@ export default function MapSimulator() {
     };
 
     const updateVehicles = (delta: number, elapsedTime: number) => {
+      if (!vehicles.length) {
+        intersectionOccupancy.forEach(resetSignalAxisOccupancy);
+        intersectionApproachDemand.forEach(resetSignalApproachDemand);
+        intersectionApproachDistance.forEach(resetSignalApproachDistance);
+        intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
+        proximityBuckets.forEach((bucket) => {
+          bucket.length = 0;
+        });
+
+        statsAccumulator += delta;
+        if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
+          statsAccumulator = 0;
+          setStats((current) => {
+            const nextStats = {
+              taxis: taxiVehicles.length,
+              traffic: 0,
+              waiting: 0,
+              signals: signalVisuals.length,
+              activeTrips: 0,
+              completedTrips,
+              pedestrians: activePedestrians,
+            };
+            return current.taxis === nextStats.taxis &&
+              current.traffic === nextStats.traffic &&
+              current.waiting === nextStats.waiting &&
+              current.signals === nextStats.signals &&
+              current.activeTrips === nextStats.activeTrips &&
+              current.completedTrips === nextStats.completedTrips &&
+              current.pedestrians === nextStats.pedestrians
+              ? current
+              : nextStats;
+          });
+        }
+        return;
+      }
+
       vehicleSimulationSamples.length = vehicles.length;
       intersectionOccupancy.forEach(resetSignalAxisOccupancy);
       intersectionApproachDemand.forEach(resetSignalApproachDemand);

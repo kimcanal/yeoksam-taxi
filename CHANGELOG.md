@@ -29,6 +29,7 @@
 - Localized the main presentation overlays, asset-summary cards, density controls, and validation panels to Korean so the in-app narration flow now matches the target presentation language.
 - Updated automated scenario capture to switch into a cleaner gallery composition with an overview camera, hidden operator panels, and a compact scenario title card.
 - Filtered oversized low-rise building slabs such as underground malls and horizontal retail complexes out of the simplified building-mass renderer so they no longer cover roads and signal objects.
+- Skipped signal, hotspot, pedestrian, and vehicle simulation work when their respective layers are empty so idle scenes spend less CPU while staying stable.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
