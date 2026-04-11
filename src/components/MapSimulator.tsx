@@ -981,40 +981,40 @@ function buildEnvironmentState(
   const solarDirection = solarPosition.direction.clone();
   const cloudCover =
     weatherMode === "clear"
-      ? 0.05
+      ? 0.04
       : weatherMode === "cloudy"
-        ? 0.24
+        ? 0.18
         : weatherMode === "heavy-rain"
-          ? 0.48
-          : 0.38;
+          ? 0.36
+          : 0.28;
   const skyDayColor =
     weatherMode === "clear"
-      ? 0x7fc8ff
+      ? 0x8fc2e5
       : weatherMode === "cloudy"
-        ? 0x9cb2c2
+        ? 0x90a5b7
         : weatherMode === "heavy-rain"
-          ? 0x738899
-          : 0xe2edf8;
+          ? 0x6d8092
+          : 0xc9d8e5;
   const skyNightColor =
     weatherMode === "heavy-snow"
-      ? 0x314253
+      ? 0x263443
       : weatherMode === "heavy-rain"
-        ? 0x182637
-        : 0x162536;
+        ? 0x152130
+        : 0x152231;
   const fogDayColor =
     weatherMode === "clear"
-      ? 0xa4d7ef
+      ? 0x9bc4da
       : weatherMode === "cloudy"
-        ? 0xa6b7c3
+        ? 0x97a6b3
         : weatherMode === "heavy-rain"
-          ? 0x7d8d99
-          : 0xe8f0f7;
+          ? 0x72818d
+          : 0xd3dee8;
   const fogNightColor =
     weatherMode === "heavy-snow"
-      ? 0x41566e
+      ? 0x384959
       : weatherMode === "heavy-rain"
-        ? 0x203142
-        : 0x203144;
+        ? 0x1d2b38
+        : 0x1d2b39;
   const weatherSpeedMultiplier =
     weatherMode === "clear"
       ? 1
@@ -1025,25 +1025,25 @@ function buildEnvironmentState(
           : 0.82;
   const nightSpeedMultiplier =
     daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
-  const sunsetSkyColor = weatherMode === "heavy-snow" ? 0xffd8c2 : 0xff9d5c;
-  const sunsetFogColor = weatherMode === "heavy-snow" ? 0xffe7d8 : 0xffb579;
+  const sunsetSkyColor = weatherMode === "heavy-snow" ? 0xf0c5ad : 0xf0915d;
+  const sunsetFogColor = weatherMode === "heavy-snow" ? 0xf4ddcf : 0xf0bb8e;
   const nightBuildingFactor = THREE.MathUtils.clamp(
     (0.3 - daylight) / 0.3,
     0,
     1,
   );
   const readabilitySkyMix = THREE.MathUtils.clamp(
-    daylight * 0.82 + twilight * 0.16 + 0.18,
+    daylight * 0.72 + twilight * 0.1 + 0.12,
     0,
     1,
   );
   const readabilityFogMix = THREE.MathUtils.clamp(
-    daylight * 0.8 + twilight * 0.15 + 0.24,
+    daylight * 0.68 + twilight * 0.1 + 0.18,
     0,
     1,
   );
   const readableNightLight = THREE.MathUtils.clamp(
-    daylight * 0.9 + twilight * 0.28 + 0.34,
+    daylight * 0.86 + twilight * 0.24 + 0.28,
     0,
     1,
   );
@@ -1086,53 +1086,53 @@ function buildEnvironmentState(
     weatherMode === "clear"
       ? {
           ambientColor: 0xf4f8ff,
-          ambientIntensity: 0.76,
+          ambientIntensity: 0.72,
           hemiSkyColor: 0xdce9ff,
           hemiGroundColor: 0x415468,
-          hemiIntensity: 0.88,
+          hemiIntensity: 0.84,
           sunColor: 0xfffbf2,
-          sunIntensity: 0.9,
+          sunIntensity: 0.88,
           fogNear: 144,
           fogFar: 410,
-          exposure: 1.1,
+          exposure: 1.04,
         }
       : weatherMode === "cloudy"
         ? {
-            ambientColor: 0xecf2fb,
-            ambientIntensity: 0.74,
-            hemiSkyColor: 0xd2deed,
+            ambientColor: 0xe7eef7,
+            ambientIntensity: 0.69,
+            hemiSkyColor: 0xc8d5e3,
             hemiGroundColor: 0x3d4d60,
-            hemiIntensity: 0.84,
+            hemiIntensity: 0.78,
             sunColor: 0xf8fbff,
-            sunIntensity: 0.82,
+            sunIntensity: 0.8,
             fogNear: 138,
             fogFar: 392,
-            exposure: 1.08,
+            exposure: 1.01,
           }
         : weatherMode === "heavy-rain"
           ? {
-              ambientColor: 0xe5edf7,
-              ambientIntensity: 0.72,
-              hemiSkyColor: 0xc5d4e6,
+              ambientColor: 0xe1e9f2,
+              ambientIntensity: 0.66,
+              hemiSkyColor: 0xbac9db,
               hemiGroundColor: 0x334153,
-              hemiIntensity: 0.8,
+              hemiIntensity: 0.74,
               sunColor: 0xf0f4fa,
-              sunIntensity: 0.74,
+              sunIntensity: 0.72,
               fogNear: 124,
               fogFar: 350,
-              exposure: 1.05,
+              exposure: 0.98,
             }
           : {
-              ambientColor: 0xf6fbff,
-              ambientIntensity: 0.8,
-              hemiSkyColor: 0xe4effc,
+              ambientColor: 0xf0f6fb,
+              ambientIntensity: 0.74,
+              hemiSkyColor: 0xdbe6f1,
               hemiGroundColor: 0x47586b,
-              hemiIntensity: 0.88,
+              hemiIntensity: 0.82,
               sunColor: 0xf8fbff,
               sunIntensity: 0.82,
               fogNear: 132,
               fogFar: 362,
-              exposure: 1.08,
+              exposure: 1,
             };
 
   return {
@@ -5400,7 +5400,7 @@ export default function MapSimulator() {
       opacity: 0,
     });
     const sunDisc = new THREE.Mesh(
-      new THREE.SphereGeometry(8.5, 20, 20),
+      new THREE.SphereGeometry(9.4, 20, 20),
       sunDiscMaterial,
     );
     scene.add(sunDisc);
@@ -5411,7 +5411,7 @@ export default function MapSimulator() {
       opacity: 0,
     });
     const sunHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(15.5, 20, 20),
+      new THREE.SphereGeometry(17.6, 20, 20),
       sunHaloMaterial,
     );
     scene.add(sunHalo);
@@ -5422,7 +5422,7 @@ export default function MapSimulator() {
       opacity: 0,
     });
     const sunsetGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(23, 20, 20),
+      new THREE.SphereGeometry(27, 20, 20),
       sunsetGlowMaterial,
     );
     scene.add(sunsetGlow);
@@ -5433,7 +5433,7 @@ export default function MapSimulator() {
       opacity: 0,
     });
     const moon = new THREE.Mesh(
-      new THREE.SphereGeometry(5.8, 18, 18),
+      new THREE.SphereGeometry(6.6, 18, 18),
       moonMaterial,
     );
     scene.add(moon);
@@ -5457,7 +5457,7 @@ export default function MapSimulator() {
     );
     const starsMaterial = new THREE.PointsMaterial({
       color: 0xf4f8ff,
-      size: 1.7,
+      size: 1.9,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -5466,8 +5466,10 @@ export default function MapSimulator() {
     scene.add(stars);
 
     const cloudPuffGeometry = new THREE.SphereGeometry(1, 14, 14);
-    const cloudMaterial = new THREE.MeshBasicMaterial({
-      color: 0xf5f9ff,
+    const cloudMaterial = new THREE.MeshLambertMaterial({
+      color: 0xdfe8f2,
+      emissive: 0x243344,
+      emissiveIntensity: 0.05,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -5502,8 +5504,10 @@ export default function MapSimulator() {
       return { cluster, anchor, phase: index * 0.9 };
     });
 
-    const stormCloudMaterial = new THREE.MeshBasicMaterial({
-      color: 0x73879a,
+    const stormCloudMaterial = new THREE.MeshLambertMaterial({
+      color: 0x7a8da0,
+      emissive: 0x1e2a36,
+      emissiveIntensity: 0.08,
       transparent: true,
       opacity: 0,
       depthWrite: false,
@@ -7013,52 +7017,62 @@ export default function MapSimulator() {
           .addScaledVector(moonDirection, celestialRadius * 0.92),
       );
 
-      sunDiscMaterial.color.setHex(sunset > 0.18 ? 0xffc572 : 0xffefbc);
+      sunDiscMaterial.color.setHex(sunset > 0.18 ? 0xffc78b : 0xfff1c9);
       sunDiscMaterial.opacity =
-        THREE.MathUtils.clamp(daylight * 0.4 + sunset * 0.44, 0, 0.78) *
-        cloudVisibility;
+        THREE.MathUtils.clamp(daylight * 0.34 + sunset * 0.52, 0, 0.86) *
+        (0.88 + cloudVisibility * 0.12);
       sunHaloMaterial.opacity =
-        THREE.MathUtils.clamp(daylight * 0.14 + sunset * 0.3, 0, 0.28) *
+        THREE.MathUtils.clamp(daylight * 0.1 + sunset * 0.22, 0, 0.24) *
         cloudVisibility;
       sunsetGlowMaterial.opacity =
-        THREE.MathUtils.clamp(sunset * 0.36, 0, 0.3) * cloudVisibility;
+        THREE.MathUtils.clamp(sunset * 0.24, 0, 0.22) *
+        (0.86 + cloudVisibility * 0.14);
       moonMaterial.opacity =
-        THREE.MathUtils.clamp((0.18 - daylight) / 0.18, 0, 0.82) *
-        (nextWeatherMode === "heavy-rain" ? 0.42 : 0.76);
-      activeStarOpacity =
-        THREE.MathUtils.clamp((0.16 - daylight) / 0.16, 0, 0.68) *
+        THREE.MathUtils.clamp((0.22 - daylight) / 0.22, 0, 0.88) *
         (nextWeatherMode === "heavy-rain"
-          ? 0.22
+          ? 0.34
           : nextWeatherMode === "cloudy"
-            ? 0.5
-            : 0.78);
+            ? 0.72
+            : 0.84);
+      activeStarOpacity =
+        THREE.MathUtils.clamp((0.2 - daylight) / 0.2, 0, 0.78) *
+        (nextWeatherMode === "heavy-rain"
+          ? 0.12
+          : nextWeatherMode === "cloudy"
+            ? 0.46
+            : nextWeatherMode === "heavy-snow"
+              ? 0.58
+              : 0.88);
       const cloudOpacityBase =
         nextWeatherMode === "clear"
-          ? 0
+          ? 0.08
           : nextWeatherMode === "cloudy"
-            ? 0.3
+            ? 0.4
             : nextWeatherMode === "heavy-rain"
-              ? 0.42
-              : 0.58;
+              ? 0.54
+              : 0.48;
       const cloudColor =
         nextWeatherMode === "heavy-rain"
-          ? 0xc8d2de
+          ? 0xa9b7c6
           : nextWeatherMode === "heavy-snow"
-            ? 0xf6fbff
-            : 0xf0f5fb;
+            ? 0xe7eff6
+            : 0xe2eaf2;
       cloudMaterial.color.setHex(cloudColor);
+      cloudMaterial.emissive.setHex(
+        nextWeatherMode === "heavy-rain" ? 0x293948 : 0x243443,
+      );
       cloudMaterial.opacity =
         nextWeatherMode === "heavy-rain"
-          ? 0.14
-          : cloudOpacityBase * (daylight > 0.08 ? 1 : 0.86);
+          ? 0.2
+          : cloudOpacityBase * (daylight > 0.08 ? 1.04 : 0.9);
       cloudClusters.forEach(({ cluster }) => {
         cluster.visible =
           nextWeatherMode !== "heavy-rain" && cloudOpacityBase > 0.01;
       });
-      const stormCloudOpacity = nextWeatherMode === "heavy-rain" ? 0.54 : 0;
+      const stormCloudOpacity = nextWeatherMode === "heavy-rain" ? 0.62 : 0;
       stormCloudMaterial.opacity = stormCloudOpacity;
       stormCloudMaterial.color.setHex(
-        nextWeatherMode === "heavy-rain" ? 0x6f8397 : 0x73879a,
+        nextWeatherMode === "heavy-rain" ? 0x66798d : 0x73879a,
       );
       stormCloudClusters.forEach(({ cluster }) => {
         cluster.visible = stormCloudOpacity > 0.01;
