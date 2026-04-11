@@ -46,16 +46,17 @@ const CURBSIDE_EDGE_INSET_MIN = 0.45;
 const CURBSIDE_EDGE_INSET_MAX = 0.72;
 const CURBSIDE_EXTRA_OFFSET_MAX = 1.05;
 const CURBSIDE_SIDEWALK_OFFSET = 0.92;
-const INTERSECTION_OCCUPANCY_RADIUS = 3.8;
+const INTERSECTION_BOX_OCCUPANCY_RADIUS = 2.35;
 const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
 const INTERSECTION_EXIT_QUEUE_RADIUS = 8.8;
-const INTERSECTION_OCCUPANCY_RADIUS_SQ =
-  INTERSECTION_OCCUPANCY_RADIUS * INTERSECTION_OCCUPANCY_RADIUS;
+const INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ =
+  INTERSECTION_BOX_OCCUPANCY_RADIUS * INTERSECTION_BOX_OCCUPANCY_RADIUS;
 const INTERSECTION_EXIT_QUEUE_RADIUS_SQ =
   INTERSECTION_EXIT_QUEUE_RADIUS * INTERSECTION_EXIT_QUEUE_RADIUS;
 const INTERSECTION_EXIT_BLOCK_SPEED = 2.4;
 const INTERSECTION_BOX_ENTRY_LOOKAHEAD = 10.5;
 const INTERSECTION_SIGNAL_LOOKAHEAD = 18;
+const INTERSECTION_LEFT_TURN_GAP_DISTANCE = 7.2;
 const VEHICLE_FOLLOW_LOOKAHEAD_BUFFER = 8;
 const VEHICLE_PROXIMITY_CELL_SIZE = 12;
 const CROSSWALK_STRIPE_COUNT = 6;
@@ -299,6 +300,8 @@ type SignalData = {
   offset: number;
   approaches: SignalDirection[];
   hasProtectedLeft: boolean;
+  priorityAxis: SignalAxis;
+  timingPlan: SignalTimingPlan;
 };
 
 type SignalFlow = {
@@ -317,9 +320,18 @@ type SignalTurnDemand = {
 };
 
 type SignalApproachDemand = Record<SignalDirection, SignalTurnDemand>;
+type SignalApproachDistance = Record<SignalDirection, number>;
 type SignalAxisOccupancy = {
   ns: number;
   ew: number;
+};
+type SignalDirectionalOccupancy = Record<SignalDirection, number>;
+type SignalPhaseStep = {
+  duration: number;
+  flow: SignalFlow;
+};
+type SignalTimingPlan = {
+  sequence: SignalPhaseStep[];
 };
 
 type StopMarker = {
@@ -2087,9 +2099,35 @@ function createSignalApproachDemand(): SignalApproachDemand {
   };
 }
 
+function createSignalApproachDistance(): SignalApproachDistance {
+  return {
+    north: Number.POSITIVE_INFINITY,
+    east: Number.POSITIVE_INFINITY,
+    south: Number.POSITIVE_INFINITY,
+    west: Number.POSITIVE_INFINITY,
+  };
+}
+
 function resetSignalAxisOccupancy(target: SignalAxisOccupancy) {
   target.ns = 0;
   target.ew = 0;
+  return target;
+}
+
+function createSignalDirectionalOccupancy(): SignalDirectionalOccupancy {
+  return {
+    north: 0,
+    east: 0,
+    south: 0,
+    west: 0,
+  };
+}
+
+function resetSignalDirectionalOccupancy(target: SignalDirectionalOccupancy) {
+  target.north = 0;
+  target.east = 0;
+  target.south = 0;
+  target.west = 0;
   return target;
 }
 
@@ -2108,10 +2146,169 @@ function resetSignalApproachDemand(target: SignalApproachDemand) {
   return target;
 }
 
+function resetSignalApproachDistance(target: SignalApproachDistance) {
+  target.north = Number.POSITIVE_INFINITY;
+  target.east = Number.POSITIVE_INFINITY;
+  target.south = Number.POSITIVE_INFINITY;
+  target.west = Number.POSITIVE_INFINITY;
+  return target;
+}
+
 function createSignalAxisOccupancy(): SignalAxisOccupancy {
   return {
     ns: 0,
     ew: 0,
+  };
+}
+
+function signalFlowForAxis(
+  axis: SignalAxis,
+  phase: "green" | "yellow" | "left",
+) {
+  if (axis === "ns") {
+    if (phase === "green") {
+      return SIGNAL_FLOW_NS_GREEN;
+    }
+    if (phase === "yellow") {
+      return SIGNAL_FLOW_NS_YELLOW;
+    }
+    return SIGNAL_FLOW_NS_LEFT;
+  }
+
+  if (phase === "green") {
+    return SIGNAL_FLOW_EW_GREEN;
+  }
+  if (phase === "yellow") {
+    return SIGNAL_FLOW_EW_YELLOW;
+  }
+  return SIGNAL_FLOW_EW_LEFT;
+}
+
+function pushSignalPhase(
+  sequence: SignalPhaseStep[],
+  duration: number,
+  flow: SignalFlow,
+) {
+  if (duration <= 0.001) {
+    return;
+  }
+  sequence.push({ duration, flow });
+}
+
+function buildSignalTimingPlan(
+  approaches: SignalDirection[],
+  priorityAxis: SignalAxis,
+  hasProtectedLeft: boolean,
+): SignalTimingPlan {
+  const axisCounts = signalAxisPresence(approaches);
+  const majorApproachCount = priorityAxis === "ns" ? axisCounts.ns : axisCounts.ew;
+  const minorApproachCount = priorityAxis === "ns" ? axisCounts.ew : axisCounts.ns;
+  const yellowDuration = 1.1;
+  const clearanceDuration = 0.7;
+  const pedestrianWalkDuration = approaches.length >= 4 ? 2.4 : 2.1;
+  const pedestrianFlashDuration = approaches.length >= 4 ? 1.65 : 1.45;
+  const majorLeftDuration =
+    hasProtectedLeft && majorApproachCount > 1 ? 1.45 : 0;
+  const minorLeftDuration =
+    hasProtectedLeft && minorApproachCount > 1 ? 1.2 : 0;
+  const fixedDuration =
+    yellowDuration * 2 +
+    clearanceDuration * 2 +
+    pedestrianWalkDuration +
+    pedestrianFlashDuration +
+    majorLeftDuration +
+    minorLeftDuration;
+  const remainingFlowDuration = Math.max(8.6, SIGNAL_CYCLE - fixedDuration);
+  const majorGreenBias = THREE.MathUtils.clamp(
+    0.54 +
+      (majorApproachCount - minorApproachCount) * 0.05 +
+      (hasProtectedLeft ? 0.02 : 0),
+    0.54,
+    0.64,
+  );
+  const majorGreenDuration = Math.max(
+    4.8,
+    remainingFlowDuration * majorGreenBias,
+  );
+  const minorGreenDuration = Math.max(
+    4.2,
+    remainingFlowDuration - majorGreenDuration,
+  );
+  const cycleAdjustment =
+    SIGNAL_CYCLE -
+    (majorLeftDuration +
+      majorGreenDuration +
+      yellowDuration +
+      clearanceDuration +
+      minorLeftDuration +
+      minorGreenDuration +
+      yellowDuration +
+      clearanceDuration +
+      pedestrianWalkDuration +
+      pedestrianFlashDuration);
+  const minorAxis = priorityAxis === "ns" ? "ew" : "ns";
+  const sequence: SignalPhaseStep[] = [];
+  pushSignalPhase(
+    sequence,
+    majorLeftDuration,
+    signalFlowForAxis(priorityAxis, "left"),
+  );
+  pushSignalPhase(
+    sequence,
+    majorGreenDuration,
+    signalFlowForAxis(priorityAxis, "green"),
+  );
+  pushSignalPhase(
+    sequence,
+    yellowDuration,
+    signalFlowForAxis(priorityAxis, "yellow"),
+  );
+  pushSignalPhase(sequence, clearanceDuration, SIGNAL_FLOW_CLEARANCE);
+  pushSignalPhase(
+    sequence,
+    minorLeftDuration,
+    signalFlowForAxis(minorAxis, "left"),
+  );
+  pushSignalPhase(
+    sequence,
+    minorGreenDuration,
+    signalFlowForAxis(minorAxis, "green"),
+  );
+  pushSignalPhase(
+    sequence,
+    yellowDuration,
+    signalFlowForAxis(minorAxis, "yellow"),
+  );
+  pushSignalPhase(sequence, clearanceDuration, SIGNAL_FLOW_CLEARANCE);
+  pushSignalPhase(sequence, pedestrianWalkDuration, SIGNAL_FLOW_PED_WALK);
+  pushSignalPhase(
+    sequence,
+    pedestrianFlashDuration + cycleAdjustment,
+    SIGNAL_FLOW_PED_FLASH,
+  );
+  return { sequence };
+}
+
+function createSignalData(
+  id: string,
+  key: string,
+  point: THREE.Vector3,
+  approaches: SignalDirection[],
+  hasProtectedLeft: boolean,
+): Omit<SignalData, "offset"> {
+  const priorityAxis = preferredSignalAxisForApproaches(approaches, point);
+  return {
+    id,
+    key,
+    point,
+    approaches,
+    hasProtectedLeft,
+    priorityAxis,
+    timingPlan: buildSignalTimingPlan(
+      approaches,
+      priorityAxis,
+      hasProtectedLeft,
+    ),
   };
 }
 
@@ -2153,10 +2350,7 @@ function assignCoordinatedSignalOffsets(
   >();
 
   signals.forEach((signal) => {
-    const priorityAxis = preferredSignalAxisForApproaches(
-      signal.approaches,
-      signal.point,
-    );
+    const priorityAxis = signal.priorityAxis;
     const axisPosition =
       priorityAxis === "ew" ? signal.point.x : signal.point.z;
     const crossAxisPosition =
@@ -3202,13 +3396,17 @@ function buildFallbackSignals(
   );
 
   return assignCoordinatedSignalOffsets(
-    kept.slice(0, 18).map((candidate, index) => ({
-      id: `signal-${index}`,
-      key: candidate.key,
-      point: candidate.point.clone(),
-      approaches: candidate.approaches,
-      hasProtectedLeft: candidate.approaches.length >= 4,
-    })),
+    kept
+      .slice(0, 18)
+      .map((candidate, index) =>
+        createSignalData(
+          `signal-${index}`,
+          candidate.key,
+          candidate.point.clone(),
+          candidate.approaches,
+          candidate.approaches.length >= 4,
+        ),
+      ),
   );
 }
 
@@ -3341,11 +3539,13 @@ function buildSignalsFromOsm(
       approaches.length >= 4 &&
       (rank >= 3 || cluster.turnHints.size > 0 || cluster.points.length >= 2);
     const candidate = {
-      id: `signal-${byAnchorKey.size}`,
-      key: anchorNode.key,
-      point,
-      approaches,
-      hasProtectedLeft,
+      ...createSignalData(
+        `signal-${byAnchorKey.size}`,
+        anchorNode.key,
+        point,
+        approaches,
+        hasProtectedLeft,
+      ),
       score,
     };
     const existing = byAnchorKey.get(anchorNode.key);
@@ -3357,13 +3557,15 @@ function buildSignalsFromOsm(
   return assignCoordinatedSignalOffsets(
     [...byAnchorKey.values()]
       .sort((left, right) => right.score - left.score)
-      .map((signal, index) => ({
-        id: `signal-${index}`,
-        key: signal.key,
-        point: signal.point,
-        approaches: signal.approaches,
-        hasProtectedLeft: signal.hasProtectedLeft,
-      })),
+      .map((signal, index) =>
+        createSignalData(
+          `signal-${index}`,
+          signal.key,
+          signal.point,
+          signal.approaches,
+          signal.hasProtectedLeft,
+        ),
+      ),
   );
 }
 
@@ -4290,57 +4492,19 @@ const SIGNAL_FLOW_PED_FLASH: SignalFlow = {
 };
 
 function signalState(signal: SignalData, elapsedTime: number): SignalFlow {
-  const phase = (elapsedTime + signal.offset) % SIGNAL_CYCLE;
-  if (signal.hasProtectedLeft) {
-    if (phase < 4.8) {
-      return SIGNAL_FLOW_NS_GREEN;
-    }
-    if (phase < 5.9) {
-      return SIGNAL_FLOW_NS_YELLOW;
-    }
-    if (phase < 7.5) {
-      return SIGNAL_FLOW_NS_LEFT;
-    }
-    if (phase < 8.2) {
-      return SIGNAL_FLOW_CLEARANCE;
-    }
-    if (phase < 13) {
-      return SIGNAL_FLOW_EW_GREEN;
-    }
-    if (phase < 14.1) {
-      return SIGNAL_FLOW_EW_YELLOW;
-    }
-    if (phase < 15.7) {
-      return SIGNAL_FLOW_EW_LEFT;
-    }
-    if (phase < 16.4) {
-      return SIGNAL_FLOW_CLEARANCE;
-    }
-  } else {
-    if (phase < 6) {
-      return SIGNAL_FLOW_NS_GREEN;
-    }
-    if (phase < 7.2) {
-      return SIGNAL_FLOW_NS_YELLOW;
-    }
-    if (phase < 7.9) {
-      return SIGNAL_FLOW_CLEARANCE;
-    }
-    if (phase < 13.9) {
-      return SIGNAL_FLOW_EW_GREEN;
-    }
-    if (phase < 15.1) {
-      return SIGNAL_FLOW_EW_YELLOW;
-    }
-    if (phase < 15.8) {
-      return SIGNAL_FLOW_CLEARANCE;
+  const phase = normalizeSignalOffset(elapsedTime + signal.offset);
+  let elapsed = 0;
+  for (let index = 0; index < signal.timingPlan.sequence.length; index += 1) {
+    const step = signal.timingPlan.sequence[index]!;
+    elapsed += step.duration;
+    if (phase < elapsed) {
+      return step.flow;
     }
   }
-
-  if (phase < 19.2) {
-    return SIGNAL_FLOW_PED_WALK;
-  }
-  return SIGNAL_FLOW_PED_FLASH;
+  return (
+    signal.timingPlan.sequence[signal.timingPlan.sequence.length - 1]?.flow ??
+    SIGNAL_FLOW_PED_FLASH
+  );
 }
 
 function canVehicleProceed(
@@ -4348,6 +4512,7 @@ function canVehicleProceed(
   state: SignalFlow,
   conflictingAxisOccupied: boolean,
   opposingPriorityDemand = 0,
+  opposingPriorityDistance = Number.POSITIVE_INFINITY,
 ) {
   if (
     state.phase === "clearance" ||
@@ -4362,14 +4527,16 @@ function canVehicleProceed(
         state.nsLeft ||
         (state.ns === "green" &&
           !conflictingAxisOccupied &&
-          opposingPriorityDemand === 0)
+          (opposingPriorityDemand === 0 ||
+            opposingPriorityDistance > INTERSECTION_LEFT_TURN_GAP_DISTANCE))
       );
     }
     return (
       state.ewLeft ||
       (state.ew === "green" &&
         !conflictingAxisOccupied &&
-        opposingPriorityDemand === 0)
+        (opposingPriorityDemand === 0 ||
+          opposingPriorityDistance > INTERSECTION_LEFT_TURN_GAP_DISTANCE))
     );
   }
   return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
@@ -6981,7 +7148,14 @@ export default function MapSimulator() {
     const activeDropoffsByHotspot = new Map<string, number>();
     const intersectionOccupancy = new Map<string, SignalAxisOccupancy>();
     const intersectionApproachDemand = new Map<string, SignalApproachDemand>();
-    const intersectionExitOccupancy = new Map<string, SignalAxisOccupancy>();
+    const intersectionApproachDistance = new Map<
+      string,
+      SignalApproachDistance
+    >();
+    const intersectionExitOccupancy = new Map<
+      string,
+      SignalDirectionalOccupancy
+    >();
     const proximityBuckets = new Map<string, VehicleSimulationSample[]>();
     const vehicleSimulationSamples: VehicleSimulationSample[] = [];
     let vehicleSimulationAccumulator = 0;
@@ -7472,7 +7646,8 @@ export default function MapSimulator() {
       vehicleSimulationSamples.length = vehicles.length;
       intersectionOccupancy.forEach(resetSignalAxisOccupancy);
       intersectionApproachDemand.forEach(resetSignalApproachDemand);
-      intersectionExitOccupancy.forEach(resetSignalAxisOccupancy);
+      intersectionApproachDistance.forEach(resetSignalApproachDistance);
+      intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
       proximityBuckets.forEach((bucket) => {
         bucket.length = 0;
       });
@@ -7517,44 +7692,56 @@ export default function MapSimulator() {
               approachDemand = createSignalApproachDemand();
               intersectionApproachDemand.set(signal.id, approachDemand);
             }
+            let approachDistance = intersectionApproachDistance.get(signal.id);
+            if (!approachDistance) {
+              approachDistance = createSignalApproachDistance();
+              intersectionApproachDistance.set(signal.id, approachDistance);
+            }
             const approachDirection = approachDirectionForHeading(
               vehicle.motion.heading,
             );
             approachDemand[approachDirection][stop.turn] += 1;
-          }
-          if (
-            signalDistanceSq < INTERSECTION_OCCUPANCY_RADIUS_SQ &&
-            nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD
-          ) {
-            let claim = intersectionOccupancy.get(signal.id);
-            if (!claim) {
-              claim = createSignalAxisOccupancy();
-              intersectionOccupancy.set(signal.id, claim);
-            }
-            if (stop.axis === "ns") {
-              claim.ns += 1;
-            } else {
-              claim.ew += 1;
+            if (stop.turn === "straight" || stop.turn === "right") {
+              approachDistance[approachDirection] = Math.min(
+                approachDistance[approachDirection],
+                nextStopState.ahead,
+              );
             }
           }
         }
 
         if (vehicle.currentSignalId) {
           const currentSignal = signalById.get(vehicle.currentSignalId) ?? null;
+          const currentSignalDistanceSq =
+            currentSignal?.point.distanceToSquared(currentMotion.position) ??
+            Number.POSITIVE_INFINITY;
+          if (
+            currentSignal &&
+            currentSignalDistanceSq < INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ
+          ) {
+            let claim = intersectionOccupancy.get(currentSignal.id);
+            if (!claim) {
+              claim = createSignalAxisOccupancy();
+              intersectionOccupancy.set(currentSignal.id, claim);
+            }
+            const movementAxis = dominantAxisForHeading(vehicle.motion.heading);
+            claim[movementAxis] += 1;
+          }
           const isQueuedPastIntersection =
             currentSignal &&
-            currentMotion.position.distanceToSquared(currentSignal.point) <
-              INTERSECTION_EXIT_QUEUE_RADIUS_SQ &&
+            currentSignalDistanceSq < INTERSECTION_EXIT_QUEUE_RADIUS_SQ &&
             vehicle.speed < INTERSECTION_EXIT_BLOCK_SPEED &&
             nextStopState.stop?.signalId !== currentSignal.id;
           if (currentSignal && isQueuedPastIntersection) {
             let exitClaim = intersectionExitOccupancy.get(currentSignal.id);
             if (!exitClaim) {
-              exitClaim = createSignalAxisOccupancy();
+              exitClaim = createSignalDirectionalOccupancy();
               intersectionExitOccupancy.set(currentSignal.id, exitClaim);
             }
-            const movementAxis = dominantAxisForHeading(vehicle.motion.heading);
-            exitClaim[movementAxis] += 1;
+            const travelDirection = signalDirectionForVector(
+              vehicle.motion.heading,
+            );
+            exitClaim[travelDirection] += 1;
           }
         }
 
@@ -7728,6 +7915,9 @@ export default function MapSimulator() {
               frameSignalStates.get(signal.id) ?? signalState(signal, elapsedTime);
             const occupancyState = intersectionOccupancy.get(signal.id);
             const approachDemandState = intersectionApproachDemand.get(signal.id);
+            const approachDistanceState = intersectionApproachDistance.get(
+              signal.id,
+            );
             const exitOccupancyState = intersectionExitOccupancy.get(signal.id);
             const conflictingAxisOccupied =
               occupancyState &&
@@ -7742,21 +7932,24 @@ export default function MapSimulator() {
               ? approachDemandState[opposingDirection].straight +
                 approachDemandState[opposingDirection].right
               : 0;
-            const sameAxisExitBlocked =
-              nextStopState.stop.axis === "ns"
-                ? (exitOccupancyState?.ns ?? 0) > 0
-                : (exitOccupancyState?.ew ?? 0) > 0;
+            const opposingPriorityDistance =
+              approachDistanceState?.[opposingDirection] ??
+              Number.POSITIVE_INFINITY;
+            const travelDirection = signalDirectionForVector(currentMotion.heading);
+            const sameDirectionExitBlocked =
+              (exitOccupancyState?.[travelDirection] ?? 0) > 0;
             const canGo = canVehicleProceed(
               nextStopState.stop,
               state,
               Boolean(conflictingAxisOccupied),
               opposingPriorityDemand,
+              opposingPriorityDistance,
             );
             const blockedByIntersection =
               Boolean(conflictingAxisOccupied) &&
               nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD;
             const blockedByExitQueue =
-              sameAxisExitBlocked &&
+              sameDirectionExitBlocked &&
               nextStopState.ahead < INTERSECTION_BOX_ENTRY_LOOKAHEAD;
             if (!canGo || blockedByIntersection || blockedByExitQueue) {
               const stopGap = Math.max(0, nextStopState.ahead - 0.8);
