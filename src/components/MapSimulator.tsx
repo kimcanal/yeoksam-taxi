@@ -453,10 +453,13 @@ type LocalScenarioPreset = {
   id: string;
   label: string;
   detail: string;
+  summary: string;
+  presentationNote: string;
   taxis: number;
   traffic: number;
   minutes: number;
   weather: WeatherMode;
+  focusLabel: string;
   focusStationKeyword?: string;
 };
 
@@ -732,40 +735,59 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     id: "baseline",
     label: "기본 시연",
     detail: "정오 기준 기본 설명 장면",
+    summary: "강남역 코어 9개 동 OSM 레이어를 가장 중립적으로 설명하는 기준 장면입니다.",
+    presentationNote:
+      "행정동 범위, 도로 그래프, 기본 택시 흐름을 차분하게 소개할 때 쓰기 좋습니다.",
     taxis: DEFAULT_TAXI_COUNT,
     traffic: DEFAULT_TRAFFIC_COUNT,
     minutes: 12 * 60,
     weather: "clear",
+    focusLabel: "강남역",
     focusStationKeyword: "강남",
   },
   {
     id: "gangnam-peak",
     label: "강남역 퇴근 피크",
     detail: "퇴근 시간대 역세권 혼잡",
+    summary:
+      "퇴근 시간대 강남역 주변의 높은 도로 점유와 택시 대응을 설명하는 혼잡 장면입니다.",
+    presentationNote:
+      "배차나 혼잡 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
     taxis: 16,
     traffic: 24,
     minutes: 18 * 60 + 30,
     weather: "clear",
+    focusLabel: "강남역",
     focusStationKeyword: "강남",
   },
   {
     id: "rainy-evening",
     label: "우천 혼잡",
     detail: "비 오는 저녁 보수 주행",
+    summary:
+      "우천 조건에서 보수적으로 움직이는 택시와 더 무거워진 저녁 흐름을 보여주는 장면입니다.",
+    presentationNote:
+      "날씨가 시야와 이동 흐름에 어떻게 영향을 주는지 말할 때 자연스럽게 이어집니다.",
     taxis: 18,
     traffic: 26,
     minutes: 19 * 60,
     weather: "heavy-rain",
+    focusLabel: "강남역",
     focusStationKeyword: "강남",
   },
   {
     id: "late-night",
     label: "심야 순환",
     detail: "교통이 풀린 야간 순환",
+    summary:
+      "일반 교통이 줄어든 뒤 택시 순환성과 심야 분위기가 더 잘 읽히는 장면입니다.",
+    presentationNote:
+      "낮/퇴근 피크와 대비되는 안정적인 야간 상태를 보여주기에 적합합니다.",
     taxis: 10,
     traffic: 10,
     minutes: 23 * 60 + 20,
     weather: "cloudy",
+    focusLabel: "역삼역 권역",
     focusStationKeyword: "역삼",
   },
 ];
@@ -9195,6 +9217,26 @@ export default function MapSimulator() {
         : tripCompletionShare >= 50
           ? "settled"
           : "active";
+  const scenarioBrief = activeLocalScenario
+    ? {
+        title: activeLocalScenario.label,
+        summary: activeLocalScenario.summary,
+        note: activeLocalScenario.presentationNote,
+        focusLabel: activeLocalScenario.focusLabel,
+        weatherLabel:
+          WEATHER_OPTIONS.find(
+            (option) => option.id === activeLocalScenario.weather,
+          )?.label ?? selectedWeather.label,
+      }
+    : {
+        title: "Custom mix",
+        summary:
+          "현재 장면은 프리셋 조합에서 벗어난 수동 상태로, 시간·날씨·밀도를 직접 맞춘 발표용 커스텀 장면입니다.",
+        note:
+          "슬라이더나 시간/날씨를 개별 조정한 뒤 원하는 설명 흐름에 맞춰 보여줄 때 적합합니다.",
+        focusLabel: selectedSubwayName || "현재 카메라 기준",
+        weatherLabel: selectedWeather.label,
+      };
   const timeWeatherControls = (
     <>
       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -9530,6 +9572,45 @@ export default function MapSimulator() {
             프리셋은 시간, 날씨, 차량 밀도, 주요 지하철역 시점을 함께 맞춥니다.
             실제 수요 API나 외부 데이터 없이도 `A-Eye Module 1` 설명용 장면을
             빠르게 재현하는 용도입니다.
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+                Scenario Brief
+              </div>
+              <div className="mt-1 text-sm font-semibold text-cyan-50">
+                {scenarioBrief.title}
+              </div>
+            </div>
+            <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+              발표용 요약
+            </span>
+          </div>
+
+          <div className="mt-3 text-sm leading-6 text-slate-200">
+            {scenarioBrief.summary}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
+              <div className="text-slate-500">Focus</div>
+              <div className="mt-1 font-medium text-slate-100">
+                {scenarioBrief.focusLabel}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
+              <div className="text-slate-500">Scene Mix</div>
+              <div className="mt-1 font-medium text-slate-100">
+                {formattedSimulationTime} · {scenarioBrief.weatherLabel}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+            {scenarioBrief.note}
           </div>
         </div>
 

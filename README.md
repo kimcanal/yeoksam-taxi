@@ -1,10 +1,20 @@
 # yeoksam-taxi
 
-`yeoksam-taxi` is an OSM + Three.js 3D digital-twin companion for the `A-Eye` capstone.
+`yeoksam-taxi` is a presentation-first OSM + Three.js 3D digital-twin companion for the `A-Eye` capstone.
 
-It expands the simplified `Yeoksam 3x3 SUMO baseline` from `A-Eye` into a spatial scene built from 9 real administrative dongs around Gangnam Station and the Gangnam core. Roads, buildings, non-road surfaces, transit landmarks, and signal anchors come from OpenStreetMap through Overpass and are rendered directly with Three.js.
+It takes the same Gangnam Station micro-area story used by the simplified `Yeoksam 3x3 SUMO baseline`, but expresses it through `9 real dongs + OSM roads + road-level motion`.
 
-This repo is meant to support `Module 1` style digital-twin presentation and spatial validation. It is not the main dispatch-evaluation baseline itself, and it should not claim full Gangnam or full Seoul traffic replication.
+What this repo is for:
+
+- showing `A-Eye Module 1` as a believable 3D spatial layer
+- validating roads, signals, curbside pickup/dropoff, and taxi flow on top of real OSM geometry
+- replaying a few stable local-only scenarios for demos, screenshots, and presentation
+
+What this repo is not:
+
+- not the main dispatch-evaluation baseline
+- not a full Gangnam or full Seoul traffic replica
+- not a legal-grade operational road source
 
 This project does not use Google Maps Platform for map rendering. The only Google-related import in the app is `next/font/google`, which is used for fonts.
 
