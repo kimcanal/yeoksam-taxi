@@ -21,6 +21,8 @@
 - Reduced per-vehicle transform cost by caching motion yaw during route sampling and reusing it for transform sync and follow-camera heading.
 - Reduced weather and hotspot scan overhead by caching precipitation position buffers and replacing callback-based hotspot activity scans with straight loops.
 - Reduced scene-build allocations in nearest-road lookups by replacing clone-heavy segment projection math with shared scratch vectors.
+- Added mode-aware precipitation LOD so overview, hidden-tab, and lower-priority camera states draw fewer weather particles while keeping close-up ride and follow views denser.
+- Added mode-aware label culling so district, building, transit, and road labels now respect distance and per-mode visibility budgets instead of all optional labels rendering at once.
 - Replaced all-vehicle proximity scans with nearby-cell bucketing so follow-distance checks scale better as taxi and traffic density increases.
 - Reworked signal phase offsets to follow corridor-aligned coordination bands so nearby intersections no longer feel randomly out of sync.
 - Added opposing-approach turn demand checks so unprotected left turns yield to oncoming straight and right-turn traffic instead of cutting across active flow.

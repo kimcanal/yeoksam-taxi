@@ -32,14 +32,14 @@ Notes: segment projection math now reuses scratch vectors instead of allocating 
 
 ## Still Worth Watching
 
-1. Heavy rain and snow still update every precipitation particle every visible frame.
-Impact: medium in weather-heavy scenes.
+1. Heavy rain and snow still update every visible precipitation particle every visible frame, even though draw counts now scale down by camera mode and hidden-tab state.
+Impact: low-to-medium in weather-heavy scenes.
 
 2. Hover raycasts still scale with the number of taxi click targets and transit hover targets.
 Impact: medium when scene density grows further.
 
-3. CSS2D labels remain a likely source of UI-thread cost if the visible label count increases a lot.
-Impact: medium, especially while panning or zooming.
+3. CSS2D labels are now distance- and budget-limited, but they remain a likely source of UI-thread cost if the visible label count grows beyond the current curated set.
+Impact: low-to-medium, especially while panning or zooming.
 
 4. Vehicle movement still does full per-vehicle route sampling each simulation tick.
 Impact: medium, but correctness-sensitive, so any deeper rewrite should be measured carefully.

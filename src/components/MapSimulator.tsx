@@ -76,6 +76,7 @@ const OVERVIEW_RENDER_FPS = 60;
 const HIDDEN_RENDER_FPS = 12;
 const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
 const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 0.24;
+const LABEL_VISIBILITY_REFRESH_INTERVAL = 0.14;
 const COMMON_REFRESH_RATE_BANDS = [
   60, 72, 75, 90, 100, 120, 144, 165, 180, 200, 240,
 ] as const;
@@ -554,6 +555,19 @@ type PedestrianVisual = {
 };
 
 type HotspotMarkerMode = "pickup" | "dropoff" | "idle";
+type SceneLabelKind = "district" | "building" | "transit" | "road";
+
+type SceneLabelEntry = {
+  label: CSS2DObject;
+  kind: SceneLabelKind;
+  priority: number;
+  name: string | null;
+};
+
+type LabelDistanceEntry = {
+  entry: SceneLabelEntry;
+  distanceSq: number;
+};
 
 type HotspotVisual = {
   hotspot: Hotspot;
@@ -1302,6 +1316,56 @@ function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
       return FOLLOW_PIXEL_RATIO;
     default:
       return DRIVE_PIXEL_RATIO;
+  }
+}
+
+function precipitationDrawRatioFor(mode: CameraMode, isHidden: boolean) {
+  if (isHidden) {
+    return 0.35;
+  }
+
+  switch (mode) {
+    case "overview":
+      return 0.58;
+    case "drive":
+      return 0.82;
+    case "ride":
+      return 0.9;
+    default:
+      return 1;
+  }
+}
+
+function labelVisibilityBudget(mode: CameraMode) {
+  switch (mode) {
+    case "overview":
+      return {
+        districtLimit: 9,
+        districtDistanceSq: 420 * 420,
+        optionalLimit: 16,
+        optionalDistanceSq: 250 * 250,
+      };
+    case "follow":
+      return {
+        districtLimit: 5,
+        districtDistanceSq: 250 * 250,
+        optionalLimit: 10,
+        optionalDistanceSq: 190 * 190,
+      };
+    case "ride":
+      return {
+        districtLimit: 3,
+        districtDistanceSq: 170 * 170,
+        optionalLimit: 5,
+        optionalDistanceSq: 130 * 130,
+      };
+    default:
+      return {
+        districtLimit: 4,
+        districtDistanceSq: 220 * 220,
+        optionalLimit: 8,
+        optionalDistanceSq: 170 * 170,
+      };
   }
 }
 
@@ -4504,6 +4568,7 @@ export default function MapSimulator() {
   const showTransitRef = useRef(false);
   const transitGroupRef = useRef<THREE.Group | null>(null);
   const hoverRefreshRequestRef = useRef(0);
+  const labelRefreshRequestRef = useRef(0);
   const showFpsRef = useRef(false);
   const fpsModeRef = useRef<FpsMode>("auto");
   const showNonRoadRef = useRef(true);
@@ -4564,9 +4629,7 @@ export default function MapSimulator() {
 
   useEffect(() => {
     showLabelsRef.current = showLabels;
-    optionalLabelObjectsRef.current.forEach((label) => {
-      label.visible = showLabels;
-    });
+    labelRefreshRequestRef.current += 1;
   }, [showLabels]);
 
   useEffect(() => {
@@ -4575,6 +4638,7 @@ export default function MapSimulator() {
       transitGroupRef.current.visible = showTransit;
     }
     hoverRefreshRequestRef.current += 1;
+    labelRefreshRequestRef.current += 1;
   }, [showTransit]);
 
   useEffect(() => {
@@ -4858,17 +4922,25 @@ export default function MapSimulator() {
     let pointerDownClientY = 0;
     let pointerDragged = false;
     let hoverNeedsUpdate = true;
+    let labelVisibilityNeedsUpdate = true;
+    let labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
     let simulationTimeout = 0;
     let appliedHoverRefreshRequest = hoverRefreshRequestRef.current;
+    let appliedLabelRefreshRequest = labelRefreshRequestRef.current;
     const hoverCameraPosition = new THREE.Vector3();
     const hoverCameraQuaternion = new THREE.Quaternion();
+    const labelCameraPosition = new THREE.Vector3();
+    const labelCameraQuaternion = new THREE.Quaternion();
     const rideCameraPosition = new THREE.Vector3();
     const rideHeading = new THREE.Vector3();
     const rideLookTarget = new THREE.Vector3();
     const rideDesiredLookTarget = new THREE.Vector3();
     let rideLookInitialized = false;
     let nonRoadGroup: THREE.Group | null = null;
+    const districtLabelEntries: SceneLabelEntry[] = [];
+    const optionalLabelEntries: SceneLabelEntry[] = [];
+    const labelDistanceEntries: LabelDistanceEntry[] = [];
 
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
@@ -4908,6 +4980,11 @@ export default function MapSimulator() {
 
     const markHoverDirty = () => {
       hoverNeedsUpdate = true;
+    };
+
+    const markLabelVisibilityDirty = () => {
+      labelVisibilityNeedsUpdate = true;
+      labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
     };
 
     syncCamera();
@@ -4952,6 +5029,7 @@ export default function MapSimulator() {
         "position",
         new THREE.BufferAttribute(positions, 3),
       );
+      geometry.setDrawRange(0, count);
       const points = new THREE.Points(geometry, material);
       points.visible = false;
       scene.add(points);
@@ -5281,6 +5359,20 @@ export default function MapSimulator() {
       .array as Float32Array;
     const rainSeedCount = rainLayer.seeds.length;
     const snowSeedCount = snowLayer.seeds.length;
+    let appliedPrecipitationDensitySignature = "";
+    const syncPrecipitationDensity = (mode: CameraMode) => {
+      const drawRatio = precipitationDrawRatioFor(mode, isPageHidden);
+      const rainDrawCount = Math.round(rainSeedCount * drawRatio);
+      const snowDrawCount = Math.round(snowSeedCount * drawRatio);
+      const nextSignature = `${mode}:${isPageHidden ? "hidden" : "visible"}:${rainDrawCount}:${snowDrawCount}`;
+      if (nextSignature === appliedPrecipitationDensitySignature) {
+        return;
+      }
+
+      appliedPrecipitationDensitySignature = nextSignature;
+      rainLayer.geometry.setDrawRange(0, rainDrawCount);
+      snowLayer.geometry.setDrawRange(0, snowDrawCount);
+    };
 
     const signalById = new Map<string, SignalData>();
     const signalByKey = new Map<string, SignalData>();
@@ -5763,6 +5855,25 @@ export default function MapSimulator() {
     const optionalLabelObjects: CSS2DObject[] = [];
     const districtLabelElements = new Map<string, HTMLDivElement>();
     const transitHoverTargets: THREE.Object3D[] = [];
+    const registerSceneLabel = (
+      label: CSS2DObject,
+      kind: SceneLabelKind,
+      priority: number,
+      name: string | null,
+    ) => {
+      const entry = {
+        label,
+        kind,
+        priority,
+        name,
+      } satisfies SceneLabelEntry;
+      if (kind === "district") {
+        districtLabelEntries.push(entry);
+      } else {
+        optionalLabelEntries.push(entry);
+      }
+      return entry;
+    };
     const transitGroup = new THREE.Group();
     transitGroup.visible = showTransitRef.current;
     scene.add(transitGroup);
@@ -5809,6 +5920,7 @@ export default function MapSimulator() {
       }
 
       activeHighlightedDongNames = [...activeDongs];
+      markLabelVisibilityDirty();
       districtLabelElements.forEach((element, dongName) => {
         const isActive = activeDongs.has(dongName);
         element.style.background = isActive
@@ -5825,6 +5937,72 @@ export default function MapSimulator() {
           ? "translateY(-1px) scale(1.03)"
           : "none";
       });
+    };
+
+    const syncLabelVisibility = (mode: CameraMode) => {
+      const budget = labelVisibilityBudget(mode);
+      const cameraPosition = camera.position;
+      const highlightedDongs = new Set(activeHighlightedDongNames);
+      let visibleDistrictCount = 0;
+
+      labelDistanceEntries.length = 0;
+      districtLabelEntries.forEach((entry) => {
+        const isHighlighted = entry.name ? highlightedDongs.has(entry.name) : false;
+        if (isHighlighted) {
+          entry.label.visible = true;
+          visibleDistrictCount += 1;
+          return;
+        }
+
+        entry.label.visible = false;
+        const distanceSq = entry.label.position.distanceToSquared(cameraPosition);
+        if (distanceSq <= budget.districtDistanceSq) {
+          labelDistanceEntries.push({ entry, distanceSq });
+        }
+      });
+
+      labelDistanceEntries.sort(
+        (left, right) =>
+          left.entry.priority - right.entry.priority ||
+          left.distanceSq - right.distanceSq,
+      );
+      for (
+        let index = 0;
+        index < Math.max(0, budget.districtLimit - visibleDistrictCount) &&
+        index < labelDistanceEntries.length;
+        index += 1
+      ) {
+        labelDistanceEntries[index]!.entry.label.visible = true;
+      }
+
+      labelDistanceEntries.length = 0;
+      optionalLabelEntries.forEach((entry) => {
+        entry.label.visible = false;
+        if (!showLabelsRef.current) {
+          return;
+        }
+        if (entry.kind === "transit" && !showTransitRef.current) {
+          return;
+        }
+
+        const distanceSq = entry.label.position.distanceToSquared(cameraPosition);
+        if (distanceSq <= budget.optionalDistanceSq) {
+          labelDistanceEntries.push({ entry, distanceSq });
+        }
+      });
+
+      labelDistanceEntries.sort(
+        (left, right) =>
+          left.entry.priority - right.entry.priority ||
+          left.distanceSq - right.distanceSq,
+      );
+      for (
+        let index = 0;
+        index < budget.optionalLimit && index < labelDistanceEntries.length;
+        index += 1
+      ) {
+        labelDistanceEntries[index]!.entry.label.visible = true;
+      }
     };
 
     const resolveFollowTaxi = () =>
@@ -5932,6 +6110,7 @@ export default function MapSimulator() {
       label.visible = true;
       districtLabelElements.set(dong.name, label.element as HTMLDivElement);
       labelObjects.push(label);
+      registerSceneLabel(label, "district", 0, dong.name);
       scene.add(label);
     });
 
@@ -5951,6 +6130,7 @@ export default function MapSimulator() {
         label.visible = showLabelsRef.current;
         labelObjects.push(label);
         optionalLabelObjects.push(label);
+        registerSceneLabel(label, "building", 0, building.label as string);
         scene.add(label);
       });
 
@@ -5989,6 +6169,7 @@ export default function MapSimulator() {
           label.visible = showLabelsRef.current;
           labelObjects.push(label);
           optionalLabelObjects.push(label);
+          registerSceneLabel(label, "transit", landmark.isMajor ? 0 : 1, landmark.name);
           transitGroup.add(label);
         }
       });
@@ -6424,8 +6605,11 @@ export default function MapSimulator() {
           label.visible = showLabelsRef.current;
           labelObjects.push(label);
           optionalLabelObjects.push(label);
+          registerSceneLabel(label, "road", 2, route.name);
           scene.add(label);
         });
+
+      syncLabelVisibility(activeCameraMode);
 
       vehicleLayerReady = true;
       rebuildVehicleLayer(
@@ -7423,6 +7607,7 @@ export default function MapSimulator() {
       renderer.setSize(width, height);
       labelRenderer.setSize(width, height);
       markHoverDirty();
+      markLabelVisibilityDirty();
     };
 
     const controlKeyCodes = new Set([
@@ -7614,6 +7799,7 @@ export default function MapSimulator() {
     const onVisibilityChange = () => {
       isPageHidden = document.visibilityState === "hidden";
       applyRenderBudget(cameraModeRef.current);
+      markLabelVisibilityDirty();
     };
 
     const onPointerLeave = () => {
@@ -7640,6 +7826,7 @@ export default function MapSimulator() {
       simulationTimeRef.current,
       weatherModeRef.current,
     );
+    syncPrecipitationDensity(activeCameraMode);
 
     const animate = (timestamp?: number) => {
       animationFrame = window.requestAnimationFrame(animate);
@@ -7741,7 +7928,9 @@ export default function MapSimulator() {
         applyModePreset(currentMode);
         applyDistrictPresentation(currentMode);
         applyRenderBudget(currentMode);
+        markLabelVisibilityDirty();
       }
+      syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
 
       if (currentMode === "drive") {
@@ -8002,6 +8191,27 @@ export default function MapSimulator() {
         activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
       sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
       moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
+      if (labelRefreshRequestRef.current !== appliedLabelRefreshRequest) {
+        appliedLabelRefreshRequest = labelRefreshRequestRef.current;
+        markLabelVisibilityDirty();
+      }
+      if (
+        labelCameraPosition.distanceToSquared(camera.position) > 4 ||
+        1 - Math.abs(labelCameraQuaternion.dot(camera.quaternion)) > 0.0002
+      ) {
+        labelCameraPosition.copy(camera.position);
+        labelCameraQuaternion.copy(camera.quaternion);
+        labelVisibilityNeedsUpdate = true;
+      }
+      labelVisibilityAccumulator += delta;
+      if (
+        labelVisibilityNeedsUpdate &&
+        labelVisibilityAccumulator >= LABEL_VISIBILITY_REFRESH_INTERVAL
+      ) {
+        syncLabelVisibility(currentMode);
+        labelVisibilityNeedsUpdate = false;
+        labelVisibilityAccumulator = 0;
+      }
       if (hoverRefreshRequestRef.current !== appliedHoverRefreshRequest) {
         appliedHoverRefreshRequest = hoverRefreshRequestRef.current;
         hoverNeedsUpdate = true;
