@@ -38,6 +38,7 @@ const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
 const SERVICE_STOP_DURATION = 1.6;
+const SIGNAL_RADIUS_SQ = SIGNAL_RADIUS * SIGNAL_RADIUS;
 const CURBSIDE_EDGE_INSET_MIN = 0.45;
 const CURBSIDE_EDGE_INSET_MAX = 0.72;
 const CURBSIDE_EXTRA_OFFSET_MAX = 1.05;
@@ -45,6 +46,10 @@ const CURBSIDE_SIDEWALK_OFFSET = 0.92;
 const INTERSECTION_OCCUPANCY_RADIUS = 3.8;
 const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
 const INTERSECTION_EXIT_QUEUE_RADIUS = 8.8;
+const INTERSECTION_OCCUPANCY_RADIUS_SQ =
+  INTERSECTION_OCCUPANCY_RADIUS * INTERSECTION_OCCUPANCY_RADIUS;
+const INTERSECTION_EXIT_QUEUE_RADIUS_SQ =
+  INTERSECTION_EXIT_QUEUE_RADIUS * INTERSECTION_EXIT_QUEUE_RADIUS;
 const INTERSECTION_EXIT_BLOCK_SPEED = 2.4;
 const INTERSECTION_BOX_ENTRY_LOOKAHEAD = 10.5;
 const INTERSECTION_SIGNAL_LOOKAHEAD = 18;
@@ -588,13 +593,19 @@ type LabelDistanceEntry = {
 type HotspotVisual = {
   hotspot: Hotspot;
   base: THREE.Mesh;
+  baseMaterial: THREE.MeshStandardMaterial;
   glow: THREE.Mesh;
+  glowMaterial: THREE.MeshStandardMaterial;
   beacon: THREE.Mesh;
+  beaconMaterial: THREE.MeshStandardMaterial;
   ring: THREE.Mesh;
+  ringMaterial: THREE.MeshStandardMaterial;
   callerGroup: THREE.Group;
   waveArmPivot: THREE.Group;
   hailCube: THREE.Mesh;
+  hailMaterial: THREE.MeshStandardMaterial;
   callBadge: CSS2DObject;
+  badgeElement: HTMLDivElement;
   lastMarkerMode: HotspotMarkerMode;
   lastAccentColor: number;
 };
@@ -6668,7 +6679,10 @@ export default function MapSimulator() {
             roughness: 0.5,
           }),
         );
+        const baseMaterial = base.material as THREE.MeshStandardMaterial;
         base.position.y = 0.11;
+        base.scale.setScalar(0.82);
+        baseMaterial.emissiveIntensity = 0.04;
         group.add(base);
 
         const glow = new THREE.Mesh(
@@ -6682,7 +6696,11 @@ export default function MapSimulator() {
             roughness: 0.2,
           }),
         );
+        const glowMaterial = glow.material as THREE.MeshStandardMaterial;
         glow.position.y = 0.25;
+        glow.scale.setScalar(0.72);
+        glowMaterial.emissiveIntensity = 0.06;
+        glowMaterial.opacity = 0.2;
         group.add(glow);
 
         const beacon = new THREE.Mesh(
@@ -6696,7 +6714,11 @@ export default function MapSimulator() {
             roughness: 0.16,
           }),
         );
+        const beaconMaterial = beacon.material as THREE.MeshStandardMaterial;
         beacon.position.y = 0.55;
+        beacon.scale.setScalar(0.68);
+        beaconMaterial.emissiveIntensity = 0.08;
+        beaconMaterial.opacity = 0.28;
         group.add(beacon);
 
         const ring = new THREE.Mesh(
@@ -6708,8 +6730,11 @@ export default function MapSimulator() {
             roughness: 0.38,
           }),
         );
+        const ringMaterial = ring.material as THREE.MeshStandardMaterial;
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.24;
+        ring.scale.setScalar(0.78);
+        ringMaterial.emissiveIntensity = 0.05;
         group.add(ring);
 
         const caller = createCallerGroup(index);
@@ -6732,10 +6757,14 @@ export default function MapSimulator() {
         );
         caller.group.visible = false;
         caller.waveArmPivot.rotation.z = -0.72;
+        caller.hailCube.scale.setScalar(0.72);
+        (caller.hailCube.material as THREE.MeshStandardMaterial).emissiveIntensity =
+          0.06;
         group.add(caller.group);
 
         const callBadge = new CSS2DObject(hotspotCallElement());
-        callBadge.position.set(0, 2.18, 0);
+        const badgeElement = callBadge.element as HTMLDivElement;
+        callBadge.position.set(0, 2.28, 0);
         callBadge.visible = false;
         group.add(callBadge);
 
@@ -6744,13 +6773,19 @@ export default function MapSimulator() {
         return {
           hotspot,
           base,
+          baseMaterial,
           glow,
+          glowMaterial,
           beacon,
+          beaconMaterial,
           ring,
+          ringMaterial,
           callerGroup: caller.group,
           waveArmPivot: caller.waveArmPivot,
           hailCube: caller.hailCube,
+          hailMaterial: caller.hailCube.material as THREE.MeshStandardMaterial,
           callBadge,
+          badgeElement,
           lastMarkerMode: "idle",
           lastAccentColor: baseColor,
         } satisfies HotspotVisual;
@@ -7185,8 +7220,8 @@ export default function MapSimulator() {
         }
       }
 
-      hotspotVisuals.forEach((visual, index) => {
-        const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
+      for (let index = 0; index < hotspotVisuals.length; index += 1) {
+        const visual = hotspotVisuals[index]!;
         const pickupCalls = activePickupsByHotspot.get(visual.hotspot.id) ?? 0;
         const dropoffCalls =
           activeDropoffsByHotspot.get(visual.hotspot.id) ?? 0;
@@ -7199,57 +7234,72 @@ export default function MapSimulator() {
             : markerMode === "dropoff"
               ? 0x49e6a1
               : 0x5f708c;
-        const baseMaterial = visual.base.material as THREE.MeshStandardMaterial;
-        const glowMaterial = visual.glow.material as THREE.MeshStandardMaterial;
-        const beaconMaterial = visual.beacon
-          .material as THREE.MeshStandardMaterial;
-        const ringMaterial = visual.ring.material as THREE.MeshStandardMaterial;
-        const hailMaterial = visual.hailCube
-          .material as THREE.MeshStandardMaterial;
-        const badgeElement = visual.callBadge.element as HTMLDivElement;
 
         if (visual.lastAccentColor !== accentColor) {
           visual.lastAccentColor = accentColor;
-          baseMaterial.color.setHex(accentColor);
-          baseMaterial.emissive.setHex(accentColor);
-          glowMaterial.emissive.setHex(accentColor);
-          beaconMaterial.emissive.setHex(accentColor);
-          ringMaterial.emissive.setHex(accentColor);
+          visual.baseMaterial.color.setHex(accentColor);
+          visual.baseMaterial.emissive.setHex(accentColor);
+          visual.glowMaterial.emissive.setHex(accentColor);
+          visual.beaconMaterial.emissive.setHex(accentColor);
+          visual.ringMaterial.emissive.setHex(accentColor);
         }
-
-        visual.base.scale.setScalar(isActive ? 1.02 + pulse * 0.08 : 0.82);
-        visual.glow.scale.setScalar(isActive ? 1.08 + pulse * 0.14 : 0.72);
-        visual.beacon.scale.setScalar(isActive ? 1.04 + pulse * 0.22 : 0.68);
-        visual.ring.scale.setScalar(isActive ? 1.12 + pulse * 0.18 : 0.78);
-        visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
-
-        baseMaterial.emissiveIntensity = isActive ? 0.22 + pulse * 0.12 : 0.04;
-        glowMaterial.emissiveIntensity = isActive ? 0.34 + pulse * 0.18 : 0.06;
-        glowMaterial.opacity = isActive ? 0.72 + pulse * 0.16 : 0.2;
-        beaconMaterial.emissiveIntensity = isActive
-          ? 0.34 + pulse * 0.28
-          : 0.08;
-        beaconMaterial.opacity = isActive ? 0.9 : 0.28;
-        ringMaterial.emissiveIntensity = isActive ? 0.3 + pulse * 0.24 : 0.05;
-        hailMaterial.emissiveIntensity =
-          markerMode === "pickup" ? 0.34 + pulse * 0.32 : 0.06;
 
         if (visual.lastMarkerMode !== markerMode) {
           visual.lastMarkerMode = markerMode;
           visual.callerGroup.visible = markerMode === "pickup";
           visual.callBadge.visible = isActive;
-          badgeElement.textContent = markerMode === "dropoff" ? "하차" : "승차";
-          badgeElement.style.borderColor =
+          visual.badgeElement.textContent =
+            markerMode === "dropoff" ? "하차" : "승차";
+          visual.badgeElement.style.borderColor =
             markerMode === "dropoff"
               ? "rgba(122,255,196,0.45)"
               : "rgba(255,138,138,0.5)";
-          badgeElement.style.background =
+          visual.badgeElement.style.background =
             markerMode === "dropoff"
               ? "rgba(8,40,24,0.88)"
               : "rgba(48,12,14,0.88)";
-          badgeElement.style.color =
+          visual.badgeElement.style.color =
             markerMode === "dropoff" ? "#d9fff0" : "#ffe0e0";
+
+          if (!isActive) {
+            visual.base.scale.setScalar(0.82);
+            visual.glow.scale.setScalar(0.72);
+            visual.beacon.scale.setScalar(0.68);
+            visual.ring.scale.setScalar(0.78);
+            visual.ring.rotation.z = index * 0.2;
+            visual.baseMaterial.emissiveIntensity = 0.04;
+            visual.glowMaterial.emissiveIntensity = 0.06;
+            visual.glowMaterial.opacity = 0.2;
+            visual.beaconMaterial.emissiveIntensity = 0.08;
+            visual.beaconMaterial.opacity = 0.28;
+            visual.ringMaterial.emissiveIntensity = 0.05;
+            visual.hailMaterial.emissiveIntensity = 0.06;
+            visual.callerGroup.position.y = 0.04;
+            visual.waveArmPivot.rotation.z = -0.72;
+            visual.hailCube.scale.setScalar(0.72);
+            visual.callBadge.position.y = 2.28;
+          }
         }
+
+        if (!isActive) {
+          continue;
+        }
+
+        const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
+        visual.base.scale.setScalar(1.02 + pulse * 0.08);
+        visual.glow.scale.setScalar(1.08 + pulse * 0.14);
+        visual.beacon.scale.setScalar(1.04 + pulse * 0.22);
+        visual.ring.scale.setScalar(1.12 + pulse * 0.18);
+        visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
+
+        visual.baseMaterial.emissiveIntensity = 0.22 + pulse * 0.12;
+        visual.glowMaterial.emissiveIntensity = 0.34 + pulse * 0.18;
+        visual.glowMaterial.opacity = 0.72 + pulse * 0.16;
+        visual.beaconMaterial.emissiveIntensity = 0.34 + pulse * 0.28;
+        visual.beaconMaterial.opacity = 0.9;
+        visual.ringMaterial.emissiveIntensity = 0.3 + pulse * 0.24;
+        visual.hailMaterial.emissiveIntensity =
+          markerMode === "pickup" ? 0.34 + pulse * 0.32 : 0.06;
         visual.callerGroup.position.y =
           0.04 +
           (markerMode === "pickup"
@@ -7264,7 +7314,7 @@ export default function MapSimulator() {
         );
         visual.callBadge.position.y =
           2.28 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.1 : 0);
-      });
+      }
     };
 
     const updatePedestrians = (elapsedTime: number) => {
@@ -7342,7 +7392,7 @@ export default function MapSimulator() {
           sample.motion = vehicle.motion;
         }
 
-        updateVehicleMotionState(vehicle);
+        const currentMotion = sample.motion;
         const nextStopState = resolveNextStopInto(
           vehicle.route,
           vehicle.distance,
@@ -7355,8 +7405,10 @@ export default function MapSimulator() {
         const stop = nextStopState.stop;
         const signal = stop ? signalById.get(stop.signalId) ?? null : null;
         if (signal && stop) {
-          const signalDistance = vehicle.motion.position.distanceTo(signal.point);
-          if (signalDistance < SIGNAL_RADIUS) {
+          const signalDistanceSq = currentMotion.position.distanceToSquared(
+            signal.point,
+          );
+          if (signalDistanceSq < SIGNAL_RADIUS_SQ) {
             vehicle.currentSignalId = signal.id;
           }
           if (nextStopState.ahead < INTERSECTION_SIGNAL_LOOKAHEAD) {
@@ -7371,7 +7423,7 @@ export default function MapSimulator() {
             approachDemand[approachDirection][stop.turn] += 1;
           }
           if (
-            signalDistance < INTERSECTION_OCCUPANCY_RADIUS &&
+            signalDistanceSq < INTERSECTION_OCCUPANCY_RADIUS_SQ &&
             nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD
           ) {
             let claim = intersectionOccupancy.get(signal.id);
@@ -7391,8 +7443,8 @@ export default function MapSimulator() {
           const currentSignal = signalById.get(vehicle.currentSignalId) ?? null;
           const isQueuedPastIntersection =
             currentSignal &&
-            vehicle.motion.position.distanceTo(currentSignal.point) <
-              INTERSECTION_EXIT_QUEUE_RADIUS &&
+            currentMotion.position.distanceToSquared(currentSignal.point) <
+              INTERSECTION_EXIT_QUEUE_RADIUS_SQ &&
             vehicle.speed < INTERSECTION_EXIT_BLOCK_SPEED &&
             nextStopState.stop?.signalId !== currentSignal.id;
           if (currentSignal && isQueuedPastIntersection) {
@@ -7407,7 +7459,7 @@ export default function MapSimulator() {
         }
 
         sample.proximityCellKey = vehicleProximityCellKeyForPosition(
-          vehicle.motion.lanePosition,
+          currentMotion.lanePosition,
         );
         addVehicleSampleToBucket(proximityBuckets, sample);
       }

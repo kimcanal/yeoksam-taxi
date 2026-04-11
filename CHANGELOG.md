@@ -7,6 +7,9 @@
 - Reused the precomputed segment `travelCost` during shortest-path searches so road-cost weighting no longer needs to be recomputed on every graph edge expansion.
 - Updated taxi pickup/dropoff hotspot generation to score candidate route nodes against graph topology, signal placement, turn shape, and local spacing instead of choosing only by route-distance proximity.
 - Updated taxi pickup/dropoff positioning to use a shared curbside offset model, so hotspot markers, caller placement, and the taxi's final approach all bias toward the road edge instead of staying near the lane center.
+- Reduced per-frame vehicle simulation cost by reusing the current motion sample for the first simulation pass instead of resampling every vehicle route twice before and after movement.
+- Reduced per-frame hotspot update work by caching hotspot material and DOM references, initializing idle visuals once, and skipping most animation writes while a hotspot stays inactive.
+- Replaced repeated square-root signal proximity checks with squared-distance comparisons inside the vehicle simulation loop.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.

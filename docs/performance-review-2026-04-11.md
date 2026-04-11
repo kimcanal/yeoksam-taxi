@@ -42,7 +42,12 @@ Impact: medium when scene density grows further.
 Impact: low-to-medium, especially while panning or zooming.
 
 4. Vehicle movement still does full per-vehicle route sampling each simulation tick.
-Impact: medium, but correctness-sensitive, so any deeper rewrite should be measured carefully.
+Impact: reduced from medium to low-to-medium.
+Notes: the first vehicle simulation pass now reuses the previously computed motion state instead of resampling route geometry again before movement. Vehicles still resample after movement, which is the correctness-sensitive part.
+
+5. Inactive hotspot visuals were still rewriting scale, opacity, emissive, and badge animation values every frame.
+Impact: fixed.
+Notes: hotspot visuals now cache material and badge-element references, initialize idle state once, and skip most animation writes while remaining idle.
 
 ## Result
 
