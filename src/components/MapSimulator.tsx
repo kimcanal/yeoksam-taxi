@@ -76,6 +76,7 @@ const OVERVIEW_RENDER_FPS = 60;
 const HIDDEN_RENDER_FPS = 12;
 const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
 const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 0.24;
+const HOVER_REFRESH_INTERVAL = 1 / 30;
 const LABEL_VISIBILITY_REFRESH_INTERVAL = 0.14;
 const COMMON_REFRESH_RATE_BANDS = [
   60, 72, 75, 90, 100, 120, 144, 165, 180, 200, 240,
@@ -4960,6 +4961,7 @@ export default function MapSimulator() {
     let pointerDownClientY = 0;
     let pointerDragged = false;
     let hoverNeedsUpdate = true;
+    let hoverRefreshAccumulator = HOVER_REFRESH_INTERVAL;
     let labelVisibilityNeedsUpdate = true;
     let labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
@@ -5018,6 +5020,7 @@ export default function MapSimulator() {
 
     const markHoverDirty = () => {
       hoverNeedsUpdate = true;
+      hoverRefreshAccumulator = HOVER_REFRESH_INTERVAL;
     };
 
     const markLabelVisibilityDirty = () => {
@@ -8266,9 +8269,14 @@ export default function MapSimulator() {
         hoverCameraQuaternion.copy(camera.quaternion);
         hoverNeedsUpdate = true;
       }
-      if (hoverNeedsUpdate) {
+      hoverRefreshAccumulator += delta;
+      if (
+        hoverNeedsUpdate &&
+        hoverRefreshAccumulator >= HOVER_REFRESH_INTERVAL
+      ) {
         updateBoundaryHover();
         hoverNeedsUpdate = false;
+        hoverRefreshAccumulator = 0;
       }
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
