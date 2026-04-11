@@ -1,8 +1,10 @@
 # yeoksam-taxi
 
-`yeoksam-taxi` is a Next.js and Three.js 3D map prototype focused on taxi movement around Yeoksam, Seoul.
+`yeoksam-taxi` is an OSM + Three.js 3D digital-twin companion for the `A-Eye` capstone.
 
-It uses OpenStreetMap road and building data fetched through Overpass, converts that data into GeoJSON, and renders the scene directly with Three.js.
+It expands the simplified `Yeoksam 3x3 SUMO baseline` from `A-Eye` into a spatial scene built from 9 real administrative dongs around Gangnam Station and the Gangnam core. Roads, buildings, non-road surfaces, transit landmarks, and signal anchors come from OpenStreetMap through Overpass and are rendered directly with Three.js.
+
+This repo is meant to support `Module 1` style digital-twin presentation and spatial validation. It is not the main dispatch-evaluation baseline itself, and it should not claim full Gangnam or full Seoul traffic replication.
 
 This project does not use Google Maps Platform for map rendering. The only Google-related import in the app is `next/font/google`, which is used for fonts.
 
@@ -44,16 +46,16 @@ If you want the interactive menu:
 - When you choose `dev` or `start`, the launcher then asks whether to:
   - open immediately on the default `3000`
   - open on a custom port such as `8000` for VDI
-- The launcher automatically binds to a detected interface IP so the Next.js startup banner uses a real reachable host instead of `0.0.0.0`.
-- It prefers a private IP when one exists and falls back to a public IP on hosts like this VDI where only a public NIC is present.
-- After you pick the port, the launcher prints a single recommended access URL before handing off to Next.js.
+- The launcher binds Next.js to `0.0.0.0` by default so `localhost` still works on the current machine.
+- It also prints a detected external access URL when the host has a routable IP, which is useful on this VDI when port `8000` is exposed.
+- After you pick the port, the launcher prints both the local and external access URLs before handing off to Next.js.
 
 If you already know what you want, you can still run the direct commands:
 
 ```bash
 npm run dev
-npm run dev -- --hostname 163.239.77.91 --port 8000
-npm run start -- --hostname 163.239.77.91 --port 8000
+npm run dev -- --hostname 0.0.0.0 --port 8000
+npm run start -- --hostname 0.0.0.0 --port 8000
 ```
 
 Open `http://localhost:3000`.
@@ -84,6 +86,7 @@ Open `http://localhost:3000`.
 - `CHANGELOG.md`: dated update history
 - `docs/added-taxi-call-review.md`: current `added-taxi-call` vs `main` comparison
 - `docs/dispatch-road-network-review.md`: current OSM road graph suitability for dispatch and pickup/dropoff routing
+- `docs/a-eye-module1-alignment.md`: how this 9-dong OSM viewer maps back to the active `A-Eye` scope
 
 ## Data
 
@@ -145,13 +148,26 @@ flowchart LR
 
 ## Notes
 
+- In `A-Eye`, the current active baseline is still the simplified `Yeoksam 3x3 SUMO` path for before/after dispatch validation.
+- This repo complements that baseline by giving the project a richer `Module 1` spatial layer built from real OSM geometry across the Gangnam Station micro-area.
 - The current prototype uses 9 administrative dongs in Gangnam-gu: `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`.
+- The 9-dong choice is intentional: it keeps the project inside the same Gangnam Station micro-area story while making the map explainable in terms of real administrative geography instead of abstract 3x3 cells.
 - Dong boundaries are fetched from OpenStreetMap administrative relations through Overpass, but boundary rendering is currently disabled while a clearer visualization approach is being redesigned.
 - Roads, buildings, and transit landmarks come from OSM geometry, but some visual properties are simplified for readability.
 - Building heights are partially inferred from `height`, `building:levels`, or fallback heuristics when OSM is incomplete.
+- OSM is used here as the geometry backbone for roads, curbside context, signal anchors, and pickup/dropoff reasoning. It is the right prototype dataset for this scope, but it is not a dispatch-grade legal road-operations source by itself.
 - Taxi demand, signals, pedestrians, routing behavior, and vehicle logic are simulated inside the app on top of OSM-derived geometry.
 - The current branch also includes weather/time presets, taxi roof-sign states, pickup/dropoff emphasis, and click-to-enter `Taxi View`.
 - This is reliable enough for a spatial prototype and demo, but not a substitute for official real-time transport or cadastral data.
+
+## A-Eye Alignment
+
+- `A-Eye` currently evaluates dispatch on a simplified `Yeoksam 3x3` SUMO baseline.
+- `yeoksam-taxi` keeps the same Gangnam Station micro-area intent, but expresses it through `9 real dongs + OSM roads`.
+- The practical interpretation is:
+  - use the `3x3` layer for compact dispatch comparison when needed
+  - use the `9-dong OSM` layer for digital-twin presentation, road/signal realism, and future dong-level data overlays
+- This repo should therefore be described as a `Module 1 spatial companion` to the active `A-Eye` baseline, not as a competing second baseline.
 
 ## Current Branch Snapshot
 

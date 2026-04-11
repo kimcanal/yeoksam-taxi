@@ -5164,7 +5164,7 @@ export default function MapSimulator() {
             roadNetwork,
             meta: {
               source:
-                "OpenStreetMap + Overpass -> public/*.geojson + public/road-network.json",
+                "A-Eye Module 1 companion: OpenStreetMap + Overpass -> public/*.geojson + public/road-network.json",
               boundarySource: "OSM administrative relations (admin_level=8)",
               latestAssetUpdatedAt: assetTimes.at(-1) ?? null,
               loadedAt: formatKstDateTime(new Date()) ?? "unknown",
@@ -9317,21 +9317,37 @@ export default function MapSimulator() {
 
       <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
-          OSM + Three.js Taxi Sim
+          A-Eye Module 1 Companion
         </p>
         <h1 className="text-[28px] font-semibold leading-tight">
-          강남 코어 9개 동 블록 시티 택시 시뮬레이션
+          강남역 마이크로 영역 9개 동 OSM 디지털 트윈
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-300">
+          이 장면은 `A-Eye`의 단순화된 Yeoksam 3x3 SUMO baseline을 대체하는
+          별도 평가계가 아니라, 같은 강남역 마이크로 영역을 9개 실제 행정동과
+          OSM 도로 위에서 더 구체적으로 보여주는 Module 1 공간 레이어입니다.
           역삼1·2동을 중심으로 논현, 삼성, 신사, 청담, 대치4동까지 이어지는 9개
-          동을 OSM 경계 기준으로 불러와 3D로 다시 렌더링했습니다. 택시는 우측
-          차선으로 주행하고, 교차로마다 보호 좌회전과 보행자 신호를 확인하며,
-          승차지에서 손님을 태운 뒤 목적지까지 최단 경로로 이동합니다. 신호등은
-          OSM `traffic_signals` 노드를 기준으로 묶어 쓰고, 황색과 보호 좌회전도
-          함께 반영합니다. 기본 화면은 가독성 우선으로 두고, 지하철 구조물은
-          필요할 때만 켤 수 있게 두고, 버스 정류장 시각화는 현재 잠시 보류한
-          상태입니다.
+          동을 OSM 경계 기준으로 불러와 3D로 다시 렌더링했고, 택시는 우측 차선
+          기준으로 주행하며 교차로에서는 보호 좌회전, 황색, 보행 phase를 함께
+          반영합니다. 신호등은 OSM `traffic_signals` 노드를 기준으로 묶어 쓰고,
+          승하차 위치도 실제 도로 그래프와 curbside 쪽으로 맞추고 있습니다.
         </p>
+
+        <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
+          <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+            Scope
+          </div>
+          <div className="mt-1 text-sm font-semibold text-cyan-50">
+            강남역 마이크로 디지털 트윈 보조 레이어
+          </div>
+          <div className="mt-2 text-xs leading-5 text-slate-300">
+            목표는 full Gangnam이나 full Seoul 복제가 아니라, `A-Eye`의
+            마이크로 영역 수요/배차 스토리를 실제 도로와 행정동 위에서 읽히게
+            만드는 것입니다. 즉 `3x3`은 나중 배차 비교 레이어로 남겨둘 수 있고,
+            이 장면은 `9개 동 OSM geometry backbone` 위에서 road-level
+            움직임과 시각화를 다듬는 역할에 집중합니다.
+          </div>
+        </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
@@ -9555,11 +9571,12 @@ export default function MapSimulator() {
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
             동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM
-            지오메트리에서 가져옵니다. 신호등 위치는 OSM `traffic_signals`
-            노드를 기준으로 묶어 쓰고, 차량 phase는 도로 방향을 읽어
-            좌회전/직진/황색 흐름으로 단순화했습니다. 행정동 경계 시각화는 현재
-            비활성화되어 있고, 이후 더 안정적인 표현 방식으로 다시 추가할
-            예정입니다.
+            지오메트리에서 가져옵니다. 이 장면에서 OSM은 단순 배경지도가 아니라
+            `A-Eye` 마이크로 영역 디지털 트윈의 geometry backbone 역할을
+            합니다. 신호등 위치는 OSM `traffic_signals` 노드를 기준으로 묶어
+            쓰고, 차량 phase는 도로 방향을 읽어 좌회전/직진/황색 흐름으로
+            단순화했습니다. 다만 이 프로젝트는 아직 full city replication이나
+            legal-grade dispatch map을 주장하지는 않습니다.
           </div>
         </div>
 

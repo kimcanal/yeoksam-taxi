@@ -17,9 +17,11 @@
 - Switched the launcher back to binding Next.js on `0.0.0.0` by default while still printing a detected external URL, so localhost stays usable on the VDI itself and outside access can keep using the exposed port.
 - Reworked signal timing to use corridor-priority phase plans with lead protected-left windows, longer major-axis greens, explicit yellow/all-red clearance, and a shared 24-second coordinated cycle.
 - Refined intersection blocking logic so vehicles now react to actual box occupancy, same-direction downstream queue spillback, and unprotected-left gap acceptance instead of relying on a single coarse per-axis stop rule.
+- Reframed the viewer as an `A-Eye Module 1` spatial companion, clarifying in the UI and README that the 9-dong OSM scene is the micro-area digital-twin layer around Gangnam Station rather than a competing full-city baseline.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
+- Added an `A-Eye` alignment note that explains why the viewer uses 9 real dongs, how that complements the active 3x3 SUMO baseline, and why OSM is the right geometry backbone for this scope.
 
 ## 2026-04-10
 
