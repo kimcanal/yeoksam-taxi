@@ -723,8 +723,8 @@ const TIME_PRESETS = [
 const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   {
     id: "baseline",
-    label: "기본 검증",
-    detail: "A-Eye 발표용 기본 장면",
+    label: "기본 시연",
+    detail: "정오 기준 기본 설명 장면",
     taxis: DEFAULT_TAXI_COUNT,
     traffic: DEFAULT_TRAFFIC_COUNT,
     minutes: 12 * 60,
@@ -733,8 +733,8 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   },
   {
     id: "gangnam-peak",
-    label: "강남역 피크",
-    detail: "퇴근 전후 유동이 큰 로컬 체크",
+    label: "강남역 퇴근 피크",
+    detail: "퇴근 시간대 역세권 혼잡",
     taxis: 16,
     traffic: 24,
     minutes: 18 * 60 + 30,
@@ -743,8 +743,8 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   },
   {
     id: "rainy-evening",
-    label: "비 오는 저녁",
-    detail: "강수 상황에서 흐름을 단순 점검",
+    label: "우천 혼잡",
+    detail: "비 오는 저녁 보수 주행",
     taxis: 18,
     traffic: 26,
     minutes: 19 * 60,
@@ -753,8 +753,8 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   },
   {
     id: "late-night",
-    label: "심야 완화",
-    detail: "교통량을 낮춘 야간 순환 상태",
+    label: "심야 순환",
+    detail: "교통이 풀린 야간 순환",
     taxis: 10,
     traffic: 10,
     minutes: 23 * 60 + 20,
@@ -9044,6 +9044,9 @@ export default function MapSimulator() {
   };
   const applyLocalScenario = (scenario: LocalScenarioPreset) => {
     const clock = currentSimulationClock();
+    const shouldRebuildVehicleLayer =
+      appliedTaxiCountRef.current !== scenario.taxis ||
+      appliedTrafficCountRef.current !== scenario.traffic;
     const focusStation =
       (scenario.focusStationKeyword
         ? subwayHubs.find((station) =>
@@ -9053,7 +9056,9 @@ export default function MapSimulator() {
       subwayHubs[0] ??
       null;
 
-    setStatus("rendering");
+    if (shouldRebuildVehicleLayer) {
+      setStatus("rendering");
+    }
     setCircumstanceMode("specific");
     setSimulationDate(clock.dateIso);
     setSimulationTimeMinutes(scenario.minutes);
@@ -9489,6 +9494,9 @@ export default function MapSimulator() {
                   key={scenario.id}
                   type="button"
                   onClick={() => applyLocalScenario(scenario)}
+                  data-local-scenario-button={scenario.id}
+                  data-selected={isSelected ? "true" : "false"}
+                  aria-label={`${scenario.label} 시나리오 적용`}
                   className={`rounded-2xl border px-3 py-3 text-left transition ${
                     isSelected
                       ? "border-cyan-300/35 bg-cyan-300/16 text-cyan-50"
@@ -9966,7 +9974,10 @@ export default function MapSimulator() {
           </div>
         ) : null}
 
-        <div className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400">
+        <div
+          data-scene-status={status}
+          className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400"
+        >
           상태: <span className="text-slate-100">{statusLabel}</span>
           <br />
           기준: <span className="text-slate-100">{circumstanceModeLabel}</span>

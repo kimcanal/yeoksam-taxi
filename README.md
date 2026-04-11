@@ -20,6 +20,8 @@ This project does not use Google Maps Platform for map rendering. The only Googl
 ```bash
 npm run launch
 npm run asset:update
+npm run screenshot:install
+npm run screenshot:scenarios
 npm run dev
 npm run build
 npm run lint
@@ -84,14 +86,29 @@ Open `http://localhost:3000`.
 ## Local Scenario Presets
 
 - The main sidebar now includes four local-only scenario presets for quick `A-Eye Module 1` demos:
-  - `기본 검증`
-  - `강남역 피크`
-  - `비 오는 저녁`
-  - `심야 완화`
+  - `기본 시연`
+  - `강남역 퇴근 피크`
+  - `우천 혼잡`
+  - `심야 순환`
 - Each preset applies a bundled combination of time, weather, taxi count, traffic count, and a nearby subway-hub camera focus.
 - This keeps the viewer easy to present and compare even when no external demand or weather feed is connected.
 - A small `Local Check` panel also shows scene-internal proxy metrics such as waiting share, trip close share, street load, and a coarse flow-state label.
 - These are intentionally lightweight validation cues, not operational KPIs.
+
+## Scenario Screenshots
+
+- `npm run screenshot:install` downloads the Playwright Chromium bundle used for local captures.
+- `npm run screenshot:scenarios` builds the app, starts a local production server on `127.0.0.1:3200` or the next free port, applies each local scenario preset, and saves PNG files under `docs/screenshots/local-scenarios/`.
+- Current output filenames are:
+  - `scenario-baseline-demo.png`
+  - `scenario-gangnam-station-peak.png`
+  - `scenario-rainy-evening.png`
+  - `scenario-late-night-loop.png`
+- You can skip the build step on repeat captures with:
+
+```bash
+npm run screenshot:scenarios -- --skip-build
+```
 
 ## Project Docs
 

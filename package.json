@@ -5,6 +5,8 @@
   "scripts": {
     "launch": "bash scripts/run-next.sh",
     "asset:update": "bash scripts/update-assets.sh",
+    "screenshot:install": "playwright install chromium",
+    "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -34,6 +36,7 @@
     "@types/three": "^0.183.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
+    "playwright": "^1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
