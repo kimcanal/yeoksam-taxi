@@ -449,6 +449,17 @@ type WeatherOption = {
   detail: string;
 };
 
+type LocalScenarioPreset = {
+  id: string;
+  label: string;
+  detail: string;
+  taxis: number;
+  traffic: number;
+  minutes: number;
+  weather: WeatherMode;
+  focusStationKeyword?: string;
+};
+
 type SimulationData = {
   center: { lat: number; lon: number };
   nonRoad: NonRoadFeatureCollection;
@@ -707,6 +718,49 @@ const TIME_PRESETS = [
   { label: "12:00", minutes: 12 * 60, detail: "한낮" },
   { label: "18:30", minutes: 18 * 60 + 30, detail: "노을" },
   { label: "23:00", minutes: 23 * 60, detail: "심야" },
+];
+
+const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
+  {
+    id: "baseline",
+    label: "기본 검증",
+    detail: "A-Eye 발표용 기본 장면",
+    taxis: DEFAULT_TAXI_COUNT,
+    traffic: DEFAULT_TRAFFIC_COUNT,
+    minutes: 12 * 60,
+    weather: "clear",
+    focusStationKeyword: "강남",
+  },
+  {
+    id: "gangnam-peak",
+    label: "강남역 피크",
+    detail: "퇴근 전후 유동이 큰 로컬 체크",
+    taxis: 16,
+    traffic: 24,
+    minutes: 18 * 60 + 30,
+    weather: "clear",
+    focusStationKeyword: "강남",
+  },
+  {
+    id: "rainy-evening",
+    label: "비 오는 저녁",
+    detail: "강수 상황에서 흐름을 단순 점검",
+    taxis: 18,
+    traffic: 26,
+    minutes: 19 * 60,
+    weather: "heavy-rain",
+    focusStationKeyword: "강남",
+  },
+  {
+    id: "late-night",
+    label: "심야 완화",
+    detail: "교통량을 낮춘 야간 순환 상태",
+    taxis: 10,
+    traffic: 10,
+    minutes: 23 * 60 + 20,
+    weather: "cloudy",
+    focusStationKeyword: "역삼",
+  },
 ];
 
 function normalizeDayMinutes(minutes: number) {
@@ -8988,6 +9042,37 @@ export default function MapSimulator() {
       setCameraMode("drive");
     }
   };
+  const applyLocalScenario = (scenario: LocalScenarioPreset) => {
+    const clock = currentSimulationClock();
+    const focusStation =
+      (scenario.focusStationKeyword
+        ? subwayHubs.find((station) =>
+            (station.name ?? "").includes(scenario.focusStationKeyword ?? ""),
+          )
+        : null) ??
+      subwayHubs[0] ??
+      null;
+
+    setStatus("rendering");
+    setCircumstanceMode("specific");
+    setSimulationDate(clock.dateIso);
+    setSimulationTimeMinutes(scenario.minutes);
+    setWeatherMode(scenario.weather);
+    setSimulationDensity({
+      taxis: scenario.taxis,
+      traffic: scenario.traffic,
+    });
+
+    if (focusStation) {
+      handleSubwayFocus(focusStation);
+      return;
+    }
+
+    if (cameraModeRef.current !== "drive") {
+      cameraModeRef.current = "drive";
+      setCameraMode("drive");
+    }
+  };
   const taxiOptions = useMemo(
     () =>
       Array.from({ length: appliedTaxiCount }, (_, index) => ({
@@ -9042,6 +9127,16 @@ export default function MapSimulator() {
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
+  const activeLocalScenario =
+    circumstanceMode === "specific"
+      ? LOCAL_SCENARIO_PRESETS.find(
+          (scenario) =>
+            scenario.minutes === normalizedSimulationTimeMinutes &&
+            scenario.weather === weatherMode &&
+            scenario.taxis === simulationDensity.taxis &&
+            scenario.traffic === simulationDensity.traffic,
+        ) ?? null
+      : null;
   const solarReferenceCenter = data?.center ?? DEFAULT_MAP_CENTER;
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const formattedSimulationDate = formatDateLabel(simulationDate);
@@ -9072,6 +9167,22 @@ export default function MapSimulator() {
   const isDensityApplying =
     simulationDensity.taxis !== appliedTaxiCount ||
     simulationDensity.traffic !== appliedTrafficCount;
+  const totalVehicles = stats.taxis + stats.traffic;
+  const waitingShare = totalVehicles
+    ? Math.round((stats.waiting / totalVehicles) * 100)
+    : 0;
+  const tripVolume = stats.activeTrips + stats.completedTrips;
+  const tripCompletionShare = tripVolume
+    ? Math.round((stats.completedTrips / tripVolume) * 100)
+    : 0;
+  const localFlowLabel =
+    tripVolume === 0
+      ? "standby"
+      : waitingShare >= 30
+        ? "queueing"
+        : tripCompletionShare >= 50
+          ? "settled"
+          : "active";
   const timeWeatherControls = (
     <>
       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -9346,6 +9457,121 @@ export default function MapSimulator() {
             만드는 것입니다. 즉 `3x3`은 나중 배차 비교 레이어로 남겨둘 수 있고,
             이 장면은 `9개 동 OSM geometry backbone` 위에서 road-level
             움직임과 시각화를 다듬는 역할에 집중합니다.
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                Local Scenarios
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                외부 수집 없이 바로 쓰는 발표/검증 프리셋
+              </div>
+            </div>
+            <span
+              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
+                activeLocalScenario
+                  ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+                  : "border-white/10 bg-slate-950/70 text-slate-400"
+              }`}
+            >
+              {activeLocalScenario?.label ?? "Custom mix"}
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {LOCAL_SCENARIO_PRESETS.map((scenario) => {
+              const isSelected = activeLocalScenario?.id === scenario.id;
+              return (
+                <button
+                  key={scenario.id}
+                  type="button"
+                  onClick={() => applyLocalScenario(scenario)}
+                  className={`rounded-2xl border px-3 py-3 text-left transition ${
+                    isSelected
+                      ? "border-cyan-300/35 bg-cyan-300/16 text-cyan-50"
+                      : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{scenario.label}</div>
+                  <div className="mt-1 text-[11px] leading-5 text-slate-400">
+                    {scenario.detail}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
+                    <span>{format24Hour(scenario.minutes)}</span>
+                    <span>·</span>
+                    <span>택시 {scenario.taxis}</span>
+                    <span>·</span>
+                    <span>일반 {scenario.traffic}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+            프리셋은 시간, 날씨, 차량 밀도, 주요 지하철역 시점을 함께 맞춥니다.
+            실제 수요 API나 외부 데이터 없이도 `A-Eye Module 1` 설명용 장면을
+            빠르게 재현하는 용도입니다.
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                Local Check
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                장면 내부 상태만으로 보는 단순 검증 지표
+              </div>
+            </div>
+            <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-[11px] font-medium text-amber-100">
+              proxy only
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Waiting Share
+              </div>
+              <div className="mt-1 text-lg font-semibold text-rose-200">
+                {waitingShare}%
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Trip Close
+              </div>
+              <div className="mt-1 text-lg font-semibold text-lime-200">
+                {tripCompletionShare}%
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Street Load
+              </div>
+              <div className="mt-1 text-lg font-semibold text-sky-200">
+                {totalVehicles}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+              <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                Flow State
+              </div>
+              <div className="mt-1 text-lg font-semibold text-cyan-200">
+                {localFlowLabel}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-xs leading-5 text-slate-500">
+            대기율과 완료율은 현재 로컬 장면 내부 stats만으로 계산한 proxy라서,
+            운영 KPI라기보다 프리셋 간 상대 비교와 발표용 sanity check에
+            가깝습니다.
           </div>
         </div>
 

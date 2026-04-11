@@ -79,4 +79,5 @@ The recommended interpretation going forward is:
 
 - keep `A-Eye` baseline evaluation on the existing simplified SUMO path
 - keep this repo focused on realistic spatial presentation and road-level behavior
+- keep local viewer validation simple, using scene-side presets and proxy metrics before adding external feeds
 - add future demand/dispatch overlays in a way that can still aggregate back to simpler project zones when needed

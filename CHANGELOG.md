@@ -18,10 +18,13 @@
 - Reworked signal timing to use corridor-priority phase plans with lead protected-left windows, longer major-axis greens, explicit yellow/all-red clearance, and a shared 24-second coordinated cycle.
 - Refined intersection blocking logic so vehicles now react to actual box occupancy, same-direction downstream queue spillback, and unprotected-left gap acceptance instead of relying on a single coarse per-axis stop rule.
 - Reframed the viewer as an `A-Eye Module 1` spatial companion, clarifying in the UI and README that the 9-dong OSM scene is the micro-area digital-twin layer around Gangnam Station rather than a competing full-city baseline.
+- Added sidebar `Local Scenario` presets that bundle time, weather, taxi density, traffic density, and a nearby subway-hub focus into quick presentation-friendly scene states.
+- Added a lightweight `Local Check` panel with scene-internal proxy metrics such as waiting share, trip close share, street load, and flow-state labels for simple local validation without external feeds.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
 - Added an `A-Eye` alignment note that explains why the viewer uses 9 real dongs, how that complements the active 3x3 SUMO baseline, and why OSM is the right geometry backbone for this scope.
+- Documented the new local-only scenario/preset workflow so this viewer stays easy to demonstrate before external data overlays are introduced.
 
 ## 2026-04-10
 

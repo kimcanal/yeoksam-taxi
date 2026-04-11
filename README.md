@@ -81,6 +81,18 @@ Open `http://localhost:3000`.
 - Changing either slider rebuilds only the vehicle layer with the new counts, so taxi targets, follow view, and aggregate stats stay aligned without resetting the full map scene.
 - Density changes are deferred slightly while dragging to avoid thrashing the vehicle layer on every intermediate slider tick.
 
+## Local Scenario Presets
+
+- The main sidebar now includes four local-only scenario presets for quick `A-Eye Module 1` demos:
+  - `기본 검증`
+  - `강남역 피크`
+  - `비 오는 저녁`
+  - `심야 완화`
+- Each preset applies a bundled combination of time, weather, taxi count, traffic count, and a nearby subway-hub camera focus.
+- This keeps the viewer easy to present and compare even when no external demand or weather feed is connected.
+- A small `Local Check` panel also shows scene-internal proxy metrics such as waiting share, trip close share, street load, and a coarse flow-state label.
+- These are intentionally lightweight validation cues, not operational KPIs.
+
 ## Project Docs
 
 - `CHANGELOG.md`: dated update history
