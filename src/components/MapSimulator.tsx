@@ -5398,6 +5398,8 @@ export default function MapSimulator() {
       color: 0xffd9a8,
       transparent: true,
       opacity: 0,
+      fog: false,
+      depthWrite: false,
     });
     const sunDisc = new THREE.Mesh(
       new THREE.SphereGeometry(9.4, 20, 20),
@@ -5409,6 +5411,8 @@ export default function MapSimulator() {
       color: 0xffb66c,
       transparent: true,
       opacity: 0,
+      fog: false,
+      depthWrite: false,
     });
     const sunHalo = new THREE.Mesh(
       new THREE.SphereGeometry(17.6, 20, 20),
@@ -5420,6 +5424,8 @@ export default function MapSimulator() {
       color: 0xff8b47,
       transparent: true,
       opacity: 0,
+      fog: false,
+      depthWrite: false,
     });
     const sunsetGlow = new THREE.Mesh(
       new THREE.SphereGeometry(27, 20, 20),
@@ -5431,6 +5437,8 @@ export default function MapSimulator() {
       color: 0xe9f2ff,
       transparent: true,
       opacity: 0,
+      fog: false,
+      depthWrite: false,
     });
     const moon = new THREE.Mesh(
       new THREE.SphereGeometry(6.6, 18, 18),
@@ -5460,6 +5468,7 @@ export default function MapSimulator() {
       size: 1.9,
       transparent: true,
       opacity: 0,
+      fog: false,
       depthWrite: false,
     });
     const stars = new THREE.Points(starsGeometry, starsMaterial);
@@ -5472,6 +5481,7 @@ export default function MapSimulator() {
       emissiveIntensity: 0.05,
       transparent: true,
       opacity: 0,
+      fog: false,
       depthWrite: false,
     });
     const cloudClusters = Array.from({ length: 5 }, (_, index) => {
@@ -5510,6 +5520,7 @@ export default function MapSimulator() {
       emissiveIntensity: 0.08,
       transparent: true,
       opacity: 0,
+      fog: false,
       depthWrite: false,
     });
     const stormCloudClusters = Array.from({ length: 4 }, (_, index) => {
