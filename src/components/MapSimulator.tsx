@@ -218,6 +218,10 @@ type SerializedRoadNetworkNode = {
   key: string;
   x: number;
   z: number;
+  outDegree?: number;
+  neighborCount?: number;
+  isIntersection?: boolean;
+  isTerminal?: boolean;
 };
 
 type SerializedRoadNetworkSegment = {
@@ -229,6 +233,7 @@ type SerializedRoadNetworkSegment = {
   length: number;
   name: string | null;
   wayId?: string | null;
+  travelCost?: number;
 };
 
 type SerializedRoadNetwork = {
@@ -270,6 +275,10 @@ type SimulationMeta = {
 type RouteNode = {
   key: string;
   point: THREE.Vector3;
+  outDegree?: number;
+  neighborCount?: number;
+  isIntersection?: boolean;
+  isTerminal?: boolean;
 };
 
 type SignalData = {
@@ -521,6 +530,7 @@ type GraphEdge = {
   roadClass: RoadProperties["roadClass"];
   roadWidth: number;
   length: number;
+  travelCost: number;
   name: string | null;
   wayId: string | null;
 };
@@ -2589,6 +2599,40 @@ function roadTravelCost(roadClass: RoadProperties["roadClass"]) {
   }
 }
 
+function edgeTravelCost(
+  length: number,
+  roadClass: RoadProperties["roadClass"],
+) {
+  return length * roadTravelCost(roadClass);
+}
+
+function annotateRoadGraphNodes(
+  nodes: Map<string, RouteNode>,
+  adjacency: Map<string, GraphEdge[]>,
+  edgeById: Map<string, GraphEdge>,
+) {
+  const neighborSets = new Map<string, Set<string>>();
+
+  edgeById.forEach((edge) => {
+    const fromNeighbors = neighborSets.get(edge.from) ?? new Set<string>();
+    fromNeighbors.add(edge.to);
+    neighborSets.set(edge.from, fromNeighbors);
+
+    const toNeighbors = neighborSets.get(edge.to) ?? new Set<string>();
+    toNeighbors.add(edge.from);
+    neighborSets.set(edge.to, toNeighbors);
+  });
+
+  nodes.forEach((node, key) => {
+    const neighborCount = neighborSets.get(key)?.size ?? 0;
+    const outDegree = adjacency.get(key)?.length ?? 0;
+    node.neighborCount = neighborCount;
+    node.outDegree = outDegree;
+    node.isIntersection = neighborCount >= 3;
+    node.isTerminal = neighborCount <= 1;
+  });
+}
+
 type QueueEntry = {
   key: string;
   cost: number;
@@ -3336,6 +3380,7 @@ function buildRoadGraph(
           roadClass: feature.properties.roadClass,
           roadWidth,
           length,
+          travelCost: edgeTravelCost(length, feature.properties.roadClass),
           name: feature.properties.name,
           wayId: feature.properties.sourceWayId,
         } satisfies Omit<GraphEdge, "id" | "from" | "to">;
@@ -3365,6 +3410,8 @@ function buildRoadGraph(
     });
   });
 
+  annotateRoadGraphNodes(nodes, adjacency, edgeById);
+
   return {
     nodes,
     adjacency,
@@ -3381,7 +3428,14 @@ function deserializeRoadGraph(data: SerializedRoadNetwork): RoadGraph {
   const nodes = new Map<string, RouteNode>(
     data.nodes.map((node) => [
       node.key,
-      { key: node.key, point: new THREE.Vector3(node.x, 0, node.z) },
+      {
+        key: node.key,
+        point: new THREE.Vector3(node.x, 0, node.z),
+        outDegree: node.outDegree,
+        neighborCount: node.neighborCount,
+        isIntersection: node.isIntersection,
+        isTerminal: node.isTerminal,
+      },
     ]),
   );
   const adjacency = new Map<string, GraphEdge[]>();
@@ -3402,6 +3456,9 @@ function deserializeRoadGraph(data: SerializedRoadNetwork): RoadGraph {
         roadClass: segment.roadClass,
         roadWidth: segment.roadWidth,
         length: segment.length,
+        travelCost:
+          segment.travelCost ??
+          edgeTravelCost(segment.length, segment.roadClass),
         name: segment.name,
         wayId: segment.wayId ?? null,
       });
@@ -3412,6 +3469,9 @@ function deserializeRoadGraph(data: SerializedRoadNetwork): RoadGraph {
       roadClass: segment.roadClass,
       roadWidth: segment.roadWidth,
       length: segment.length,
+      travelCost:
+        segment.travelCost ??
+        edgeTravelCost(segment.length, segment.roadClass),
       name: segment.name,
       wayId: segment.wayId ?? null,
     } satisfies Omit<GraphEdge, "id" | "from" | "to">;
@@ -3429,6 +3489,8 @@ function deserializeRoadGraph(data: SerializedRoadNetwork): RoadGraph {
       ...base,
     });
   });
+
+  annotateRoadGraphNodes(nodes, adjacency, edgeById);
 
   return {
     nodes,
@@ -3689,8 +3751,7 @@ function shortestPath(
       }
 
       const nextStateKey = turnStateKey(edge.to, edge.id);
-      const nextCost =
-        current.cost + edge.length * roadTravelCost(edge.roadClass);
+      const nextCost = current.cost + edge.travelCost;
       const knownCost =
         distances.get(nextStateKey) ?? Number.POSITIVE_INFINITY;
       if (nextCost < knownCost) {
@@ -3958,7 +4019,71 @@ function hotspotLabelForRoute(
   return `택시 포인트 ${index + 1}`;
 }
 
-function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
+function selectDispatchHotspotNodeIndex(
+  route: RouteTemplate,
+  graph: RoadGraph,
+  signalByKey: Map<string, SignalData>,
+  targetDistance: number,
+  usedNodeKeys: Set<string>,
+) {
+  let bestIndex = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let index = 1; index < route.nodes.length - 1; index += 1) {
+    const candidateNode = route.nodes[index]!;
+    if (usedNodeKeys.has(candidateNode.key)) {
+      continue;
+    }
+
+    const candidateGraphNode = graph.nodes.get(candidateNode.key) ?? candidateNode;
+    const gap = Math.abs(route.cumulative[index]! - targetDistance);
+    const previousGap = route.cumulative[index]! - route.cumulative[index - 1]!;
+    const nextGap = route.cumulative[index + 1]! - route.cumulative[index]!;
+    const clearance = Math.min(previousGap, nextGap);
+    const turn = classifyTurn(
+      route.nodes[index - 1]!.point,
+      candidateNode.point,
+      route.nodes[index + 1]!.point,
+    );
+
+    let score = gap;
+    if (
+      (candidateGraphNode.isTerminal ?? false) ||
+      (candidateGraphNode.neighborCount ?? 0) <= 1
+    ) {
+      score += 80;
+    }
+    if (
+      (candidateGraphNode.isIntersection ?? false) ||
+      (candidateGraphNode.neighborCount ?? 0) >= 3
+    ) {
+      score += 24;
+    }
+    if (signalByKey.has(candidateNode.key)) {
+      score += 18;
+    }
+    if (turn !== "straight") {
+      score += 9;
+    }
+    if (clearance < 7) {
+      score += (7 - clearance) * 4;
+    }
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  return bestScore === Number.POSITIVE_INFINITY ? 1 : bestIndex;
+}
+
+function buildTaxiHotspots(
+  routes: RouteTemplate[],
+  buildings: BuildingMass[],
+  graph: RoadGraph,
+  signalByKey: Map<string, SignalData>,
+) {
   return routes.flatMap((route, routeIndex) => {
     if (route.nodes.length < 4) {
       return [] as Hotspot[];
@@ -3966,18 +4091,17 @@ function buildTaxiHotspots(routes: RouteTemplate[], buildings: BuildingMass[]) {
 
     const fractions =
       route.totalLength > 180 ? [0.14, 0.38, 0.63, 0.86] : [0.22, 0.58, 0.84];
+    const usedNodeKeys = new Set<string>();
     return fractions.map((fraction, hotspotIndex) => {
       const targetDistance = route.totalLength * fraction + routeIndex * 4.5;
-      let nodeIndex = 1;
-      let bestGap = Number.POSITIVE_INFINITY;
-
-      for (let index = 1; index < route.nodes.length - 1; index += 1) {
-        const gap = Math.abs(route.cumulative[index] - targetDistance);
-        if (gap < bestGap) {
-          bestGap = gap;
-          nodeIndex = index;
-        }
-      }
+      const nodeIndex = selectDispatchHotspotNodeIndex(
+        route,
+        graph,
+        signalByKey,
+        targetDistance,
+        usedNodeKeys,
+      );
+      usedNodeKeys.add(route.nodes[nodeIndex]!.key);
 
       const currentPoint = route.nodes[nodeIndex].point;
       const previousPoint = route.nodes[Math.max(0, nodeIndex - 1)].point;
@@ -6259,7 +6383,12 @@ export default function MapSimulator() {
       const taxiRouteById = new Map(
         taxiRoutePool.map((route) => [route.id, route]),
       );
-      hotspotPool = buildTaxiHotspots(taxiRoutePool, buildingFeatures);
+      hotspotPool = buildTaxiHotspots(
+        taxiRoutePool,
+        buildingFeatures,
+        currentGraph,
+        signalByKey,
+      );
       if (!hotspotPool.length) {
         return;
       }

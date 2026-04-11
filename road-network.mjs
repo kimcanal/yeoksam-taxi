@@ -39,6 +39,17 @@ function distanceXZ(left, right) {
   return Math.hypot(right.x - left.x, right.z - left.z);
 }
 
+function roadTravelCost(roadClass) {
+  switch (roadClass) {
+    case "arterial":
+      return 0.9;
+    case "connector":
+      return 1;
+    default:
+      return 1.18;
+  }
+}
+
 export function buildRoadNetworkAsset(roads, center) {
   const nodeMap = new Map();
   const rawSegments = [];
@@ -103,6 +114,9 @@ export function buildRoadNetworkAsset(roads, center) {
         roadClass: segment.roadClass,
         roadWidth: segment.roadWidth,
         length: segment.length,
+        travelCost: roundProjected(
+          segment.length * roadTravelCost(segment.roadClass),
+        ),
         name: segment.name,
         wayId: segment.wayId,
       });
@@ -141,9 +155,33 @@ export function buildRoadNetworkAsset(roads, center) {
     );
   });
 
-  const nodes = [...nodeMap.values()].sort((left, right) =>
-    left.key.localeCompare(right.key),
-  );
+  const neighborSets = new Map();
+  const outDegreeByNode = new Map();
+  directedSegments.forEach((segment) => {
+    const fromNeighbors = neighborSets.get(segment.from) ?? new Set();
+    fromNeighbors.add(segment.to);
+    neighborSets.set(segment.from, fromNeighbors);
+
+    const toNeighbors = neighborSets.get(segment.to) ?? new Set();
+    toNeighbors.add(segment.from);
+    neighborSets.set(segment.to, toNeighbors);
+
+    outDegreeByNode.set(segment.from, (outDegreeByNode.get(segment.from) ?? 0) + 1);
+  });
+
+  const nodes = [...nodeMap.values()]
+    .map((node) => {
+      const neighborCount = neighborSets.get(node.key)?.size ?? 0;
+      const outDegree = outDegreeByNode.get(node.key) ?? 0;
+      return {
+        ...node,
+        outDegree,
+        neighborCount,
+        isIntersection: neighborCount >= 3,
+        isTerminal: neighborCount <= 1,
+      };
+    })
+    .sort((left, right) => left.key.localeCompare(right.key));
 
   directedSegments.sort((left, right) => left.id.localeCompare(right.id));
 
@@ -155,7 +193,7 @@ export function buildRoadNetworkAsset(roads, center) {
   );
 
   return {
-    version: 2,
+    version: 3,
     center: {
       lat: roundCoord(center.lat),
       lon: roundCoord(center.lon),

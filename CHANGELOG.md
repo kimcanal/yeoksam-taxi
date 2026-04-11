@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-04-11
+
+### Changed
+- Updated the derived road graph export so each directed segment now stores a precomputed `travelCost`, and each node now stores `outDegree`, `neighborCount`, `isIntersection`, and `isTerminal` metadata for routing-aware decisions.
+- Reused the precomputed segment `travelCost` during shortest-path searches so road-cost weighting no longer needs to be recomputed on every graph edge expansion.
+- Updated taxi pickup/dropoff hotspot generation to score candidate route nodes against graph topology, signal placement, turn shape, and local spacing instead of choosing only by route-distance proximity.
+
+### Documented
+- Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
+
 ## 2026-04-10
 
 ### Changed
