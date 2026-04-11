@@ -22,12 +22,15 @@
 - Added a lightweight `Local Check` panel with scene-internal proxy metrics such as waiting share, trip close share, street load, and flow-state labels for simple local validation without external feeds.
 - Renamed the local scenario presets to more presentation-friendly Korean labels and added stable automation hooks for repeatable capture.
 - Added a Playwright-based `screenshot:scenarios` workflow that builds the app, applies each local scenario, and saves deterministic PNG captures under `docs/screenshots/local-scenarios/`.
+- Fixed hydration mismatch noise by replacing time-dependent server render initialization with a hydration-safe initial simulation clock that syncs to live KST immediately after mount.
+- Replaced the default Next.js app metadata with project-specific title/description metadata and switched the document language to Korean.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.
 - Added an `A-Eye` alignment note that explains why the viewer uses 9 real dongs, how that complements the active 3x3 SUMO baseline, and why OSM is the right geometry backbone for this scope.
 - Documented the new local-only scenario/preset workflow so this viewer stays easy to demonstrate before external data overlays are introduced.
 - Documented the local scenario screenshot capture commands and generated output naming.
+- Replaced the outdated branch-specific screenshot section in the README with the current automated local scenario gallery.
 
 ## 2026-04-10
 

@@ -719,6 +719,13 @@ const TIME_PRESETS = [
   { label: "18:30", minutes: 18 * 60 + 30, detail: "노을" },
   { label: "23:00", minutes: 23 * 60, detail: "심야" },
 ];
+const HYDRATION_SAFE_SIMULATION_CLOCK: {
+  dateIso: string;
+  minutes: number;
+} = {
+  dateIso: "2026-01-01",
+  minutes: 12 * 60,
+};
 
 const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   {
@@ -5016,10 +5023,10 @@ export default function MapSimulator() {
   const [circumstanceMode, setCircumstanceMode] =
     useState<CircumstanceMode>("live");
   const [simulationDate, setSimulationDate] = useState(
-    () => currentSimulationClock().dateIso,
+    () => HYDRATION_SAFE_SIMULATION_CLOCK.dateIso,
   );
   const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(
-    () => currentSimulationClock().minutes,
+    () => HYDRATION_SAFE_SIMULATION_CLOCK.minutes,
   );
   const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
   const [cameraMode, setCameraMode] = useState<CameraMode>("drive");
@@ -5044,8 +5051,8 @@ export default function MapSimulator() {
   const appliedTrafficCount = deferredSimulationDensity.traffic;
   const appliedTaxiCountRef = useRef(appliedTaxiCount);
   const appliedTrafficCountRef = useRef(appliedTrafficCount);
-  const simulationDateRef = useRef(currentSimulationClock().dateIso);
-  const simulationTimeRef = useRef(currentSimulationClock().minutes);
+  const simulationDateRef = useRef(HYDRATION_SAFE_SIMULATION_CLOCK.dateIso);
+  const simulationTimeRef = useRef(HYDRATION_SAFE_SIMULATION_CLOCK.minutes);
   const weatherModeRef = useRef<WeatherMode>("clear");
   const cameraModeRef = useRef<CameraMode>("drive");
   const followTaxiIdRef = useRef("");

@@ -113,7 +113,7 @@ npm run screenshot:scenarios -- --skip-build
 ## Project Docs
 
 - `CHANGELOG.md`: dated update history
-- `docs/added-taxi-call-review.md`: current `added-taxi-call` vs `main` comparison
+- `docs/added-taxi-call-review.md`: historical comparison notes from the early OSM expansion branch
 - `docs/dispatch-road-network-review.md`: current OSM road graph suitability for dispatch and pickup/dropoff routing
 - `docs/a-eye-module1-alignment.md`: how this 9-dong OSM viewer maps back to the active `A-Eye` scope
 
@@ -198,37 +198,31 @@ flowchart LR
   - use the `9-dong OSM` layer for digital-twin presentation, road/signal realism, and future dong-level data overlays
 - This repo should therefore be described as a `Module 1 spatial companion` to the active `A-Eye` baseline, not as a competing second baseline.
 
-## Current Branch Snapshot
+## Current Viewer Snapshot
 
-The active demo branch is `added-taxi-call`.
+- 9-dong OSM scene coverage across the Gangnam Station micro-area
+- road-level taxi and traffic movement on a separate prebuilt road graph
+- OSM-based signal anchors plus coordinated signal phases
+- local-only scenario presets for presentation and quick validation
+- automated Playwright screenshot capture for those presets
 
-Compared with `main`, it currently adds:
+## Automated Scenario Gallery
 
-- 9-dong OSM scene coverage across the Gangnam core demo area
-- weather and time-of-day presets that mainly affect the sky/background
-- transit landmarks such as bus stops and subway structures
-- clickable taxi chase view with `Esc` to exit
-- clearer pickup and dropoff badges plus roof-sign occupancy cues
+### 기본 시연
 
-Before merging to `main`, keep a small comparison set under `docs/screenshots/`:
+![기본 시연](docs/screenshots/local-scenarios/scenario-baseline-demo.png)
 
-- `main-baseline-overview.png`
-- `added-taxi-call-weather-overview.png`
-- `added-taxi-call-taxi-view.png`
+### 강남역 퇴근 피크
 
-## Screenshot Comparison
+![강남역 퇴근 피크](docs/screenshots/local-scenarios/scenario-gangnam-station-peak.png)
 
-### Main Baseline
+### 우천 혼잡
 
-![Main baseline overview](docs/screenshots/main-baseline-overview.png)
+![우천 혼잡](docs/screenshots/local-scenarios/scenario-rainy-evening.png)
 
-### Current Branch: Weather Overview
+### 심야 순환
 
-![Added taxi call weather overview](docs/screenshots/added-taxi-call-weather-overview.png)
-
-### Current Branch: Taxi View
-
-![Added taxi call taxi view](docs/screenshots/added-taxi-call-taxi-view.png)
+![심야 순환](docs/screenshots/local-scenarios/scenario-late-night-loop.png)
 
 ## Short Roadmap
 
