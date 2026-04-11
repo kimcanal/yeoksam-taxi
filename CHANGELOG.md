@@ -14,6 +14,7 @@
 - Stopped scene fog from washing out the sky's celestial objects and cloud forms, so the sun, moon, stars, and clouds remain visible as actual sky elements instead of fading into the background color.
 - Moved vehicle simulation to a fixed 30Hz step with interpolated render transforms, so higher render FPS no longer forces the most expensive traffic logic to run every frame.
 - Extended the performance overlay with sampled simulation time, render time, fixed-step simulation Hz, and active vehicle count so runtime cost can be validated in-app.
+- Switched the launcher back to binding Next.js on `0.0.0.0` by default while still printing a detected external URL, so localhost stays usable on the VDI itself and outside access can keep using the exposed port.
 
 ### Documented
 - Added a dispatch road-network review that explains what the current OSM-derived routing graph already supports, where it is useful for prototype dispatch, and which dispatch-grade road constraints are still missing.

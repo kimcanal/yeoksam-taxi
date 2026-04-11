@@ -17,8 +17,8 @@ npm run options
   5) asset:update - refresh local OSM snapshot assets. Can take a few minutes.
   q) quit
 
-For dev/start, the launcher binds Next.js to a detected interface IP.
-It prefers a private IP when one exists, otherwise it falls back to a public IP.
+For dev/start, the launcher binds Next.js to 0.0.0.0 by default.
+That keeps localhost working on this machine while still allowing access from other devices.
 EOF
 }
 
@@ -96,14 +96,14 @@ is_private_ipv4() {
   esac
 }
 
-select_bind_host() {
+select_access_host() {
   local -a detected_ips=()
   local -a private_ips=()
   local -a public_ips=()
   local ip
 
-  if [[ -n "${LAUNCH_BIND_HOST:-}" ]]; then
-    echo "$LAUNCH_BIND_HOST"
+  if [[ -n "${LAUNCH_ACCESS_HOST:-}" ]]; then
+    echo "$LAUNCH_ACCESS_HOST"
     return
   fi
 
@@ -127,28 +127,35 @@ select_bind_host() {
     return
   fi
 
-  echo "0.0.0.0"
+  echo ""
 }
 
 print_access_urls() {
   local port="$1"
   local bind_host="$2"
+  local access_host="$3"
 
   echo
   echo "Access URLs"
-  if [[ "$bind_host" == "0.0.0.0" ]]; then
-    echo "  this machine : http://localhost:$port"
-    echo "  external     : auto-detect unavailable"
-    echo "  note         : no routable IPv4 address was detected, so Next will listen on every interface."
+  echo "  this machine : http://localhost:$port"
+  if [[ -n "$access_host" ]]; then
+    echo "  external     : http://$access_host:$port"
   else
-    echo "  this machine : http://localhost:$port"
-    echo "  external     : http://$bind_host:$port"
-    echo "  bind         : $bind_host"
+    echo "  external     : auto-detect unavailable"
+  fi
+  echo "  bind         : $bind_host"
+
+  echo
+  if [[ "$bind_host" == "0.0.0.0" ]]; then
+    echo "Next listens on every interface."
+    echo "If your VDI/firewall only exposes port 8000, use the external URL above with port 8000."
+  else
+    echo "Next listens only on the bind address above."
   fi
 
   echo
   echo "Note: Next.js labels below are its own banner."
-  echo "It may show the bind host under both 'Local' and 'Network'."
+  echo "When binding to 0.0.0.0, Next may still show 0.0.0.0 in its Network line."
 }
 
 prompt_port() {
@@ -204,14 +211,16 @@ run_npm_script() {
   if [[ "$script_name" == "dev" || "$script_name" == "start" ]]; then
     local port
     local bind_host
+    local access_host
     port="$(prompt_port)"
-    bind_host="$(select_bind_host)"
+    bind_host="${LAUNCH_BIND_HOST:-0.0.0.0}"
+    access_host="$(select_access_host)"
 
     if [[ "$script_name" == "start" ]]; then
       ensure_build_if_needed
     fi
 
-    print_access_urls "$port" "$bind_host"
+    print_access_urls "$port" "$bind_host" "$access_host"
     echo
     echo "Running: npm run $script_name -- --hostname $bind_host --port $port"
     exec npm run "$script_name" -- --hostname "$bind_host" --port "$port"
