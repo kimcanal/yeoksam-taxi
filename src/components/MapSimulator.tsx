@@ -455,6 +455,7 @@ type LocalScenarioPreset = {
   detail: string;
   summary: string;
   presentationNote: string;
+  speakerNotes: string[];
   taxis: number;
   traffic: number;
   minutes: number;
@@ -738,6 +739,10 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     summary: "강남역 코어 9개 동 OSM 레이어를 가장 중립적으로 설명하는 기준 장면입니다.",
     presentationNote:
       "행정동 범위, 도로 그래프, 기본 택시 흐름을 차분하게 소개할 때 쓰기 좋습니다.",
+    speakerNotes: [
+      "9개 실제 행정동과 OSM 도로를 기반으로 한 기본 디지털 트윈 장면입니다.",
+      "배차 실험 이전에 공간 구조와 기본 주행 흐름을 설명할 때 가장 안정적입니다.",
+    ],
     taxis: DEFAULT_TAXI_COUNT,
     traffic: DEFAULT_TRAFFIC_COUNT,
     minutes: 12 * 60,
@@ -753,6 +758,10 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
       "퇴근 시간대 강남역 주변의 높은 도로 점유와 택시 대응을 설명하는 혼잡 장면입니다.",
     presentationNote:
       "배차나 혼잡 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
+    speakerNotes: [
+      "강남역 퇴근 피크를 가정해 도로 점유와 택시 대응을 더 빽빽하게 보여줍니다.",
+      "혼잡 구간에서 신호와 차량 흐름이 어떻게 읽히는지 설명하기 좋습니다.",
+    ],
     taxis: 16,
     traffic: 24,
     minutes: 18 * 60 + 30,
@@ -768,6 +777,10 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
       "우천 조건에서 보수적으로 움직이는 택시와 더 무거워진 저녁 흐름을 보여주는 장면입니다.",
     presentationNote:
       "날씨가 시야와 이동 흐름에 어떻게 영향을 주는지 말할 때 자연스럽게 이어집니다.",
+    speakerNotes: [
+      "날씨를 붙이면 같은 도로망 위에서도 체감 흐름과 시각 밀도가 달라집니다.",
+      "우천 상황에서 저녁 혼잡을 어떻게 읽을지 보여주는 설명용 프리셋입니다.",
+    ],
     taxis: 18,
     traffic: 26,
     minutes: 19 * 60,
@@ -783,6 +796,10 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
       "일반 교통이 줄어든 뒤 택시 순환성과 심야 분위기가 더 잘 읽히는 장면입니다.",
     presentationNote:
       "낮/퇴근 피크와 대비되는 안정적인 야간 상태를 보여주기에 적합합니다.",
+    speakerNotes: [
+      "심야에는 일반 교통이 줄어들어 택시 순환성과 장면 가독성이 더 또렷해집니다.",
+      "낮과 피크 시간대 대비용으로 보여주기 좋은 안정 상태 프리셋입니다.",
+    ],
     taxis: 10,
     traffic: 10,
     minutes: 23 * 60 + 20,
@@ -1402,11 +1419,11 @@ function renderCapLabel(
   fpsMode: FpsMode,
 ) {
   if (isHidden && cap !== null) {
-    return `${Math.round(cap)} FPS (background)`;
+    return `${Math.round(cap)} FPS (백그라운드)`;
   }
 
   if (fpsMode === "unlimited" || cap === null) {
-    return "Unlimited";
+    return "무제한";
   }
 
   return `${Math.round(cap)} FPS`;
@@ -1417,20 +1434,20 @@ function fpsModeLabel(fpsMode: FpsMode) {
     case "fixed60":
       return "60 FPS";
     case "unlimited":
-      return "Unlimited";
+      return "무제한";
     default:
-      return "Auto";
+      return "자동";
   }
 }
 
 function fpsModeSummary(fpsMode: FpsMode) {
   switch (fpsMode) {
     case "fixed60":
-      return "Visible rendering stays locked at 60 FPS.";
+      return "보이는 렌더링을 60 FPS에 고정합니다.";
     case "unlimited":
-      return "Visible rendering runs uncapped until the device becomes the limit.";
+      return "장치 한계에 닿을 때까지 보이는 렌더링 제한을 풀어둡니다.";
     default:
-      return "Auto snaps to the nearest common refresh band, then targets full refresh below 100Hz and half-refresh on 100Hz+ panels such as 72 FPS on 144Hz.";
+      return "자동 모드는 가장 가까운 주사율 대역에 맞춘 뒤, 100Hz 미만은 전체 주사율, 100Hz 이상은 절반 주사율을 목표로 잡습니다.";
   }
 }
 
@@ -9111,7 +9128,7 @@ export default function MapSimulator() {
     () =>
       Array.from({ length: appliedTaxiCount }, (_, index) => ({
         id: `taxi-${index}`,
-        label: `Taxi ${index + 1}`,
+        label: `택시 ${index + 1}`,
         detail:
           dongNames[index % Math.max(dongNames.length, 1)] ??
           roadNames[index % Math.max(roadNames.length, 1)] ??
@@ -9135,17 +9152,17 @@ export default function MapSimulator() {
   );
   const cameraModeLabel =
     cameraMode === "overview"
-      ? "Overview"
+      ? "오버뷰"
       : cameraMode === "follow"
-        ? "Follow Taxi"
+        ? "택시 추적"
         : cameraMode === "ride"
-          ? "Taxi View"
-          : "Drive";
+          ? "택시 시점"
+          : "드라이브";
   const statusLabel =
     status === "loading"
-      ? "loading data"
+      ? "데이터 불러오는 중"
       : status === "rendering"
-        ? "building scene"
+        ? "장면 구성 중"
         : status;
   const controlHint =
     cameraMode === "overview"
@@ -9188,15 +9205,15 @@ export default function MapSimulator() {
   const daylightLabel =
     daylightValue > 0.18 ? "낮" : twilightValue > 0.25 ? "황혼" : "밤";
   const circumstanceModeLabel =
-    circumstanceMode === "live" ? "Live" : "Specific";
+    circumstanceMode === "live" ? "실시간" : "특정 시각";
   const circumstanceOptions: Array<{ id: CircumstanceMode; label: string }> = [
-    { id: "live", label: "Live" },
-    { id: "specific", label: "Specific Date" },
+    { id: "live", label: "실시간" },
+    { id: "specific", label: "특정 시각" },
   ];
   const fpsModeOptions: Array<{ id: FpsMode; label: string }> = [
-    { id: "auto", label: "Auto" },
+    { id: "auto", label: "자동" },
     { id: "fixed60", label: "60 FPS" },
-    { id: "unlimited", label: "Unlimited" },
+    { id: "unlimited", label: "무제한" },
   ];
   const isDensityApplying =
     simulationDensity.taxis !== appliedTaxiCount ||
@@ -9211,17 +9228,18 @@ export default function MapSimulator() {
     : 0;
   const localFlowLabel =
     tripVolume === 0
-      ? "standby"
+      ? "대기"
       : waitingShare >= 30
-        ? "queueing"
+        ? "혼잡"
         : tripCompletionShare >= 50
-          ? "settled"
-          : "active";
+          ? "안정"
+          : "활발";
   const scenarioBrief = activeLocalScenario
     ? {
         title: activeLocalScenario.label,
         summary: activeLocalScenario.summary,
         note: activeLocalScenario.presentationNote,
+        speakerNotes: activeLocalScenario.speakerNotes,
         focusLabel: activeLocalScenario.focusLabel,
         weatherLabel:
           WEATHER_OPTIONS.find(
@@ -9229,14 +9247,23 @@ export default function MapSimulator() {
           )?.label ?? selectedWeather.label,
       }
     : {
-        title: "Custom mix",
+        title: "수동 조합",
         summary:
           "현재 장면은 프리셋 조합에서 벗어난 수동 상태로, 시간·날씨·밀도를 직접 맞춘 발표용 커스텀 장면입니다.",
         note:
           "슬라이더나 시간/날씨를 개별 조정한 뒤 원하는 설명 흐름에 맞춰 보여줄 때 적합합니다.",
+        speakerNotes: [
+          "현재 장면은 프리셋이 아니라 발표 의도에 맞춰 직접 조정한 커스텀 상태입니다.",
+          "시간, 날씨, 밀도를 개별 조정해 필요한 장면만 골라 설명할 때 적합합니다.",
+        ],
         focusLabel: selectedSubwayName || "현재 카메라 기준",
         weatherLabel: selectedWeather.label,
       };
+  const recommendedWeatherLabel = activeLocalScenario
+    ? WEATHER_OPTIONS.find(
+        (option) => option.id === activeLocalScenario.weather,
+      )?.label ?? selectedWeather.label
+    : selectedWeather.label;
   const timeWeatherControls = (
     <>
       <div className="mb-3 grid grid-cols-2 gap-2">
@@ -9252,7 +9279,7 @@ export default function MapSimulator() {
             }`}
           >
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-              Circumstance
+              기준
             </div>
             <div className="mt-1 text-sm font-medium">{option.label}</div>
           </button>
@@ -9262,7 +9289,7 @@ export default function MapSimulator() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-            Time + Weather
+            시간 + 날씨
           </div>
           <div className="mt-2 flex items-end gap-3">
             <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
@@ -9279,7 +9306,7 @@ export default function MapSimulator() {
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-right">
           <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-            Weather
+            날씨
           </div>
           <div className="mt-1 text-sm font-semibold text-slate-100">
             {selectedWeather.label}
@@ -9287,6 +9314,37 @@ export default function MapSimulator() {
           <div className="text-[11px] text-slate-400">
             {selectedWeather.detail}
           </div>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 px-3 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-cyan-300/80">
+            프리셋 추천값
+          </div>
+          <span
+            className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
+              activeLocalScenario
+                ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+                : "border-white/10 bg-slate-950/70 text-slate-300"
+            }`}
+          >
+            {activeLocalScenario?.label ?? "수동 조정중"}
+          </span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+            시간 {activeLocalScenario ? format24Hour(activeLocalScenario.minutes) : formattedSimulationTime}
+          </span>
+          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+            날씨 {recommendedWeatherLabel}
+          </span>
+          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+            밀도 택시 {activeLocalScenario?.taxis ?? simulationDensity.taxis} / 일반 {activeLocalScenario?.traffic ?? simulationDensity.traffic}
+          </span>
+          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+            포커스 {scenarioBrief.focusLabel}
+          </span>
         </div>
       </div>
 
@@ -9314,21 +9372,21 @@ export default function MapSimulator() {
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3">
             <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-              <span>Time Slider</span>
+              <span>시간 슬라이더</span>
               <span className="tabular-nums text-cyan-100">
                 {formattedSimulationTime}
               </span>
             </div>
             <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Date
+                날짜
               </div>
               <input
                 type="date"
                 value={simulationDate}
                 onChange={(event) => setSimulationDate(event.target.value)}
                 className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40"
-                aria-label="Simulation date"
+                aria-label="시뮬레이션 날짜"
               />
             </div>
             <input
@@ -9341,7 +9399,7 @@ export default function MapSimulator() {
                 setSimulationTimeMinutes(Number(event.target.value))
               }
               className="mt-3 h-2 w-full cursor-pointer accent-cyan-300"
-              aria-label="Simulation time"
+              aria-label="시뮬레이션 시간"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
               <span>00:00</span>
@@ -9351,7 +9409,7 @@ export default function MapSimulator() {
               <span>23:59</span>
             </div>
             <div className="mt-2 text-[11px] leading-5 text-slate-500">
-              Specific Date 모드에서는 날짜와 시간을 직접 고정해 해/달/별과 조명
+              특정 시각 모드에서는 날짜와 시간을 직접 고정해 해/달/별과 조명
               변화를 확인할 수 있습니다.
             </div>
           </div>
@@ -9383,8 +9441,8 @@ export default function MapSimulator() {
       </div>
 
       <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
-        날씨는 현재 `manual override`입니다. Live 모드여도 실제 기상 API를
-        붙이기 전까지는 시각 연출을 직접 고를 수 있게 유지합니다.
+        날씨는 현재 수동 지정입니다. 실시간 모드여도 실제 기상 API를 붙이기
+        전까지는 시각 연출을 직접 고를 수 있게 유지합니다.
       </div>
 
       <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
@@ -9401,21 +9459,21 @@ export default function MapSimulator() {
       {showFps ? (
         <div className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md">
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
-            Performance
+            성능
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-2xl font-semibold tabular-nums text-lime-100">
               {fpsStats.fps}
             </div>
             <div className="space-y-0.5 pb-1 text-xs text-slate-400">
-              <div>Mode: {fpsModeLabel(fpsMode)}</div>
-              <div>Target: {fpsStats.capLabel}</div>
+              <div>모드: {fpsModeLabel(fpsMode)}</div>
+              <div>목표: {fpsStats.capLabel}</div>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] text-slate-300">
             <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
               <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                Sim
+                시뮬
               </div>
               <div className="tabular-nums text-lime-100">
                 {fpsStats.simulationMs.toFixed(2)} ms
@@ -9423,7 +9481,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
               <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                Render
+                렌더
               </div>
               <div className="tabular-nums text-lime-100">
                 {fpsStats.renderMs.toFixed(2)} ms
@@ -9431,7 +9489,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
               <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                Sim Hz
+                시뮬 Hz
               </div>
               <div className="tabular-nums text-lime-100">
                 {fpsStats.simulationHz}
@@ -9439,7 +9497,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
               <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                Vehicles
+                차량 수
               </div>
               <div className="tabular-nums text-lime-100">{fpsStats.vehicles}</div>
             </div>
@@ -9467,7 +9525,7 @@ export default function MapSimulator() {
             {fpsModeSummary(fpsMode)}
           </div>
           <div className="mt-1 text-[11px] text-slate-400">
-            mode {cameraModeLabel.toLowerCase()} · `F`로 숨기기
+            카메라 {cameraModeLabel} · F로 숨기기
           </div>
         </div>
       ) : null}
@@ -9482,7 +9540,7 @@ export default function MapSimulator() {
 
       <div className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]">
         <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
-          A-Eye Module 1 Companion
+          A-Eye 모듈 1 보조 레이어
         </p>
         <h1 className="text-[28px] font-semibold leading-tight">
           강남역 마이크로 영역 9개 동 OSM 디지털 트윈
@@ -9500,17 +9558,17 @@ export default function MapSimulator() {
 
         <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
           <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
-            Scope
+            역할
           </div>
           <div className="mt-1 text-sm font-semibold text-cyan-50">
             강남역 마이크로 디지털 트윈 보조 레이어
           </div>
           <div className="mt-2 text-xs leading-5 text-slate-300">
-            목표는 full Gangnam이나 full Seoul 복제가 아니라, `A-Eye`의
-            마이크로 영역 수요/배차 스토리를 실제 도로와 행정동 위에서 읽히게
-            만드는 것입니다. 즉 `3x3`은 나중 배차 비교 레이어로 남겨둘 수 있고,
-            이 장면은 `9개 동 OSM geometry backbone` 위에서 road-level
-            움직임과 시각화를 다듬는 역할에 집중합니다.
+            목표는 강남구 전체나 서울 전체를 그대로 복제하는 것이 아니라,
+            A-Eye의 마이크로 영역 수요·배차 스토리를 실제 도로와 행정동 위에서
+            읽히게 만드는 것입니다. 즉 3x3는 나중 배차 비교 레이어로 남겨둘 수
+            있고, 이 장면은 9개 동 OSM 지오메트리 뼈대 위에서 도로 단위 움직임과
+            시각화를 다듬는 역할에 집중합니다.
           </div>
         </div>
 
@@ -9518,7 +9576,7 @@ export default function MapSimulator() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                Local Scenarios
+                로컬 시나리오
               </div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 외부 수집 없이 바로 쓰는 발표/검증 프리셋
@@ -9531,7 +9589,7 @@ export default function MapSimulator() {
                   : "border-white/10 bg-slate-950/70 text-slate-400"
               }`}
             >
-              {activeLocalScenario?.label ?? "Custom mix"}
+              {activeLocalScenario?.label ?? "수동 조합"}
             </span>
           </div>
 
@@ -9579,7 +9637,7 @@ export default function MapSimulator() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
-                Scenario Brief
+                시나리오 브리프
               </div>
               <div className="mt-1 text-sm font-semibold text-cyan-50">
                 {scenarioBrief.title}
@@ -9596,17 +9654,28 @@ export default function MapSimulator() {
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
-              <div className="text-slate-500">Focus</div>
+              <div className="text-slate-500">포커스</div>
               <div className="mt-1 font-medium text-slate-100">
                 {scenarioBrief.focusLabel}
               </div>
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
-              <div className="text-slate-500">Scene Mix</div>
+              <div className="text-slate-500">현재 조합</div>
               <div className="mt-1 font-medium text-slate-100">
                 {formattedSimulationTime} · {scenarioBrief.weatherLabel}
               </div>
             </div>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {scenarioBrief.speakerNotes.map((line, index) => (
+              <div
+                key={`${scenarioBrief.title}-${index}`}
+                className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2 text-xs leading-5 text-slate-300"
+              >
+                멘트 {index + 1}. {line}
+              </div>
+            ))}
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
@@ -9618,21 +9687,21 @@ export default function MapSimulator() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                Local Check
+                로컬 체크
               </div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 장면 내부 상태만으로 보는 단순 검증 지표
               </div>
             </div>
             <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-[11px] font-medium text-amber-100">
-              proxy only
+              참고용
             </span>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Waiting Share
+                대기 비율
               </div>
               <div className="mt-1 text-lg font-semibold text-rose-200">
                 {waitingShare}%
@@ -9640,7 +9709,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Trip Close
+                완료 비율
               </div>
               <div className="mt-1 text-lg font-semibold text-lime-200">
                 {tripCompletionShare}%
@@ -9648,7 +9717,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Street Load
+                도로 부하
               </div>
               <div className="mt-1 text-lg font-semibold text-sky-200">
                 {totalVehicles}
@@ -9656,7 +9725,7 @@ export default function MapSimulator() {
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                Flow State
+                흐름 상태
               </div>
               <div className="mt-1 text-lg font-semibold text-cyan-200">
                 {localFlowLabel}
@@ -9665,71 +9734,71 @@ export default function MapSimulator() {
           </div>
 
           <div className="mt-3 text-xs leading-5 text-slate-500">
-            대기율과 완료율은 현재 로컬 장면 내부 stats만으로 계산한 proxy라서,
-            운영 KPI라기보다 프리셋 간 상대 비교와 발표용 sanity check에
+            대기율과 완료율은 현재 로컬 장면 내부 지표만으로 계산한 참고값이라서,
+            운영 KPI라기보다 프리셋 간 상대 비교와 발표용 간단 검증에
             가깝습니다.
           </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Taxis</div>
+            <div className="text-slate-400">택시</div>
             <div className="mt-1 text-lg font-semibold text-amber-200">
               {stats.taxis}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Traffic</div>
+            <div className="text-slate-400">일반 차량</div>
             <div className="mt-1 text-lg font-semibold text-sky-200">
               {stats.traffic}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Signals</div>
+            <div className="text-slate-400">신호등</div>
             <div className="mt-1 text-lg font-semibold text-emerald-200">
               {stats.signals}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Waiting</div>
+            <div className="text-slate-400">대기</div>
             <div className="mt-1 text-lg font-semibold text-rose-200">
               {stats.waiting}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Active Trips</div>
+            <div className="text-slate-400">진행 중 운행</div>
             <div className="mt-1 text-lg font-semibold text-cyan-200">
               {stats.activeTrips}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Completed</div>
+            <div className="text-slate-400">완료</div>
             <div className="mt-1 text-lg font-semibold text-lime-200">
               {stats.completedTrips}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Pedestrians</div>
+            <div className="text-slate-400">보행자</div>
             <div className="mt-1 text-lg font-semibold text-violet-200">
               {stats.pedestrians}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Bus Stops</div>
+            <div className="text-slate-400">버스 정류장</div>
             <div className="mt-1 text-lg font-semibold text-emerald-200">
               {transitCounts.busStops}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Subway</div>
+            <div className="text-slate-400">지하철</div>
             <div className="mt-1 text-lg font-semibold text-sky-200">
               {transitCounts.subwayStations}
             </div>
           </div>
           <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
-            <div className="text-slate-400">Routing</div>
+            <div className="text-slate-400">라우팅</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">
-              Shortest Path
+              최단 경로
             </div>
           </div>
         </div>
@@ -9738,7 +9807,7 @@ export default function MapSimulator() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-                Simulation Density
+                시뮬레이션 밀도
               </div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 택시와 일반 차량 수 조절
@@ -9751,7 +9820,7 @@ export default function MapSimulator() {
                   : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
               }`}
             >
-              {isDensityApplying ? "Applying" : "Live"}
+              {isDensityApplying ? "적용 중" : "반영됨"}
             </span>
           </div>
 
@@ -9763,7 +9832,7 @@ export default function MapSimulator() {
 
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-500">
-              <span>Taxis</span>
+              <span>택시</span>
               <span className="tabular-nums text-amber-200">
                 {simulationDensity.taxis}
               </span>
@@ -9782,7 +9851,7 @@ export default function MapSimulator() {
                 }));
               }}
               className="mt-3 h-2 w-full cursor-pointer accent-amber-300"
-              aria-label="Taxi density"
+              aria-label="택시 밀도"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
               <span>{MIN_TAXI_COUNT}</span>
@@ -9793,7 +9862,7 @@ export default function MapSimulator() {
 
           <div className="mt-4">
             <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-500">
-              <span>Traffic</span>
+              <span>일반 차량</span>
               <span className="tabular-nums text-sky-200">
                 {simulationDensity.traffic}
               </span>
@@ -9812,7 +9881,7 @@ export default function MapSimulator() {
                 }));
               }}
               className="mt-3 h-2 w-full cursor-pointer accent-sky-300"
-              aria-label="Traffic density"
+              aria-label="일반 차량 밀도"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
               <span>{MIN_TRAFFIC_COUNT}</span>
@@ -9835,58 +9904,58 @@ export default function MapSimulator() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
-                Data Source
+                데이터 소스
               </div>
               <div className="mt-1 text-sm font-semibold text-cyan-50">
                 {data?.meta.source ?? "OpenStreetMap + Overpass"}
               </div>
             </div>
             <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
-              {data?.meta.boundarySource ?? "OSM admin boundary"}
+              {data?.meta.boundarySource ?? "OSM 행정 경계"}
             </span>
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-300">
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
-              <div className="text-slate-500">Latest Asset Update</div>
+              <div className="text-slate-500">최근 에셋 갱신</div>
               <div className="mt-1 font-medium text-slate-100">
-                {data?.meta.latestAssetUpdatedAt ?? "Last-Modified unavailable"}
+                {data?.meta.latestAssetUpdatedAt ?? "갱신 시각 없음"}
               </div>
             </div>
             <div className="rounded-2xl border border-white/8 bg-slate-950/50 px-3 py-2">
-              <div className="text-slate-500">Loaded In Viewer</div>
+              <div className="text-slate-500">뷰어 로드 시각</div>
               <div className="mt-1 font-medium text-slate-100">
-                {data?.meta.loadedAt ?? "unknown"}
+                {data?.meta.loadedAt ?? "알 수 없음"}
               </div>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-              dongs {data?.meta.assets.dongs.featureCount ?? 0}
+              행정동 {data?.meta.assets.dongs.featureCount ?? 0}
             </span>
             {data?.meta.assets.nonRoad ? (
               <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-                non-road {data.meta.assets.nonRoad.featureCount}
+                비도로 {data.meta.assets.nonRoad.featureCount}
               </span>
             ) : null}
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-              roads {data?.meta.assets.roads.featureCount ?? 0}
+              도로 {data?.meta.assets.roads.featureCount ?? 0}
             </span>
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-              buildings {data?.meta.assets.buildings.featureCount ?? 0}
+              건물 {data?.meta.assets.buildings.featureCount ?? 0}
             </span>
             <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-              transit {data?.meta.assets.transit.featureCount ?? 0}
+              대중교통 {data?.meta.assets.transit.featureCount ?? 0}
             </span>
             {data?.meta.assets.trafficSignals ? (
               <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-                traffic signals {data.meta.assets.trafficSignals.featureCount}
+                신호등 {data.meta.assets.trafficSignals.featureCount}
               </span>
             ) : null}
             {data?.meta.assets.roadNetwork ? (
               <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
-                road graph {data.meta.assets.roadNetwork.featureCount}
+                도로 그래프 {data.meta.assets.roadNetwork.featureCount}
               </span>
             ) : null}
           </div>
@@ -9894,25 +9963,25 @@ export default function MapSimulator() {
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
             동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM
             지오메트리에서 가져옵니다. 이 장면에서 OSM은 단순 배경지도가 아니라
-            `A-Eye` 마이크로 영역 디지털 트윈의 geometry backbone 역할을
-            합니다. 신호등 위치는 OSM `traffic_signals` 노드를 기준으로 묶어
-            쓰고, 차량 phase는 도로 방향을 읽어 좌회전/직진/황색 흐름으로
-            단순화했습니다. 다만 이 프로젝트는 아직 full city replication이나
-            legal-grade dispatch map을 주장하지는 않습니다.
+            A-Eye 마이크로 영역 디지털 트윈의 공간 뼈대 역할을 합니다. 신호등
+            위치는 OSM traffic_signals 노드를 기준으로 묶어 쓰고, 차량 phase는
+            도로 방향을 읽어 좌회전·직진·황색 흐름으로 단순화했습니다. 다만 이
+            프로젝트는 아직 도시 전체 복제나 법적 수준의 배차 지도를 주장하지는
+            않습니다.
           </div>
         </div>
 
         <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
           <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-            Camera
+            카메라
           </div>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                ["overview", "Overview"],
-                ["drive", "Drive"],
-                ["follow", "Follow Taxi"],
-                ["ride", "Taxi View"],
+                ["overview", "오버뷰"],
+                ["drive", "드라이브"],
+                ["follow", "택시 추적"],
+                ["ride", "택시 시점"],
               ] as Array<[CameraMode, string]>
             ).map(([mode, label]) => (
               <button
@@ -9942,7 +10011,7 @@ export default function MapSimulator() {
 
           <div className="mt-3">
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Taxi Target
+              대상 택시
             </div>
             <select
               value={selectedTaxiId}
@@ -10028,7 +10097,7 @@ export default function MapSimulator() {
         {subwayHubs.length ? (
           <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
-              Subway Hubs
+              지하철 허브
             </div>
             <div className="flex flex-wrap gap-2">
               {subwayHubs.map((station) => {
