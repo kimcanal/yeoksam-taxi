@@ -687,6 +687,22 @@ type PedestrianVisual = {
 
 type HotspotMarkerMode = "pickup" | "dropoff" | "idle";
 type SceneLabelKind = "district" | "building" | "transit" | "road";
+type DispatchHotspotPresentation = {
+  accentColor: number;
+  badgeLabel: string;
+  badgeBorderColor: string;
+  badgeBackground: string;
+  badgeTextColor: string;
+  showsCaller: boolean;
+};
+
+type DispatchPlannerPresentation = {
+  id: string;
+  label: string;
+  routingLabel: string;
+  routingDetail: string;
+  hotspot: Record<HotspotMarkerMode, DispatchHotspotPresentation>;
+};
 
 type SceneLabelEntry = {
   label: CSS2DObject;
@@ -719,6 +735,74 @@ type HotspotVisual = {
   lastMarkerMode: HotspotMarkerMode;
   lastAccentColor: number;
 };
+
+const DEFAULT_DISPATCH_PRESENTATION: DispatchPlannerPresentation = {
+  id: ACTIVE_DISPATCH_PLANNER_ID,
+  label: "수요 우선 배차",
+  routingLabel: "수요 우선 휴리스틱",
+  routingDetail:
+    "기본 경로는 shortest path를 쓰되, 승차/하차 포인트 우선순위는 planner 설정으로 분리해 둔 상태입니다.",
+  hotspot: {
+    pickup: {
+      accentColor: 0xff9f1c,
+      badgeLabel: "승차",
+      badgeBorderColor: "rgba(234,184,105,0.45)",
+      badgeBackground: "rgba(46,31,10,0.88)",
+      badgeTextColor: "#fff0cb",
+      showsCaller: true,
+    },
+    dropoff: {
+      accentColor: 0x7ebba4,
+      badgeLabel: "하차",
+      badgeBorderColor: "rgba(138,196,176,0.42)",
+      badgeBackground: "rgba(12,34,30,0.86)",
+      badgeTextColor: "#d7efe6",
+      showsCaller: false,
+    },
+    idle: {
+      accentColor: 0x67727d,
+      badgeLabel: "콜 대기",
+      badgeBorderColor: "rgba(132,145,158,0.32)",
+      badgeBackground: "rgba(26,31,38,0.82)",
+      badgeTextColor: "#d7dde4",
+      showsCaller: false,
+    },
+  },
+};
+
+const DISPATCH_PRESENTATIONS = new Map<string, DispatchPlannerPresentation>([
+  [
+    "heuristic-default",
+    {
+      ...DEFAULT_DISPATCH_PRESENTATION,
+      id: "heuristic-default",
+      label: "기본 휴리스틱 배차",
+      routingLabel: "근접 우선 경로",
+      routingDetail:
+        "출발 지점에서 가까운 승차 후보를 고르고, 도로 그래프 위 shortest path로 경로를 확정합니다.",
+    },
+  ],
+  [
+    "demand-aware-v1",
+    {
+      ...DEFAULT_DISPATCH_PRESENTATION,
+      id: "demand-aware-v1",
+      label: "수요 우선 배차",
+      routingLabel: "수요 우선 휴리스틱",
+      routingDetail:
+        "shortest path를 유지하면서 승차/하차 후보 점수에 수요 편향을 섞는 현재 기본 planner입니다.",
+    },
+  ],
+]);
+
+function resolveDispatchPlannerPresentation(
+  plannerId: string | null | undefined,
+) {
+  return (
+    (plannerId ? DISPATCH_PRESENTATIONS.get(plannerId) : null) ??
+    DEFAULT_DISPATCH_PRESENTATION
+  );
+}
 
 type EnvironmentState = {
   skyColor: number;
@@ -769,6 +853,54 @@ const TRAFFIC_PALETTES: VehiclePalette[] = [
   { body: 0xc94d3f, cabin: 0xf0d7cf, sign: null },
   { body: 0x4f6478, cabin: 0xd4dfe7, sign: null },
 ];
+
+// Keep scene styling centralized so future asset or dispatch-layer swaps do
+// not require touching simulation logic.
+const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
+const HOTSPOT_IDLE_COLORS = [0xb89662, 0x7ea79f, 0xa88374];
+const CALLER_TOP_PALETTES = [0xc98c6f, 0x7c99b2, 0x7da48b, 0xc5a05d, 0x9a8ab0];
+const CALLER_BOTTOM_PALETTES = [0x2b3440, 0x303743, 0x39414a, 0x353a44];
+const SUBWAY_STRUCTURE_ACCENTS = [0x78aaa0, 0x89b9ae, 0x6f978f];
+const PANEL_EYEBROW_CLASS =
+  "mb-2 text-[11px] uppercase tracking-[0.28em] text-[#99cbbd]";
+const PANEL_SECTION_LABEL_CLASS =
+  "text-xs uppercase tracking-[0.16em] text-[#99cbbd]/80";
+const PANEL_CARD_CLASS =
+  "rounded-2xl border border-white/8 bg-white/[0.045] p-4 text-sm";
+const PANEL_CARD_COMPACT_CLASS =
+  "rounded-2xl border border-white/8 bg-white/[0.045] p-3 text-sm";
+const PANEL_ACCENT_CARD_CLASS =
+  "rounded-2xl border border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] p-4 text-sm";
+const PANEL_INSET_CLASS =
+  "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400";
+const PANEL_INSET_PADDED_CLASS =
+  "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3";
+const PANEL_TOKEN_CLASS =
+  "rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
+const PANEL_STATUS_TILE_CLASS =
+  "rounded-2xl border border-white/8 bg-slate-950/55 p-3";
+
+function panelSelectableClass(selected: boolean) {
+  return selected
+    ? "border-[#87cbb0]/35 bg-[#87cbb0]/14 text-[#e3f2ed]"
+    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white";
+}
+
+function panelBadgeClass(active: boolean) {
+  return `rounded-full border px-2 py-1 text-[11px] font-medium ${
+    active
+      ? "border-[#87cbb0]/22 bg-[#87cbb0]/10 text-[#d7efe6]"
+      : "border-white/10 bg-slate-950/70 text-slate-300"
+  }`;
+}
+
+function panelPillToggleClass(selected: boolean) {
+  return `rounded-full border px-2 py-1 transition ${
+    selected
+      ? "border-[#87cbb0]/28 bg-[#87cbb0]/12 text-[#e1f1eb]"
+      : "border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] text-[#c6ddd5] hover:border-[#87cbb0]/22 hover:bg-[#87cbb0]/10"
+  }`;
+}
 
 const MINUTES_PER_DAY = 24 * 60;
 const SIMULATION_TIME_ZONE = "Asia/Seoul";
@@ -1400,17 +1532,17 @@ function buildEnvironmentState(
     stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
     buildingTint:
       weatherMode === "heavy-snow"
-        ? 0xf3f8ff
+        ? 0xe7ecef
         : weatherMode === "heavy-rain"
-          ? 0xf7fafc
-          : 0xffffff,
+          ? 0xe3e8ec
+          : 0xe6ebef,
     buildingEmissive: mixHexColor(
-      0x1f2c3a,
-      0x4a6488,
-      nightBuildingFactor * 0.34 + twilight * 0.12,
+      0x15191d,
+      0x2f3a46,
+      nightBuildingFactor * 0.22 + twilight * 0.08,
     ),
     buildingEmissiveIntensity:
-      0.14 + twilight * 0.06 + nightBuildingFactor * 0.2,
+      0.08 + twilight * 0.04 + nightBuildingFactor * 0.12,
     precipitation:
       weatherMode === "heavy-rain"
         ? "rain"
@@ -2724,17 +2856,15 @@ function classifyTurn(
 }
 
 function colorForBuilding(height: number) {
-  if (height >= 45) return 0x6f8fce;
-  if (height >= 25) return 0x4c6a9f;
-  return 0x334760;
+  if (height >= 45) return 0x8f99a5;
+  if (height >= 25) return 0x76808a;
+  return 0x5d6670;
 }
 
 function buildDongRegions(
   dongs: DongFeatureCollection,
   center: { lat: number; lon: number },
 ) {
-  const colors = [0x68d4ff, 0x5fe0c4, 0xffc765, 0xff9171, 0x8cb8ff];
-
   return dongs.features
     .map((feature, index) => {
       const rings = outerRingsOfDong(feature, center).filter(
@@ -2755,7 +2885,7 @@ function buildDongRegions(
         nameEn: feature.properties.nameEn,
         position: bounds.getCenter(new THREE.Vector3()),
         rings,
-        color: colors[index % colors.length],
+        color: DONG_REGION_COLORS[index % DONG_REGION_COLORS.length],
       } satisfies DongRegion;
     })
     .filter(Boolean) as DongRegion[];
@@ -3377,18 +3507,18 @@ function labelElement(
 function hotspotCallElement() {
   const element = document.createElement("div");
   element.textContent = "승차";
-  element.style.padding = "3px 10px";
+  element.style.padding = "2px 8px";
   element.style.borderRadius = "999px";
-  element.style.border = "1px solid rgba(255,229,161,0.45)";
-  element.style.background = "rgba(38,29,8,0.88)";
-  element.style.color = "#ffefbe";
+  element.style.border = "1px solid rgba(216,184,126,0.36)";
+  element.style.background = "rgba(29,24,17,0.84)";
+  element.style.color = "#f3e1bd";
   element.style.fontSize = "11px";
   element.style.fontWeight = "600";
   element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
-  element.style.letterSpacing = "0.04em";
+  element.style.letterSpacing = "0";
   element.style.whiteSpace = "nowrap";
   element.style.pointerEvents = "none";
-  element.style.boxShadow = "0 8px 18px rgba(0,0,0,0.32)";
+  element.style.boxShadow = "0 6px 14px rgba(0,0,0,0.24)";
   return element;
 }
 
@@ -3514,7 +3644,7 @@ function createSubwayStationStructure(
   sideSign: 1 | -1,
   isMajor: boolean,
 ) {
-  const accent = [0x31a8ff, 0x3bbcff, 0x5aa8ff][seed % 3];
+  const accent = SUBWAY_STRUCTURE_ACCENTS[seed % SUBWAY_STRUCTURE_ACCENTS.length]!;
   const group = new THREE.Group();
 
   const halo = new THREE.Mesh(
@@ -3522,7 +3652,7 @@ function createSubwayStationStructure(
     new THREE.MeshBasicMaterial({
       color: accent,
       transparent: true,
-      opacity: isMajor ? 0.28 : 0.22,
+      opacity: isMajor ? 0.2 : 0.16,
       side: THREE.DoubleSide,
       depthWrite: false,
     }),
@@ -3533,7 +3663,7 @@ function createSubwayStationStructure(
 
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(isMajor ? 2.6 : 2.1, 0.18, isMajor ? 2.1 : 1.72),
-    new THREE.MeshStandardMaterial({ color: 0xe2ecf6, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xdbe2e6, roughness: 0.92 }),
   );
   base.position.y = 0.09;
   base.receiveShadow = true;
@@ -3544,8 +3674,8 @@ function createSubwayStationStructure(
     new THREE.MeshStandardMaterial({
       color: accent,
       emissive: accent,
-      emissiveIntensity: isMajor ? 0.18 : 0.12,
-      roughness: 0.34,
+      emissiveIntensity: isMajor ? 0.14 : 0.1,
+      roughness: 0.42,
     }),
   );
   canopy.position.set(0.12 * sideSign, 1.58, -0.14);
@@ -3555,12 +3685,12 @@ function createSubwayStationStructure(
   const glassRoof = new THREE.Mesh(
     new THREE.BoxGeometry(isMajor ? 1.92 : 1.62, 0.08, isMajor ? 0.82 : 0.72),
     new THREE.MeshStandardMaterial({
-      color: 0xe5f7ff,
-      emissive: 0x12374a,
-      emissiveIntensity: 0.08,
+      color: 0xe4ebe8,
+      emissive: 0x1c312f,
+      emissiveIntensity: 0.06,
       transparent: true,
-      opacity: 0.84,
-      roughness: 0.18,
+      opacity: 0.74,
+      roughness: 0.24,
       metalness: 0.08,
     }),
   );
@@ -3571,10 +3701,10 @@ function createSubwayStationStructure(
   const sidePanel = new THREE.Mesh(
     new THREE.BoxGeometry(0.08, 1.08, isMajor ? 0.94 : 0.78),
     new THREE.MeshStandardMaterial({
-      color: 0xd8f4ff,
+      color: 0xd4e1de,
       transparent: true,
-      opacity: 0.72,
-      roughness: 0.12,
+      opacity: 0.62,
+      roughness: 0.2,
       metalness: 0.08,
     }),
   );
@@ -3583,7 +3713,7 @@ function createSubwayStationStructure(
 
   const sideRail = new THREE.Mesh(
     new THREE.BoxGeometry(0.06, 0.82, isMajor ? 1.12 : 0.92),
-    new THREE.MeshStandardMaterial({ color: 0x7c93aa, roughness: 0.46 }),
+    new THREE.MeshStandardMaterial({ color: 0x768690, roughness: 0.52 }),
   );
   sideRail.position.set(-0.52 * sideSign, 0.64, 0.38);
   sideRail.castShadow = true;
@@ -3592,8 +3722,8 @@ function createSubwayStationStructure(
   const gateWall = new THREE.Mesh(
     new THREE.BoxGeometry(0.14, 1.24, isMajor ? 0.92 : 0.74),
     new THREE.MeshStandardMaterial({
-      color: 0xe7f1fb,
-      roughness: 0.54,
+      color: 0xe2e8ea,
+      roughness: 0.58,
       metalness: 0.04,
     }),
   );
@@ -3603,7 +3733,7 @@ function createSubwayStationStructure(
 
   const totem = new THREE.Mesh(
     new THREE.BoxGeometry(0.26, isMajor ? 2.48 : 2.18, 0.26),
-    new THREE.MeshStandardMaterial({ color: 0xeef6ff, roughness: 0.52 }),
+    new THREE.MeshStandardMaterial({ color: 0xe5ebed, roughness: 0.58 }),
   );
   totem.position.set(-0.92 * sideSign, isMajor ? 1.24 : 1.08, -0.68);
   totem.castShadow = true;
@@ -3614,8 +3744,8 @@ function createSubwayStationStructure(
     new THREE.MeshStandardMaterial({
       color: accent,
       emissive: accent,
-      emissiveIntensity: isMajor ? 0.28 : 0.22,
-      roughness: 0.36,
+      emissiveIntensity: isMajor ? 0.18 : 0.14,
+      roughness: 0.44,
     }),
   );
   sign.position.set(-0.92 * sideSign, isMajor ? 2.0 : 1.82, -0.68);
@@ -3624,10 +3754,10 @@ function createSubwayStationStructure(
   const stationMarker = new THREE.Mesh(
     new THREE.BoxGeometry(isMajor ? 0.4 : 0.34, isMajor ? 0.4 : 0.34, 0.12),
     new THREE.MeshStandardMaterial({
-      color: 0xf4fbff,
-      emissive: 0xf4fbff,
-      emissiveIntensity: isMajor ? 0.34 : 0.24,
-      roughness: 0.24,
+      color: 0xf0f5f2,
+      emissive: 0xe6f1ec,
+      emissiveIntensity: isMajor ? 0.22 : 0.16,
+      roughness: 0.3,
       metalness: 0.08,
     }),
   );
@@ -3638,7 +3768,7 @@ function createSubwayStationStructure(
     (stepIndex) => {
       const step = new THREE.Mesh(
         new THREE.BoxGeometry(0.42, 0.16, isMajor ? 1.14 : 0.98),
-        new THREE.MeshStandardMaterial({ color: 0xb7c7d8, roughness: 0.84 }),
+        new THREE.MeshStandardMaterial({ color: 0xb4c0c4, roughness: 0.86 }),
       );
       step.position.set(
         (0.78 - stepIndex * 0.18) * -sideSign,
@@ -5041,10 +5171,9 @@ function createPedestrianGroup(seed: number) {
 }
 
 function createCallerGroup(seed: number) {
-  const topPalette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][
-    seed % 5
-  ];
-  const bottomPalette = [0x253244, 0x26394d, 0x2f3845, 0x29313f][seed % 4];
+  const topPalette = CALLER_TOP_PALETTES[seed % CALLER_TOP_PALETTES.length]!;
+  const bottomPalette =
+    CALLER_BOTTOM_PALETTES[seed % CALLER_BOTTOM_PALETTES.length]!;
   const group = new THREE.Group();
 
   const shadow = new THREE.Mesh(
@@ -5109,10 +5238,10 @@ function createCallerGroup(seed: number) {
   const hailCube = new THREE.Mesh(
     new THREE.BoxGeometry(0.24, 0.24, 0.16),
     new THREE.MeshStandardMaterial({
-      color: 0xffdd63,
-      emissive: 0x7b5600,
-      emissiveIntensity: 0.34,
-      roughness: 0.38,
+      color: 0xf0c86b,
+      emissive: 0x68440a,
+      emissiveIntensity: 0.24,
+      roughness: 0.44,
     }),
   );
   hailCube.position.set(0.12, -0.62, 0.08);
@@ -5578,6 +5707,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const container = containerRef.current;
     const simulationData = data;
+    const dispatchPresentation = resolveDispatchPlannerPresentation(
+      simulationData.meta.dispatchPlannerId,
+    );
     let sceneDisposed = false;
     let isPageHidden = document.visibilityState === "hidden";
     const scene = new THREE.Scene();
@@ -5864,7 +5996,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const fillMaterial = new THREE.MeshBasicMaterial({
           color: dong.color,
           transparent: true,
-          opacity: 0.09,
+          opacity: 0.06,
           depthWrite: false,
           side: THREE.DoubleSide,
         });
@@ -5897,9 +6029,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const nonRoadMaterials = {
       facility: new THREE.MeshBasicMaterial({
-        color: 0x46506b,
+        color: 0x535b64,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.16,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -5907,9 +6039,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -2,
       }),
       green: new THREE.MeshBasicMaterial({
-        color: 0x315f38,
+        color: 0x486349,
         transparent: true,
-        opacity: 0.34,
+        opacity: 0.24,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -5917,9 +6049,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -3,
       }),
       pedestrian: new THREE.MeshBasicMaterial({
-        color: 0x626366,
+        color: 0x6d6a64,
         transparent: true,
-        opacity: 0.18,
+        opacity: 0.14,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -5927,9 +6059,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -4,
       }),
       parking: new THREE.MeshBasicMaterial({
-        color: 0x76706a,
+        color: 0x756d63,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.16,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -5937,9 +6069,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -5,
       }),
       water: new THREE.MeshBasicMaterial({
-        color: 0x2f5f86,
+        color: 0x46687a,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.2,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6525,9 +6657,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     };
 
     const dongBoundaryGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x5de08d,
+      color: 0x6dbb9b,
       transparent: true,
-      opacity: 0.34,
+      opacity: 0.2,
       depthWrite: false,
     });
     const dongBoundaryGlowMesh = new THREE.InstancedMesh(
@@ -6542,7 +6674,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       dummy.scale.set(2.1, 1, segment.length + 1.1);
       dummy.updateMatrix();
       dongBoundaryGlowMesh.setMatrixAt(index, dummy.matrix);
-      dongBoundaryGlowMesh.setColorAt(index, new THREE.Color(0x7dffb2));
+      dongBoundaryGlowMesh.setColorAt(index, new THREE.Color(0x87cbb0));
     });
 
     dongBoundaryGlowMesh.instanceMatrix.needsUpdate = true;
@@ -6553,9 +6685,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     scene.add(dongBoundaryGlowMesh);
 
     const dongBoundaryLineMaterial = new THREE.MeshBasicMaterial({
-      color: 0x6bff9c,
+      color: 0x87d2b0,
       transparent: true,
-      opacity: 0.98,
+      opacity: 0.78,
     });
     const dongBoundaryMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 0.05, 1),
@@ -6569,7 +6701,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       dummy.scale.set(1.28, 1.4, segment.length + 0.44);
       dummy.updateMatrix();
       dongBoundaryMesh.setMatrixAt(index, dummy.matrix);
-      dongBoundaryMesh.setColorAt(index, new THREE.Color(0x64ef9b));
+      dongBoundaryMesh.setColorAt(index, new THREE.Color(0x91d6b5));
     });
 
     dongBoundaryMesh.instanceMatrix.needsUpdate = true;
@@ -6580,7 +6712,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     scene.add(dongBoundaryMesh);
 
     const dongWallMaterial = new THREE.MeshBasicMaterial({
-      color: 0x76ffad,
+      color: 0x87cbb0,
       transparent: true,
       opacity: 0.001,
       depthWrite: false,
@@ -6733,8 +6865,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const buildingMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.96,
       metalness: 0.02,
-      emissive: 0x16202c,
-      emissiveIntensity: 0.08,
+      emissive: 0x171b20,
+      emissiveIntensity: 0.04,
     });
     const buildingMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -6799,11 +6931,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === "overview";
       dongFloorMaterials.forEach((material) => {
-        material.opacity = isOverview ? 0.065 : 0.03;
+        material.opacity = isOverview ? 0.05 : 0.024;
       });
-      dongBoundaryGlowMaterial.opacity = isOverview ? 0.34 : 0.22;
-      dongBoundaryLineMaterial.color.setHex(isOverview ? 0x76ffad : 0x63f09b);
-      dongBoundaryLineMaterial.opacity = isOverview ? 0.98 : 0.92;
+      dongBoundaryGlowMaterial.opacity = isOverview ? 0.2 : 0.13;
+      dongBoundaryLineMaterial.color.setHex(isOverview ? 0x93d7b7 : 0x7fc8a9);
+      dongBoundaryLineMaterial.opacity = isOverview ? 0.8 : 0.62;
       dongWallMaterial.opacity = 0.001;
     };
 
@@ -7332,8 +7464,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       const nextHotspotVisuals = hotspotPool.map((hotspot, index) => {
         const group = new THREE.Group();
-        const baseColor =
-          index % 3 === 0 ? 0xffcf57 : index % 3 === 1 ? 0x71d8ff : 0xff8d71;
+        const baseColor = HOTSPOT_IDLE_COLORS[index % HOTSPOT_IDLE_COLORS.length]!;
         const hotspotRoute = taxiRouteById.get(hotspot.routeId);
         const hotspotSample = hotspotRoute
           ? sampleRoute(hotspotRoute, hotspot.distance)
@@ -7360,46 +7491,46 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const glow = new THREE.Mesh(
           new THREE.CylinderGeometry(0.72, 0.94, 0.12, 18),
           new THREE.MeshStandardMaterial({
-            color: 0xfff6da,
+            color: 0xf2ece0,
             emissive: baseColor,
-            emissiveIntensity: 0.22,
+            emissiveIntensity: 0.16,
             transparent: true,
-            opacity: 0.74,
-            roughness: 0.2,
+            opacity: 0.58,
+            roughness: 0.26,
           }),
         );
         const glowMaterial = glow.material as THREE.MeshStandardMaterial;
         glow.position.y = 0.25;
         glow.scale.setScalar(0.72);
         glowMaterial.emissiveIntensity = 0.06;
-        glowMaterial.opacity = 0.2;
+        glowMaterial.opacity = 0.16;
         group.add(glow);
 
         const beacon = new THREE.Mesh(
           new THREE.SphereGeometry(0.42, 18, 18),
           new THREE.MeshStandardMaterial({
-            color: 0xfffbf1,
+            color: 0xf8f3ea,
             emissive: baseColor,
-            emissiveIntensity: 0.34,
+            emissiveIntensity: 0.24,
             transparent: true,
-            opacity: 0.9,
-            roughness: 0.16,
+            opacity: 0.74,
+            roughness: 0.22,
           }),
         );
         const beaconMaterial = beacon.material as THREE.MeshStandardMaterial;
         beacon.position.y = 0.55;
         beacon.scale.setScalar(0.68);
         beaconMaterial.emissiveIntensity = 0.08;
-        beaconMaterial.opacity = 0.28;
+        beaconMaterial.opacity = 0.24;
         group.add(beacon);
 
         const ring = new THREE.Mesh(
           new THREE.TorusGeometry(1.02, 0.08, 10, 28),
           new THREE.MeshStandardMaterial({
-            color: 0xfff7db,
+            color: 0xf2e9d7,
             emissive: baseColor,
-            emissiveIntensity: 0.2,
-            roughness: 0.38,
+            emissiveIntensity: 0.14,
+            roughness: 0.44,
           }),
         );
         const ringMaterial = ring.material as THREE.MeshStandardMaterial;
@@ -7915,12 +8046,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const markerMode: HotspotMarkerMode =
           pickupCalls > 0 ? "pickup" : dropoffCalls > 0 ? "dropoff" : "idle";
         const isActive = markerMode !== "idle";
-        const accentColor =
-          markerMode === "pickup"
-            ? 0xff6b68
-            : markerMode === "dropoff"
-              ? 0x49e6a1
-              : 0x5f708c;
+        const markerPresentation = dispatchPresentation.hotspot[markerMode];
+        const accentColor = markerPresentation.accentColor;
 
         if (visual.lastAccentColor !== accentColor) {
           visual.lastAccentColor = accentColor;
@@ -7933,20 +8060,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         if (visual.lastMarkerMode !== markerMode) {
           visual.lastMarkerMode = markerMode;
-          visual.callerGroup.visible = markerMode === "pickup";
+          visual.callerGroup.visible = markerPresentation.showsCaller;
           visual.callBadge.visible = isActive;
-          visual.badgeElement.textContent =
-            markerMode === "dropoff" ? "하차" : "승차";
+          visual.badgeElement.textContent = markerPresentation.badgeLabel;
           visual.badgeElement.style.borderColor =
-            markerMode === "dropoff"
-              ? "rgba(122,255,196,0.45)"
-              : "rgba(255,138,138,0.5)";
+            markerPresentation.badgeBorderColor;
           visual.badgeElement.style.background =
-            markerMode === "dropoff"
-              ? "rgba(8,40,24,0.88)"
-              : "rgba(48,12,14,0.88)";
-          visual.badgeElement.style.color =
-            markerMode === "dropoff" ? "#d9fff0" : "#ffe0e0";
+            markerPresentation.badgeBackground;
+          visual.badgeElement.style.color = markerPresentation.badgeTextColor;
 
           if (!isActive) {
             visual.base.scale.setScalar(0.82);
@@ -7956,9 +8077,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             visual.ring.rotation.z = index * 0.2;
             visual.baseMaterial.emissiveIntensity = 0.04;
             visual.glowMaterial.emissiveIntensity = 0.06;
-            visual.glowMaterial.opacity = 0.2;
+            visual.glowMaterial.opacity = 0.16;
             visual.beaconMaterial.emissiveIntensity = 0.08;
-            visual.beaconMaterial.opacity = 0.28;
+            visual.beaconMaterial.opacity = 0.24;
             visual.ringMaterial.emissiveIntensity = 0.05;
             visual.hailMaterial.emissiveIntensity = 0.06;
             visual.callerGroup.position.y = 0.04;
@@ -7979,14 +8100,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         visual.ring.scale.setScalar(1.12 + pulse * 0.18);
         visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
 
-        visual.baseMaterial.emissiveIntensity = 0.22 + pulse * 0.12;
-        visual.glowMaterial.emissiveIntensity = 0.34 + pulse * 0.18;
-        visual.glowMaterial.opacity = 0.72 + pulse * 0.16;
-        visual.beaconMaterial.emissiveIntensity = 0.34 + pulse * 0.28;
-        visual.beaconMaterial.opacity = 0.9;
-        visual.ringMaterial.emissiveIntensity = 0.3 + pulse * 0.24;
+        visual.baseMaterial.emissiveIntensity = 0.16 + pulse * 0.1;
+        visual.glowMaterial.emissiveIntensity = 0.24 + pulse * 0.14;
+        visual.glowMaterial.opacity = 0.46 + pulse * 0.12;
+        visual.beaconMaterial.emissiveIntensity = 0.24 + pulse * 0.2;
+        visual.beaconMaterial.opacity = 0.72;
+        visual.ringMaterial.emissiveIntensity = 0.2 + pulse * 0.16;
         visual.hailMaterial.emissiveIntensity =
-          markerMode === "pickup" ? 0.34 + pulse * 0.32 : 0.06;
+          markerMode === "pickup" ? 0.24 + pulse * 0.22 : 0.06;
         visual.callerGroup.position.y =
           0.04 +
           (markerMode === "pickup"
@@ -9397,6 +9518,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     }),
     [transitHighlights],
   );
+  const dispatchPlannerId =
+    data?.meta.dispatchPlannerId ?? ACTIVE_DISPATCH_PLANNER_ID;
+  const dispatchPresentation = useMemo(
+    () => resolveDispatchPlannerPresentation(dispatchPlannerId),
+    [dispatchPlannerId],
+  );
   const subwayHubs = useMemo(
     () => {
       const byName = new Map<string, TransitLandmark>();
@@ -9653,10 +9780,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   : "특정 시각 기준으로 장면 값을 조정 중",
               );
             }}
-            className={`rounded-2xl border px-3 py-2 text-left transition ${circumstanceMode === option.id
-              ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
-              : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-              }`}
+            className={`rounded-2xl border px-3 py-2 text-left transition ${panelSelectableClass(
+              circumstanceMode === option.id,
+            )}`}
           >
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
               기준
@@ -9675,7 +9801,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
               {formattedSimulationTime}
             </div>
-            <span className="rounded-full border border-cyan-300/18 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+            <span className={panelBadgeClass(true)}>
               {daylightLabel} / {simulationTimeBand}
             </span>
           </div>
@@ -9697,31 +9823,26 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 px-3 py-3">
+      <div className={`mt-3 ${PANEL_ACCENT_CARD_CLASS} px-3 py-3`}>
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[11px] uppercase tracking-[0.14em] text-cyan-300/80">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-[#99cbbd]/80">
             프리셋 추천값
           </div>
-          <span
-            className={`rounded-full border px-2 py-1 text-[11px] font-medium ${activeLocalScenario
-              ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
-              : "border-white/10 bg-slate-950/70 text-slate-300"
-              }`}
-          >
+          <span className={panelBadgeClass(Boolean(activeLocalScenario))}>
             {activeLocalScenario?.label ?? "수동 조정중"}
           </span>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+          <span className={PANEL_TOKEN_CLASS}>
             시간 {activeLocalScenario ? format24Hour(activeLocalScenario.minutes) : formattedSimulationTime}
           </span>
-          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+          <span className={PANEL_TOKEN_CLASS}>
             날씨 {recommendedWeatherLabel}
           </span>
-          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+          <span className={PANEL_TOKEN_CLASS}>
             밀도 택시 {activeLocalScenario?.taxis ?? simulationDensity.taxis} / 일반 {activeLocalScenario?.traffic ?? simulationDensity.traffic}
           </span>
-          <span className="rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100">
+          <span className={PANEL_TOKEN_CLASS}>
             포커스 {scenarioBrief.focusLabel}
           </span>
         </div>
@@ -9735,10 +9856,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 key={preset.label}
                 type="button"
                 onClick={() => setSimulationTimeMinutes(preset.minutes)}
-                className={`rounded-2xl border px-2 py-2 text-xs transition ${simulationTimeMinutes === preset.minutes
-                  ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
-                  : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-                  }`}
+                className={`rounded-2xl border px-2 py-2 text-xs transition ${panelSelectableClass(
+                  simulationTimeMinutes === preset.minutes,
+                )}`}
               >
                 <div className="font-medium tabular-nums">{preset.label}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
@@ -9748,10 +9868,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             ))}
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3">
+          <div className={`mt-3 ${PANEL_INSET_PADDED_CLASS}`}>
             <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.14em] text-slate-500">
               <span>시간 슬라이더</span>
-              <span className="tabular-nums text-cyan-100">
+              <span className="tabular-nums text-[#d7efe6]">
                 {formattedSimulationTime}
               </span>
             </div>
@@ -9763,7 +9883,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 type="date"
                 value={simulationDate}
                 onChange={(event) => setSimulationDate(event.target.value)}
-                className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40"
+                className="rounded-xl border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-[#87cbb0]/40"
                 aria-label="시뮬레이션 날짜"
               />
             </div>
@@ -9776,7 +9896,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               onChange={(event) =>
                 setSimulationTimeMinutes(Number(event.target.value))
               }
-              className="mt-3 h-2 w-full cursor-pointer accent-cyan-300"
+              className="mt-3 h-2 w-full cursor-pointer accent-[#87cbb0]"
               aria-label="시뮬레이션 시간"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
@@ -9793,7 +9913,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
         </>
       ) : (
-        <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+        <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
           Live 모드에서는 강남 기준 현재 KST 날짜와 시간을 따라갑니다.
         </div>
       )}
@@ -9804,10 +9924,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             key={option.id}
             type="button"
             onClick={() => setWeatherMode(option.id)}
-            className={`rounded-2xl border px-3 py-3 text-left transition ${weatherMode === option.id
-              ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
-              : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-              }`}
+            className={`rounded-2xl border px-3 py-3 text-left transition ${panelSelectableClass(
+              weatherMode === option.id,
+            )}`}
           >
             <div className="text-sm font-medium">{option.label}</div>
             <div className="mt-1 text-[11px] leading-5 text-slate-400">
@@ -9817,12 +9936,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         ))}
       </div>
 
-      <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+      <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
         날씨는 현재 수동 지정입니다. 실시간 모드여도 실제 기상 API를 붙이기
         전까지는 시각 연출을 직접 고를 수 있게 유지합니다.
       </div>
 
-      <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+      <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
         시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
         고정해 가독성을 유지합니다. 대중교통 구조물은 기본적으로 숨겨두었습니다.
       </div>
@@ -9836,7 +9955,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       {showFps ? (
         <div
           data-ui-panel="fps-overlay"
-          className="pointer-events-none absolute right-4 top-20 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
+          className="pointer-events-none absolute right-4 top-24 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
         >
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
             성능
@@ -9937,7 +10056,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       <div
         data-ui-panel="right-sidebar"
-        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${showFps ? "top-[21rem]" : "top-4"
+        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${showFps ? "top-[22rem]" : "top-4"
           }`}
       >
         {timeWeatherControls}
@@ -9947,7 +10066,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         data-ui-panel="left-sidebar"
         className="absolute left-2 top-2 z-10 max-h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-w-[400px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md sm:left-4 sm:top-4 sm:max-h-[calc(100vh-2rem)] sm:w-[400px]"
       >
-        <p className="mb-2 text-[11px] uppercase tracking-[0.28em] text-cyan-300">
+        <p className={PANEL_EYEBROW_CLASS}>
           A-Eye 모듈 1 보조 레이어
         </p>
         <h1 className="text-[28px] font-semibold leading-tight">
@@ -9964,11 +10083,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           승하차 위치도 실제 도로 그래프와 curbside 쪽으로 맞추고 있습니다.
         </p>
 
-        <div className="mt-4 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
-          <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+        <div className={`mt-4 ${PANEL_ACCENT_CARD_CLASS}`}>
+          <div className={PANEL_SECTION_LABEL_CLASS}>
             역할
           </div>
-          <div className="mt-1 text-sm font-semibold text-cyan-50">
+          <div className="mt-1 text-sm font-semibold text-[#d7efe6]">
             강남역 마이크로 디지털 트윈 보조 레이어
           </div>
           <div className="mt-2 text-xs leading-5 text-slate-300">
@@ -9980,7 +10099,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -9990,12 +10109,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 외부 수집 없이 바로 쓰는 발표/검증 프리셋
               </div>
             </div>
-            <span
-              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${activeLocalScenario
-                ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
-                : "border-white/10 bg-slate-950/70 text-slate-400"
-                }`}
-            >
+            <span className={panelBadgeClass(Boolean(activeLocalScenario))}>
               {activeLocalScenario?.label ?? "수동 조합"}
             </span>
           </div>
@@ -10011,10 +10125,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   data-local-scenario-button={scenario.id}
                   data-selected={isSelected ? "true" : "false"}
                   aria-label={`${scenario.label} 시나리오 적용`}
-                  className={`rounded-2xl border px-3 py-3 text-left transition ${isSelected
-                    ? "border-cyan-300/35 bg-cyan-300/16 text-cyan-50"
-                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-                    }`}
+                  className={`rounded-2xl border px-3 py-3 text-left transition ${panelSelectableClass(
+                    isSelected,
+                  )}`}
                 >
                   <div className="text-sm font-semibold">{scenario.label}</div>
                   <div className="mt-1 text-[11px] leading-5 text-slate-400">
@@ -10032,24 +10145,24 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             })}
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
             프리셋은 시간, 날씨, 차량 밀도, 주요 지하철역 시점을 함께 맞춥니다.
             실제 수요 API나 외부 데이터 없이도 `A-Eye Module 1` 설명용 장면을
             빠르게 재현하는 용도입니다.
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_ACCENT_CARD_CLASS}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+              <div className={PANEL_SECTION_LABEL_CLASS}>
                 시나리오 브리프
               </div>
-              <div className="mt-1 text-sm font-semibold text-cyan-50">
+              <div className="mt-1 text-sm font-semibold text-[#d7efe6]">
                 {scenarioBrief.title}
               </div>
             </div>
-            <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+            <span className={panelBadgeClass(true)}>
               발표용 요약
             </span>
           </div>
@@ -10084,12 +10197,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             ))}
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
             {scenarioBrief.note}
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -10105,7 +10218,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+            <div className={PANEL_STATUS_TILE_CLASS}>
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
                 대기 비율
               </div>
@@ -10113,7 +10226,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 {waitingShare}%
               </div>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+            <div className={PANEL_STATUS_TILE_CLASS}>
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
                 완료 비율
               </div>
@@ -10121,7 +10234,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 {tripCompletionShare}%
               </div>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+            <div className={PANEL_STATUS_TILE_CLASS}>
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
                 도로 부하
               </div>
@@ -10129,11 +10242,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 {totalVehicles}
               </div>
             </div>
-            <div className="rounded-2xl border border-white/8 bg-slate-950/55 p-3">
+            <div className={PANEL_STATUS_TILE_CLASS}>
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
                 흐름 상태
               </div>
-              <div className="mt-1 text-lg font-semibold text-cyan-200">
+              <div className="mt-1 text-lg font-semibold text-[#d7efe6]">
                 {localFlowLabel}
               </div>
             </div>
@@ -10147,69 +10260,72 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">택시</div>
             <div className="mt-1 text-lg font-semibold text-amber-200">
               {stats.taxis}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">일반 차량</div>
             <div className="mt-1 text-lg font-semibold text-sky-200">
               {stats.traffic}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">신호등</div>
             <div className="mt-1 text-lg font-semibold text-emerald-200">
               {stats.signals}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">대기</div>
             <div className="mt-1 text-lg font-semibold text-rose-200">
               {stats.waiting}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">진행 중 운행</div>
-            <div className="mt-1 text-lg font-semibold text-cyan-200">
+            <div className="mt-1 text-lg font-semibold text-[#d7efe6]">
               {stats.activeTrips}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">완료</div>
             <div className="mt-1 text-lg font-semibold text-lime-200">
               {stats.completedTrips}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">보행자</div>
             <div className="mt-1 text-lg font-semibold text-violet-200">
               {stats.pedestrians}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">버스 정류장</div>
             <div className="mt-1 text-lg font-semibold text-emerald-200">
               {transitCounts.busStops}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">지하철</div>
-            <div className="mt-1 text-lg font-semibold text-sky-200">
+            <div className="mt-1 text-lg font-semibold text-[#d7efe6]">
               {transitCounts.subwayStations}
             </div>
           </div>
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-3">
+          <div className={PANEL_CARD_COMPACT_CLASS}>
             <div className="text-slate-400">라우팅</div>
             <div className="mt-1 text-lg font-semibold text-slate-100">
-              최단 경로
+              {dispatchPresentation.routingLabel}
+            </div>
+            <div className="mt-1 text-[11px] leading-5 text-slate-500">
+              {dispatchPresentation.routingDetail}
             </div>
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
@@ -10229,7 +10345,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </span>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
             밀도를 바꾸면 실제 차량 배치를 다시 구성합니다. 슬라이더를 움직이는
             동안에는 마지막 안정적인 장면을 유지한 뒤 새 밀도로 자연스럽게
             갈아탑니다.
@@ -10255,7 +10371,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   taxis: Number(event.target.value),
                 }));
               }}
-              className="mt-3 h-2 w-full cursor-pointer accent-amber-300"
+              className="mt-3 h-2 w-full cursor-pointer accent-[#ff9f1c]"
               aria-label="택시 밀도"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
@@ -10285,7 +10401,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   traffic: Number(event.target.value),
                 }));
               }}
-              className="mt-3 h-2 w-full cursor-pointer accent-sky-300"
+              className="mt-3 h-2 w-full cursor-pointer accent-[#87cbb0]"
               aria-label="일반 차량 밀도"
             />
             <div className="mt-2 flex justify-between text-[10px] tabular-nums text-slate-500">
@@ -10303,22 +10419,22 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         <div
           data-ui-panel="mobile-time-weather"
-          className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm lg:hidden"
+          className={`mt-5 ${PANEL_CARD_CLASS} lg:hidden`}
         >
           {timeWeatherControls}
         </div>
 
-        <div className="mt-5 rounded-2xl border border-cyan-300/10 bg-cyan-400/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_ACCENT_CARD_CLASS}`}>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-cyan-300/80">
+              <div className={PANEL_SECTION_LABEL_CLASS}>
                 데이터 소스
               </div>
-              <div className="mt-1 text-sm font-semibold text-cyan-50">
+              <div className="mt-1 text-sm font-semibold text-[#d7efe6]">
                 {data?.meta.source ?? "OpenStreetMap + Overpass"}
               </div>
             </div>
-            <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-2 py-1 text-[11px] font-medium text-cyan-100">
+            <span className={panelBadgeClass(true)}>
               {data?.meta.boundarySource ?? "OSM 행정 경계"}
             </span>
           </div>
@@ -10339,36 +10455,36 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+            <span className={PANEL_TOKEN_CLASS}>
               행정동 {data?.meta.assets.dongs.featureCount ?? 0}
             </span>
             {data?.meta.assets.nonRoad ? (
-              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              <span className={PANEL_TOKEN_CLASS}>
                 비도로 {data.meta.assets.nonRoad.featureCount}
               </span>
             ) : null}
-            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+            <span className={PANEL_TOKEN_CLASS}>
               도로 {data?.meta.assets.roads.featureCount ?? 0}
             </span>
-            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+            <span className={PANEL_TOKEN_CLASS}>
               건물 {data?.meta.assets.buildings.featureCount ?? 0}
             </span>
-            <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+            <span className={PANEL_TOKEN_CLASS}>
               대중교통 {data?.meta.assets.transit.featureCount ?? 0}
             </span>
             {data?.meta.assets.trafficSignals ? (
-              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              <span className={PANEL_TOKEN_CLASS}>
                 신호등 {data.meta.assets.trafficSignals.featureCount}
               </span>
             ) : null}
             {data?.meta.assets.roadNetwork ? (
-              <span className="rounded-full border border-white/8 bg-white/5 px-2 py-1 text-slate-100">
+              <span className={PANEL_TOKEN_CLASS}>
                 도로 그래프 {data.meta.assets.roadNetwork.featureCount}
               </span>
             ) : null}
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3 text-xs">
+          <div className={`mt-3 ${PANEL_INSET_PADDED_CLASS} text-xs`}>
             <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
               에셋 버전
             </div>
@@ -10376,7 +10492,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               {assetVersionDetails.map((asset) => (
                 <div
                   key={asset.key}
-                  className="rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+                  className="rounded-xl border border-white/8 bg-white/[0.045] px-3 py-2"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="font-medium text-slate-100">{asset.label}</div>
@@ -10395,7 +10511,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
             동 경계는 OSM 행정동 relation 기준이고, 건물과 도로는 OSM
             지오메트리에서 가져옵니다. 이 장면에서 OSM은 단순 배경지도가 아니라
             A-Eye 마이크로 영역 디지털 트윈의 공간 뼈대 역할을 합니다. 신호등
@@ -10406,7 +10522,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-4 text-sm">
+        <div className={`mt-5 ${PANEL_CARD_CLASS}`}>
           <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
             카메라
           </div>
@@ -10435,8 +10551,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 }}
                 disabled={mode === "ride" && !selectedTaxiId}
                 className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${cameraMode === mode
-                  ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
-                  : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  ? panelSelectableClass(true)
+                  : `${panelSelectableClass(false)} disabled:cursor-not-allowed disabled:opacity-45`
                   }`}
               >
                 {label}
@@ -10454,7 +10570,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 setFollowTaxiId(event.target.value);
               }}
               disabled={!taxiOptions.length}
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/75 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-2xl border border-white/10 bg-slate-900/75 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-[#87cbb0]/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {taxiOptions.map((taxi) => (
                 <option key={taxi.id} value={taxi.id}>
@@ -10468,7 +10584,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">
+          <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
             {controlHint}
           </div>
         </div>
@@ -10488,7 +10604,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             type="checkbox"
             checked={showTransit}
             onChange={(event) => setShowTransit(event.target.checked)}
-            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-cyan-400"
+            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-[#87cbb0]"
           />
           지하철 입구 구조물 보기
         </label>
@@ -10530,7 +10646,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
 
         {subwayHubs.length ? (
-          <div className="mt-5 rounded-2xl border border-white/8 bg-white/5 p-3 text-sm">
+          <div className={`mt-5 ${PANEL_CARD_COMPACT_CLASS}`}>
             <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-400">
               지하철 허브
             </div>
@@ -10543,10 +10659,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     key={station.id}
                     type="button"
                     onClick={() => handleSubwayFocus(station)}
-                    className={`rounded-full border px-2 py-1 transition ${isSelected
-                      ? "border-sky-300/35 bg-sky-300/20 text-sky-50"
-                      : "border-sky-300/15 bg-sky-300/10 text-sky-100 hover:border-sky-300/28 hover:bg-sky-300/16"
-                      }`}
+                    className={panelPillToggleClass(isSelected)}
                     title={`${label}로 이동`}
                   >
                     {label}
@@ -10558,7 +10671,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               역 이름을 누르면 해당 지하철역 주변으로 카메라가 이동합니다.
             </div>
             {selectedSubwayName ? (
-              <div className="mt-2 text-xs text-sky-200">
+              <div className="mt-2 text-xs text-[#d7efe6]">
                 현재 선택: {selectedSubwayName}
               </div>
             ) : null}
@@ -10567,7 +10680,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         <div
           data-scene-status={status}
-          className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400"
+          className={`mt-4 ${PANEL_CARD_CLASS} px-4 py-3 text-xs leading-5 text-slate-400`}
         >
           상태: <span className="text-slate-100">{statusLabel}</span>
           <br />
@@ -10591,7 +10704,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <br />
           배차:{" "}
           <span className="text-slate-100">
-            {data?.meta.dispatchPlannerId ?? ACTIVE_DISPATCH_PLANNER_ID}
+            {dispatchPresentation.label} · {dispatchPlannerId}
           </span>
           <br />
           환경: <span className="text-slate-100">{buildVersion.environmentLabel}</span>
@@ -10619,11 +10732,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       >
         <div className="flex flex-wrap items-center gap-3">
           <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#6f8fce]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#76808a]" />
             건물
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#2c4d7c]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#3d4349]" />
             주요 도로
           </span>
           <span className="inline-flex items-center gap-2">
@@ -10631,12 +10744,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             횡단보도
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ffcb44]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff9f1c]" />
             택시
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ffcf57]" />
-            승차 포인트
+            <span className="h-2.5 w-2.5 rounded-full bg-[#b89662]" />
+            콜 포인트
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-[#4ca7ff]" />
