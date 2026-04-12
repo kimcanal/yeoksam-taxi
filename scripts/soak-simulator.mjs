@@ -155,20 +155,54 @@ function runCommand(command, args, { cwd = projectRoot, env, stdio = "inherit" }
   });
 }
 
-async function waitForServer(baseUrl, timeoutMs = 60_000) {
+async function waitForServer(baseUrl, child, timeoutMs = 60_000) {
   const startedAt = Date.now();
+  let childError = null;
 
-  while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const response = await fetch(baseUrl, { redirect: "manual" });
-      if (response.ok || response.status === 307 || response.status === 308) {
-        return;
+  const handleChildError = (error) => {
+    childError = error;
+  };
+
+  child.once("error", handleChildError);
+
+  try {
+    while (Date.now() - startedAt < timeoutMs) {
+      if (childError) {
+        throw childError;
       }
-    } catch {
-      // Server is still starting up.
-    }
+      if (child.exitCode !== null) {
+        throw new Error(
+          `Server exited before becoming ready (code ${child.exitCode})`,
+        );
+      }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+      try {
+        const response = await fetch(baseUrl, { redirect: "manual" });
+        if (response.ok || response.status === 307 || response.status === 308) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          if (childError) {
+            throw childError;
+          }
+          if (child.exitCode !== null) {
+            throw new Error(
+              `Server exited after readiness probe (code ${child.exitCode})`,
+            );
+          }
+          return;
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Server exited")) {
+          throw error;
+        }
+        if (childError) {
+          throw childError;
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  } finally {
+    child.off("error", handleChildError);
   }
 
   throw new Error(`Timed out waiting for ${baseUrl}`);
@@ -420,7 +454,7 @@ async function main() {
   let browser;
 
   try {
-    await waitForServer(baseUrl);
+    await waitForServer(baseUrl, server);
 
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({

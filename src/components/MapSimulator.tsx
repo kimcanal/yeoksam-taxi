@@ -6233,15 +6233,56 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       traffic: appliedTrafficCountRef.current,
     };
 
+    const rebuildHotspotDemandMaps = (
+      pickupDemandMap: Map<string, number>,
+      dropoffDemandMap: Map<string, number>,
+      excludedVehicleId?: string | null,
+    ) => {
+      pickupDemandMap.clear();
+      dropoffDemandMap.clear();
+
+      for (let index = 0; index < vehicles.length; index += 1) {
+        const vehicle = vehicles[index]!;
+        if (vehicle.kind !== "taxi" || vehicle.id === excludedVehicleId) {
+          continue;
+        }
+
+        if (!vehicle.isOccupied && vehicle.pickupHotspot) {
+          pickupDemandMap.set(
+            vehicle.pickupHotspot.id,
+            (pickupDemandMap.get(vehicle.pickupHotspot.id) ?? 0) + 1,
+          );
+        }
+
+        if (vehicle.isOccupied && vehicle.dropoffHotspot) {
+          dropoffDemandMap.set(
+            vehicle.dropoffHotspot.id,
+            (dropoffDemandMap.get(vehicle.dropoffHotspot.id) ?? 0) + 1,
+          );
+        }
+      }
+    };
+
     const createDispatchDemandSnapshot = (
       elapsedTimeSeconds: number,
-    ): DispatchDemandSnapshot => ({
-      elapsedTimeSeconds,
-      completedTrips,
-      hotspotCount: hotspotPool.length,
-      activePickupsByHotspotId: activePickupsByHotspot,
-      activeDropoffsByHotspotId: activeDropoffsByHotspot,
-    });
+      excludedVehicleId?: string | null,
+    ): DispatchDemandSnapshot => {
+      const pickupDemandMap = new Map<string, number>();
+      const dropoffDemandMap = new Map<string, number>();
+      rebuildHotspotDemandMaps(
+        pickupDemandMap,
+        dropoffDemandMap,
+        excludedVehicleId,
+      );
+
+      return {
+        elapsedTimeSeconds,
+        completedTrips,
+        hotspotCount: hotspotPool.length,
+        activePickupsByHotspotId: pickupDemandMap,
+        activeDropoffsByHotspotId: dropoffDemandMap,
+      };
+    };
 
     const routeBuilder = (
       start: string,
@@ -7863,26 +7904,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         activeDropoffsByHotspot.clear();
       } else if (hotspotActivityAccumulator >= HOTSPOT_ACTIVITY_REFRESH_INTERVAL) {
         hotspotActivityAccumulator = 0;
-        activePickupsByHotspot.clear();
-        activeDropoffsByHotspot.clear();
-        for (let index = 0; index < vehicles.length; index += 1) {
-          const vehicle = vehicles[index]!;
-          if (vehicle.kind !== "taxi") {
-            continue;
-          }
-          if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-            activePickupsByHotspot.set(
-              vehicle.pickupHotspot.id,
-              (activePickupsByHotspot.get(vehicle.pickupHotspot.id) ?? 0) + 1,
-            );
-          }
-          if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-            activeDropoffsByHotspot.set(
-              vehicle.dropoffHotspot.id,
-              (activeDropoffsByHotspot.get(vehicle.dropoffHotspot.id) ?? 0) + 1,
-            );
-          }
-        }
+        rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
       }
 
       for (let index = 0; index < hotspotVisuals.length; index += 1) {
@@ -8220,7 +8242,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 startKey: vehicle.route.endKey,
                 seed: completedTrips + vehicleIndex + 1,
                 vehicleId: vehicle.id,
-                demandSnapshot: createDispatchDemandSnapshot(elapsedTime),
+                demandSnapshot: createDispatchDemandSnapshot(
+                  elapsedTime,
+                  vehicle.id,
+                ),
               });
               if (nextJob) {
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
