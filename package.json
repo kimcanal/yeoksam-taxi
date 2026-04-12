@@ -8,6 +8,7 @@
     "screenshot:install": "playwright install chromium",
     "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",
     "test:soak": "node scripts/soak-simulator.mjs",
+    "test:soak:ci": "node scripts/soak-simulator.mjs --skip-build --minutes 0.4 --dwell-ms 1200 --output-dir .tmp/soak-ci --max-initial-ready-ms 25000 --max-average-ready-ms 9000 --max-ready-ms 22000 --max-slow-events 2 --max-memory-mb 768 --max-warnings 12 --require-fps-overlay",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

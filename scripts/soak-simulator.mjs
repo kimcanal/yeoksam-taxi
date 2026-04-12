@@ -16,7 +16,7 @@ const DEFAULT_OUTPUT_DIR = path.join(projectRoot, "docs", "reports", "soak");
 const DEFAULT_SOAK_MINUTES = 2;
 const DEFAULT_DWELL_MS = 2_500;
 const READY_TIMEOUT_MS = 45_000;
-const SLOW_READY_THRESHOLD_MS = 8_000;
+const DEFAULT_SLOW_READY_THRESHOLD_MS = 8_000;
 
 function normalizeText(value) {
   return value?.replace(/\s+/g, " ").trim() ?? null;
@@ -30,6 +30,14 @@ function parseArgs(argv) {
     port: DEFAULT_PORT,
     minutes: DEFAULT_SOAK_MINUTES,
     dwellMs: DEFAULT_DWELL_MS,
+    slowReadyThresholdMs: DEFAULT_SLOW_READY_THRESHOLD_MS,
+    maxInitialReadyMs: null,
+    maxAverageReadyMs: null,
+    maxReadyMs: null,
+    maxSlowEvents: null,
+    maxMemoryMb: null,
+    maxWarnings: null,
+    requireFpsOverlay: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -67,10 +75,64 @@ function parseArgs(argv) {
     if (argument === "--dwell-ms") {
       options.dwellMs = Number(argv[index + 1] ?? DEFAULT_DWELL_MS);
       index += 1;
+      continue;
+    }
+
+    if (argument === "--slow-ready-threshold-ms") {
+      options.slowReadyThresholdMs = Number(
+        argv[index + 1] ?? DEFAULT_SLOW_READY_THRESHOLD_MS,
+      );
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-initial-ready-ms") {
+      options.maxInitialReadyMs = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-average-ready-ms") {
+      options.maxAverageReadyMs = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-ready-ms") {
+      options.maxReadyMs = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-slow-events") {
+      options.maxSlowEvents = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-memory-mb") {
+      options.maxMemoryMb = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--max-warnings") {
+      options.maxWarnings = Number(argv[index + 1] ?? "");
+      index += 1;
+      continue;
+    }
+
+    if (argument === "--require-fps-overlay") {
+      options.requireFpsOverlay = true;
     }
   }
 
   return options;
+}
+
+function formatThresholdFailure(label, actual, limit, unit = "") {
+  const suffix = unit ? ` ${unit}` : "";
+  return `${label}: ${actual}${suffix} > ${limit}${suffix}`;
 }
 
 function runCommand(command, args, { cwd = projectRoot, env, stdio = "inherit" } = {}) {
@@ -448,22 +510,137 @@ async function main() {
       ? Math.max(...readyDurations)
       : 0;
     const slowEvents = results.filter(
-      (entry) => entry.readyMs >= SLOW_READY_THRESHOLD_MS,
+      (entry) => entry.readyMs >= options.slowReadyThresholdMs,
     ).length;
+    const thresholdFailures = [];
+    const thresholdNotes = [];
+
+    if (
+      typeof options.maxInitialReadyMs === "number" &&
+      Number.isFinite(options.maxInitialReadyMs) &&
+      initialReady.readyMs > options.maxInitialReadyMs
+    ) {
+      thresholdFailures.push(
+        formatThresholdFailure(
+          "initial ready",
+          initialReady.readyMs,
+          options.maxInitialReadyMs,
+          "ms",
+        ),
+      );
+    }
+
+    if (
+      typeof options.maxAverageReadyMs === "number" &&
+      Number.isFinite(options.maxAverageReadyMs) &&
+      averageReadyMs > options.maxAverageReadyMs
+    ) {
+      thresholdFailures.push(
+        formatThresholdFailure(
+          "average ready",
+          averageReadyMs,
+          options.maxAverageReadyMs,
+          "ms",
+        ),
+      );
+    }
+
+    if (
+      typeof options.maxReadyMs === "number" &&
+      Number.isFinite(options.maxReadyMs) &&
+      maxReadyMs > options.maxReadyMs
+    ) {
+      thresholdFailures.push(
+        formatThresholdFailure(
+          "max ready",
+          maxReadyMs,
+          options.maxReadyMs,
+          "ms",
+        ),
+      );
+    }
+
+    if (
+      typeof options.maxSlowEvents === "number" &&
+      Number.isFinite(options.maxSlowEvents) &&
+      slowEvents > options.maxSlowEvents
+    ) {
+      thresholdFailures.push(
+        formatThresholdFailure(
+          "slow events",
+          slowEvents,
+          options.maxSlowEvents,
+        ),
+      );
+    }
+
+    if (
+      typeof options.maxWarnings === "number" &&
+      Number.isFinite(options.maxWarnings) &&
+      warnings.length > options.maxWarnings
+    ) {
+      thresholdFailures.push(
+        formatThresholdFailure(
+          "warnings",
+          warnings.length,
+          options.maxWarnings,
+        ),
+      );
+    }
+
+    if (options.requireFpsOverlay && !finalState.fpsVisible) {
+      thresholdFailures.push("fps overlay was not visible after KeyF toggle");
+    }
+
+    if (
+      typeof options.maxMemoryMb === "number" &&
+      Number.isFinite(options.maxMemoryMb)
+    ) {
+      if (typeof finalState.usedJsHeapMb === "number") {
+        if (finalState.usedJsHeapMb > options.maxMemoryMb) {
+          thresholdFailures.push(
+            formatThresholdFailure(
+              "used JS heap",
+              finalState.usedJsHeapMb,
+              options.maxMemoryMb,
+              "MB",
+            ),
+          );
+        }
+      } else {
+        thresholdNotes.push("used JS heap metric unavailable; skipped memory threshold");
+      }
+    }
+
     const report = {
       startedAt: startedAtIso,
       finishedAt: new Date().toISOString(),
       baseUrl,
       durationSeconds: Math.round((Date.now() - soakStartedAt) / 1000),
       configuredMinutes: options.minutes,
+      initialReadyMs: initialReady.readyMs,
       actionsRun: results.length,
       cyclesCompleted: cycle,
       averageReadyMs,
       maxReadyMs,
       slowEventCount: slowEvents,
-      slowThresholdMs: SLOW_READY_THRESHOLD_MS,
+      slowThresholdMs: options.slowReadyThresholdMs,
       errors,
       warnings,
+      thresholdNotes,
+      thresholds: {
+        maxInitialReadyMs: options.maxInitialReadyMs,
+        maxAverageReadyMs: options.maxAverageReadyMs,
+        maxReadyMs: options.maxReadyMs,
+        maxSlowEvents: options.maxSlowEvents,
+        maxMemoryMb: options.maxMemoryMb,
+        maxWarnings: options.maxWarnings,
+        requireFpsOverlay: options.requireFpsOverlay,
+      },
+      assertions: {
+        passed: thresholdFailures.length === 0,
+        failures: thresholdFailures,
+      },
       finalState: {
         sceneStatus: finalState.sceneStatus,
         statusText: normalizeText(finalState.statusText),
@@ -487,9 +664,17 @@ async function main() {
 
     console.log(`Saved ${path.relative(projectRoot, reportPath)}`);
     console.log(`Saved ${path.relative(projectRoot, finalScreenshotPath)}`);
+    console.log(
+      `Ready summary: initial ${initialReady.readyMs} ms, avg ${averageReadyMs} ms, max ${maxReadyMs} ms`,
+    );
 
     if (errors.length) {
       throw new Error(`Soak test captured ${errors.length} browser/runtime errors`);
+    }
+    if (thresholdFailures.length) {
+      throw new Error(
+        `Soak test assertions failed:\n- ${thresholdFailures.join("\n- ")}`,
+      );
     }
   } catch (error) {
     if (browser) {

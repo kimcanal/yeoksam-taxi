@@ -32,10 +32,19 @@ export type DispatchAssignment<
   pickupRoute: TRoute;
 };
 
+export type DispatchDemandSnapshot = {
+  elapsedTimeSeconds: number;
+  completedTrips: number;
+  hotspotCount: number;
+  activePickupsByHotspotId: ReadonlyMap<string, number>;
+  activeDropoffsByHotspotId: ReadonlyMap<string, number>;
+};
+
 export type DispatchPlanningRequest = {
   startKey: string;
   seed: number;
   vehicleId: string;
+  demandSnapshot: DispatchDemandSnapshot;
 };
 
 export type DispatchPlannerContext<
@@ -66,6 +75,25 @@ export type DispatchPlanner<
   ) => DispatchPlannerSession<TRoute, THotspot>;
 };
 
+export type DispatchPlannerRegistry<
+  TRoute extends DispatchRoute,
+  THotspot extends DispatchHotspot,
+> = {
+  defaultPlannerId: string;
+  availablePlannerIds: string[];
+  getPlanner: (
+    plannerId?: string | null,
+  ) => DispatchPlanner<TRoute, THotspot>;
+  createSession: (options: {
+    plannerId?: string | null;
+    context: DispatchPlannerContext<TRoute, THotspot>;
+  }) => {
+    plannerId: string;
+    session: DispatchPlannerSession<TRoute, THotspot>;
+    usedFallback: boolean;
+  };
+};
+
 type RankedHotspot<THotspot extends DispatchHotspot> = {
   hotspot: THotspot;
   distance: number;
@@ -74,6 +102,52 @@ type RankedHotspot<THotspot extends DispatchHotspot> = {
 const MIN_PREFERRED_DROPOFF_DISTANCE = 26;
 const MAX_PICKUP_POOL_SIZE = 12;
 const MAX_PICKUP_ATTEMPTS = 18;
+
+export function createDispatchPlannerRegistry<
+  TRoute extends DispatchRoute,
+  THotspot extends DispatchHotspot,
+>(
+  planners: DispatchPlanner<TRoute, THotspot>[],
+  defaultPlannerId?: string,
+): DispatchPlannerRegistry<TRoute, THotspot> {
+  if (!planners.length) {
+    throw new Error("At least one dispatch planner must be registered");
+  }
+
+  const plannerById = new Map<string, DispatchPlanner<TRoute, THotspot>>();
+  planners.forEach((planner) => {
+    if (plannerById.has(planner.id)) {
+      throw new Error(`Duplicate dispatch planner id: ${planner.id}`);
+    }
+    plannerById.set(planner.id, planner);
+  });
+
+  const fallbackPlanner = defaultPlannerId
+    ? plannerById.get(defaultPlannerId) ?? null
+    : planners[0]!;
+  if (!fallbackPlanner) {
+    throw new Error(
+      `Unknown default dispatch planner id: ${defaultPlannerId ?? "unknown"}`,
+    );
+  }
+
+  const getPlanner = (plannerId?: string | null) =>
+    plannerById.get(plannerId ?? fallbackPlanner.id) ?? fallbackPlanner;
+
+  return {
+    defaultPlannerId: fallbackPlanner.id,
+    availablePlannerIds: planners.map((planner) => planner.id),
+    getPlanner,
+    createSession({ plannerId, context }) {
+      const planner = getPlanner(plannerId);
+      return {
+        plannerId: planner.id,
+        session: planner.createSession(context),
+        usedFallback: Boolean(plannerId) && planner.id !== plannerId,
+      };
+    },
+  };
+}
 
 function rankHotspotsByDistance<THotspot extends DispatchHotspot>(
   origin: THREE.Vector3,

@@ -16,7 +16,11 @@ import type {
   Polygon,
   Position,
 } from "geojson";
-import { createHeuristicDispatchPlanner } from "@/components/map-simulator/dispatch-planner";
+import {
+  createDispatchPlannerRegistry,
+  createHeuristicDispatchPlanner,
+  type DispatchDemandSnapshot,
+} from "@/components/map-simulator/dispatch-planner";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 
 const DEFAULT_TAXI_COUNT = 12;
@@ -277,6 +281,7 @@ type AssetMeta = {
 type SimulationMeta = {
   source: string;
   boundarySource: string;
+  dispatchPlannerId: string;
   latestAssetUpdatedAt: string | null;
   loadedAt: string;
   assets: {
@@ -528,11 +533,14 @@ type Hotspot = {
   roadName: string | null;
 };
 
-// Swap this planner when you are ready to plug in data-driven dispatch logic.
-const ACTIVE_DISPATCH_PLANNER = createHeuristicDispatchPlanner<
-  RouteTemplate,
-  Hotspot
->();
+// Register additional planners here as you add data-driven dispatch engines.
+const DISPATCH_PLANNER_REGISTRY = createDispatchPlannerRegistry([
+  createHeuristicDispatchPlanner<RouteTemplate, Hotspot>(),
+]);
+const ACTIVE_DISPATCH_PLANNER = DISPATCH_PLANNER_REGISTRY.getPlanner(
+  process.env.NEXT_PUBLIC_DISPATCH_PLANNER?.trim() || null,
+);
+const ACTIVE_DISPATCH_PLANNER_ID = ACTIVE_DISPATCH_PLANNER.id;
 
 type BuildingMass = {
   id: string;
@@ -5504,6 +5512,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               source:
                 "A-Eye Module 1 companion: OpenStreetMap + Overpass -> public/*.geojson + public/road-network.json",
               boundarySource: "OSM administrative relations (admin_level=8)",
+              dispatchPlannerId: ACTIVE_DISPATCH_PLANNER_ID,
               latestAssetUpdatedAt: assetTimes.at(-1) ?? null,
               loadedAt: formatKstDateTime(new Date()) ?? "unknown",
               assets: {
@@ -6199,6 +6208,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       traffic: appliedTrafficCountRef.current,
     };
 
+    const createDispatchDemandSnapshot = (
+      elapsedTimeSeconds: number,
+    ): DispatchDemandSnapshot => ({
+      elapsedTimeSeconds,
+      completedTrips,
+      hotspotCount: hotspotPool.length,
+      activePickupsByHotspotId: activePickupsByHotspot,
+      activeDropoffsByHotspotId: activeDropoffsByHotspot,
+    });
+
     const routeBuilder = (
       start: string,
       end: string,
@@ -6307,6 +6326,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           startKey: spawnHotspot.nodeKey,
           seed: index + 1,
           vehicleId,
+          demandSnapshot: createDispatchDemandSnapshot(0),
         });
         if (!job) {
           continue;
@@ -8175,6 +8195,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 startKey: vehicle.route.endKey,
                 seed: completedTrips + vehicleIndex + 1,
                 vehicleId: vehicle.id,
+                demandSnapshot: createDispatchDemandSnapshot(elapsedTime),
               });
               if (nextJob) {
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
@@ -10468,6 +10489,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           날씨: <span className="text-slate-100">{selectedWeather.label}</span>
           <br />
           카메라: <span className="text-slate-100">{cameraModeLabel}</span>
+          <br />
+          배차:{" "}
+          <span className="text-slate-100">
+            {data?.meta.dispatchPlannerId ?? ACTIVE_DISPATCH_PLANNER_ID}
+          </span>
           <br />
           환경: <span className="text-slate-100">{buildVersion.environmentLabel}</span>
           <br />
