@@ -29,6 +29,37 @@ function formatBuildTimeKst(date: Date) {
   return `${partMap.get("year")}.${partMap.get("month")}.${partMap.get("day")} ${partMap.get("hour")}:${partMap.get("minute")} KST`;
 }
 
+function resolveEnvironmentLabel(branch: string) {
+  const configuredEnvironment =
+    process.env.NEXT_PUBLIC_APP_ENV?.trim() || process.env.APP_ENV?.trim();
+
+  if (configuredEnvironment) {
+    return configuredEnvironment;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "로컬 개발";
+  }
+
+  if (process.env.VERCEL_ENV === "preview") {
+    return "프리뷰";
+  }
+
+  if (process.env.VERCEL_ENV === "production") {
+    return "운영";
+  }
+
+  if (process.env.CF_PAGES_BRANCH) {
+    return process.env.CF_PAGES_BRANCH === "main" ? "운영" : "프리뷰";
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return branch === "main" ? "로컬 빌드(main)" : "로컬 빌드(branch)";
+  }
+
+  return "로컬";
+}
+
 function resolveBuildVersion(): BuildVersionInfo {
   const rawBranch =
     readGitValue("git rev-parse --abbrev-ref HEAD") ||
@@ -41,6 +72,7 @@ function resolveBuildVersion(): BuildVersionInfo {
   const commit = readGitValue("git rev-parse --short HEAD") || null;
 
   return {
+    environmentLabel: resolveEnvironmentLabel(branch),
     branch,
     commit,
     builtAtLabel: formatBuildTimeKst(new Date()),

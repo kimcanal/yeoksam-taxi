@@ -10469,6 +10469,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <br />
           카메라: <span className="text-slate-100">{cameraModeLabel}</span>
           <br />
+          환경: <span className="text-slate-100">{buildVersion.environmentLabel}</span>
+          <br />
           브랜치: <span className="text-slate-100 tabular-nums">{buildVersion.branch}</span>
           <br />
           빌드:{" "}
