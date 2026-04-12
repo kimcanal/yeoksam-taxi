@@ -18,6 +18,7 @@ import type {
 } from "geojson";
 import {
   createDispatchPlannerRegistry,
+  createDemandAwareDispatchPlanner,
   createHeuristicDispatchPlanner,
   type DispatchDemandSnapshot,
 } from "@/components/map-simulator/dispatch-planner";
@@ -533,10 +534,34 @@ type Hotspot = {
   roadName: string | null;
 };
 
+type SimulationAssetKey = keyof SimulationMeta["assets"];
+
+const SIMULATION_ASSET_LABELS: Array<{
+  key: SimulationAssetKey;
+  label: string;
+}> = [
+  { key: "dongs", label: "행정동" },
+  { key: "nonRoad", label: "비도로" },
+  { key: "roads", label: "도로" },
+  { key: "buildings", label: "건물" },
+  { key: "transit", label: "대중교통" },
+  { key: "trafficSignals", label: "신호등" },
+  { key: "roadNetwork", label: "도로 그래프" },
+];
+
+function assetFileName(path: string) {
+  const segments = path.split("/").filter(Boolean);
+  return segments[segments.length - 1] ?? path;
+}
+
 // Register additional planners here as you add data-driven dispatch engines.
-const DISPATCH_PLANNER_REGISTRY = createDispatchPlannerRegistry([
-  createHeuristicDispatchPlanner<RouteTemplate, Hotspot>(),
-]);
+const DISPATCH_PLANNER_REGISTRY = createDispatchPlannerRegistry(
+  [
+    createHeuristicDispatchPlanner<RouteTemplate, Hotspot>(),
+    createDemandAwareDispatchPlanner<RouteTemplate, Hotspot>(),
+  ],
+  "demand-aware-v1",
+);
 const ACTIVE_DISPATCH_PLANNER = DISPATCH_PLANNER_REGISTRY.getPlanner(
   process.env.NEXT_PUBLIC_DISPATCH_PLANNER?.trim() || null,
 );
@@ -9477,6 +9502,28 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
     WEATHER_OPTIONS[0];
+  const assetVersionDetails = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    return SIMULATION_ASSET_LABELS.flatMap(({ key, label }) => {
+      const meta = data.meta.assets[key];
+      if (!meta) {
+        return [];
+      }
+
+      return [
+        {
+          key,
+          label,
+          pathLabel: assetFileName(meta.path),
+          updatedAt: meta.lastModified ?? "갱신 시각 없음",
+          featureCount: meta.featureCount,
+        },
+      ];
+    });
+  }, [data]);
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
@@ -10294,6 +10341,33 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 도로 그래프 {data.meta.assets.roadNetwork.featureCount}
               </span>
             ) : null}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3 text-xs">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
+              에셋 버전
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {assetVersionDetails.map((asset) => (
+                <div
+                  key={asset.key}
+                  className="rounded-xl border border-white/8 bg-white/5 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-medium text-slate-100">{asset.label}</div>
+                    <div className="tabular-nums text-[11px] text-slate-400">
+                      {asset.featureCount}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[11px] text-slate-400">
+                    {asset.pathLabel}
+                  </div>
+                  <div className="mt-0.5 text-[11px] tabular-nums text-slate-500">
+                    {asset.updatedAt}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400">

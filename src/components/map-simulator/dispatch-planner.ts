@@ -99,9 +99,20 @@ type RankedHotspot<THotspot extends DispatchHotspot> = {
   distance: number;
 };
 
+type ScoredHotspot<THotspot extends DispatchHotspot> = {
+  hotspot: THotspot;
+  distance: number;
+  score: number;
+};
+
 const MIN_PREFERRED_DROPOFF_DISTANCE = 26;
 const MAX_PICKUP_POOL_SIZE = 12;
 const MAX_PICKUP_ATTEMPTS = 18;
+const DEMAND_AWARE_PICKUP_CONCURRENCY_WEIGHT = 18;
+const DEMAND_AWARE_DROPOFF_CONCURRENCY_WEIGHT = 22;
+const DEMAND_AWARE_CROSS_LOAD_WEIGHT = 6;
+const DEMAND_AWARE_SHORT_PICKUP_DISTANCE = 16;
+const DEMAND_AWARE_DISTANCE_BENEFIT = 0.12;
 
 export function createDispatchPlannerRegistry<
   TRoute extends DispatchRoute,
@@ -175,6 +186,45 @@ function rankHotspotsByDistance<THotspot extends DispatchHotspot>(
   );
 
   return ranked;
+}
+
+function rankHotspotsByScore<THotspot extends DispatchHotspot>(
+  origin: THREE.Vector3,
+  hotspots: THotspot[],
+  predicate: (hotspot: THotspot) => boolean,
+  scoreFor: (hotspot: THotspot, distance: number, index: number) => number,
+) {
+  const ranked: ScoredHotspot<THotspot>[] = [];
+
+  for (let index = 0; index < hotspots.length; index += 1) {
+    const hotspot = hotspots[index]!;
+    if (!predicate(hotspot)) {
+      continue;
+    }
+
+    const distance = hotspot.point.distanceTo(origin);
+    ranked.push({
+      hotspot,
+      distance,
+      score: scoreFor(hotspot, distance, index),
+    });
+  }
+
+  ranked.sort((left, right) => {
+    if (left.score !== right.score) {
+      return left.score - right.score;
+    }
+    return left.distance - right.distance;
+  });
+
+  return ranked;
+}
+
+function hotspotDemand(
+  hotspotId: string,
+  demandMap: ReadonlyMap<string, number>,
+) {
+  return demandMap.get(hotspotId) ?? 0;
 }
 
 export function createHeuristicDispatchPlanner<
@@ -261,6 +311,145 @@ export function createHeuristicDispatchPlanner<
               preferredDropsByPickupId.get(pickup.id)?.length
                 ? preferredDropsByPickupId.get(pickup.id)!
                 : (fallbackDropsByPickupId.get(pickup.id) ?? []);
+
+            if (!orderedDrops.length) {
+              continue;
+            }
+
+            const dropoff =
+              orderedDrops[(seed * 2 + attempt) % orderedDrops.length]!;
+            const pickupRoute = routeBuilder(
+              startKey,
+              pickup.nodeKey,
+              `${vehicleId}-pickup-${seed}-${attempt}`,
+              pickup.roadName ?? pickup.label,
+            );
+            const dropRoute = routeBuilder(
+              pickup.nodeKey,
+              dropoff.nodeKey,
+              `${vehicleId}-drop-validate-${seed}-${attempt}`,
+              dropoff.roadName ?? dropoff.label,
+            );
+
+            if (pickupRoute && dropRoute) {
+              return {
+                pickupHotspot: pickup,
+                dropoffHotspot: dropoff,
+                pickupRoute,
+              };
+            }
+          }
+
+          return null;
+        },
+      };
+    },
+  };
+}
+
+export function createDemandAwareDispatchPlanner<
+  TRoute extends DispatchRoute,
+  THotspot extends DispatchHotspot,
+>(): DispatchPlanner<TRoute, THotspot> {
+  return {
+    id: "demand-aware-v1",
+    createSession({
+      hotspots,
+      graph,
+      routeBuilder,
+    }: DispatchPlannerContext<TRoute, THotspot>) {
+      return {
+        planJob({
+          startKey,
+          seed,
+          vehicleId,
+          demandSnapshot,
+        }: DispatchPlanningRequest) {
+          const originPoint = graph.nodes.get(startKey)?.point ?? null;
+          if (!originPoint) {
+            return null;
+          }
+
+          const rankedPickups = rankHotspotsByScore(
+            originPoint,
+            hotspots,
+            (hotspot) => hotspot.nodeKey !== startKey,
+            (hotspot, distance, index) => {
+              const pickupDemand = hotspotDemand(
+                hotspot.id,
+                demandSnapshot.activePickupsByHotspotId,
+              );
+              const dropoffDemand = hotspotDemand(
+                hotspot.id,
+                demandSnapshot.activeDropoffsByHotspotId,
+              );
+              const shortPickupPenalty =
+                distance < DEMAND_AWARE_SHORT_PICKUP_DISTANCE
+                  ? (DEMAND_AWARE_SHORT_PICKUP_DISTANCE - distance) * 1.6
+                  : 0;
+              const rotationBias =
+                ((seed + demandSnapshot.completedTrips + index * 3) % 7) * 0.35;
+
+              return (
+                distance +
+                pickupDemand * DEMAND_AWARE_PICKUP_CONCURRENCY_WEIGHT +
+                dropoffDemand * DEMAND_AWARE_CROSS_LOAD_WEIGHT +
+                shortPickupPenalty +
+                rotationBias
+              );
+            },
+          );
+          const orderedPickups = rankedPickups
+            .slice(0, Math.min(MAX_PICKUP_POOL_SIZE, rankedPickups.length))
+            .map((entry) => entry.hotspot);
+
+          if (!orderedPickups.length) {
+            return null;
+          }
+
+          for (
+            let attempt = 0;
+            attempt < Math.min(orderedPickups.length * 2, MAX_PICKUP_ATTEMPTS);
+            attempt += 1
+          ) {
+            const pickup =
+              orderedPickups[(seed + attempt * 5) % orderedPickups.length]!;
+            const rankedDrops = rankHotspotsByScore(
+              pickup.point,
+              hotspots,
+              (hotspot) =>
+                hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
+              (hotspot, distance, index) => {
+                const pickupDemand = hotspotDemand(
+                  hotspot.id,
+                  demandSnapshot.activePickupsByHotspotId,
+                );
+                const dropoffDemand = hotspotDemand(
+                  hotspot.id,
+                  demandSnapshot.activeDropoffsByHotspotId,
+                );
+                const shortDropPenalty =
+                  distance < MIN_PREFERRED_DROPOFF_DISTANCE
+                    ? (MIN_PREFERRED_DROPOFF_DISTANCE - distance) * 1.25
+                    : 0;
+                const distanceBenefit =
+                  Math.min(distance, 180) * DEMAND_AWARE_DISTANCE_BENEFIT;
+                const rotationBias =
+                  ((seed * 2 + demandSnapshot.completedTrips + index * 5) % 9) *
+                  0.28;
+
+                return (
+                  dropoffDemand * DEMAND_AWARE_DROPOFF_CONCURRENCY_WEIGHT +
+                  pickupDemand * DEMAND_AWARE_CROSS_LOAD_WEIGHT +
+                  shortDropPenalty -
+                  distanceBenefit +
+                  rotationBias
+                );
+              },
+            );
+            const orderedDrops = rankedDrops
+              .slice(0, Math.min(MAX_PICKUP_POOL_SIZE, rankedDrops.length))
+              .map((entry) => entry.hotspot);
 
             if (!orderedDrops.length) {
               continue;
