@@ -19,9 +19,14 @@
     "fetch:road-network": "node fetch-road-network.mjs",
     "fetch:traffic-signals": "node fetch-traffic-signals.mjs",
     "fetch:transit": "node fetch-transit.mjs",
-    "fetch:map": "npm run asset:update"
+    "fetch:map": "npm run asset:update",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.2",
     "osmtogeojson": "^3.0.0-beta.5",
@@ -39,6 +44,7 @@
     "eslint-config-next": "16.2.2",
     "playwright": "^1.59.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.81.1"
   }
 }
