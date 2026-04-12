@@ -7,6 +7,7 @@
     "asset:update": "bash scripts/update-assets.sh",
     "screenshot:install": "playwright install chromium",
     "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",
+    "test:soak": "node scripts/soak-simulator.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

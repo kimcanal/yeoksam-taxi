@@ -16,9 +16,11 @@ import type {
   Polygon,
   Position,
 } from "geojson";
+import { createHeuristicDispatchPlanner } from "@/components/map-simulator/dispatch-planner";
 
 const DEFAULT_TAXI_COUNT = 12;
 const DEFAULT_TRAFFIC_COUNT = 16;
+const ASSET_FETCH_TIMEOUT_MS = 20_000;
 const MIN_TAXI_COUNT = 4;
 const MAX_TAXI_COUNT = 24;
 const MIN_TRAFFIC_COUNT = 8;
@@ -59,6 +61,7 @@ const INTERSECTION_SIGNAL_LOOKAHEAD = 18;
 const INTERSECTION_LEFT_TURN_GAP_DISTANCE = 7.2;
 const VEHICLE_FOLLOW_LOOKAHEAD_BUFFER = 8;
 const VEHICLE_PROXIMITY_CELL_SIZE = 12;
+const ROAD_SEGMENT_INDEX_CELL_SIZE = 24;
 const CROSSWALK_STRIPE_COUNT = 6;
 const CROSSWALK_STEP = 1.1;
 const CROSSWALK_WIDTH = 6.2;
@@ -95,10 +98,10 @@ const COMMON_REFRESH_RATE_BANDS = [
 ] as const;
 const AUTO_RENDER_HALF_REFRESH_THRESHOLD = 100;
 const AUTO_REFRESH_BAND_HYSTERESIS_RATIO = 0.1;
-const DRIVE_PIXEL_RATIO = 0.9;
-const FOLLOW_PIXEL_RATIO = 0.9;
-const OVERVIEW_PIXEL_RATIO = 0.8;
-const HIDDEN_PIXEL_RATIO = 0.65;
+const DRIVE_PIXEL_RATIO = 0.85;
+const FOLLOW_PIXEL_RATIO = 0.85;
+const OVERVIEW_PIXEL_RATIO = 0.75;
+const HIDDEN_PIXEL_RATIO = 0.6;
 const ROAD_LAYER_Y = {
   local: 0.116,
   connector: 0.121,
@@ -338,6 +341,7 @@ type SignalTimingPlan = {
 
 type StopMarker = {
   signalId: string;
+  signal: SignalData;
   distance: number;
   axis: SignalAxis;
   turn: TurnMovement;
@@ -421,8 +425,14 @@ type VehicleSimulationSample = {
   vehicle: Vehicle;
   motion: VehicleMotionState;
   nextStopState: NextStopState;
-  proximityCellKey: string;
+  proximityCellX: number;
+  proximityCellZ: number;
 };
+
+type VehicleProximityBuckets = Map<
+  number,
+  Map<number, VehicleSimulationSample[]>
+>;
 
 type Stats = {
   taxis: number;
@@ -440,6 +450,9 @@ type FpsStats = {
   fps: number;
   capLabel: string;
   simulationMs: number;
+  signalMs: number;
+  vehicleMs: number;
+  overlayMs: number;
   renderMs: number;
   simulationHz: number;
   vehicles: number;
@@ -466,15 +479,29 @@ type LocalScenarioPreset = {
   focusStationKeyword?: string;
 };
 
+type SceneStatus = "loading" | "rendering" | "ready" | "error";
+
 type SimulationData = {
   center: { lat: number; lon: number };
   nonRoad: NonRoadFeatureCollection;
   roads: RoadFeatureCollection;
+  projectedRoadSegments: ProjectedRoadSegment[];
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex;
   buildings: BuildingFeatureCollection;
+  buildingMasses: BuildingMass[];
   dongs: DongFeatureCollection;
+  dongRegions: DongRegion[];
+  dongBoundarySegments: DongBoundarySegment[];
   transit: TransitFeatureCollection;
+  transitLandmarks: TransitLandmark[];
   trafficSignals: TrafficSignalFeatureCollection;
   roadNetwork: SerializedRoadNetwork | null;
+  graph: RoadGraph;
+  signals: SignalData[];
+  loopRoutes: RouteTemplate[];
+  taxiRoutePool: RouteTemplate[];
+  trafficRoutePool: RouteTemplate[];
+  hotspotPool: Hotspot[];
   meta: SimulationMeta;
 };
 
@@ -484,10 +511,10 @@ const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
 };
 
 const EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION: TrafficSignalFeatureCollection =
-  {
-    type: "FeatureCollection",
-    features: [],
-  };
+{
+  type: "FeatureCollection",
+  features: [],
+};
 
 type Hotspot = {
   id: string;
@@ -499,6 +526,12 @@ type Hotspot = {
   label: string;
   roadName: string | null;
 };
+
+// Swap this planner when you are ready to plug in data-driven dispatch logic.
+const ACTIVE_DISPATCH_PLANNER = createHeuristicDispatchPlanner<
+  RouteTemplate,
+  Hotspot
+>();
 
 type BuildingMass = {
   id: string;
@@ -537,6 +570,11 @@ type ProjectedRoadSegment = {
   start: THREE.Vector3;
   end: THREE.Vector3;
   name: string | null;
+};
+
+type RoadSegmentSpatialIndex = {
+  cellSize: number;
+  columns: Map<number, Map<number, number[]>>;
 };
 
 type TransitLandmark = {
@@ -932,12 +970,12 @@ function solarPositionForDateTime(
   const latitudeRad = center.lat * DEG_TO_RAD;
   const altitude = Math.asin(
     Math.sin(latitudeRad) * Math.sin(declination) +
-      Math.cos(latitudeRad) * Math.cos(declination) * Math.cos(hourAngle),
+    Math.cos(latitudeRad) * Math.cos(declination) * Math.cos(hourAngle),
   );
   const azimuthFromSouth = Math.atan2(
     Math.sin(hourAngle),
     Math.cos(hourAngle) * Math.sin(latitudeRad) -
-      Math.tan(declination) * Math.cos(latitudeRad),
+    Math.tan(declination) * Math.cos(latitudeRad),
   );
   const azimuthFromNorth = (azimuthFromSouth + Math.PI * 3) % (Math.PI * 2);
   const cosAltitude = Math.cos(altitude);
@@ -977,22 +1015,40 @@ async function fetchJsonAsset<T>(
   path: string,
   countResolver: (data: T) => number,
 ): Promise<{ data: T; meta: AssetMeta }> {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.status}`);
-  }
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => {
+    controller.abort();
+  }, ASSET_FETCH_TIMEOUT_MS);
 
-  const data = (await response.json()) as T;
-  return {
-    data,
-    meta: {
-      path,
-      lastModified: formatKstDateTime(
-        response.headers.get("last-modified") ?? "",
-      ),
-      featureCount: countResolver(data),
-    },
-  };
+  try {
+    const response = await fetch(path, {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to load ${path}: ${response.status}`);
+    }
+
+    const data = (await response.json()) as T;
+    return {
+      data,
+      meta: {
+        path,
+        lastModified: formatKstDateTime(
+          response.headers.get("last-modified") ?? "",
+        ),
+        featureCount: countResolver(data),
+      },
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        `Timed out loading ${path} after ${Math.round(ASSET_FETCH_TIMEOUT_MS / 1000)}s`,
+      );
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
 }
 
 async function fetchGeoJsonAsset<T extends FeatureCollection>(
@@ -1190,73 +1246,73 @@ function buildEnvironmentState(
   const roadBaseColors =
     weatherMode === "heavy-snow"
       ? {
-          arterial: 0x466289,
-          connector: 0x3c556f,
-          local: 0x334557,
-        }
+        arterial: 0x466289,
+        connector: 0x3c556f,
+        local: 0x334557,
+      }
       : weatherMode === "heavy-rain"
         ? {
-            arterial: 0x2a466b,
-            connector: 0x233b57,
-            local: 0x1d2c3c,
-          }
+          arterial: 0x2a466b,
+          connector: 0x233b57,
+          local: 0x1d2c3c,
+        }
         : {
-            arterial: 0x2c4d7c,
-            connector: 0x27425f,
-            local: 0x223243,
-          };
+          arterial: 0x2c4d7c,
+          connector: 0x27425f,
+          local: 0x223243,
+        };
   const lightingPreset =
     weatherMode === "clear"
       ? {
-          ambientColor: 0xf4f8ff,
-          ambientIntensity: 0.72,
-          hemiSkyColor: 0xdce9ff,
-          hemiGroundColor: 0x415468,
-          hemiIntensity: 0.84,
-          sunColor: 0xfffbf2,
-          sunIntensity: 0.88,
-          fogNear: 144,
-          fogFar: 410,
-          exposure: 1.04,
-        }
+        ambientColor: 0xf4f8ff,
+        ambientIntensity: 0.72,
+        hemiSkyColor: 0xdce9ff,
+        hemiGroundColor: 0x415468,
+        hemiIntensity: 0.84,
+        sunColor: 0xfffbf2,
+        sunIntensity: 0.88,
+        fogNear: 144,
+        fogFar: 410,
+        exposure: 1.04,
+      }
       : weatherMode === "cloudy"
         ? {
-            ambientColor: 0xe7eef7,
-            ambientIntensity: 0.69,
-            hemiSkyColor: 0xc8d5e3,
-            hemiGroundColor: 0x3d4d60,
-            hemiIntensity: 0.78,
-            sunColor: 0xf8fbff,
-            sunIntensity: 0.8,
-            fogNear: 138,
-            fogFar: 392,
-            exposure: 1.01,
-          }
+          ambientColor: 0xe7eef7,
+          ambientIntensity: 0.69,
+          hemiSkyColor: 0xc8d5e3,
+          hemiGroundColor: 0x3d4d60,
+          hemiIntensity: 0.78,
+          sunColor: 0xf8fbff,
+          sunIntensity: 0.8,
+          fogNear: 138,
+          fogFar: 392,
+          exposure: 1.01,
+        }
         : weatherMode === "heavy-rain"
           ? {
-              ambientColor: 0xe1e9f2,
-              ambientIntensity: 0.66,
-              hemiSkyColor: 0xbac9db,
-              hemiGroundColor: 0x334153,
-              hemiIntensity: 0.74,
-              sunColor: 0xf0f4fa,
-              sunIntensity: 0.72,
-              fogNear: 124,
-              fogFar: 350,
-              exposure: 0.98,
-            }
+            ambientColor: 0xe1e9f2,
+            ambientIntensity: 0.66,
+            hemiSkyColor: 0xbac9db,
+            hemiGroundColor: 0x334153,
+            hemiIntensity: 0.74,
+            sunColor: 0xf0f4fa,
+            sunIntensity: 0.72,
+            fogNear: 124,
+            fogFar: 350,
+            exposure: 0.98,
+          }
           : {
-              ambientColor: 0xf0f6fb,
-              ambientIntensity: 0.74,
-              hemiSkyColor: 0xdbe6f1,
-              hemiGroundColor: 0x47586b,
-              hemiIntensity: 0.82,
-              sunColor: 0xf8fbff,
-              sunIntensity: 0.82,
-              fogNear: 132,
-              fogFar: 362,
-              exposure: 1,
-            };
+            ambientColor: 0xf0f6fb,
+            ambientIntensity: 0.74,
+            hemiSkyColor: 0xdbe6f1,
+            hemiGroundColor: 0x47586b,
+            hemiIntensity: 0.82,
+            sunColor: 0xf8fbff,
+            sunIntensity: 0.82,
+            fogNear: 132,
+            fogFar: 362,
+            exposure: 1,
+          };
 
   return {
     skyColor: mixHexColor(baseSkyColor, sunsetSkyColor, sunset * 0.72),
@@ -1360,7 +1416,7 @@ function nearestRefreshRateBand(refreshRateEstimate: number) {
   return COMMON_REFRESH_RATE_BANDS.reduce<number>(
     (closest, candidate) =>
       Math.abs(candidate - refreshRateEstimate) <
-      Math.abs(closest - refreshRateEstimate)
+        Math.abs(closest - refreshRateEstimate)
         ? candidate
         : closest,
     COMMON_REFRESH_RATE_BANDS[0],
@@ -1623,6 +1679,102 @@ function buildProjectedRoadSegments(
   );
 }
 
+function roadSegmentCellCoord(value: number, cellSize: number) {
+  return Math.floor(value / cellSize);
+}
+
+function buildRoadSegmentSpatialIndex(
+  roadSegments: ProjectedRoadSegment[],
+  cellSize = ROAD_SEGMENT_INDEX_CELL_SIZE,
+): RoadSegmentSpatialIndex {
+  const columns = new Map<number, Map<number, number[]>>();
+
+  for (let segmentIndex = 0; segmentIndex < roadSegments.length; segmentIndex += 1) {
+    const segment = roadSegments[segmentIndex]!;
+    const minX = Math.min(segment.start.x, segment.end.x);
+    const maxX = Math.max(segment.start.x, segment.end.x);
+    const minZ = Math.min(segment.start.z, segment.end.z);
+    const maxZ = Math.max(segment.start.z, segment.end.z);
+
+    const startCellX = roadSegmentCellCoord(minX, cellSize);
+    const endCellX = roadSegmentCellCoord(maxX, cellSize);
+    const startCellZ = roadSegmentCellCoord(minZ, cellSize);
+    const endCellZ = roadSegmentCellCoord(maxZ, cellSize);
+
+    for (let cellX = startCellX; cellX <= endCellX; cellX += 1) {
+      let column = columns.get(cellX);
+      if (!column) {
+        column = new Map<number, number[]>();
+        columns.set(cellX, column);
+      }
+
+      for (let cellZ = startCellZ; cellZ <= endCellZ; cellZ += 1) {
+        let bucket = column.get(cellZ);
+        if (!bucket) {
+          bucket = [];
+          column.set(cellZ, bucket);
+        }
+        bucket.push(segmentIndex);
+      }
+    }
+  }
+
+  return {
+    cellSize,
+    columns,
+  };
+}
+
+function collectRoadSegmentCandidateIndices(
+  point: THREE.Vector3,
+  roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex | null,
+  maxDistance: number,
+) {
+  if (!roadSegmentSpatialIndex || !Number.isFinite(maxDistance)) {
+    return null;
+  }
+
+  const cellRadius = Math.max(
+    1,
+    Math.ceil(maxDistance / roadSegmentSpatialIndex.cellSize) + 1,
+  );
+  const centerCellX = roadSegmentCellCoord(point.x, roadSegmentSpatialIndex.cellSize);
+  const centerCellZ = roadSegmentCellCoord(point.z, roadSegmentSpatialIndex.cellSize);
+  const seen = new Set<number>();
+
+  for (
+    let cellX = centerCellX - cellRadius;
+    cellX <= centerCellX + cellRadius;
+    cellX += 1
+  ) {
+    const column = roadSegmentSpatialIndex.columns.get(cellX);
+    if (!column) {
+      continue;
+    }
+
+    for (
+      let cellZ = centerCellZ - cellRadius;
+      cellZ <= centerCellZ + cellRadius;
+      cellZ += 1
+    ) {
+      const bucket = column.get(cellZ);
+      if (!bucket) {
+        continue;
+      }
+
+      for (let bucketIndex = 0; bucketIndex < bucket.length; bucketIndex += 1) {
+        const segmentIndex = bucket[bucketIndex]!;
+        if (segmentIndex >= 0 && segmentIndex < roadSegments.length) {
+          seen.add(segmentIndex);
+        }
+      }
+    }
+  }
+
+  return seen.size ? [...seen] : null;
+}
+
 function outerRingOfBuilding(
   feature: BuildingFeature,
   center: { lat: number; lon: number },
@@ -1858,7 +2010,8 @@ function createVehicleSimulationSample(
     vehicle,
     motion: vehicle.motion,
     nextStopState: createNextStopState(),
-    proximityCellKey: "",
+    proximityCellX: 0,
+    proximityCellZ: 0,
   };
 }
 
@@ -1866,42 +2019,49 @@ function vehicleProximityCellCoord(value: number) {
   return Math.floor(value / VEHICLE_PROXIMITY_CELL_SIZE);
 }
 
-function vehicleProximityCellKey(cellX: number, cellZ: number) {
-  return `${cellX}:${cellZ}`;
-}
-
-function vehicleProximityCellKeyForPosition(position: THREE.Vector3) {
-  return vehicleProximityCellKey(
-    vehicleProximityCellCoord(position.x),
-    vehicleProximityCellCoord(position.z),
-  );
-}
-
 function addVehicleSampleToBucket(
-  buckets: Map<string, VehicleSimulationSample[]>,
+  buckets: VehicleProximityBuckets,
   sample: VehicleSimulationSample,
-  bucketKey = sample.proximityCellKey,
+  cellX = sample.proximityCellX,
+  cellZ = sample.proximityCellZ,
 ) {
-  let bucket = buckets.get(bucketKey);
+  let column = buckets.get(cellX);
+  if (!column) {
+    column = new Map<number, VehicleSimulationSample[]>();
+    buckets.set(cellX, column);
+  }
+
+  let bucket = column.get(cellZ);
   if (!bucket) {
     bucket = [];
-    buckets.set(bucketKey, bucket);
+    column.set(cellZ, bucket);
   }
   bucket.push(sample);
 }
 
+function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
+  buckets.forEach((column) => {
+    column.forEach((bucket) => {
+      bucket.length = 0;
+    });
+  });
+}
+
 function syncVehicleSampleBucket(
-  buckets: Map<string, VehicleSimulationSample[]>,
+  buckets: VehicleProximityBuckets,
   sample: VehicleSimulationSample,
 ) {
-  const nextBucketKey = vehicleProximityCellKeyForPosition(
-    sample.motion.lanePosition,
-  );
-  if (nextBucketKey === sample.proximityCellKey) {
+  const nextCellX = vehicleProximityCellCoord(sample.motion.lanePosition.x);
+  const nextCellZ = vehicleProximityCellCoord(sample.motion.lanePosition.z);
+  if (
+    nextCellX === sample.proximityCellX &&
+    nextCellZ === sample.proximityCellZ
+  ) {
     return;
   }
 
-  const currentBucket = buckets.get(sample.proximityCellKey);
+  const currentColumn = buckets.get(sample.proximityCellX);
+  const currentBucket = currentColumn?.get(sample.proximityCellZ);
   if (currentBucket) {
     const sampleIndex = currentBucket.indexOf(sample);
     if (sampleIndex !== -1) {
@@ -1909,12 +2069,16 @@ function syncVehicleSampleBucket(
       currentBucket.pop();
     }
     if (!currentBucket.length) {
-      buckets.delete(sample.proximityCellKey);
+      currentColumn?.delete(sample.proximityCellZ);
+      if (currentColumn && !currentColumn.size) {
+        buckets.delete(sample.proximityCellX);
+      }
     }
   }
 
-  sample.proximityCellKey = nextBucketKey;
-  addVehicleSampleToBucket(buckets, sample, nextBucketKey);
+  sample.proximityCellX = nextCellX;
+  sample.proximityCellZ = nextCellZ;
+  addVehicleSampleToBucket(buckets, sample, nextCellX, nextCellZ);
 }
 
 function routeSegmentIndexAtDistance(
@@ -2035,21 +2199,26 @@ function resolveNextStopInto(
   }
 
   let bestIndex = THREE.MathUtils.clamp(startIndex, 0, route.stops.length - 1);
-  let bestAhead = Number.POSITIVE_INFINITY;
+  let bestAhead = routeDistanceAhead(
+    route,
+    currentDistance,
+    route.stops[bestIndex].distance,
+  );
 
-  for (let offset = 0; offset < route.stops.length; offset += 1) {
-    const candidateIndex = (bestIndex + offset) % route.stops.length;
-    const ahead = routeDistanceAhead(
+  for (let step = 0; step < route.stops.length - 1; step += 1) {
+    const candidateIndex = (bestIndex + 1) % route.stops.length;
+    const candidateAhead = routeDistanceAhead(
       route,
       currentDistance,
       route.stops[candidateIndex].distance,
     );
-    if (ahead < bestAhead) {
-      bestAhead = ahead;
-      bestIndex = candidateIndex;
-      if (ahead <= 0.001) {
-        break;
-      }
+    if (candidateAhead > bestAhead + 0.001) {
+      break;
+    }
+    bestIndex = candidateIndex;
+    bestAhead = candidateAhead;
+    if (bestAhead <= 0.001) {
+      break;
     }
   }
 
@@ -2323,8 +2492,8 @@ function buildSignalTimingPlan(
   const remainingFlowDuration = Math.max(8.6, SIGNAL_CYCLE - fixedDuration);
   const majorGreenBias = THREE.MathUtils.clamp(
     0.54 +
-      (majorApproachCount - minorApproachCount) * 0.05 +
-      (hasProtectedLeft ? 0.02 : 0),
+    (majorApproachCount - minorApproachCount) * 0.05 +
+    (hasProtectedLeft ? 0.02 : 0),
     0.54,
     0.64,
   );
@@ -2471,7 +2640,7 @@ function assignCoordinatedSignalOffsets(
     group.sort((left, right) => left.axisPosition - right.axisPosition);
     const corridorSeed = normalizeSignalOffset(
       group[0].corridorBand * SIGNAL_COORDINATION_PHASE_STEP +
-        (groupKey.startsWith("ew") ? SIGNAL_CYCLE * 0.33 : 0),
+      (groupKey.startsWith("ew") ? SIGNAL_CYCLE * 0.33 : 0),
     );
     const corridorStart = group[0].axisPosition;
 
@@ -2570,9 +2739,9 @@ function pointInDongRing(point: THREE.Vector3, ring: THREE.Vector3[]) {
     const intersects =
       current.z > point.z !== prior.z > point.z &&
       point.x <
-        ((prior.x - current.x) * (point.z - current.z)) /
-          (prior.z - current.z || Number.EPSILON) +
-          current.x;
+      ((prior.x - current.x) * (point.z - current.z)) /
+      (prior.z - current.z || Number.EPSILON) +
+      current.x;
 
     if (intersects) {
       inside = !inside;
@@ -2717,11 +2886,25 @@ const nearestRoadHeading = new THREE.Vector3();
 function nearestRoadContext(
   point: THREE.Vector3,
   roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex | null = null,
+  maxDistance = Number.POSITIVE_INFINITY,
 ): NearestRoadContext | null {
   let best: NearestRoadContext | null = null;
+  const candidateIndices =
+    collectRoadSegmentCandidateIndices(
+      point,
+      roadSegments,
+      roadSegmentSpatialIndex,
+      maxDistance,
+    ) ??
+    roadSegments.map((_, index) => index);
 
-  for (let index = 0; index < roadSegments.length; index += 1) {
-    const segment = roadSegments[index]!;
+  for (
+    let candidateIndex = 0;
+    candidateIndex < candidateIndices.length;
+    candidateIndex += 1
+  ) {
+    const segment = roadSegments[candidateIndices[candidateIndex]!]!;
     nearestRoadDelta.copy(segment.end).sub(segment.start);
     const lengthSq = nearestRoadDelta.lengthSq();
     if (lengthSq < 0.0001) {
@@ -2730,7 +2913,7 @@ function nearestRoadContext(
 
     const t = THREE.MathUtils.clamp(
       nearestRoadOffset.copy(point).sub(segment.start).dot(nearestRoadDelta) /
-        lengthSq,
+      lengthSq,
       0,
       1,
     );
@@ -2757,8 +2940,20 @@ function nearbyRoadSegments(
   point: THREE.Vector3,
   roadSegments: ProjectedRoadSegment[],
   maxDistance: number,
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex | null = null,
 ) {
-  return roadSegments.filter((segment) => {
+  const candidateIndices =
+    collectRoadSegmentCandidateIndices(
+      point,
+      roadSegments,
+      roadSegmentSpatialIndex,
+      maxDistance,
+    ) ??
+    roadSegments.map((_, index) => index);
+
+  return candidateIndices
+    .map((index) => roadSegments[index]!)
+    .filter((segment) => {
     nearestRoadDelta.copy(segment.end).sub(segment.start);
     const lengthSq = nearestRoadDelta.lengthSq();
     if (lengthSq < 0.0001) {
@@ -2767,7 +2962,7 @@ function nearbyRoadSegments(
 
     const t = THREE.MathUtils.clamp(
       nearestRoadOffset.copy(point).sub(segment.start).dot(nearestRoadDelta) /
-        lengthSq,
+      lengthSq,
       0,
       1,
     );
@@ -2832,6 +3027,7 @@ function buildTransitLandmarks(
   transit: TransitFeatureCollection,
   center: { lat: number; lon: number },
   roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex,
 ) {
   const raw = transit.features
     .map((feature, index) => {
@@ -2840,10 +3036,15 @@ function buildTransitLandmarks(
       }
 
       const originalPoint = projectPoint(feature.geometry.coordinates, center);
-      const nearestRoad = nearestRoadContext(originalPoint, roadSegments);
       const fallbackHeading = new THREE.Vector3(0, 0, 1);
 
       if (feature.properties.category === "bus_stop") {
+        const nearestRoad = nearestRoadContext(
+          originalPoint,
+          roadSegments,
+          roadSegmentSpatialIndex,
+          12,
+        );
         if (
           !nearestRoad ||
           nearestRoad.distance > 12 ||
@@ -2886,6 +3087,12 @@ function buildTransitLandmarks(
         } satisfies TransitLandmark;
       }
 
+      const nearestRoad = nearestRoadContext(
+        originalPoint,
+        roadSegments,
+        roadSegmentSpatialIndex,
+        22,
+      );
       const nearestHeading = nearestRoad?.heading.clone() ?? fallbackHeading;
       const nearestRight = new THREE.Vector3(
         nearestHeading.z,
@@ -2902,12 +3109,12 @@ function buildTransitLandmarks(
       const position =
         nearestRoad && nearestRoad.distance < 22
           ? nearestRoad.closest
-              .clone()
-              .addScaledVector(
-                nearestRight,
-                sideSign * (nearestRoad.width * 0.42 + 2.3),
-              )
-              .setY(0.12)
+            .clone()
+            .addScaledVector(
+              nearestRight,
+              sideSign * (nearestRoad.width * 0.42 + 2.3),
+            )
+            .setY(0.12)
           : originalPoint.clone().setY(0.12);
 
       return {
@@ -3227,12 +3434,12 @@ function buildBuildingMasses(
       const compactScale =
         bboxArea >= 140 && footprintFillRatio < 0.92
           ? Math.sqrt(
-              THREE.MathUtils.lerp(
-                THREE.MathUtils.clamp(footprintFillRatio, 0.24, 1),
-                1,
-                0.42,
-              ),
-            )
+            THREE.MathUtils.lerp(
+              THREE.MathUtils.clamp(footprintFillRatio, 0.24, 1),
+              1,
+              0.42,
+            ),
+          )
           : 1;
       const width = Math.max(
         0.8,
@@ -3532,8 +3739,9 @@ function buildSignalsFromOsm(
   center: { lat: number; lon: number },
   graph: RoadGraph,
   trafficSignals: TrafficSignalFeatureCollection,
+  roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex,
 ) {
-  const roadSegments = buildProjectedRoadSegments(roads, center);
   if (!roadSegments.length || !trafficSignals.features.length) {
     return [] as SignalData[];
   }
@@ -3552,7 +3760,12 @@ function buildSignalsFromOsm(
     }
 
     const point = projectPoint(feature.geometry.coordinates, center);
-    const nearestRoad = nearestRoadContext(point, roadSegments);
+    const nearestRoad = nearestRoadContext(
+      point,
+      roadSegments,
+      roadSegmentSpatialIndex,
+      SIGNAL_ROAD_SNAP_DISTANCE,
+    );
     if (!nearestRoad || nearestRoad.distance > SIGNAL_ROAD_SNAP_DISTANCE) {
       return;
     }
@@ -3615,6 +3828,7 @@ function buildSignalsFromOsm(
       point,
       roadSegments,
       SIGNAL_ROAD_SNAP_DISTANCE,
+      roadSegmentSpatialIndex,
     );
     if (!nearbySegmentsForSignal.length) {
       return;
@@ -3691,12 +3905,16 @@ function buildSignals(
   center: { lat: number; lon: number },
   graph: RoadGraph,
   trafficSignals: TrafficSignalFeatureCollection,
+  roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex,
 ) {
   const actualSignals = buildSignalsFromOsm(
     roads,
     center,
     graph,
     trafficSignals,
+    roadSegments,
+    roadSegmentSpatialIndex,
   );
   if (actualSignals.length) {
     return actualSignals;
@@ -4206,9 +4424,10 @@ function buildPathRoute(
     .map((edgeId) => graph.edgeById.get(edgeId))
     .filter(Boolean) as GraphEdge[];
 
-  const cumulative = buildCumulative(nodes.map((node) => node.point));
+  const points = nodes.map((node) => node.point);
+  const cumulative = buildCumulative(points);
   const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
-  const segmentHeadings = buildSegmentHeadings(nodes.map((node) => node.point));
+  const segmentHeadings = buildSegmentHeadings(points);
   const totalLength = cumulative[cumulative.length - 1] ?? 0;
   if (totalLength < 2) {
     return null;
@@ -4238,6 +4457,7 @@ function buildPathRoute(
 
     stops.push({
       signalId: signal.id,
+      signal,
       distance: Math.max(0, cumulative[index] - 2.8),
       axis: dominantAxis(nodes[index - 1].point, nodes[index].point),
       turn: classifyTurn(
@@ -4289,14 +4509,17 @@ function buildLoopRoutes(
   const candidates = roads.features
     .filter((feature) => feature.properties.oneway === "no")
     .flatMap((feature, featureIndex) =>
-      lineStringsOfRoad(feature, center).map((line, lineIndex) => ({
-        id: `${feature.id ?? featureIndex}-${lineIndex}`,
-        name: feature.properties.name,
-        roadClass: feature.properties.roadClass,
-        roadWidth: feature.properties.width * ROAD_WIDTH_SCALE,
-        nodes: line,
-        length: buildCumulative(line.map((node) => node.point)).at(-1) ?? 0,
-      })),
+      lineStringsOfRoad(feature, center).map((line, lineIndex) => {
+        const points = line.map((node) => node.point);
+        return {
+          id: `${feature.id ?? featureIndex}-${lineIndex}`,
+          name: feature.properties.name,
+          roadClass: feature.properties.roadClass,
+          roadWidth: feature.properties.width * ROAD_WIDTH_SCALE,
+          nodes: line,
+          length: buildCumulative(points).at(-1) ?? 0,
+        };
+      }),
     )
     .filter(
       (candidate) => candidate.nodes.length >= 2 && candidate.length >= 34,
@@ -4325,13 +4548,10 @@ function buildLoopRoutes(
             point: node.point.clone(),
           })),
       ];
-      const cumulative = buildCumulative(
-        roundTripNodes.map((node) => node.point),
-      );
+      const points = roundTripNodes.map((node) => node.point);
+      const cumulative = buildCumulative(points);
       const segmentLengths = buildSegmentLengthsFromCumulative(cumulative);
-      const segmentHeadings = buildSegmentHeadings(
-        roundTripNodes.map((node) => node.point),
-      );
+      const segmentHeadings = buildSegmentHeadings(points);
       const totalLength = cumulative[cumulative.length - 1] ?? 0;
 
       const stops: StopMarker[] = [];
@@ -4348,6 +4568,7 @@ function buildLoopRoutes(
 
         stops.push({
           signalId: signal.id,
+          signal,
           distance: Math.max(0, cumulative[index] - 2.8),
           axis: dominantAxis(
             roundTripNodes[index - 1].point,
@@ -4391,16 +4612,24 @@ function hotspotLabelForRoute(
   buildings: BuildingMass[],
   index: number,
 ) {
-  const nearest = buildings
-    .filter((building) => Boolean(building.label))
-    .map((building) => ({
-      building,
-      distance: building.position.distanceTo(position),
-    }))
-    .sort((left, right) => left.distance - right.distance)[0];
+  let nearestLabel: string | null = null;
+  let nearestDistanceSq = Number.POSITIVE_INFINITY;
 
-  if (nearest && nearest.distance < 34 && nearest.building.label) {
-    return nearest.building.label;
+  for (let buildingIndex = 0; buildingIndex < buildings.length; buildingIndex += 1) {
+    const building = buildings[buildingIndex]!;
+    if (!building.label) {
+      continue;
+    }
+
+    const distanceSq = building.position.distanceToSquared(position);
+    if (distanceSq < nearestDistanceSq) {
+      nearestDistanceSq = distanceSq;
+      nearestLabel = building.label;
+    }
+  }
+
+  if (nearestLabel && nearestDistanceSq < 34 * 34) {
+    return nearestLabel;
   }
   if (route.name) {
     return `${route.name} 승차지`;
@@ -4912,10 +5141,10 @@ function updateVehicleMotionState(vehicle: Vehicle) {
   const laneOffset =
     pullOverBlend > 0
       ? THREE.MathUtils.lerp(
-          vehicle.route.laneOffset,
-          curbsideLaneOffset(vehicle.route),
-          pullOverBlend,
-        )
+        vehicle.route.laneOffset,
+        curbsideLaneOffset(vehicle.route),
+        pullOverBlend,
+      )
       : vehicle.route.laneOffset;
   vehicle.motion.lanePosition
     .copy(vehicle.motion.position)
@@ -4975,103 +5204,13 @@ function assignVehicleRoute(
   copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
 }
 
-function planTaxiJob(
-  startKey: string,
-  hotspots: Hotspot[],
-  seed: number,
-  vehicleId: string,
-  routeBuilder: (
-    start: string,
-    end: string,
-    id: string,
-    label: string | null,
-  ) => RouteTemplate | null,
-  graph: RoadGraph,
-) {
-  const originPoint = graph.nodes.get(startKey)?.point ?? new THREE.Vector3();
-  const pickups = hotspots
-    .filter((hotspot) => hotspot.nodeKey !== startKey)
-    .map((hotspot) => ({
-      hotspot,
-      distance: hotspot.point.distanceTo(originPoint),
-    }))
-    .sort((left, right) => left.distance - right.distance);
-
-  if (!pickups.length) {
-    return null;
-  }
-
-  const pickupPool = pickups.slice(1, Math.min(pickups.length, 12));
-  const orderedPickups = pickupPool.length ? pickupPool : pickups;
-
-  for (
-    let attempt = 0;
-    attempt < Math.min(orderedPickups.length * 2, 18);
-    attempt += 1
-  ) {
-    const pickup =
-      orderedPickups[(seed + attempt * 3) % orderedPickups.length].hotspot;
-    const drops = hotspots
-      .filter(
-        (hotspot) =>
-          hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
-      )
-      .map((hotspot) => ({
-        hotspot,
-        distance: hotspot.point.distanceTo(pickup.point),
-      }))
-      .filter((entry) => entry.distance > 26)
-      .sort((left, right) => right.distance - left.distance);
-
-    const orderedDrops = drops.length
-      ? drops
-      : hotspots
-          .filter(
-            (hotspot) =>
-              hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
-          )
-          .map((hotspot) => ({
-            hotspot,
-            distance: hotspot.point.distanceTo(pickup.point),
-          }));
-
-    if (!orderedDrops.length) {
-      continue;
-    }
-
-    const dropoff =
-      orderedDrops[(seed * 2 + attempt) % orderedDrops.length].hotspot;
-    const pickupRoute = routeBuilder(
-      startKey,
-      pickup.nodeKey,
-      `${vehicleId}-pickup-${seed}-${attempt}`,
-      pickup.roadName ?? pickup.label,
-    );
-    const dropRoute = routeBuilder(
-      pickup.nodeKey,
-      dropoff.nodeKey,
-      `${vehicleId}-drop-validate-${seed}-${attempt}`,
-      dropoff.roadName ?? dropoff.label,
-    );
-
-    if (pickupRoute && dropRoute) {
-      return {
-        pickupHotspot: pickup,
-        dropoffHotspot: dropoff,
-        pickupRoute,
-      };
-    }
-  }
-
-  return null;
-}
-
 export default function MapSimulator() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<SimulationData | null>(null);
-  const [status, setStatus] = useState<
-    "loading" | "rendering" | "ready" | "error"
-  >("loading");
+  const [status, setStatus] = useState<SceneStatus>("loading");
+  const [statusDetail, setStatusDetail] = useState(
+    "OSM 지도 데이터 불러오는 중",
+  );
   const [showLabels, setShowLabels] = useState(false);
   const [showNonRoad, setShowNonRoad] = useState(true);
   const [showTransit, setShowTransit] = useState(false);
@@ -5093,11 +5232,14 @@ export default function MapSimulator() {
     traffic: DEFAULT_TRAFFIC_COUNT,
   }));
   const [showFps, setShowFps] = useState(false);
-  const [fpsMode, setFpsMode] = useState<FpsMode>("auto");
+  const [fpsMode, setFpsMode] = useState<FpsMode>("fixed60");
   const [fpsStats, setFpsStats] = useState<FpsStats>({
     fps: 0,
-    capLabel: renderCapLabel(renderFpsCapFor("drive"), false, "auto"),
+    capLabel: renderCapLabel(renderFpsCapFor("drive"), false, "fixed60"),
     simulationMs: 0,
+    signalMs: 0,
+    vehicleMs: 0,
+    overlayMs: 0,
     renderMs: 0,
     simulationHz: 0,
     vehicles: 0,
@@ -5120,7 +5262,7 @@ export default function MapSimulator() {
   const hoverRefreshRequestRef = useRef(0);
   const labelRefreshRequestRef = useRef(0);
   const showFpsRef = useRef(false);
-  const fpsModeRef = useRef<FpsMode>("auto");
+  const fpsModeRef = useRef<FpsMode>("fixed60");
   const showNonRoadRef = useRef(true);
   const nonRoadGroupRef = useRef<THREE.Group | null>(null);
   const showRoadNetworkRef = useRef(false);
@@ -5135,6 +5277,16 @@ export default function MapSimulator() {
     completedTrips: 0,
     pedestrians: 0,
   });
+
+  function markSceneRendering(detail: string) {
+    setStatus("rendering");
+    setStatusDetail(detail);
+  }
+
+  function markSceneError(detail: string) {
+    setStatus("error");
+    setStatusDetail(detail);
+  }
 
   useEffect(() => {
     simulationDateRef.current = simulationDate;
@@ -5244,6 +5396,7 @@ export default function MapSimulator() {
           if (cancelled) {
             return;
           }
+          setStatusDetail("도로 세그먼트와 공간 인덱스 준비 중");
           const nonRoad =
             nonRoadAsset?.data ?? EMPTY_NON_ROAD_FEATURE_COLLECTION;
           const roads = roadsAsset.data;
@@ -5270,15 +5423,78 @@ export default function MapSimulator() {
             (dongs.features.length
               ? featureCollectionCenter(dongs)
               : DEFAULT_MAP_CENTER);
+          const projectedRoadSegments = buildProjectedRoadSegments(roads, center);
+          const roadSegmentSpatialIndex = buildRoadSegmentSpatialIndex(
+            projectedRoadSegments,
+          );
+          const buildingMasses = buildBuildingMasses(buildings, center);
+          const dongRegions = buildDongRegions(dongs, center);
+          const dongBoundarySegments = SHOW_DONG_BOUNDARIES
+            ? buildDongBoundarySegments(dongRegions)
+            : [];
+          const transitLandmarks = buildTransitLandmarks(
+            transit,
+            center,
+            projectedRoadSegments,
+            roadSegmentSpatialIndex,
+          );
+          setStatusDetail("도로 그래프와 신호 체계 준비 중");
+          const graph = roadNetwork
+            ? deserializeRoadGraph(roadNetwork)
+            : buildRoadGraph(roads, center);
+          const signals = buildSignals(
+            roads,
+            center,
+            graph,
+            trafficSignals,
+            projectedRoadSegments,
+            roadSegmentSpatialIndex,
+          );
+          const signalByKey = new Map(
+            signals.map((signal) => [signal.key, signal] as const),
+          );
+          const loopRoutes = buildLoopRoutes(roads, center, signalByKey);
+          const taxiRoutePool = loopRoutes
+            .filter((route) => route.roadClass !== "local")
+            .slice(0, Math.max(MAX_TAXI_COUNT, DEFAULT_TAXI_COUNT));
+          const trafficRoutePool = loopRoutes.slice(
+            0,
+            Math.max(MAX_TRAFFIC_COUNT, 20),
+          );
+          if (!taxiRoutePool.length || !trafficRoutePool.length) {
+            throw new Error("No drivable routes available for vehicle simulation");
+          }
+          setStatusDetail("배차 경로와 승차 포인트 준비 중");
+          const hotspotPool = buildTaxiHotspots(
+            taxiRoutePool,
+            buildingMasses,
+            graph,
+            signalByKey,
+          );
+          if (!hotspotPool.length) {
+            throw new Error("No dispatch hotspots available for taxi simulation");
+          }
           const nextData = {
             center,
             nonRoad,
             roads,
+            projectedRoadSegments,
+            roadSegmentSpatialIndex,
             buildings,
+            buildingMasses,
             dongs,
+            dongRegions,
+            dongBoundarySegments,
             transit,
+            transitLandmarks,
             trafficSignals,
             roadNetwork,
+            graph,
+            signals,
+            loopRoutes,
+            taxiRoutePool,
+            trafficRoutePool,
+            hotspotPool,
             meta: {
               source:
                 "A-Eye Module 1 companion: OpenStreetMap + Overpass -> public/*.geojson + public/road-network.json",
@@ -5296,7 +5512,7 @@ export default function MapSimulator() {
               },
             },
           };
-          setStatus("rendering");
+          markSceneRendering("3D 장면과 차량 레이어 구성 중");
           requestAnimationFrame(() => {
             if (!cancelled) {
               setData(nextData);
@@ -5307,7 +5523,7 @@ export default function MapSimulator() {
       .catch((error) => {
         console.error(error);
         if (!cancelled) {
-          setStatus("error");
+          markSceneError("자산 또는 초기 장면 준비에 실패했습니다");
         }
       });
 
@@ -5322,6 +5538,7 @@ export default function MapSimulator() {
     }
 
     const container = containerRef.current;
+    const simulationData = data;
     let sceneDisposed = false;
     let isPageHidden = document.visibilityState === "hidden";
     const scene = new THREE.Scene();
@@ -5384,32 +5601,15 @@ export default function MapSimulator() {
     scene.add(sun);
     scene.add(sun.target);
 
-    const buildingFeatures = buildBuildingMasses(data.buildings, data.center);
-    const dongRegions = buildDongRegions(data.dongs, data.center);
-    const roadSegments: ProjectedRoadSegment[] = data.roads.features.flatMap(
-      (feature) =>
-        lineStringsOfRoad(feature, data.center).flatMap((line) =>
-          line.slice(1).map((node, index) => ({
-            roadClass: feature.properties.roadClass,
-            width: feature.properties.width * ROAD_WIDTH_SCALE,
-            start: line[index].point,
-            end: node.point,
-            name: feature.properties.name,
-          })),
-        ),
-    );
-    const transitLandmarks = buildTransitLandmarks(
-      data.transit,
-      data.center,
-      roadSegments,
-    );
-    const dongBoundarySegments = SHOW_DONG_BOUNDARIES
-      ? buildDongBoundarySegments(dongRegions)
-      : [];
+    const buildingFeatures = data.buildingMasses;
+    const dongRegions = data.dongRegions;
+    const roadSegments = data.projectedRoadSegments;
+    const transitLandmarks = data.transitLandmarks;
+    const dongBoundarySegments = data.dongBoundarySegments;
     const dongBoundaryWallHeight = THREE.MathUtils.clamp(
       (buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
         Math.max(buildingFeatures.length, 1)) *
-        1.85,
+      1.85,
       7.2,
       10.4,
     );
@@ -5476,7 +5676,6 @@ export default function MapSimulator() {
     let labelVisibilityNeedsUpdate = true;
     let labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
-    let simulationTimeout = 0;
     let appliedHoverRefreshRequest = hoverRefreshRequestRef.current;
     let appliedLabelRefreshRequest = labelRefreshRequestRef.current;
     const hoverCameraPosition = new THREE.Vector3();
@@ -5955,16 +6154,41 @@ export default function MapSimulator() {
     const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const routeCache = new Map<string, RouteTemplate | null>();
-    let graph: RoadGraph | null = null;
-    let hotspotPool: Hotspot[] = [];
+    let graph: RoadGraph | null = data.graph;
+    let dispatchPlanner: ReturnType<
+      typeof ACTIVE_DISPATCH_PLANNER.createSession
+    > | null = null;
+    const hotspotPool: Hotspot[] = data.hotspotPool;
     let completedTrips = 0;
     let activePedestrians = 0;
     let crosswalkMaterial: THREE.MeshStandardMaterial | null = null;
     let stopLineMaterial: THREE.MeshStandardMaterial | null = null;
     let roadNetworkOverlay: THREE.Group | null = null;
-    let taxiRoutePool: RouteTemplate[] = [];
-    let trafficRoutePool: RouteTemplate[] = [];
+    const taxiRoutePool: RouteTemplate[] = data.taxiRoutePool;
+    const trafficRoutePool: RouteTemplate[] = data.trafficRoutePool;
     let vehicleLayerReady = false;
+    let activeVehicleSpeedMultiplier = 1;
+    let activeStarOpacity = 0;
+    let vehicleSimulationAccumulator = 0;
+    let appliedDateIso: string | null = null;
+    let appliedWeatherMode: WeatherMode | null = null;
+    let appliedTimeMinutes = -1;
+    let hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
+    const frameSignalStates = new Map<string, SignalFlow>();
+    const activePickupsByHotspot = new Map<string, number>();
+    const activeDropoffsByHotspot = new Map<string, number>();
+    const intersectionOccupancy = new Map<string, SignalAxisOccupancy>();
+    const intersectionApproachDemand = new Map<string, SignalApproachDemand>();
+    const intersectionApproachDistance = new Map<
+      string,
+      SignalApproachDistance
+    >();
+    const intersectionExitOccupancy = new Map<
+      string,
+      SignalDirectionalOccupancy
+    >();
+    const proximityBuckets: VehicleProximityBuckets = new Map();
+    const vehicleSimulationSamples: VehicleSimulationSample[] = [];
     const activeVehicleDensity = {
       taxis: appliedTaxiCountRef.current,
       traffic: appliedTrafficCountRef.current,
@@ -5993,6 +6217,19 @@ export default function MapSimulator() {
       );
       routeCache.set(cacheKey, route);
       return route;
+    };
+
+    const rebuildDispatchPlanner = () => {
+      if (!graph || !hotspotPool.length) {
+        dispatchPlanner = null;
+        return;
+      }
+
+      dispatchPlanner = ACTIVE_DISPATCH_PLANNER.createSession({
+        hotspots: hotspotPool,
+        graph,
+        routeBuilder,
+      });
     };
 
     const syncSelectedTaxi = () => {
@@ -6046,8 +6283,11 @@ export default function MapSimulator() {
     };
 
     const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
-      if (!graph || !hotspotPool.length || !trafficRoutePool.length) {
+      if (!dispatchPlanner || !hotspotPool.length || !trafficRoutePool.length) {
         return;
+      }
+      if (!sceneDisposed) {
+        setStatusDetail("차량 레이어 구성 중");
       }
 
       clearVehicleLayer();
@@ -6058,14 +6298,11 @@ export default function MapSimulator() {
       for (let index = 0; index < nextTaxiCount; index += 1) {
         const spawnHotspot = hotspotPool[(index * 2) % hotspotPool.length];
         const vehicleId = `taxi-${index}`;
-        const job = planTaxiJob(
-          spawnHotspot.nodeKey,
-          hotspotPool,
-          index + 1,
+        const job = dispatchPlanner.planJob({
+          startKey: spawnHotspot.nodeKey,
+          seed: index + 1,
           vehicleId,
-          routeBuilder,
-          graph,
-        );
+        });
         if (!job) {
           continue;
         }
@@ -6175,6 +6412,7 @@ export default function MapSimulator() {
       updateVehicleLayerStats(taxiVehicles.length, vehicles.length - taxiVehicles.length);
       if (!sceneDisposed) {
         setStatus("ready");
+        setStatusDetail("주행 준비 완료");
       }
     };
 
@@ -6635,7 +6873,7 @@ export default function MapSimulator() {
       if (cameraModeRef.current !== "ride") {
         rideExitModeRef.current =
           cameraModeRef.current === "overview" ||
-          cameraModeRef.current === "follow"
+            cameraModeRef.current === "follow"
             ? cameraModeRef.current
             : "drive";
       }
@@ -6756,91 +6994,68 @@ export default function MapSimulator() {
 
     optionalLabelObjectsRef.current = optionalLabelObjects;
 
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
+    const currentGraph = data.graph;
+    graph = currentGraph;
+    roadNetworkOverlay = buildRoadNetworkOverlay(currentGraph);
+    roadNetworkOverlay.visible = showRoadNetworkRef.current;
+    scene.add(roadNetworkOverlay);
+    roadNetworkGroupRef.current = roadNetworkOverlay;
+    const signals = data.signals;
+    signals.forEach((signal) => {
+      signalById.set(signal.id, signal);
+      signalByKey.set(signal.key, signal);
+    });
 
-    simulationTimeout = window.setTimeout(() => {
-      graph = data.roadNetwork
-        ? deserializeRoadGraph(data.roadNetwork)
-        : buildRoadGraph(data.roads, data.center);
-      const currentGraph = graph;
-      roadNetworkOverlay = buildRoadNetworkOverlay(currentGraph);
-      roadNetworkOverlay.visible = showRoadNetworkRef.current;
-      scene.add(roadNetworkOverlay);
-      roadNetworkGroupRef.current = roadNetworkOverlay;
-      const signals = buildSignals(
-        data.roads,
-        data.center,
-        currentGraph,
-        data.trafficSignals,
-      );
-      signals.forEach((signal) => {
-        signalById.set(signal.id, signal);
-        signalByKey.set(signal.key, signal);
+    const loopRoutes = data.loopRoutes;
+    if (!taxiRoutePool.length || !trafficRoutePool.length) {
+      return undefined;
+    }
+
+    const taxiRouteById = new Map(
+      taxiRoutePool.map((route) => [route.id, route]),
+    );
+    if (!hotspotPool.length) {
+      return undefined;
+    }
+    rebuildDispatchPlanner();
+
+    const nextSignalVisuals = signals.map((signal) => {
+      const group = new THREE.Group();
+      const reds: SignalLampVisual[] = [];
+      const yellows: SignalLampVisual[] = [];
+      const greens: SignalLampVisual[] = [];
+      const leftArrows: SignalLampVisual[] = [];
+      const pedestrianLamps: SignalLampVisual[] = [];
+
+      const mastDistance = signal.approaches.length >= 4 ? 2.9 : 2.55;
+      const mastLayout = signal.approaches.map((direction) => {
+        switch (direction) {
+          case "north":
+            return {
+              axis: "ns" as const,
+              offset: new THREE.Vector3(0, 0, -mastDistance),
+              yaw: 0,
+            };
+          case "south":
+            return {
+              axis: "ns" as const,
+              offset: new THREE.Vector3(0, 0, mastDistance),
+              yaw: Math.PI,
+            };
+          case "east":
+            return {
+              axis: "ew" as const,
+              offset: new THREE.Vector3(mastDistance, 0, 0),
+              yaw: Math.PI / 2,
+            };
+          default:
+            return {
+              axis: "ew" as const,
+              offset: new THREE.Vector3(-mastDistance, 0, 0),
+              yaw: -Math.PI / 2,
+            };
+        }
       });
-
-      const loopRoutes = buildLoopRoutes(data.roads, data.center, signalByKey);
-      taxiRoutePool = loopRoutes
-        .filter((route) => route.roadClass !== "local")
-        .slice(0, Math.max(MAX_TAXI_COUNT, DEFAULT_TAXI_COUNT));
-      trafficRoutePool = loopRoutes.slice(
-        0,
-        Math.max(MAX_TRAFFIC_COUNT, 20),
-      );
-      if (!taxiRoutePool.length || !trafficRoutePool.length) {
-        return;
-      }
-
-      const taxiRouteById = new Map(
-        taxiRoutePool.map((route) => [route.id, route]),
-      );
-      hotspotPool = buildTaxiHotspots(
-        taxiRoutePool,
-        buildingFeatures,
-        currentGraph,
-        signalByKey,
-      );
-      if (!hotspotPool.length) {
-        return;
-      }
-
-      const nextSignalVisuals = signals.map((signal) => {
-        const group = new THREE.Group();
-        const reds: SignalLampVisual[] = [];
-        const yellows: SignalLampVisual[] = [];
-        const greens: SignalLampVisual[] = [];
-        const leftArrows: SignalLampVisual[] = [];
-        const pedestrianLamps: SignalLampVisual[] = [];
-
-        const mastDistance = signal.approaches.length >= 4 ? 2.9 : 2.55;
-        const mastLayout = signal.approaches.map((direction) => {
-          switch (direction) {
-            case "north":
-              return {
-                axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, -mastDistance),
-                yaw: 0,
-              };
-            case "south":
-              return {
-                axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, mastDistance),
-                yaw: Math.PI,
-              };
-            case "east":
-              return {
-                axis: "ew" as const,
-                offset: new THREE.Vector3(mastDistance, 0, 0),
-                yaw: Math.PI / 2,
-              };
-            default:
-              return {
-                axis: "ew" as const,
-                offset: new THREE.Vector3(-mastDistance, 0, 0),
-                yaw: -Math.PI / 2,
-              };
-          }
-        });
 
         mastLayout.forEach(({ axis, offset, yaw }) => {
           const mast = new THREE.Group();
@@ -7032,9 +7247,9 @@ export default function MapSimulator() {
         const hotspotSample = hotspotRoute
           ? sampleRoute(hotspotRoute, hotspot.distance)
           : {
-              position: hotspot.position.clone(),
-              heading: new THREE.Vector3(0, 0, 1),
-            };
+            position: hotspot.position.clone(),
+            heading: new THREE.Vector3(0, 0, 1),
+          };
 
         const base = new THREE.Mesh(
           new THREE.CylinderGeometry(1.2, 1.45, 0.18, 20),
@@ -7220,24 +7435,23 @@ export default function MapSimulator() {
           scene.add(label);
         });
 
-      syncLabelVisibility(activeCameraMode);
+    syncLabelVisibility(activeCameraMode);
 
-      vehicleLayerReady = true;
-      rebuildVehicleLayer(
-        appliedTaxiCountRef.current,
-        appliedTrafficCountRef.current,
-      );
+    vehicleLayerReady = true;
+    rebuildVehicleLayer(
+      appliedTaxiCountRef.current,
+      appliedTrafficCountRef.current,
+    );
 
-      applyEnvironment(
-        simulationDateRef.current,
-        simulationTimeRef.current,
-        weatherModeRef.current,
-      );
-      applyModePreset(cameraModeRef.current);
-      syncCamera();
-      renderer.render(scene, camera);
-      labelRenderer.render(scene, camera);
-    }, 0);
+    applyEnvironment(
+      simulationDateRef.current,
+      simulationTimeRef.current,
+      weatherModeRef.current,
+    );
+    applyModePreset(cameraModeRef.current);
+    syncCamera();
+    renderer.render(scene, camera);
+    labelRenderer.render(scene, camera);
 
     const timer = new THREE.Timer();
     timer.connect(document);
@@ -7252,44 +7466,25 @@ export default function MapSimulator() {
     let fpsSampleElapsed = 0;
     let fpsFrameCount = 0;
     let simulationCpuSampleMs = 0;
+    let signalCpuSampleMs = 0;
+    let vehicleCpuSampleMs = 0;
+    let overlayCpuSampleMs = 0;
     let renderCpuSampleMs = 0;
     let simulationStepSampleCount = 0;
-    let appliedDateIso: string | null = null;
-    let appliedWeatherMode: WeatherMode | null = null;
-    let appliedTimeMinutes = -1;
-    let activeVehicleSpeedMultiplier = 1;
-    let activeStarOpacity = 0;
-    let hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
-    const frameSignalStates = new Map<string, SignalFlow>();
-    const activePickupsByHotspot = new Map<string, number>();
-    const activeDropoffsByHotspot = new Map<string, number>();
-    const intersectionOccupancy = new Map<string, SignalAxisOccupancy>();
-    const intersectionApproachDemand = new Map<string, SignalApproachDemand>();
-    const intersectionApproachDistance = new Map<
-      string,
-      SignalApproachDistance
-    >();
-    const intersectionExitOccupancy = new Map<
-      string,
-      SignalDirectionalOccupancy
-    >();
-    const proximityBuckets = new Map<string, VehicleSimulationSample[]>();
-    const vehicleSimulationSamples: VehicleSimulationSample[] = [];
-    let vehicleSimulationAccumulator = 0;
 
-    const applyEnvironment = (
+    function applyEnvironment(
       dateIso: string,
       minutes: number,
       nextWeatherMode: WeatherMode,
-    ) => {
+    ) {
       const environment = buildEnvironmentState(
         dateIso,
         minutes,
         nextWeatherMode,
-        data.center,
+        simulationData.center,
       );
-      const daylight = daylightFactor(dateIso, minutes, data.center);
-      const sunset = sunsetFactor(dateIso, minutes, data.center);
+      const daylight = daylightFactor(dateIso, minutes, simulationData.center);
+      const sunset = sunsetFactor(dateIso, minutes, simulationData.center);
       const cloudVisibility =
         nextWeatherMode === "clear"
           ? 1
@@ -7352,10 +7547,10 @@ export default function MapSimulator() {
         skyDirection.y > 0.06
           ? skyDirection
           : skyDirection
-              .clone()
-              .multiplyScalar(-1)
-              .setY(Math.abs(skyDirection.y) * 0.72 + 0.2)
-              .normalize();
+            .clone()
+            .multiplyScalar(-1)
+            .setY(Math.abs(skyDirection.y) * 0.72 + 0.2)
+            .normalize();
       sun.position.copy(
         centerPoint
           .clone()
@@ -7461,7 +7656,7 @@ export default function MapSimulator() {
         0.58 + environment.precipitationIntensity * 0.18;
 
       renderer.toneMappingExposure = environment.exposure;
-    };
+    }
 
     const updatePrecipitation = (delta: number, elapsedTime: number) => {
       if (rainLayer.points.visible) {
@@ -7531,6 +7726,27 @@ export default function MapSimulator() {
       if (!signalVisuals.length) {
         frameSignalStates.clear();
         return;
+      }
+
+      // Pre-allocate signal demands on first frame
+      if (intersectionApproachDemand.size === 0 && signalVisuals.length > 0) {
+        signalVisuals.forEach((signal) => {
+          if (!intersectionApproachDemand.has(signal.id)) {
+            intersectionApproachDemand.set(signal.id, createSignalApproachDemand());
+          }
+          if (!intersectionApproachDistance.has(signal.id)) {
+            intersectionApproachDistance.set(signal.id, createSignalApproachDistance());
+          }
+          if (!intersectionOccupancy.has(signal.id)) {
+            intersectionOccupancy.set(signal.id, createSignalAxisOccupancy());
+          }
+          if (!intersectionExitOccupancy.has(signal.id)) {
+            intersectionExitOccupancy.set(
+              signal.id,
+              createSignalDirectionalOccupancy(),
+            );
+          }
+        });
       }
       frameSignalStates.clear();
       signalVisuals.forEach((signal) => {
@@ -7782,9 +7998,7 @@ export default function MapSimulator() {
         intersectionApproachDemand.forEach(resetSignalApproachDemand);
         intersectionApproachDistance.forEach(resetSignalApproachDistance);
         intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
-        proximityBuckets.forEach((bucket) => {
-          bucket.length = 0;
-        });
+        clearVehicleSampleBuckets(proximityBuckets);
 
         statsAccumulator += delta;
         if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
@@ -7818,9 +8032,7 @@ export default function MapSimulator() {
       intersectionApproachDemand.forEach(resetSignalApproachDemand);
       intersectionApproachDistance.forEach(resetSignalApproachDistance);
       intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
-      proximityBuckets.forEach((bucket) => {
-        bucket.length = 0;
-      });
+      clearVehicleSampleBuckets(proximityBuckets);
       for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
         const vehicle = vehicles[vehicleIndex]!;
         copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
@@ -7848,7 +8060,7 @@ export default function MapSimulator() {
         vehicle.currentSignalId = null;
 
         const stop = nextStopState.stop;
-        const signal = stop ? signalById.get(stop.signalId) ?? null : null;
+        const signal = stop?.signal ?? null;
         if (signal && stop) {
           const signalDistanceSq = currentMotion.position.distanceToSquared(
             signal.point,
@@ -7857,16 +8069,8 @@ export default function MapSimulator() {
             vehicle.currentSignalId = signal.id;
           }
           if (nextStopState.ahead < INTERSECTION_SIGNAL_LOOKAHEAD) {
-            let approachDemand = intersectionApproachDemand.get(signal.id);
-            if (!approachDemand) {
-              approachDemand = createSignalApproachDemand();
-              intersectionApproachDemand.set(signal.id, approachDemand);
-            }
-            let approachDistance = intersectionApproachDistance.get(signal.id);
-            if (!approachDistance) {
-              approachDistance = createSignalApproachDistance();
-              intersectionApproachDistance.set(signal.id, approachDistance);
-            }
+            const approachDemand = intersectionApproachDemand.get(signal.id)!;
+            const approachDistance = intersectionApproachDistance.get(signal.id)!;
             const approachDirection = approachDirectionForHeading(
               vehicle.motion.heading,
             );
@@ -7889,11 +8093,7 @@ export default function MapSimulator() {
             currentSignal &&
             currentSignalDistanceSq < INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ
           ) {
-            let claim = intersectionOccupancy.get(currentSignal.id);
-            if (!claim) {
-              claim = createSignalAxisOccupancy();
-              intersectionOccupancy.set(currentSignal.id, claim);
-            }
+            const claim = intersectionOccupancy.get(currentSignal.id)!;
             const movementAxis = dominantAxisForHeading(vehicle.motion.heading);
             claim[movementAxis] += 1;
           }
@@ -7903,11 +8103,7 @@ export default function MapSimulator() {
             vehicle.speed < INTERSECTION_EXIT_BLOCK_SPEED &&
             nextStopState.stop?.signalId !== currentSignal.id;
           if (currentSignal && isQueuedPastIntersection) {
-            let exitClaim = intersectionExitOccupancy.get(currentSignal.id);
-            if (!exitClaim) {
-              exitClaim = createSignalDirectionalOccupancy();
-              intersectionExitOccupancy.set(currentSignal.id, exitClaim);
-            }
+            const exitClaim = intersectionExitOccupancy.get(currentSignal.id)!;
             const travelDirection = signalDirectionForVector(
               vehicle.motion.heading,
             );
@@ -7915,8 +8111,11 @@ export default function MapSimulator() {
           }
         }
 
-        sample.proximityCellKey = vehicleProximityCellKeyForPosition(
-          currentMotion.lanePosition,
+        sample.proximityCellX = vehicleProximityCellCoord(
+          currentMotion.lanePosition.x,
+        );
+        sample.proximityCellZ = vehicleProximityCellCoord(
+          currentMotion.lanePosition.z,
         );
         addVehicleSampleToBucket(proximityBuckets, sample);
       }
@@ -7948,8 +8147,8 @@ export default function MapSimulator() {
                 vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
                 `${vehicle.id}-dropoff-${completedTrips}`,
                 vehicle.dropoffHotspot?.roadName ??
-                  vehicle.dropoffHotspot?.label ??
-                  null,
+                vehicle.dropoffHotspot?.label ??
+                null,
               );
               if (dropRoute) {
                 assignVehicleRoute(vehicle, dropRoute, 0);
@@ -7964,17 +8163,14 @@ export default function MapSimulator() {
               }
             } else if (vehicle.isOccupied && vehicle.dropoffHotspot) {
               completedTrips += 1;
-              if (!graph || !hotspotPool.length) {
+              if (!dispatchPlanner || !hotspotPool.length) {
                 continue;
               }
-              const nextJob = planTaxiJob(
-                vehicle.route.endKey,
-                hotspotPool,
-                completedTrips + vehicleIndex + 1,
-                vehicle.id,
-                routeBuilder,
-                graph,
-              );
+              const nextJob = dispatchPlanner.planJob({
+                startKey: vehicle.route.endKey,
+                seed: completedTrips + vehicleIndex + 1,
+                vehicleId: vehicle.id,
+              });
               if (nextJob) {
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
                 vehicle.dropoffHotspot = nextJob.dropoffHotspot;
@@ -8018,9 +8214,7 @@ export default function MapSimulator() {
               cellZ <= currentCellZ + searchCellRadius;
               cellZ += 1
             ) {
-              const bucket = proximityBuckets.get(
-                vehicleProximityCellKey(cellX, cellZ),
-              );
+              const bucket = proximityBuckets.get(cellX)?.get(cellZ);
               if (!bucket) {
                 continue;
               }
@@ -8079,7 +8273,7 @@ export default function MapSimulator() {
           nextStopState.stop &&
           nextStopState.ahead < INTERSECTION_SIGNAL_LOOKAHEAD
         ) {
-          const signal = signalById.get(nextStopState.stop.signalId);
+          const signal = nextStopState.stop.signal;
           if (signal) {
             const state =
               frameSignalStates.get(signal.id) ?? signalState(signal, elapsedTime);
@@ -8100,7 +8294,7 @@ export default function MapSimulator() {
             const opposingDirection = opposingSignalDirection(approachDirection);
             const opposingPriorityDemand = approachDemandState
               ? approachDemandState[opposingDirection].straight +
-                approachDemandState[opposingDirection].right
+              approachDemandState[opposingDirection].right
               : 0;
             const opposingPriorityDistance =
               approachDistanceState?.[opposingDirection] ??
@@ -8569,10 +8763,10 @@ export default function MapSimulator() {
           refreshRateEstimate === 0
             ? instantRefreshRate
             : THREE.MathUtils.lerp(
-                refreshRateEstimate,
-                instantRefreshRate,
-                0.1,
-              );
+              refreshRateEstimate,
+              instantRefreshRate,
+              0.1,
+            );
         refreshRateBand = stabilizeRefreshRateBand(
           refreshRateEstimate,
           refreshRateBand,
@@ -8581,10 +8775,10 @@ export default function MapSimulator() {
       const activeRenderCap = isPageHidden
         ? HIDDEN_RENDER_FPS
         : resolveRenderCap(
-            cameraModeRef.current,
-            fpsModeRef.current,
-            refreshRateBand ?? (refreshRateEstimate || null),
-          );
+          cameraModeRef.current,
+          fpsModeRef.current,
+          refreshRateBand ?? (refreshRateEstimate || null),
+        );
       const capSignature = `${activeRenderCap ?? "unlimited"}:${isPageHidden ? "hidden" : "visible"}`;
       if (capSignature !== lastCapSignature) {
         lastCapSignature = capSignature;
@@ -8658,13 +8852,15 @@ export default function MapSimulator() {
       }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
-      const simulationCpuStart = performance.now();
+      const signalCpuStart = performance.now();
       updateSignalVisuals(elapsedTime);
+      signalCpuSampleMs += performance.now() - signalCpuStart;
       vehicleSimulationAccumulator = Math.min(
         vehicleSimulationAccumulator + delta,
         VEHICLE_SIMULATION_STEP * MAX_VEHICLE_SIMULATION_STEPS,
       );
       let vehicleSimulationSteps = 0;
+      const vehicleCpuStart = performance.now();
       while (
         vehicleSimulationAccumulator >= VEHICLE_SIMULATION_STEP &&
         vehicleSimulationSteps < MAX_VEHICLE_SIMULATION_STEPS
@@ -8691,7 +8887,7 @@ export default function MapSimulator() {
         );
       }
       simulationStepSampleCount += vehicleSimulationSteps;
-      simulationCpuSampleMs += performance.now() - simulationCpuStart;
+      vehicleCpuSampleMs += performance.now() - vehicleCpuStart;
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
@@ -8886,7 +9082,7 @@ export default function MapSimulator() {
         syncCamera();
       }
 
-      const overlaySimulationCpuStart = performance.now();
+      const overlayCpuStart = performance.now();
       updateHotspotVisuals(delta, elapsedTime);
       updatePedestrians(elapsedTime);
       updatePrecipitation(delta, elapsedTime);
@@ -8910,7 +9106,9 @@ export default function MapSimulator() {
             anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
         });
       }
-      simulationCpuSampleMs += performance.now() - overlaySimulationCpuStart;
+      overlayCpuSampleMs += performance.now() - overlayCpuStart;
+      simulationCpuSampleMs =
+        signalCpuSampleMs + vehicleCpuSampleMs + overlayCpuSampleMs;
       fpsFrameCount += 1;
       fpsSampleElapsed += delta;
       if (fpsSampleElapsed >= 0.45) {
@@ -8925,6 +9123,15 @@ export default function MapSimulator() {
             Math.round(
               (simulationCpuSampleMs / Math.max(1, fpsFrameCount)) * 100,
             ) / 100;
+          const nextSignalMs =
+            Math.round((signalCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
+            100;
+          const nextVehicleMs =
+            Math.round((vehicleCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
+            100;
+          const nextOverlayMs =
+            Math.round((overlayCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
+            100;
           const nextRenderMs =
             Math.round((renderCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
             100;
@@ -8934,34 +9141,43 @@ export default function MapSimulator() {
           const nextVehicles = vehicles.length;
           setFpsStats((current) =>
             current.fps === nextFps &&
-            current.capLabel === nextCapLabel &&
-            current.simulationMs === nextSimulationMs &&
-            current.renderMs === nextRenderMs &&
-            current.simulationHz === nextSimulationHz &&
-            current.vehicles === nextVehicles
+              current.capLabel === nextCapLabel &&
+              current.simulationMs === nextSimulationMs &&
+              current.signalMs === nextSignalMs &&
+              current.vehicleMs === nextVehicleMs &&
+              current.overlayMs === nextOverlayMs &&
+              current.renderMs === nextRenderMs &&
+              current.simulationHz === nextSimulationHz &&
+              current.vehicles === nextVehicles
               ? current
               : {
-                  fps: nextFps,
-                  capLabel: nextCapLabel,
-                  simulationMs: nextSimulationMs,
-                  renderMs: nextRenderMs,
-                  simulationHz: nextSimulationHz,
-                  vehicles: nextVehicles,
-                },
+                fps: nextFps,
+                capLabel: nextCapLabel,
+                simulationMs: nextSimulationMs,
+                signalMs: nextSignalMs,
+                vehicleMs: nextVehicleMs,
+                overlayMs: nextOverlayMs,
+                renderMs: nextRenderMs,
+                simulationHz: nextSimulationHz,
+                vehicles: nextVehicles,
+              },
           );
         } else {
           setFpsStats((current) =>
             current.capLabel === nextCapLabel
               ? current
               : {
-                  ...current,
-                  capLabel: nextCapLabel,
-                },
+                ...current,
+                capLabel: nextCapLabel,
+              },
           );
         }
         fpsFrameCount = 0;
         fpsSampleElapsed = 0;
         simulationCpuSampleMs = 0;
+        signalCpuSampleMs = 0;
+        vehicleCpuSampleMs = 0;
+        overlayCpuSampleMs = 0;
         renderCpuSampleMs = 0;
         simulationStepSampleCount = 0;
       }
@@ -9022,9 +9238,6 @@ export default function MapSimulator() {
     return () => {
       sceneDisposed = true;
       window.cancelAnimationFrame(animationFrame);
-      if (simulationTimeout) {
-        window.clearTimeout(simulationTimeout);
-      }
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
@@ -9095,16 +9308,7 @@ export default function MapSimulator() {
       return [] as TransitLandmark[];
     }
 
-    const projectedRoadSegments = buildProjectedRoadSegments(
-      data.roads,
-      data.center,
-    );
-
-    return buildTransitLandmarks(
-      data.transit,
-      data.center,
-      projectedRoadSegments,
-    );
+    return data.transitLandmarks;
   }, [data]);
   const transitCounts = useMemo(
     () => ({
@@ -9166,14 +9370,14 @@ export default function MapSimulator() {
     const focusStation =
       (scenario.focusStationKeyword
         ? subwayHubs.find((station) =>
-            (station.name ?? "").includes(scenario.focusStationKeyword ?? ""),
-          )
+          (station.name ?? "").includes(scenario.focusStationKeyword ?? ""),
+        )
         : null) ??
       subwayHubs[0] ??
       null;
 
     if (shouldRebuildVehicleLayer) {
-      setStatus("rendering");
+      markSceneRendering("시나리오 기준으로 차량 배치 다시 구성 중");
     }
     setCircumstanceMode("specific");
     setSimulationDate(clock.dateIso);
@@ -9233,7 +9437,9 @@ export default function MapSimulator() {
       ? "데이터 불러오는 중"
       : status === "rendering"
         ? "장면 구성 중"
-        : status;
+        : status === "ready"
+          ? "주행 준비 완료"
+          : "불러오기 실패";
   const controlHint =
     cameraMode === "overview"
       ? "오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. 택시를 클릭하면 택시 시점으로 들어갑니다."
@@ -9251,12 +9457,12 @@ export default function MapSimulator() {
   const activeLocalScenario =
     circumstanceMode === "specific"
       ? LOCAL_SCENARIO_PRESETS.find(
-          (scenario) =>
-            scenario.minutes === normalizedSimulationTimeMinutes &&
-            scenario.weather === weatherMode &&
-            scenario.taxis === simulationDensity.taxis &&
-            scenario.traffic === simulationDensity.traffic,
-        ) ?? null
+        (scenario) =>
+          scenario.minutes === normalizedSimulationTimeMinutes &&
+          scenario.weather === weatherMode &&
+          scenario.taxis === simulationDensity.taxis &&
+          scenario.traffic === simulationDensity.traffic,
+      ) ?? null
       : null;
   const solarReferenceCenter = data?.center ?? DEFAULT_MAP_CENTER;
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
@@ -9306,33 +9512,33 @@ export default function MapSimulator() {
           : "활발";
   const scenarioBrief = activeLocalScenario
     ? {
-        title: activeLocalScenario.label,
-        summary: activeLocalScenario.summary,
-        note: activeLocalScenario.presentationNote,
-        speakerNotes: activeLocalScenario.speakerNotes,
-        focusLabel: activeLocalScenario.focusLabel,
-        weatherLabel:
-          WEATHER_OPTIONS.find(
-            (option) => option.id === activeLocalScenario.weather,
-          )?.label ?? selectedWeather.label,
-      }
+      title: activeLocalScenario.label,
+      summary: activeLocalScenario.summary,
+      note: activeLocalScenario.presentationNote,
+      speakerNotes: activeLocalScenario.speakerNotes,
+      focusLabel: activeLocalScenario.focusLabel,
+      weatherLabel:
+        WEATHER_OPTIONS.find(
+          (option) => option.id === activeLocalScenario.weather,
+        )?.label ?? selectedWeather.label,
+    }
     : {
-        title: "수동 조합",
-        summary:
-          "현재 장면은 프리셋 조합에서 벗어난 수동 상태로, 시간·날씨·밀도를 직접 맞춘 발표용 커스텀 장면입니다.",
-        note:
-          "슬라이더나 시간/날씨를 개별 조정한 뒤 원하는 설명 흐름에 맞춰 보여줄 때 적합합니다.",
-        speakerNotes: [
-          "현재 장면은 프리셋이 아니라 발표 의도에 맞춰 직접 조정한 커스텀 상태입니다.",
-          "시간, 날씨, 밀도를 개별 조정해 필요한 장면만 골라 설명할 때 적합합니다.",
-        ],
-        focusLabel: selectedSubwayName || "현재 카메라 기준",
-        weatherLabel: selectedWeather.label,
-      };
+      title: "수동 조합",
+      summary:
+        "현재 장면은 프리셋 조합에서 벗어난 수동 상태로, 시간·날씨·밀도를 직접 맞춘 발표용 커스텀 장면입니다.",
+      note:
+        "슬라이더나 시간/날씨를 개별 조정한 뒤 원하는 설명 흐름에 맞춰 보여줄 때 적합합니다.",
+      speakerNotes: [
+        "현재 장면은 프리셋이 아니라 발표 의도에 맞춰 직접 조정한 커스텀 상태입니다.",
+        "시간, 날씨, 밀도를 개별 조정해 필요한 장면만 골라 설명할 때 적합합니다.",
+      ],
+      focusLabel: selectedSubwayName || "현재 카메라 기준",
+      weatherLabel: selectedWeather.label,
+    };
   const recommendedWeatherLabel = activeLocalScenario
     ? WEATHER_OPTIONS.find(
-        (option) => option.id === activeLocalScenario.weather,
-      )?.label ?? selectedWeather.label
+      (option) => option.id === activeLocalScenario.weather,
+    )?.label ?? selectedWeather.label
     : selectedWeather.label;
   const timeWeatherControls = (
     <>
@@ -9341,12 +9547,18 @@ export default function MapSimulator() {
           <button
             key={option.id}
             type="button"
-            onClick={() => setCircumstanceMode(option.id)}
-            className={`rounded-2xl border px-3 py-2 text-left transition ${
-              circumstanceMode === option.id
-                ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
-                : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-            }`}
+            onClick={() => {
+              setCircumstanceMode(option.id);
+              setStatusDetail(
+                option.id === "live"
+                  ? "실시간 기준으로 장면 값을 유지 중"
+                  : "특정 시각 기준으로 장면 값을 조정 중",
+              );
+            }}
+            className={`rounded-2xl border px-3 py-2 text-left transition ${circumstanceMode === option.id
+              ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
+              : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+              }`}
           >
             <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
               기준
@@ -9393,11 +9605,10 @@ export default function MapSimulator() {
             프리셋 추천값
           </div>
           <span
-            className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
-              activeLocalScenario
-                ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
-                : "border-white/10 bg-slate-950/70 text-slate-300"
-            }`}
+            className={`rounded-full border px-2 py-1 text-[11px] font-medium ${activeLocalScenario
+              ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+              : "border-white/10 bg-slate-950/70 text-slate-300"
+              }`}
           >
             {activeLocalScenario?.label ?? "수동 조정중"}
           </span>
@@ -9426,11 +9637,10 @@ export default function MapSimulator() {
                 key={preset.label}
                 type="button"
                 onClick={() => setSimulationTimeMinutes(preset.minutes)}
-                className={`rounded-2xl border px-2 py-2 text-xs transition ${
-                  simulationTimeMinutes === preset.minutes
-                    ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
-                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-                }`}
+                className={`rounded-2xl border px-2 py-2 text-xs transition ${simulationTimeMinutes === preset.minutes
+                  ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
+                  : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+                  }`}
               >
                 <div className="font-medium tabular-nums">{preset.label}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">
@@ -9496,11 +9706,10 @@ export default function MapSimulator() {
             key={option.id}
             type="button"
             onClick={() => setWeatherMode(option.id)}
-            className={`rounded-2xl border px-3 py-3 text-left transition ${
-              weatherMode === option.id
-                ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
-                : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-            }`}
+            className={`rounded-2xl border px-3 py-3 text-left transition ${weatherMode === option.id
+              ? "border-cyan-300/40 bg-cyan-300/16 text-cyan-50"
+              : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+              }`}
           >
             <div className="text-sm font-medium">{option.label}</div>
             <div className="mt-1 text-[11px] leading-5 text-slate-400">
@@ -9529,7 +9738,7 @@ export default function MapSimulator() {
       {showFps ? (
         <div
           data-ui-panel="fps-overlay"
-          className="absolute right-4 top-4 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
+          className="pointer-events-none absolute right-4 top-20 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
         >
           <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
             성능
@@ -9575,7 +9784,33 @@ export default function MapSimulator() {
               <div className="tabular-nums text-lime-100">{fpsStats.vehicles}</div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
+          <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px] text-slate-300">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                신호
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.signalMs.toFixed(2)} ms
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                차량
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.vehicleMs.toFixed(2)} ms
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                보조
+              </div>
+              <div className="tabular-nums text-lime-100">
+                {fpsStats.overlayMs.toFixed(2)} ms
+              </div>
+            </div>
+          </div>
+          <div className="pointer-events-auto mt-3 grid grid-cols-3 gap-1.5">
             {fpsModeOptions.map((option) => {
               const isSelected = fpsMode === option.id;
               return (
@@ -9583,11 +9818,10 @@ export default function MapSimulator() {
                   key={option.id}
                   type="button"
                   onClick={() => setFpsMode(option.id)}
-                  className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${
-                    isSelected
-                      ? "border-lime-300/40 bg-lime-400/10 text-lime-100"
-                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8"
-                  }`}
+                  className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${isSelected
+                    ? "border-lime-300/40 bg-lime-400/10 text-lime-100"
+                    : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8"
+                    }`}
                 >
                   <div className="font-medium">{option.label}</div>
                 </button>
@@ -9605,9 +9839,8 @@ export default function MapSimulator() {
 
       <div
         data-ui-panel="right-sidebar"
-        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${
-          showFps ? "top-[16rem]" : "top-4"
-        }`}
+        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${showFps ? "top-[21rem]" : "top-4"
+          }`}
       >
         {timeWeatherControls}
       </div>
@@ -9660,11 +9893,10 @@ export default function MapSimulator() {
               </div>
             </div>
             <span
-              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
-                activeLocalScenario
-                  ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
-                  : "border-white/10 bg-slate-950/70 text-slate-400"
-              }`}
+              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${activeLocalScenario
+                ? "border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+                : "border-white/10 bg-slate-950/70 text-slate-400"
+                }`}
             >
               {activeLocalScenario?.label ?? "수동 조합"}
             </span>
@@ -9681,11 +9913,10 @@ export default function MapSimulator() {
                   data-local-scenario-button={scenario.id}
                   data-selected={isSelected ? "true" : "false"}
                   aria-label={`${scenario.label} 시나리오 적용`}
-                  className={`rounded-2xl border px-3 py-3 text-left transition ${
-                    isSelected
-                      ? "border-cyan-300/35 bg-cyan-300/16 text-cyan-50"
-                      : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
-                  }`}
+                  className={`rounded-2xl border px-3 py-3 text-left transition ${isSelected
+                    ? "border-cyan-300/35 bg-cyan-300/16 text-cyan-50"
+                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white"
+                    }`}
                 >
                   <div className="text-sm font-semibold">{scenario.label}</div>
                   <div className="mt-1 text-[11px] leading-5 text-slate-400">
@@ -9891,11 +10122,10 @@ export default function MapSimulator() {
               </div>
             </div>
             <span
-              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${
-                isDensityApplying
-                  ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
-                  : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
-              }`}
+              className={`rounded-full border px-2 py-1 text-[11px] font-medium ${isDensityApplying
+                ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
+                : "border-emerald-300/20 bg-emerald-300/10 text-emerald-100"
+                }`}
             >
               {isDensityApplying ? "적용 중" : "반영됨"}
             </span>
@@ -9921,7 +10151,7 @@ export default function MapSimulator() {
               step={1}
               value={simulationDensity.taxis}
               onChange={(event) => {
-                setStatus("rendering");
+                markSceneRendering("택시 배치를 다시 구성 중");
                 setSimulationDensity((current) => ({
                   ...current,
                   taxis: Number(event.target.value),
@@ -9951,7 +10181,7 @@ export default function MapSimulator() {
               step={1}
               value={simulationDensity.traffic}
               onChange={(event) => {
-                setStatus("rendering");
+                markSceneRendering("일반 차량 배치를 다시 구성 중");
                 setSimulationDensity((current) => ({
                   ...current,
                   traffic: Number(event.target.value),
@@ -10079,11 +10309,10 @@ export default function MapSimulator() {
                   setCameraMode(mode);
                 }}
                 disabled={mode === "ride" && !selectedTaxiId}
-                className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${
-                  cameraMode === mode
-                    ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
-                    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                }`}
+                className={`rounded-2xl border px-3 py-2 text-xs font-medium transition ${cameraMode === mode
+                  ? "border-cyan-300/40 bg-cyan-300/18 text-cyan-50"
+                  : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  }`}
               >
                 {label}
               </button>
@@ -10189,11 +10418,10 @@ export default function MapSimulator() {
                     key={station.id}
                     type="button"
                     onClick={() => handleSubwayFocus(station)}
-                    className={`rounded-full border px-2 py-1 transition ${
-                      isSelected
-                        ? "border-sky-300/35 bg-sky-300/20 text-sky-50"
-                        : "border-sky-300/15 bg-sky-300/10 text-sky-100 hover:border-sky-300/28 hover:bg-sky-300/16"
-                    }`}
+                    className={`rounded-full border px-2 py-1 transition ${isSelected
+                      ? "border-sky-300/35 bg-sky-300/20 text-sky-50"
+                      : "border-sky-300/15 bg-sky-300/10 text-sky-100 hover:border-sky-300/28 hover:bg-sky-300/16"
+                      }`}
                     title={`${label}로 이동`}
                   >
                     {label}
@@ -10217,6 +10445,8 @@ export default function MapSimulator() {
           className="mt-4 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs leading-5 text-slate-400"
         >
           상태: <span className="text-slate-100">{statusLabel}</span>
+          <br />
+          단계: <span className="text-slate-100">{statusDetail}</span>
           <br />
           기준: <span className="text-slate-100">{circumstanceModeLabel}</span>
           <br />
