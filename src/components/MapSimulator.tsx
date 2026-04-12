@@ -6,6 +6,8 @@ import {
   CSS2DObject,
   CSS2DRenderer,
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
+import { SimplifyModifier } from "three/examples/jsm/modifiers/SimplifyModifier.js";
 import type {
   Feature,
   FeatureCollection,
@@ -42,6 +44,7 @@ const SIGNAL_NODE_SNAP_DISTANCE = 16;
 const SIGNAL_COORDINATION_BAND_SIZE = 14;
 const SIGNAL_COORDINATION_PHASE_STEP = 1.35;
 const SIGNAL_WAVE_TRAVEL_SPEED = 6.4;
+const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
@@ -68,9 +71,9 @@ const INTERSECTION_LEFT_TURN_GAP_DISTANCE = 7.2;
 const VEHICLE_FOLLOW_LOOKAHEAD_BUFFER = 8;
 const VEHICLE_PROXIMITY_CELL_SIZE = 12;
 const ROAD_SEGMENT_INDEX_CELL_SIZE = 24;
-const CROSSWALK_STRIPE_COUNT = 6;
-const CROSSWALK_STEP = 1.1;
-const CROSSWALK_WIDTH = 6.2;
+const CROSSWALK_STRIPE_COUNT = 4;
+const CROSSWALK_STEP = 1.35;
+const CROSSWALK_WIDTH = 5.4;
 const PEDESTRIAN_SPAN = 4.2;
 const CAMERA_DRIVE_SPEED = 26;
 const CAMERA_STRAFE_SPEED = 22;
@@ -96,8 +99,9 @@ const FOLLOW_RENDER_FPS = 60;
 const OVERVIEW_RENDER_FPS = 60;
 const HIDDEN_RENDER_FPS = 12;
 const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
-const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 0.24;
+const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 1.2;
 const HOVER_REFRESH_INTERVAL = 1 / 30;
+const LABEL_RENDER_INTERVAL = 1 / 30;
 const LABEL_VISIBILITY_REFRESH_INTERVAL = 0.14;
 const COMMON_REFRESH_RATE_BANDS = [
   60, 72, 75, 90, 100, 120, 144, 165, 180, 200, 240,
@@ -124,6 +128,12 @@ const ROAD_NETWORK_EDGE_Y_OFFSET = 0.42;
 const ROAD_NETWORK_NODE_Y = 0.72;
 const LARGE_LOW_RISE_BUILDING_AREA_M2 = 12_000;
 const LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M = 20;
+const LOCAL_SCENARIO_FOCUS_DISTANCE = 34;
+const LOCAL_SCENARIO_FOCUS_PITCH = 0.34;
+const LOCAL_SCENARIO_FOCUS_CENTER_BLEND = 0.3;
+const LOCAL_SCENARIO_FOCUS_YAW_OFFSET = -0.76;
+const TAXI_ASSET_TARGET_LENGTH = 4.28;
+const TAXI_ASSET_MIN_VERTEX_COUNT = 1_200;
 
 type SignalAxis = "ns" | "ew";
 type SignalDirection = "north" | "east" | "south" | "west";
@@ -309,6 +319,7 @@ type SignalData = {
   id: string;
   key: string;
   point: THREE.Vector3;
+  visualPoint: THREE.Vector3;
   offset: number;
   approaches: SignalDirection[];
   hasProtectedLeft: boolean;
@@ -484,6 +495,12 @@ type LocalScenarioPreset = {
   weather: WeatherMode;
   focusLabel: string;
   focusStationKeyword?: string;
+  camera?: {
+    distance?: number;
+    pitch?: number;
+    focusCenterBlend?: number;
+    yawOffset?: number;
+  };
 };
 
 type SceneStatus = "loading" | "rendering" | "ready" | "error";
@@ -630,6 +647,7 @@ type CameraFocusTarget = {
   distance: number;
   pitch: number;
   label: string;
+  yaw?: number;
 };
 
 type NearestRoadContext = {
@@ -744,27 +762,27 @@ const DEFAULT_DISPATCH_PRESENTATION: DispatchPlannerPresentation = {
     "기본 경로는 shortest path를 쓰되, 승차/하차 포인트 우선순위는 planner 설정으로 분리해 둔 상태입니다.",
   hotspot: {
     pickup: {
-      accentColor: 0xff9f1c,
+      accentColor: 0xc99543,
       badgeLabel: "승차",
-      badgeBorderColor: "rgba(234,184,105,0.45)",
-      badgeBackground: "rgba(46,31,10,0.88)",
-      badgeTextColor: "#fff0cb",
+      badgeBorderColor: "rgba(196,154,88,0.34)",
+      badgeBackground: "rgba(35,29,22,0.84)",
+      badgeTextColor: "#efe3c6",
       showsCaller: true,
     },
     dropoff: {
-      accentColor: 0x7ebba4,
+      accentColor: 0x78908a,
       badgeLabel: "하차",
-      badgeBorderColor: "rgba(138,196,176,0.42)",
-      badgeBackground: "rgba(12,34,30,0.86)",
-      badgeTextColor: "#d7efe6",
+      badgeBorderColor: "rgba(124,151,146,0.32)",
+      badgeBackground: "rgba(24,31,30,0.82)",
+      badgeTextColor: "#d5dfdc",
       showsCaller: false,
     },
     idle: {
-      accentColor: 0x67727d,
+      accentColor: 0x5c646c,
       badgeLabel: "콜 대기",
-      badgeBorderColor: "rgba(132,145,158,0.32)",
-      badgeBackground: "rgba(26,31,38,0.82)",
-      badgeTextColor: "#d7dde4",
+      badgeBorderColor: "rgba(118,126,134,0.26)",
+      badgeBackground: "rgba(28,31,35,0.82)",
+      badgeTextColor: "#cfd5db",
       showsCaller: false,
     },
   },
@@ -841,9 +859,9 @@ type EnvironmentState = {
 };
 
 const TAXI_PALETTE: VehiclePalette = {
-  body: 0xff9f1c,
-  cabin: 0xffd39a,
-  sign: 0xfff3cf,
+  body: 0xd79a3a,
+  cabin: 0xe4c17d,
+  sign: 0xf4ebcf,
 };
 
 const TRAFFIC_PALETTES: VehiclePalette[] = [
@@ -857,9 +875,9 @@ const TRAFFIC_PALETTES: VehiclePalette[] = [
 // Keep scene styling centralized so future asset or dispatch-layer swaps do
 // not require touching simulation logic.
 const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
-const HOTSPOT_IDLE_COLORS = [0xb89662, 0x7ea79f, 0xa88374];
-const CALLER_TOP_PALETTES = [0xc98c6f, 0x7c99b2, 0x7da48b, 0xc5a05d, 0x9a8ab0];
-const CALLER_BOTTOM_PALETTES = [0x2b3440, 0x303743, 0x39414a, 0x353a44];
+const HOTSPOT_IDLE_COLORS = [0x7a6b57, 0x62716c, 0x76645c];
+const CALLER_TOP_PALETTES = [0x8a7d70, 0x6f7d8a, 0x6d8376, 0x97846a, 0x7a7387];
+const CALLER_BOTTOM_PALETTES = [0x25292d, 0x2b3035, 0x31353a, 0x2a2e32];
 const SUBWAY_STRUCTURE_ACCENTS = [0x78aaa0, 0x89b9ae, 0x6f978f];
 const PANEL_EYEBROW_CLASS =
   "mb-2 text-[11px] uppercase tracking-[0.28em] text-[#99cbbd]";
@@ -955,6 +973,12 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     weather: "clear",
     focusLabel: "강남역",
     focusStationKeyword: "강남",
+    camera: {
+      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
+      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
+      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
+      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
+    },
   },
   {
     id: "gangnam-peak",
@@ -974,6 +998,12 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     weather: "clear",
     focusLabel: "강남역",
     focusStationKeyword: "강남",
+    camera: {
+      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
+      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
+      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
+      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
+    },
   },
   {
     id: "rainy-evening",
@@ -993,6 +1023,12 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     weather: "heavy-rain",
     focusLabel: "강남역",
     focusStationKeyword: "강남",
+    camera: {
+      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
+      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
+      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
+      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
+    },
   },
   {
     id: "late-night",
@@ -1012,6 +1048,12 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     weather: "cloudy",
     focusLabel: "역삼역 권역",
     focusStationKeyword: "역삼",
+    camera: {
+      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
+      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
+      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
+      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
+    },
   },
 ];
 
@@ -1405,27 +1447,27 @@ function buildEnvironmentState(
   );
   const neutralGroundColor =
     weatherMode === "heavy-snow"
-      ? 0x334152
+      ? 0x4b5057
       : weatherMode === "heavy-rain"
-        ? 0x162332
-        : 0x152332;
+        ? 0x191c20
+        : 0x202327;
   const roadBaseColors =
     weatherMode === "heavy-snow"
       ? {
-        arterial: 0x5f6772,
-        connector: 0x555d67,
-        local: 0x4b535d,
+        arterial: 0x646a72,
+        connector: 0x5a6068,
+        local: 0x51565d,
       }
       : weatherMode === "heavy-rain"
         ? {
-          arterial: 0x2d343a,
-          connector: 0x282e34,
-          local: 0x23282d,
+          arterial: 0x393d41,
+          connector: 0x34383c,
+          local: 0x2e3235,
         }
         : {
-          arterial: 0x3d4349,
-          connector: 0x363c42,
-          local: 0x2f353a,
+          arterial: 0x4b5054,
+          connector: 0x44494d,
+          local: 0x3d4246,
         };
   const lightingPreset =
     weatherMode === "clear"
@@ -1505,44 +1547,44 @@ function buildEnvironmentState(
     },
     roadRoughness:
       weatherMode === "heavy-rain"
-        ? 0.78
+        ? 0.84
         : weatherMode === "heavy-snow"
-          ? 0.84
-          : 0.95,
+          ? 0.9
+          : 0.97,
     roadMetalness:
       weatherMode === "heavy-rain"
-        ? 0.14
+        ? 0.08
         : weatherMode === "heavy-snow"
-          ? 0.05
-          : 0.02,
-    laneMarkerColor: weatherMode === "heavy-snow" ? 0xfbfdff : 0xf7df9a,
+          ? 0.03
+          : 0.01,
+    laneMarkerColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd9d1bd,
     laneMarkerEmissive:
       daylight < 0.22
-        ? 0xa77318
+        ? 0x4a4030
         : weatherMode === "heavy-rain"
-          ? 0x5d4714
-          : 0x74540d,
+          ? 0x2f2a22
+          : 0x373127,
     laneMarkerIntensity:
-      daylight < 0.2 ? 0.34 : weatherMode === "heavy-rain" ? 0.2 : 0.16,
-    crosswalkColor: weatherMode === "heavy-snow" ? 0xffffff : 0xf0f6ff,
-    crosswalkEmissive: daylight < 0.2 ? 0x4c5664 : 0x39424f,
-    crosswalkIntensity: daylight < 0.2 ? 0.18 : 0.08,
-    stopLineColor: weatherMode === "heavy-snow" ? 0xffffff : 0xf7fbff,
-    stopLineEmissive: daylight < 0.2 ? 0x526579 : 0x394959,
-    stopLineIntensity: daylight < 0.2 ? 0.2 : 0.12,
+      daylight < 0.2 ? 0.12 : weatherMode === "heavy-rain" ? 0.05 : 0.04,
+    crosswalkColor: weatherMode === "heavy-snow" ? 0xe8ebee : 0xc6cbd1,
+    crosswalkEmissive: daylight < 0.2 ? 0x242a31 : 0x15181c,
+    crosswalkIntensity: daylight < 0.2 ? 0.05 : 0.02,
+    stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,
+    stopLineEmissive: daylight < 0.2 ? 0x262d36 : 0x181c22,
+    stopLineIntensity: daylight < 0.2 ? 0.08 : 0.03,
     buildingTint:
       weatherMode === "heavy-snow"
-        ? 0xe7ecef
+        ? 0xd7dbe0
         : weatherMode === "heavy-rain"
-          ? 0xe3e8ec
-          : 0xe6ebef,
+          ? 0xc7ccd1
+          : 0xd0d4d9,
     buildingEmissive: mixHexColor(
       0x15191d,
       0x2f3a46,
       nightBuildingFactor * 0.22 + twilight * 0.08,
     ),
     buildingEmissiveIntensity:
-      0.08 + twilight * 0.04 + nightBuildingFactor * 0.12,
+      0.05 + twilight * 0.03 + nightBuildingFactor * 0.08,
     precipitation:
       weatherMode === "heavy-rain"
         ? "rain"
@@ -2732,12 +2774,14 @@ function createSignalData(
   point: THREE.Vector3,
   approaches: SignalDirection[],
   hasProtectedLeft: boolean,
+  visualPoint: THREE.Vector3 = point,
 ): Omit<SignalData, "offset"> {
   const priorityAxis = preferredSignalAxisForApproaches(approaches, point);
   return {
     id,
     key,
     point,
+    visualPoint,
     approaches,
     hasProtectedLeft,
     priorityAxis,
@@ -3457,6 +3501,7 @@ function labelElement(
 ) {
   const element = document.createElement("div");
   element.textContent = text;
+  element.dataset.labelKind = kind;
   element.style.padding =
     kind === "road"
       ? "2px 8px"
@@ -3507,18 +3552,19 @@ function labelElement(
 function hotspotCallElement() {
   const element = document.createElement("div");
   element.textContent = "승차";
-  element.style.padding = "2px 8px";
+  element.dataset.labelKind = "hotspot";
+  element.style.padding = "2px 7px";
   element.style.borderRadius = "999px";
-  element.style.border = "1px solid rgba(216,184,126,0.36)";
-  element.style.background = "rgba(29,24,17,0.84)";
-  element.style.color = "#f3e1bd";
-  element.style.fontSize = "11px";
+  element.style.border = "1px solid rgba(180,161,128,0.28)";
+  element.style.background = "rgba(25,24,22,0.78)";
+  element.style.color = "#ddd2bb";
+  element.style.fontSize = "10px";
   element.style.fontWeight = "600";
   element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
   element.style.letterSpacing = "0";
   element.style.whiteSpace = "nowrap";
   element.style.pointerEvents = "none";
-  element.style.boxShadow = "0 6px 14px rgba(0,0,0,0.24)";
+  element.style.boxShadow = "0 4px 10px rgba(0,0,0,0.18)";
   return element;
 }
 
@@ -3893,6 +3939,7 @@ function buildFallbackSignals(
           candidate.point.clone(),
           candidate.approaches,
           candidate.approaches.length >= 4,
+          candidate.point.clone(),
         ),
       ),
   );
@@ -3987,9 +4034,8 @@ function buildSignalsFromOsm(
       return;
     }
 
-    const point = anchorNode.point.clone();
     const nearbySegmentsForSignal = nearbyRoadSegments(
-      point,
+      anchorNode.point,
       roadSegments,
       SIGNAL_ROAD_SNAP_DISTANCE,
       roadSegmentSpatialIndex,
@@ -4002,8 +4048,8 @@ function buildSignalsFromOsm(
       new Set(
         nearbySegmentsForSignal.flatMap((segment) => {
           const directions: SignalDirection[] = [];
-          const startVector = segment.start.clone().sub(point);
-          const endVector = segment.end.clone().sub(point);
+          const startVector = segment.start.clone().sub(anchorNode.point);
+          const endVector = segment.end.clone().sub(anchorNode.point);
           if (startVector.lengthSq() > 9) {
             directions.push(signalDirectionForVector(startVector));
           }
@@ -4019,6 +4065,34 @@ function buildSignalsFromOsm(
     ).size;
     if (approaches.length < 3 || axisCount < 2) {
       return;
+    }
+
+    const point = anchorNode.point.clone();
+    const visualShift = clusterPoint.clone().sub(point);
+    visualShift.y = 0;
+    const visualShiftDistance = visualShift.length();
+    if (visualShiftDistance > 0.001) {
+      const blendRatio =
+        cluster.points.length >= 4
+          ? 0.58
+          : cluster.points.length === 3
+            ? 0.48
+            : cluster.points.length === 2
+              ? 0.36
+              : 0.12;
+      const maxShiftDistance =
+        cluster.points.length >= 4
+          ? 5.6
+          : cluster.points.length === 3
+            ? 4.8
+            : cluster.points.length === 2
+              ? 3.8
+              : 1.8;
+      point.addScaledVector(
+        visualShift,
+        Math.min(visualShiftDistance * blendRatio, maxShiftDistance) /
+          visualShiftDistance,
+      );
     }
 
     const rank = nearbySegmentsForSignal.reduce(
@@ -4037,9 +4111,10 @@ function buildSignalsFromOsm(
       ...createSignalData(
         `signal-${byAnchorKey.size}`,
         anchorNode.key,
-        point,
+        anchorNode.point.clone(),
         approaches,
         hasProtectedLeft,
+        point,
       ),
       score,
     };
@@ -4059,6 +4134,7 @@ function buildSignalsFromOsm(
           signal.point,
           signal.approaches,
           signal.hasProtectedLeft,
+          signal.visualPoint,
         ),
       ),
   );
@@ -5052,12 +5128,235 @@ function canVehicleProceed(
   return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
 }
 
-function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
+function loadTaxiAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS) {
+  const loader = new FBXLoader();
+
+  return new Promise<THREE.Group>((resolve, reject) => {
+    const originalWarn = console.warn;
+    const restoreWarn = () => {
+      console.warn = originalWarn;
+    };
+    console.warn = (...args: unknown[]) => {
+      const first = args[0];
+      if (
+        typeof first === "string" &&
+        first.startsWith("THREE.FBXLoader:")
+      ) {
+        return;
+      }
+      originalWarn(...args);
+    };
+    const timeoutId = window.setTimeout(() => {
+      restoreWarn();
+      reject(new Error(`Timed out loading taxi asset: ${path}`));
+    }, timeoutMs);
+
+    loader.load(
+      path,
+      (object) => {
+        window.clearTimeout(timeoutId);
+        restoreWarn();
+        resolve(object);
+      },
+      undefined,
+      (error) => {
+        window.clearTimeout(timeoutId);
+        restoreWarn();
+        reject(error);
+      },
+    );
+  });
+}
+
+function normalizeTaxiAssetTemplate(source: THREE.Group) {
+  const container = new THREE.Group();
+  const model = source.clone(true);
+  container.add(model);
+
+  let bounds = new THREE.Box3().setFromObject(container);
+  const initialSize = bounds.getSize(new THREE.Vector3());
+  if (initialSize.x > initialSize.z * 1.12) {
+    model.rotation.y = Math.PI / 2;
+    bounds = new THREE.Box3().setFromObject(container);
+  }
+
+  const normalizedSize = bounds.getSize(new THREE.Vector3());
+  const length = Math.max(normalizedSize.z, normalizedSize.x, 0.001);
+  model.scale.setScalar(TAXI_ASSET_TARGET_LENGTH / length);
+
+  bounds = new THREE.Box3().setFromObject(container);
+  const center = bounds.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= bounds.min.y;
+
+  const simplifyModifier = new SimplifyModifier();
+  container.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) {
+      return;
+    }
+    const positionAttribute = child.geometry.getAttribute("position");
+    const vertexCount = positionAttribute?.count ?? 0;
+    if (vertexCount >= TAXI_ASSET_MIN_VERTEX_COUNT) {
+      const keepRatio = /wheel/i.test(child.name) ? 0.16 : 0.28;
+      const removeCount = Math.floor(vertexCount * (1 - keepRatio));
+      if (removeCount > 0 && removeCount < vertexCount - 3) {
+        try {
+          child.geometry = simplifyModifier.modify(child.geometry, removeCount);
+        } catch (error) {
+          console.warn("Failed to simplify taxi asset mesh", child.name, error);
+        }
+      }
+    }
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+
+  return container;
+}
+
+function vehicleAssetMaterialHint(object: THREE.Object3D) {
+  const mesh = object as THREE.Mesh;
+  const sourceLabel = [
+    object.name,
+    Array.isArray(mesh.material)
+      ? mesh.material.map((material) => material?.name ?? "").join(" ")
+      : mesh.material instanceof THREE.Material
+        ? mesh.material.name
+        : "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/paint|orange/.test(sourceLabel)) {
+    return "body" as const;
+  }
+  if (/glass|screen|window|blue_grass/.test(sourceLabel)) {
+    return "glass" as const;
+  }
+  if (/rubber|tire|wheel|plastic|black|air_duct/.test(sourceLabel)) {
+    return "trim" as const;
+  }
+  if (/silver|metallic|chrome/.test(sourceLabel)) {
+    return "metal" as const;
+  }
+  return "default" as const;
+}
+
+function createTaxiAssetGroup(
+  palette: VehiclePalette,
+  taxiAssetTemplate: THREE.Group,
+) {
+  const group = taxiAssetTemplate.clone(true);
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: palette.body,
+    emissive: 0x321500,
+    emissiveIntensity: 0.1,
+    roughness: 0.82,
+    metalness: 0.16,
+  });
+  const signMaterial = new THREE.MeshStandardMaterial({
+    color: palette.sign ?? 0xffe1aa,
+    emissive: 0x7d4800,
+    emissiveIntensity: 0.28,
+    roughness: 0.66,
+    metalness: 0.02,
+  });
+  const glassMaterial = new THREE.MeshStandardMaterial({
+    color: 0x91a1ae,
+    emissive: 0x101923,
+    emissiveIntensity: 0.05,
+    roughness: 0.18,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.9,
+  });
+  const trimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1d2024,
+    roughness: 0.94,
+    metalness: 0.04,
+  });
+  const metalMaterial = new THREE.MeshStandardMaterial({
+    color: 0x959aa0,
+    roughness: 0.66,
+    metalness: 0.24,
+  });
+
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) {
+      return;
+    }
+
+    child.castShadow = true;
+    child.receiveShadow = true;
+
+    const hint = vehicleAssetMaterialHint(child);
+    if (hint === "body") {
+      child.material = bodyMaterial;
+      return;
+    }
+    if (hint === "glass") {
+      child.material = glassMaterial;
+      return;
+    }
+    if (hint === "trim") {
+      child.material = trimMaterial;
+      return;
+    }
+    if (hint === "metal") {
+      child.material = metalMaterial;
+      return;
+    }
+    child.material = metalMaterial;
+  });
+
+  const assetBounds = new THREE.Box3().setFromObject(group);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.24, 0.72), signMaterial);
+  sign.position.set(0, assetBounds.max.y + 0.18, -0.24);
+  sign.castShadow = true;
+  group.add(sign);
+
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.5, 5),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.14,
+    }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  const clickTarget = new THREE.Mesh(
+    new THREE.BoxGeometry(3.2, 3.2, 6.8),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      colorWrite: false,
+    }),
+  );
+  clickTarget.position.y = 1.4;
+  group.add(clickTarget);
+
+  return { group, bodyMaterial, signMaterial, clickTarget };
+}
+
+function createVehicleGroup(
+  kind: VehicleKind,
+  palette: VehiclePalette,
+  taxiAssetTemplate: THREE.Group | null = null,
+) {
+  if (kind === "taxi" && taxiAssetTemplate) {
+    return createTaxiAssetGroup(palette, taxiAssetTemplate);
+  }
+
   const group = new THREE.Group();
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color: palette.body,
-    roughness: 0.84,
-    metalness: 0.06,
+    roughness: 0.9,
+    metalness: 0.12,
   });
 
   const body = new THREE.Mesh(
@@ -5071,12 +5370,27 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   body.position.y = 0.7;
   group.add(body);
 
+  const lowerTrim = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      kind === "taxi" ? 1.88 : 1.7,
+      0.22,
+      kind === "taxi" ? 4.18 : 3.94,
+    ),
+    new THREE.MeshStandardMaterial({
+      color: 0x1d2024,
+      roughness: 0.94,
+      metalness: 0.04,
+    }),
+  );
+  lowerTrim.position.y = 0.2;
+  group.add(lowerTrim);
+
   const cabin = new THREE.Mesh(
     new THREE.BoxGeometry(kind === "taxi" ? 1.24 : 1.14, 0.95, 2.05),
     new THREE.MeshStandardMaterial({
       color: palette.cabin,
-      roughness: 0.42,
-      metalness: 0.05,
+      roughness: 0.68,
+      metalness: 0.04,
     }),
   );
   cabin.position.set(0, 1.5, 0.15);
@@ -5085,10 +5399,10 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   const windshield = new THREE.Mesh(
     new THREE.BoxGeometry(1.08, 0.18, 1.46),
     new THREE.MeshStandardMaterial({
-      color: 0xbfd0dc,
-      emissive: 0x173042,
-      emissiveIntensity: 0.12,
-      roughness: 0.14,
+      color: 0x8fa1ae,
+      emissive: 0x0f1821,
+      emissiveIntensity: 0.06,
+      roughness: 0.22,
       metalness: 0.08,
     }),
   );
@@ -5099,13 +5413,13 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   if (kind === "taxi") {
     signMaterial = new THREE.MeshStandardMaterial({
       color: palette.sign ?? 0xfff9d8,
-      emissive: 0x754600,
-      emissiveIntensity: 0.18,
-      roughness: 0.58,
+      emissive: 0x3d2b0c,
+      emissiveIntensity: 0.08,
+      roughness: 0.72,
       metalness: 0,
     });
     const sign = new THREE.Mesh(
-      new THREE.BoxGeometry(1.08, 0.32, 0.82),
+      new THREE.BoxGeometry(0.92, 0.26, 0.72),
       signMaterial,
     );
     sign.position.set(0, 2.45, -0.25);
@@ -5238,10 +5552,10 @@ function createCallerGroup(seed: number) {
   const hailCube = new THREE.Mesh(
     new THREE.BoxGeometry(0.24, 0.24, 0.16),
     new THREE.MeshStandardMaterial({
-      color: 0xf0c86b,
-      emissive: 0x68440a,
-      emissiveIntensity: 0.24,
-      roughness: 0.44,
+      color: 0xb8c2c9,
+      emissive: 0x21303c,
+      emissiveIntensity: 0.08,
+      roughness: 0.58,
     }),
   );
   hailCube.position.set(0.12, -0.62, 0.08);
@@ -5806,9 +6120,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     );
     const dummy = new THREE.Object3D();
     const initialOffset = new THREE.Vector3(-120, 135, 150);
+    const overviewYaw = Math.atan2(initialOffset.x, initialOffset.z);
     const cameraRig = {
       focus: centerPoint.clone(),
-      yaw: Math.atan2(initialOffset.x, initialOffset.z),
+      yaw: overviewYaw,
       pitch: Math.atan2(
         initialOffset.y,
         Math.hypot(initialOffset.x, initialOffset.z),
@@ -5846,6 +6161,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     let hoverRefreshAccumulator = HOVER_REFRESH_INTERVAL;
     let labelVisibilityNeedsUpdate = true;
     let labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
+    let labelRenderAccumulator = LABEL_RENDER_INTERVAL;
+    let labelRenderPending = true;
+    let visibleSceneLabelCount = 0;
     let cameraLookLift = CAMERA_LOOK_HEIGHT;
     let appliedHoverRefreshRequest = hoverRefreshRequestRef.current;
     let appliedLabelRefreshRequest = labelRefreshRequestRef.current;
@@ -5907,6 +6225,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const markLabelVisibilityDirty = () => {
       labelVisibilityNeedsUpdate = true;
       labelVisibilityAccumulator = LABEL_VISIBILITY_REFRESH_INTERVAL;
+      labelRenderPending = true;
+      labelRenderAccumulator = LABEL_RENDER_INTERVAL;
     };
 
     syncCamera();
@@ -5971,9 +6291,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     };
 
     const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x101b26,
+      color: 0x202327,
       roughness: 0.98,
-      metalness: 0.02,
+      metalness: 0.01,
     });
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(size.x + 120, size.z + 120),
@@ -5996,7 +6316,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const fillMaterial = new THREE.MeshBasicMaterial({
           color: dong.color,
           transparent: true,
-          opacity: 0.06,
+          opacity: 0.03,
           depthWrite: false,
           side: THREE.DoubleSide,
         });
@@ -6029,9 +6349,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const nonRoadMaterials = {
       facility: new THREE.MeshBasicMaterial({
-        color: 0x535b64,
+        color: 0x4f5358,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.1,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6039,9 +6359,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -2,
       }),
       green: new THREE.MeshBasicMaterial({
-        color: 0x486349,
+        color: 0x465344,
         transparent: true,
-        opacity: 0.24,
+        opacity: 0.16,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6049,9 +6369,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -3,
       }),
       pedestrian: new THREE.MeshBasicMaterial({
-        color: 0x6d6a64,
+        color: 0x67645f,
         transparent: true,
-        opacity: 0.14,
+        opacity: 0.08,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6059,9 +6379,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -4,
       }),
       parking: new THREE.MeshBasicMaterial({
-        color: 0x756d63,
+        color: 0x6c655c,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.1,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6069,9 +6389,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         polygonOffsetUnits: -5,
       }),
       water: new THREE.MeshBasicMaterial({
-        color: 0x46687a,
+        color: 0x485965,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.14,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -6338,6 +6658,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const taxiRoutePool: RouteTemplate[] = data.taxiRoutePool;
     const trafficRoutePool: RouteTemplate[] = data.trafficRoutePool;
     let vehicleLayerReady = false;
+    let taxiAssetTemplate: THREE.Group | null = null;
     let activeVehicleSpeedMultiplier = 1;
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
@@ -6395,25 +6716,97 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       }
     };
 
+    const decrementDemandCount = (
+      demandMap: Map<string, number>,
+      hotspotId: string | null | undefined,
+    ) => {
+      if (!hotspotId) {
+        return;
+      }
+
+      const nextCount = (demandMap.get(hotspotId) ?? 0) - 1;
+      if (nextCount > 0) {
+        demandMap.set(hotspotId, nextCount);
+      } else {
+        demandMap.delete(hotspotId);
+      }
+    };
+
+    const incrementDemandCount = (
+      demandMap: Map<string, number>,
+      hotspotId: string | null | undefined,
+    ) => {
+      if (!hotspotId) {
+        return;
+      }
+
+      demandMap.set(hotspotId, (demandMap.get(hotspotId) ?? 0) + 1);
+    };
+
+    const replaceDemandMapContents = (
+      demandMap: Map<string, number>,
+      nextValues: ReadonlyMap<string, number>,
+    ) => {
+      demandMap.clear();
+      nextValues.forEach((count, hotspotId) => {
+        demandMap.set(hotspotId, count);
+      });
+    };
+
+    const createDispatchDemandSnapshotFromMaps = (
+      elapsedTimeSeconds: number,
+      pickupDemandMap: Map<string, number>,
+      dropoffDemandMap: Map<string, number>,
+    ): DispatchDemandSnapshot => ({
+      elapsedTimeSeconds,
+      completedTrips,
+      hotspotCount: hotspotPool.length,
+      activePickupsByHotspotId: pickupDemandMap,
+      activeDropoffsByHotspotId: dropoffDemandMap,
+    });
+
+    let hotspotDemandMapsDirty = true;
+    const syncActiveHotspotDemandMaps = () => {
+      rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
+      hotspotDemandMapsDirty = false;
+      hotspotActivityAccumulator = 0;
+    };
+
     const createDispatchDemandSnapshot = (
       elapsedTimeSeconds: number,
       excludedVehicleId?: string | null,
     ): DispatchDemandSnapshot => {
-      const pickupDemandMap = new Map<string, number>();
-      const dropoffDemandMap = new Map<string, number>();
-      rebuildHotspotDemandMaps(
+      if (hotspotDemandMapsDirty) {
+        syncActiveHotspotDemandMaps();
+      }
+
+      const pickupDemandMap = new Map(activePickupsByHotspot);
+      const dropoffDemandMap = new Map(activeDropoffsByHotspot);
+      const excludedVehicle = excludedVehicleId
+        ? taxiById.get(excludedVehicleId) ?? null
+        : null;
+
+      if (excludedVehicle) {
+        if (!excludedVehicle.isOccupied && excludedVehicle.pickupHotspot) {
+          decrementDemandCount(
+            pickupDemandMap,
+            excludedVehicle.pickupHotspot.id,
+          );
+        }
+
+        if (excludedVehicle.isOccupied && excludedVehicle.dropoffHotspot) {
+          decrementDemandCount(
+            dropoffDemandMap,
+            excludedVehicle.dropoffHotspot.id,
+          );
+        }
+      }
+
+      return createDispatchDemandSnapshotFromMaps(
+        elapsedTimeSeconds,
         pickupDemandMap,
         dropoffDemandMap,
-        excludedVehicleId,
       );
-
-      return {
-        elapsedTimeSeconds,
-        completedTrips,
-        hotspotCount: hotspotPool.length,
-        activePickupsByHotspotId: pickupDemandMap,
-        activeDropoffsByHotspotId: dropoffDemandMap,
-      };
     };
 
     const routeBuilder = (
@@ -6501,6 +6894,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       taxiVehicles.length = 0;
       taxiClickTargets.length = 0;
       taxiById.clear();
+      activePickupsByHotspot.clear();
+      activeDropoffsByHotspot.clear();
+      hotspotDemandMapsDirty = false;
+      hotspotActivityAccumulator = 0;
       vehicleSimulationAccumulator = 0;
     };
 
@@ -6516,6 +6913,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       completedTrips = 0;
       activeVehicleDensity.taxis = nextTaxiCount;
       activeVehicleDensity.traffic = nextTrafficCount;
+      const bootstrapPickupDemandMap = new Map<string, number>();
+      const bootstrapDropoffDemandMap = new Map<string, number>();
 
       for (let index = 0; index < nextTaxiCount; index += 1) {
         const spawnHotspot = hotspotPool[(index * 2) % hotspotPool.length];
@@ -6524,14 +6923,18 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           startKey: spawnHotspot.nodeKey,
           seed: index + 1,
           vehicleId,
-          demandSnapshot: createDispatchDemandSnapshot(0),
+          demandSnapshot: createDispatchDemandSnapshotFromMaps(
+            0,
+            bootstrapPickupDemandMap,
+            bootstrapDropoffDemandMap,
+          ),
         });
         if (!job) {
           continue;
         }
 
         const { group, bodyMaterial, signMaterial, clickTarget } =
-          createVehicleGroup("taxi", TAXI_PALETTE);
+          createVehicleGroup("taxi", TAXI_PALETTE, taxiAssetTemplate);
         scene.add(group);
 
         const vehicle: Vehicle = {
@@ -6578,6 +6981,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         vehicles.push(vehicle);
         taxiVehicles.push(vehicle);
         taxiById.set(vehicle.id, vehicle);
+        incrementDemandCount(bootstrapPickupDemandMap, job.pickupHotspot.id);
       }
 
       for (let index = 0; index < nextTrafficCount; index += 1) {
@@ -6630,6 +7034,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         vehicles.push(vehicle);
       }
 
+      replaceDemandMapContents(activePickupsByHotspot, bootstrapPickupDemandMap);
+      replaceDemandMapContents(activeDropoffsByHotspot, bootstrapDropoffDemandMap);
+      hotspotDemandMapsDirty = false;
+      hotspotActivityAccumulator = 0;
       syncSelectedTaxi();
       hoverNeedsUpdate = true;
       updateVehicleLayerStats(taxiVehicles.length, vehicles.length - taxiVehicles.length);
@@ -6745,22 +7153,25 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const roadMaterials = {
       arterial: new THREE.MeshStandardMaterial({
-        color: 0x3d4349,
-        roughness: 0.96,
+        color: 0x4b5054,
+        roughness: 0.97,
+        metalness: 0.01,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       }),
       connector: new THREE.MeshStandardMaterial({
-        color: 0x363c42,
-        roughness: 0.96,
+        color: 0x44494d,
+        roughness: 0.97,
+        metalness: 0.01,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
       }),
       local: new THREE.MeshStandardMaterial({
-        color: 0x2f353a,
-        roughness: 0.97,
+        color: 0x3d4246,
+        roughness: 0.98,
+        metalness: 0.01,
         polygonOffset: true,
         polygonOffsetFactor: 0,
         polygonOffsetUnits: 0,
@@ -6841,10 +7252,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     });
 
     const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf7df9a,
-      emissive: 0x74540d,
-      emissiveIntensity: 0.16,
-      roughness: 0.62,
+      color: 0xd9d1bd,
+      emissive: 0x373127,
+      emissiveIntensity: 0.04,
+      roughness: 0.82,
     });
     const laneMarkerMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.16, 0.03, 1),
@@ -6863,10 +7274,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     scene.add(laneMarkerMesh);
 
     const buildingMaterial = new THREE.MeshStandardMaterial({
-      roughness: 0.96,
+      roughness: 0.98,
       metalness: 0.02,
       emissive: 0x171b20,
-      emissiveIntensity: 0.04,
+      emissiveIntensity: 0.025,
     });
     const buildingMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -6985,6 +7396,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       const cameraPosition = camera.position;
       const highlightedDongs = new Set(activeHighlightedDongNames);
       let visibleDistrictCount = 0;
+      let visibleOptionalCount = 0;
 
       labelDistanceEntries.length = 0;
       districtLabelEntries.forEach((entry) => {
@@ -7014,6 +7426,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         index += 1
       ) {
         labelDistanceEntries[index]!.entry.label.visible = true;
+        visibleDistrictCount += 1;
       }
 
       labelDistanceEntries.length = 0;
@@ -7043,7 +7456,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         index += 1
       ) {
         labelDistanceEntries[index]!.entry.label.visible = true;
+        visibleOptionalCount += 1;
       }
+
+      visibleSceneLabelCount = visibleDistrictCount + visibleOptionalCount;
+      labelRenderPending = true;
     };
 
     const resolveFollowTaxi = () =>
@@ -7109,8 +7526,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const applyModePreset = (mode: CameraMode) => {
       if (mode === "overview") {
+        cameraFocusTargetRef.current = null;
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
+        cameraRig.yaw = overviewYaw;
         cameraRig.pitch = Math.max(cameraRig.pitch, 0.86);
         cameraRig.distance = Math.max(
           cameraRig.distance,
@@ -7362,7 +7781,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           group.add(mast);
         });
 
-        group.position.copy(signal.point);
+        group.position.copy(signal.visualPoint);
         scene.add(group);
 
         return {
@@ -7379,36 +7798,49 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       signalVisuals.push(...nextSignalVisuals);
 
       const crosswalkStripes = signalVisuals.flatMap((signal) => {
+        const stripeOffset = (CROSSWALK_STRIPE_COUNT - 1) * 0.5;
         const nsStripes = Array.from(
           { length: CROSSWALK_STRIPE_COUNT },
           (_, index) => ({
-            center: signal.point
+            center: signal.visualPoint
               .clone()
-              .add(new THREE.Vector3(0, 0.03, (index - 2.5) * CROSSWALK_STEP)),
+              .add(
+                new THREE.Vector3(
+                  0,
+                  0.03,
+                  (index - stripeOffset) * CROSSWALK_STEP,
+                ),
+              ),
             angle: 0,
             width: CROSSWALK_WIDTH,
-            depth: 0.42,
+            depth: 0.34,
           }),
         );
         const ewStripes = Array.from(
           { length: CROSSWALK_STRIPE_COUNT },
           (_, index) => ({
-            center: signal.point
+            center: signal.visualPoint
               .clone()
-              .add(new THREE.Vector3((index - 2.5) * CROSSWALK_STEP, 0.03, 0)),
+              .add(
+                new THREE.Vector3(
+                  (index - stripeOffset) * CROSSWALK_STEP,
+                  0.03,
+                  0,
+                ),
+              ),
             angle: Math.PI / 2,
             width: CROSSWALK_WIDTH,
-            depth: 0.42,
+            depth: 0.34,
           }),
         );
         return [...nsStripes, ...ewStripes];
       });
 
       crosswalkMaterial = new THREE.MeshStandardMaterial({
-        color: 0xeef4ff,
-        emissive: 0x39424f,
-        emissiveIntensity: 0.08,
-        roughness: 0.7,
+        color: 0xc6cbd1,
+        emissive: 0x15181c,
+        emissiveIntensity: 0.02,
+        roughness: 0.9,
       });
       const crosswalkMesh = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 0.02, 1),
@@ -7431,10 +7863,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
 
       stopLineMaterial = new THREE.MeshStandardMaterial({
-        color: 0xf7fbff,
-        emissive: 0x394959,
-        emissiveIntensity: 0.12,
-        roughness: 0.54,
+        color: 0xd5d9dd,
+        emissive: 0x181c22,
+        emissiveIntensity: 0.03,
+        roughness: 0.82,
       });
       const stopLineMesh = new THREE.InstancedMesh(
         new THREE.BoxGeometry(1, 0.04, 0.32),
@@ -7474,70 +7906,71 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           };
 
         const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(1.2, 1.45, 0.18, 20),
+          new THREE.CylinderGeometry(0.96, 1.12, 0.12, 20),
           new THREE.MeshStandardMaterial({
-            color: baseColor,
+            color: 0x2c2f33,
             emissive: baseColor,
-            emissiveIntensity: 0.14,
-            roughness: 0.5,
+            emissiveIntensity: 0.05,
+            roughness: 0.82,
+            metalness: 0.04,
           }),
         );
         const baseMaterial = base.material as THREE.MeshStandardMaterial;
-        base.position.y = 0.11;
-        base.scale.setScalar(0.82);
-        baseMaterial.emissiveIntensity = 0.04;
+        base.position.y = 0.08;
+        base.scale.setScalar(0.72);
+        baseMaterial.emissiveIntensity = 0.025;
         group.add(base);
 
         const glow = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.72, 0.94, 0.12, 18),
+          new THREE.CylinderGeometry(0.66, 0.78, 0.08, 18),
           new THREE.MeshStandardMaterial({
-            color: 0xf2ece0,
+            color: 0xd2cbc0,
             emissive: baseColor,
-            emissiveIntensity: 0.16,
+            emissiveIntensity: 0.08,
             transparent: true,
-            opacity: 0.58,
-            roughness: 0.26,
+            opacity: 0.18,
+            roughness: 0.56,
           }),
         );
         const glowMaterial = glow.material as THREE.MeshStandardMaterial;
-        glow.position.y = 0.25;
-        glow.scale.setScalar(0.72);
-        glowMaterial.emissiveIntensity = 0.06;
-        glowMaterial.opacity = 0.16;
+        glow.position.y = 0.18;
+        glow.scale.setScalar(0.62);
+        glowMaterial.emissiveIntensity = 0.035;
+        glowMaterial.opacity = 0.1;
         group.add(glow);
 
         const beacon = new THREE.Mesh(
-          new THREE.SphereGeometry(0.42, 18, 18),
+          new THREE.SphereGeometry(0.28, 18, 18),
           new THREE.MeshStandardMaterial({
-            color: 0xf8f3ea,
+            color: 0xd9d4cb,
             emissive: baseColor,
-            emissiveIntensity: 0.24,
+            emissiveIntensity: 0.12,
             transparent: true,
-            opacity: 0.74,
-            roughness: 0.22,
+            opacity: 0.22,
+            roughness: 0.4,
           }),
         );
         const beaconMaterial = beacon.material as THREE.MeshStandardMaterial;
-        beacon.position.y = 0.55;
-        beacon.scale.setScalar(0.68);
-        beaconMaterial.emissiveIntensity = 0.08;
-        beaconMaterial.opacity = 0.24;
+        beacon.position.y = 0.34;
+        beacon.scale.setScalar(0.56);
+        beaconMaterial.emissiveIntensity = 0.045;
+        beaconMaterial.opacity = 0.12;
         group.add(beacon);
 
         const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(1.02, 0.08, 10, 28),
+          new THREE.TorusGeometry(0.82, 0.05, 10, 28),
           new THREE.MeshStandardMaterial({
-            color: 0xf2e9d7,
+            color: 0xcfc4ad,
             emissive: baseColor,
-            emissiveIntensity: 0.14,
-            roughness: 0.44,
+            emissiveIntensity: 0.08,
+            roughness: 0.68,
           }),
         );
         const ringMaterial = ring.material as THREE.MeshStandardMaterial;
         ring.rotation.x = Math.PI / 2;
-        ring.position.y = 0.24;
-        ring.scale.setScalar(0.78);
-        ringMaterial.emissiveIntensity = 0.05;
+        ring.position.y = 0.18;
+        ring.scale.setScalar(0.68);
+        ringMaterial.emissiveIntensity = 0.03;
         group.add(ring);
 
         const caller = createCallerGroup(index);
@@ -7560,14 +7993,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         );
         caller.group.visible = false;
         caller.waveArmPivot.rotation.z = -0.72;
-        caller.hailCube.scale.setScalar(0.72);
+        caller.hailCube.scale.setScalar(0.62);
         (caller.hailCube.material as THREE.MeshStandardMaterial).emissiveIntensity =
-          0.06;
+          0.03;
         group.add(caller.group);
 
         const callBadge = new CSS2DObject(hotspotCallElement());
         const badgeElement = callBadge.element as HTMLDivElement;
-        callBadge.position.set(0, 2.28, 0);
+        callBadge.position.set(0, 1.92, 0);
         callBadge.visible = false;
         group.add(callBadge);
 
@@ -7659,21 +8092,42 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     syncLabelVisibility(activeCameraMode);
 
-    vehicleLayerReady = true;
-    rebuildVehicleLayer(
-      appliedTaxiCountRef.current,
-      appliedTrafficCountRef.current,
-    );
+    const finalizeVehicleLayerSetup = () => {
+      vehicleLayerReady = true;
+      rebuildVehicleLayer(
+        appliedTaxiCountRef.current,
+        appliedTrafficCountRef.current,
+      );
 
-    applyEnvironment(
-      simulationDateRef.current,
-      simulationTimeRef.current,
-      weatherModeRef.current,
-    );
-    applyModePreset(cameraModeRef.current);
-    syncCamera();
-    renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
+      applyEnvironment(
+        simulationDateRef.current,
+        simulationTimeRef.current,
+        weatherModeRef.current,
+      );
+      applyModePreset(cameraModeRef.current);
+      syncCamera();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+      labelRenderPending = false;
+      labelRenderAccumulator = 0;
+    };
+
+    void (async () => {
+      if (!sceneDisposed) {
+        setStatusDetail("택시 에셋 준비 중");
+      }
+      try {
+        taxiAssetTemplate = normalizeTaxiAssetTemplate(
+          await loadTaxiAssetTemplate(KAKAO_TAXI_ASSET_PATH),
+        );
+      } catch (error) {
+        console.warn("Failed to load Kakao taxi asset; using primitive taxi.", error);
+      }
+      if (sceneDisposed) {
+        return;
+      }
+      finalizeVehicleLayerSetup();
+    })();
 
     const timer = new THREE.Timer();
     timer.connect(document);
@@ -8028,14 +8482,18 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         return;
       }
 
+      if (hotspotDemandMapsDirty) {
+        syncActiveHotspotDemandMaps();
+      }
+
       hotspotActivityAccumulator += delta;
       if (!vehicles.length) {
         hotspotActivityAccumulator = 0;
         activePickupsByHotspot.clear();
         activeDropoffsByHotspot.clear();
+        hotspotDemandMapsDirty = false;
       } else if (hotspotActivityAccumulator >= HOTSPOT_ACTIVITY_REFRESH_INTERVAL) {
-        hotspotActivityAccumulator = 0;
-        rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
+        syncActiveHotspotDemandMaps();
       }
 
       for (let index = 0; index < hotspotVisuals.length; index += 1) {
@@ -8051,10 +8509,21 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         if (visual.lastAccentColor !== accentColor) {
           visual.lastAccentColor = accentColor;
-          visual.baseMaterial.color.setHex(accentColor);
+          visual.baseMaterial.color.setHex(
+            mixHexColor(0x2c2f33, accentColor, markerMode === "idle" ? 0.16 : 0.3),
+          );
           visual.baseMaterial.emissive.setHex(accentColor);
+          visual.glowMaterial.color.setHex(
+            mixHexColor(0xd2cbc0, accentColor, markerMode === "pickup" ? 0.18 : 0.1),
+          );
           visual.glowMaterial.emissive.setHex(accentColor);
+          visual.beaconMaterial.color.setHex(
+            mixHexColor(0xd9d4cb, accentColor, markerMode === "pickup" ? 0.14 : 0.08),
+          );
           visual.beaconMaterial.emissive.setHex(accentColor);
+          visual.ringMaterial.color.setHex(
+            mixHexColor(0xcfc4ad, accentColor, markerMode === "pickup" ? 0.16 : 0.08),
+          );
           visual.ringMaterial.emissive.setHex(accentColor);
         }
 
@@ -8070,22 +8539,22 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           visual.badgeElement.style.color = markerPresentation.badgeTextColor;
 
           if (!isActive) {
-            visual.base.scale.setScalar(0.82);
-            visual.glow.scale.setScalar(0.72);
-            visual.beacon.scale.setScalar(0.68);
-            visual.ring.scale.setScalar(0.78);
+            visual.base.scale.setScalar(0.72);
+            visual.glow.scale.setScalar(0.62);
+            visual.beacon.scale.setScalar(0.56);
+            visual.ring.scale.setScalar(0.68);
             visual.ring.rotation.z = index * 0.2;
-            visual.baseMaterial.emissiveIntensity = 0.04;
-            visual.glowMaterial.emissiveIntensity = 0.06;
-            visual.glowMaterial.opacity = 0.16;
-            visual.beaconMaterial.emissiveIntensity = 0.08;
-            visual.beaconMaterial.opacity = 0.24;
-            visual.ringMaterial.emissiveIntensity = 0.05;
-            visual.hailMaterial.emissiveIntensity = 0.06;
+            visual.baseMaterial.emissiveIntensity = 0.025;
+            visual.glowMaterial.emissiveIntensity = 0.035;
+            visual.glowMaterial.opacity = 0.1;
+            visual.beaconMaterial.emissiveIntensity = 0.045;
+            visual.beaconMaterial.opacity = 0.12;
+            visual.ringMaterial.emissiveIntensity = 0.03;
+            visual.hailMaterial.emissiveIntensity = 0.03;
             visual.callerGroup.position.y = 0.04;
             visual.waveArmPivot.rotation.z = -0.72;
-            visual.hailCube.scale.setScalar(0.72);
-            visual.callBadge.position.y = 2.28;
+            visual.hailCube.scale.setScalar(0.62);
+            visual.callBadge.position.y = 1.92;
           }
         }
 
@@ -8093,35 +8562,35 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           continue;
         }
 
-        const pulse = 0.74 + Math.sin(elapsedTime * 2.4 + index * 0.7) * 0.22;
-        visual.base.scale.setScalar(1.02 + pulse * 0.08);
-        visual.glow.scale.setScalar(1.08 + pulse * 0.14);
-        visual.beacon.scale.setScalar(1.04 + pulse * 0.22);
-        visual.ring.scale.setScalar(1.12 + pulse * 0.18);
-        visual.ring.rotation.z = elapsedTime * 0.45 + index * 0.2;
+        const pulse = 0.72 + Math.sin(elapsedTime * 2.2 + index * 0.7) * 0.12;
+        visual.base.scale.setScalar(0.8 + pulse * 0.04);
+        visual.glow.scale.setScalar(0.82 + pulse * 0.08);
+        visual.beacon.scale.setScalar(0.72 + pulse * 0.1);
+        visual.ring.scale.setScalar(0.84 + pulse * 0.08);
+        visual.ring.rotation.z = elapsedTime * 0.24 + index * 0.12;
 
-        visual.baseMaterial.emissiveIntensity = 0.16 + pulse * 0.1;
-        visual.glowMaterial.emissiveIntensity = 0.24 + pulse * 0.14;
-        visual.glowMaterial.opacity = 0.46 + pulse * 0.12;
-        visual.beaconMaterial.emissiveIntensity = 0.24 + pulse * 0.2;
-        visual.beaconMaterial.opacity = 0.72;
-        visual.ringMaterial.emissiveIntensity = 0.2 + pulse * 0.16;
+        visual.baseMaterial.emissiveIntensity = 0.07 + pulse * 0.04;
+        visual.glowMaterial.emissiveIntensity = 0.08 + pulse * 0.05;
+        visual.glowMaterial.opacity = 0.18 + pulse * 0.06;
+        visual.beaconMaterial.emissiveIntensity = 0.1 + pulse * 0.06;
+        visual.beaconMaterial.opacity = 0.2 + pulse * 0.08;
+        visual.ringMaterial.emissiveIntensity = 0.08 + pulse * 0.05;
         visual.hailMaterial.emissiveIntensity =
-          markerMode === "pickup" ? 0.24 + pulse * 0.22 : 0.06;
+          markerMode === "pickup" ? 0.08 + pulse * 0.08 : 0.03;
         visual.callerGroup.position.y =
           0.04 +
           (markerMode === "pickup"
-            ? Math.sin(elapsedTime * 3.1 + index) * 0.05
+            ? Math.sin(elapsedTime * 2.5 + index) * 0.025
             : 0);
         visual.waveArmPivot.rotation.z =
           markerMode === "pickup"
-            ? -0.8 - Math.sin(elapsedTime * 5.4 + index * 0.8) * 0.42
+            ? -0.78 - Math.sin(elapsedTime * 4.2 + index * 0.8) * 0.18
             : -0.72;
         visual.hailCube.scale.setScalar(
-          markerMode === "pickup" ? 0.94 + pulse * 0.14 : 0.72,
+          markerMode === "pickup" ? 0.72 + pulse * 0.08 : 0.62,
         );
         visual.callBadge.position.y =
-          2.28 + (isActive ? Math.sin(elapsedTime * 2.6 + index) * 0.1 : 0);
+          1.92 + (isActive ? Math.sin(elapsedTime * 2.2 + index) * 0.04 : 0);
       }
     };
 
@@ -8168,16 +8637,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         if (pedestrian.axis === "ns") {
           pedestrian.group.position.set(
-            signal.point.x + pedestrian.lateralOffset,
+            signal.visualPoint.x + pedestrian.lateralOffset,
             bob,
-            signal.point.z + travel,
+            signal.visualPoint.z + travel,
           );
           pedestrian.group.rotation.y = 0;
         } else {
           pedestrian.group.position.set(
-            signal.point.x + travel,
+            signal.visualPoint.x + travel,
             bob,
-            signal.point.z + pedestrian.lateralOffset,
+            signal.visualPoint.z + pedestrian.lateralOffset,
           );
           pedestrian.group.rotation.y = Math.PI / 2;
         }
@@ -8332,8 +8801,19 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
           if (vehicle.serviceTimer === 0 && vehicle.kind === "taxi") {
             if (!vehicle.isOccupied && vehicle.pickupHotspot) {
+              const completedPickupHotspotId = vehicle.pickupHotspot.id;
               vehicle.isOccupied = true;
               vehicle.pickupHotspot = null;
+              decrementDemandCount(
+                activePickupsByHotspot,
+                completedPickupHotspotId,
+              );
+              incrementDemandCount(
+                activeDropoffsByHotspot,
+                vehicle.dropoffHotspot?.id,
+              );
+              hotspotDemandMapsDirty = false;
+              hotspotActivityAccumulator = 0;
               setTaxiAppearance(vehicle);
               const dropRoute = routeBuilder(
                 vehicle.route.endKey,
@@ -8359,6 +8839,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               if (!dispatchPlanner || !hotspotPool.length) {
                 continue;
               }
+              const completedDropoffHotspotId = vehicle.dropoffHotspot.id;
               const nextJob = dispatchPlanner.planJob({
                 startKey: vehicle.route.endKey,
                 seed: completedTrips + vehicleIndex + 1,
@@ -8369,11 +8850,21 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 ),
               });
               if (nextJob) {
+                decrementDemandCount(
+                  activeDropoffsByHotspot,
+                  completedDropoffHotspotId,
+                );
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
                 vehicle.dropoffHotspot = nextJob.dropoffHotspot;
                 assignVehicleRoute(vehicle, nextJob.pickupRoute, 0);
                 vehicle.planMode = "pickup";
                 vehicle.isOccupied = false;
+                incrementDemandCount(
+                  activePickupsByHotspot,
+                  nextJob.pickupHotspot.id,
+                );
+                hotspotDemandMapsDirty = false;
+                hotspotActivityAccumulator = 0;
                 setTaxiAppearance(vehicle);
                 nextStopState = resolveNextStopInto(
                   vehicle.route,
@@ -9177,12 +9668,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             5.2,
             delta,
           );
+          if (focusTarget.yaw !== undefined) {
+            cameraRig.yaw = dampAngle(cameraRig.yaw, focusTarget.yaw, 5.2, delta);
+          }
 
           if (
             Math.abs(cameraRig.focus.x - focusTarget.x) < 0.45 &&
             Math.abs(cameraRig.focus.z - focusTarget.z) < 0.45 &&
             Math.abs(cameraRig.pitch - focusTarget.pitch) < 0.02 &&
-            Math.abs(cameraRig.distance - targetDistance) < 0.7
+            Math.abs(cameraRig.distance - targetDistance) < 0.7 &&
+            (focusTarget.yaw === undefined ||
+              Math.abs(wrapAngle(cameraRig.yaw - focusTarget.yaw)) < 0.03)
           ) {
             cameraFocusTargetRef.current = null;
           }
@@ -9191,6 +9687,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         cameraLookLift = 1.8;
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
+        cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 4.8, delta);
         cameraRig.pitch = THREE.MathUtils.clamp(
           cameraRig.pitch,
           0.82,
@@ -9426,7 +9923,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       }
       const renderCpuStart = performance.now();
       renderer.render(scene, camera);
-      labelRenderer.render(scene, camera);
+      labelRenderAccumulator += delta;
+      if (
+        labelRenderPending ||
+        (visibleSceneLabelCount > 0 &&
+          labelRenderAccumulator >= LABEL_RENDER_INTERVAL)
+      ) {
+        labelRenderer.render(scene, camera);
+        labelRenderPending = false;
+        labelRenderAccumulator = 0;
+      }
       renderCpuSampleMs += performance.now() - renderCpuStart;
     };
 
@@ -9507,6 +10013,19 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     return data.transitLandmarks;
   }, [data]);
+  const scenarioMapCenter = useMemo(() => {
+    const segments = data?.projectedRoadSegments;
+    if (!segments?.length) {
+      return null;
+    }
+
+    const bounds = new THREE.Box3();
+    segments.forEach((segment) => {
+      bounds.expandByPoint(segment.start);
+      bounds.expandByPoint(segment.end);
+    });
+    return bounds.getCenter(new THREE.Vector3());
+  }, [data?.projectedRoadSegments]);
   const transitCounts = useMemo(
     () => ({
       busStops: transitHighlights.filter(
@@ -9549,16 +10068,26 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     },
     [transitHighlights],
   );
-  const handleSubwayFocus = (station: TransitLandmark) => {
+  const handleSubwayFocus = (
+    station: TransitLandmark,
+    options?: {
+      x?: number;
+      z?: number;
+      distance?: number;
+      pitch?: number;
+      yaw?: number;
+    },
+  ) => {
     const label = station.name ?? "지하철역";
     setSelectedSubwayName(label);
     setShowTransit(true);
     cameraFocusTargetRef.current = {
-      x: station.position.x,
-      z: station.position.z,
-      distance: SUBWAY_FOCUS_DISTANCE,
-      pitch: SUBWAY_FOCUS_PITCH,
+      x: options?.x ?? station.position.x,
+      z: options?.z ?? station.position.z,
+      distance: options?.distance ?? SUBWAY_FOCUS_DISTANCE,
+      pitch: options?.pitch ?? SUBWAY_FOCUS_PITCH,
       label,
+      yaw: options?.yaw,
     };
     if (cameraModeRef.current !== "drive") {
       cameraModeRef.current = "drive";
@@ -9567,6 +10096,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   };
   const applyLocalScenario = (scenario: LocalScenarioPreset) => {
     const clock = currentSimulationClock();
+    const scenarioCamera = scenario.camera;
     const shouldRebuildVehicleLayer =
       appliedTaxiCountRef.current !== scenario.taxis ||
       appliedTrafficCountRef.current !== scenario.traffic;
@@ -9592,7 +10122,40 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     });
 
     if (focusStation) {
-      handleSubwayFocus(focusStation);
+      const focusCenterBlend =
+        scenarioCamera?.focusCenterBlend ?? LOCAL_SCENARIO_FOCUS_CENTER_BLEND;
+      const scenarioFocusX = scenarioMapCenter
+        ? THREE.MathUtils.lerp(
+            focusStation.position.x,
+            scenarioMapCenter.x,
+            focusCenterBlend,
+          )
+        : focusStation.position.x;
+      const scenarioFocusZ = scenarioMapCenter
+        ? THREE.MathUtils.lerp(
+            focusStation.position.z,
+            scenarioMapCenter.z,
+            focusCenterBlend,
+          )
+        : focusStation.position.z;
+      const scenarioYaw = scenarioMapCenter
+        ? Math.atan2(
+            scenarioFocusX - scenarioMapCenter.x,
+            scenarioFocusZ - scenarioMapCenter.z,
+          )
+        : undefined;
+      handleSubwayFocus(focusStation, {
+        x: scenarioFocusX,
+        z: scenarioFocusZ,
+        distance:
+          scenarioCamera?.distance ?? LOCAL_SCENARIO_FOCUS_DISTANCE,
+        pitch: scenarioCamera?.pitch ?? LOCAL_SCENARIO_FOCUS_PITCH,
+        yaw:
+          scenarioYaw === undefined
+            ? undefined
+            : scenarioYaw +
+              (scenarioCamera?.yawOffset ?? LOCAL_SCENARIO_FOCUS_YAW_OFFSET),
+      });
       return;
     }
 

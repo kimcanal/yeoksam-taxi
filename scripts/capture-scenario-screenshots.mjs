@@ -56,6 +56,10 @@ async function installCaptureChrome(page, scenario) {
       [data-ui-panel] {
         display: none !important;
       }
+
+      [data-label-kind] {
+        display: none !important;
+      }
     `;
     document.head.append(style);
 
@@ -302,10 +306,9 @@ async function main() {
         { timeout: 60_000 },
       );
       console.log(`Scene ready in ${Date.now() - startedAt} ms`);
-      await page.locator('[data-camera-mode-button="overview"]').click();
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(1_400);
       await installCaptureChrome(page, scenario);
-      await page.waitForTimeout(250);
+      await page.waitForTimeout(350);
 
       const screenshotPath = path.join(options.outputDir, scenario.fileName);
       await page.screenshot({
