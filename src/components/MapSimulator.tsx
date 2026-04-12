@@ -17,6 +17,7 @@ import type {
   Position,
 } from "geojson";
 import { createHeuristicDispatchPlanner } from "@/components/map-simulator/dispatch-planner";
+import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 
 const DEFAULT_TAXI_COUNT = 12;
 const DEFAULT_TRAFFIC_COUNT = 16;
@@ -5204,7 +5205,11 @@ function assignVehicleRoute(
   copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
 }
 
-export default function MapSimulator() {
+type MapSimulatorProps = {
+  buildVersion: BuildVersionInfo;
+};
+
+export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<SimulationData | null>(null);
   const [status, setStatus] = useState<SceneStatus>("loading");
@@ -10463,6 +10468,14 @@ export default function MapSimulator() {
           날씨: <span className="text-slate-100">{selectedWeather.label}</span>
           <br />
           카메라: <span className="text-slate-100">{cameraModeLabel}</span>
+          <br />
+          브랜치: <span className="text-slate-100 tabular-nums">{buildVersion.branch}</span>
+          <br />
+          빌드:{" "}
+          <span className="text-slate-100 tabular-nums">
+            {buildVersion.builtAtLabel}
+            {buildVersion.commit ? ` · ${buildVersion.commit}` : ""}
+          </span>
           <br />
           밀도:{" "}
           <span className="text-slate-100">

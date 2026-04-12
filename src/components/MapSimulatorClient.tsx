@@ -1,8 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 
-const MapSimulator = dynamic(() => import("./MapSimulator"), {
+type MapSimulatorClientProps = {
+  buildVersion: BuildVersionInfo;
+};
+
+const MapSimulator = dynamic<MapSimulatorClientProps>(() => import("./MapSimulator"), {
   ssr: false,
   loading: () => (
     <div className="flex h-screen w-full flex-col items-center justify-center gap-2 bg-[#060d16] px-6 text-center text-sm text-slate-300">
@@ -14,6 +19,8 @@ const MapSimulator = dynamic(() => import("./MapSimulator"), {
   ),
 });
 
-export default function MapSimulatorClient() {
-  return <MapSimulator />;
+export default function MapSimulatorClient({
+  buildVersion,
+}: MapSimulatorClientProps) {
+  return <MapSimulator buildVersion={buildVersion} />;
 }
