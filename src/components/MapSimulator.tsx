@@ -757,17 +757,17 @@ type EnvironmentState = {
 };
 
 const TAXI_PALETTE: VehiclePalette = {
-  body: 0xffcb44,
-  cabin: 0xfff1a4,
-  sign: 0xfff9d8,
+  body: 0xff9f1c,
+  cabin: 0xffd39a,
+  sign: 0xfff3cf,
 };
 
 const TRAFFIC_PALETTES: VehiclePalette[] = [
-  { body: 0x78c4ff, cabin: 0xdff3ff, sign: null },
-  { body: 0xff8f66, cabin: 0xffdcc9, sign: null },
-  { body: 0x79d58f, cabin: 0xe2fae8, sign: null },
-  { body: 0x7f9aff, cabin: 0xe2e8ff, sign: null },
-  { body: 0xffb15c, cabin: 0xffead1, sign: null },
+  { body: 0xf4f5f7, cabin: 0xdce7f0, sign: null },
+  { body: 0x353c45, cabin: 0xc9d5df, sign: null },
+  { body: 0x79889a, cabin: 0xd8e2ea, sign: null },
+  { body: 0xc94d3f, cabin: 0xf0d7cf, sign: null },
+  { body: 0x4f6478, cabin: 0xd4dfe7, sign: null },
 ];
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -1280,20 +1280,20 @@ function buildEnvironmentState(
   const roadBaseColors =
     weatherMode === "heavy-snow"
       ? {
-        arterial: 0x466289,
-        connector: 0x3c556f,
-        local: 0x334557,
+        arterial: 0x5f6772,
+        connector: 0x555d67,
+        local: 0x4b535d,
       }
       : weatherMode === "heavy-rain"
         ? {
-          arterial: 0x2a466b,
-          connector: 0x233b57,
-          local: 0x1d2c3c,
+          arterial: 0x2d343a,
+          connector: 0x282e34,
+          local: 0x23282d,
         }
         : {
-          arterial: 0x2c4d7c,
-          connector: 0x27425f,
-          local: 0x223243,
+          arterial: 0x3d4349,
+          connector: 0x363c42,
+          local: 0x2f353a,
         };
   const lightingPreset =
     weatherMode === "clear"
@@ -1383,13 +1383,13 @@ function buildEnvironmentState(
         : weatherMode === "heavy-snow"
           ? 0.05
           : 0.02,
-    laneMarkerColor: weatherMode === "heavy-snow" ? 0xfbfdff : 0xffefb0,
+    laneMarkerColor: weatherMode === "heavy-snow" ? 0xfbfdff : 0xf7df9a,
     laneMarkerEmissive:
       daylight < 0.22
-        ? 0xb98f2c
+        ? 0xa77318
         : weatherMode === "heavy-rain"
-          ? 0x6f5720
-          : 0x866000,
+          ? 0x5d4714
+          : 0x74540d,
     laneMarkerIntensity:
       daylight < 0.2 ? 0.34 : weatherMode === "heavy-rain" ? 0.2 : 0.16,
     crosswalkColor: weatherMode === "heavy-snow" ? 0xffffff : 0xf0f6ff,
@@ -4926,8 +4926,8 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   const group = new THREE.Group();
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color: palette.body,
-    roughness: 0.95,
-    metalness: 0.02,
+    roughness: 0.84,
+    metalness: 0.06,
   });
 
   const body = new THREE.Mesh(
@@ -4945,8 +4945,8 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
     new THREE.BoxGeometry(kind === "taxi" ? 1.24 : 1.14, 0.95, 2.05),
     new THREE.MeshStandardMaterial({
       color: palette.cabin,
-      roughness: 0.65,
-      metalness: 0.02,
+      roughness: 0.42,
+      metalness: 0.05,
     }),
   );
   cabin.position.set(0, 1.5, 0.15);
@@ -4955,11 +4955,11 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   const windshield = new THREE.Mesh(
     new THREE.BoxGeometry(1.08, 0.18, 1.46),
     new THREE.MeshStandardMaterial({
-      color: 0xdff3ff,
-      emissive: 0x294a6a,
-      emissiveIntensity: 0.16,
-      roughness: 0.2,
-      metalness: 0.05,
+      color: 0xbfd0dc,
+      emissive: 0x173042,
+      emissiveIntensity: 0.12,
+      roughness: 0.14,
+      metalness: 0.08,
     }),
   );
   windshield.position.set(0, 2.05, 0.15);
@@ -4969,9 +4969,9 @@ function createVehicleGroup(kind: VehicleKind, palette: VehiclePalette) {
   if (kind === "taxi") {
     signMaterial = new THREE.MeshStandardMaterial({
       color: palette.sign ?? 0xfff9d8,
-      emissive: 0x6d5800,
-      emissiveIntensity: 0.14,
-      roughness: 0.72,
+      emissive: 0x754600,
+      emissiveIntensity: 0.18,
+      roughness: 0.58,
       metalness: 0,
     });
     const sign = new THREE.Mesh(
@@ -5142,24 +5142,24 @@ function setTaxiAppearance(vehicle: Vehicle) {
     return;
   }
   if (vehicle.isOccupied) {
-    vehicle.bodyMaterial.color.setHex(0xe3a928);
-    vehicle.bodyMaterial.emissive.setHex(0x3c2700);
-    vehicle.bodyMaterial.emissiveIntensity = 0.22;
-    vehicle.signMaterial?.color.setHex(0x58f090);
-    vehicle.signMaterial?.emissive.setHex(0x0d5f28);
+    vehicle.bodyMaterial.color.setHex(0xf08d1a);
+    vehicle.bodyMaterial.emissive.setHex(0x472300);
+    vehicle.bodyMaterial.emissiveIntensity = 0.18;
+    vehicle.signMaterial?.color.setHex(0xffefcc);
+    vehicle.signMaterial?.emissive.setHex(0x8a6314);
     if (vehicle.signMaterial) {
-      vehicle.signMaterial.emissiveIntensity = 0.48;
+      vehicle.signMaterial.emissiveIntensity = 0.34;
     }
     return;
   }
 
   vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
-  vehicle.bodyMaterial.emissive.setHex(0x221700);
-  vehicle.bodyMaterial.emissiveIntensity = 0.08;
-  vehicle.signMaterial?.color.setHex(0xff5e66);
-  vehicle.signMaterial?.emissive.setHex(0x671119);
+  vehicle.bodyMaterial.emissive.setHex(0x321500);
+  vehicle.bodyMaterial.emissiveIntensity = 0.1;
+  vehicle.signMaterial?.color.setHex(0xffe1aa);
+  vehicle.signMaterial?.emissive.setHex(0x7d4800);
   if (vehicle.signMaterial) {
-    vehicle.signMaterial.emissiveIntensity = 0.44;
+    vehicle.signMaterial.emissiveIntensity = 0.28;
   }
 }
 
@@ -6613,21 +6613,21 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const roadMaterials = {
       arterial: new THREE.MeshStandardMaterial({
-        color: 0x2c4d7c,
+        color: 0x3d4349,
         roughness: 0.96,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       }),
       connector: new THREE.MeshStandardMaterial({
-        color: 0x27425f,
+        color: 0x363c42,
         roughness: 0.96,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
       }),
       local: new THREE.MeshStandardMaterial({
-        color: 0x223243,
+        color: 0x2f353a,
         roughness: 0.97,
         polygonOffset: true,
         polygonOffsetFactor: 0,
@@ -6709,8 +6709,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     });
 
     const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffefb0,
-      emissive: 0x866000,
+      color: 0xf7df9a,
+      emissive: 0x74540d,
       emissiveIntensity: 0.16,
       roughness: 0.62,
     });
