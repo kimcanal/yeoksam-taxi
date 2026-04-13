@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import {
   CSS2DObject,
@@ -44,6 +44,10 @@ const SIGNAL_COORDINATION_BAND_SIZE = 14;
 const SIGNAL_COORDINATION_PHASE_STEP = 1.35;
 const SIGNAL_WAVE_TRAVEL_SPEED = 6.4;
 const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
+const KAKAO_TRAFFIC_ASSET_PATHS = [
+  "/assets/kakao-traffic/Sportage_01.fbx",
+  "/assets/kakao-traffic/Porter_01.fbx",
+] as const;
 const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
 const HOTSPOT_SLOWDOWN_DISTANCE = 16;
 const HOTSPOT_TRIGGER_DISTANCE = 1.2;
@@ -133,6 +137,7 @@ const LOCAL_SCENARIO_FOCUS_PITCH = 0.34;
 const LOCAL_SCENARIO_FOCUS_CENTER_BLEND = 0.3;
 const LOCAL_SCENARIO_FOCUS_YAW_OFFSET = -0.76;
 const TAXI_ASSET_TARGET_LENGTH = 4.28;
+const TRAFFIC_ASSET_TARGET_LENGTH = 4.2;
 
 type SignalAxis = "ns" | "ew";
 type SignalDirection = "north" | "east" | "south" | "west";
@@ -925,6 +930,38 @@ function panelPillToggleClass(selected: boolean) {
       ? "border-[#87cbb0]/28 bg-[#87cbb0]/12 text-[#e1f1eb]"
       : "border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] text-[#c6ddd5] hover:border-[#87cbb0]/22 hover:bg-[#87cbb0]/10"
   }`;
+}
+
+function HoverInfo({
+  title,
+  children,
+  align = "left",
+}: {
+  title: string;
+  children: ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        aria-label={`${title} 도움말`}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-slate-900/80 text-[11px] font-semibold text-slate-300 transition hover:border-[#87cbb0]/35 hover:text-[#d7efe6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#87cbb0]/35"
+      >
+        ?
+      </button>
+      <span
+        className={`pointer-events-none absolute ${align === "right" ? "right-0" : "left-0"} top-full z-30 mt-2 w-[220px] sm:w-[240px] translate-y-1 rounded-2xl border border-white/10 bg-slate-950/96 px-3 py-3 text-left opacity-0 shadow-xl transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100`}
+      >
+        <span className="block text-[10px] uppercase tracking-[0.16em] text-[#99cbbd]/80">
+          {title}
+        </span>
+        <span className="mt-1 block text-[11px] leading-5 text-slate-300">
+          {children}
+        </span>
+      </span>
+    </span>
+  );
 }
 
 const MINUTES_PER_DAY = 24 * 60;
@@ -1729,17 +1766,6 @@ function renderCapLabel(
   }
 
   return `${Math.round(cap)} FPS`;
-}
-
-function fpsModeLabel(fpsMode: FpsMode) {
-  switch (fpsMode) {
-    case "fixed60":
-      return "60 FPS";
-    case "unlimited":
-      return "무제한";
-    default:
-      return "자동";
-  }
 }
 
 function fpsModeSummary(fpsMode: FpsMode) {
@@ -5263,7 +5289,7 @@ function canVehicleProceed(
   return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
 }
 
-function loadTaxiAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS) {
+function loadVehicleAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS) {
   const loader = new FBXLoader();
 
   return new Promise<THREE.Group>((resolve, reject) => {
@@ -5283,7 +5309,7 @@ function loadTaxiAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS)
     };
     const timeoutId = window.setTimeout(() => {
       restoreWarn();
-      reject(new Error(`Timed out loading taxi asset: ${path}`));
+      reject(new Error(`Timed out loading vehicle asset: ${path}`));
     }, timeoutMs);
 
     loader.load(
@@ -5303,7 +5329,10 @@ function loadTaxiAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS)
   });
 }
 
-function normalizeTaxiAssetTemplate(source: THREE.Group) {
+function normalizeVehicleAssetTemplate(
+  source: THREE.Group,
+  targetLength: number,
+) {
   const container = new THREE.Group();
   const model = source;
   container.add(model);
@@ -5317,7 +5346,7 @@ function normalizeTaxiAssetTemplate(source: THREE.Group) {
 
   const normalizedSize = bounds.getSize(new THREE.Vector3());
   const length = Math.max(normalizedSize.z, normalizedSize.x, 0.001);
-  model.scale.setScalar(TAXI_ASSET_TARGET_LENGTH / length);
+  model.scale.setScalar(targetLength / length);
 
   bounds = new THREE.Box3().setFromObject(container);
   const center = bounds.getCenter(new THREE.Vector3());
@@ -5334,6 +5363,14 @@ function normalizeTaxiAssetTemplate(source: THREE.Group) {
   });
 
   return container;
+}
+
+function normalizeTaxiAssetTemplate(source: THREE.Group) {
+  return normalizeVehicleAssetTemplate(source, TAXI_ASSET_TARGET_LENGTH);
+}
+
+function normalizeTrafficAssetTemplate(source: THREE.Group) {
+  return normalizeVehicleAssetTemplate(source, TRAFFIC_ASSET_TARGET_LENGTH);
 }
 
 function vehicleAssetMaterialHint(object: THREE.Object3D) {
@@ -5432,8 +5469,11 @@ function createTaxiAssetGroup(
   });
 
   const assetBounds = new THREE.Box3().setFromObject(group);
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.24, 0.72), signMaterial);
-  sign.position.set(0, assetBounds.max.y + 0.18, -0.24);
+  const sign = new THREE.Mesh(
+    new THREE.BoxGeometry(0.56, 0.12, 0.34),
+    signMaterial,
+  );
+  sign.position.set(0, assetBounds.max.y + 0.1, -0.08);
   sign.castShadow = true;
   group.add(sign);
 
@@ -5464,13 +5504,97 @@ function createTaxiAssetGroup(
   return { group, bodyMaterial, signMaterial, clickTarget };
 }
 
+function createTrafficAssetGroup(
+  palette: VehiclePalette,
+  trafficAssetTemplate: THREE.Group,
+) {
+  const group = trafficAssetTemplate.clone(true);
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: palette.body,
+    emissive: 0x111417,
+    emissiveIntensity: 0.05,
+    roughness: 0.88,
+    metalness: 0.12,
+  });
+  const glassMaterial = new THREE.MeshStandardMaterial({
+    color: 0x96a6b3,
+    emissive: 0x101923,
+    emissiveIntensity: 0.04,
+    roughness: 0.2,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const trimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x20242a,
+    roughness: 0.95,
+    metalness: 0.03,
+  });
+  const metalMaterial = new THREE.MeshStandardMaterial({
+    color: 0x959ba2,
+    roughness: 0.7,
+    metalness: 0.22,
+  });
+
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) {
+      return;
+    }
+
+    child.castShadow = true;
+    child.receiveShadow = true;
+
+    const hint = vehicleAssetMaterialHint(child);
+    if (hint === "body") {
+      child.material = bodyMaterial;
+      return;
+    }
+    if (hint === "glass") {
+      child.material = glassMaterial;
+      return;
+    }
+    if (hint === "trim") {
+      child.material = trimMaterial;
+      return;
+    }
+    if (hint === "metal") {
+      child.material = metalMaterial;
+      return;
+    }
+    child.material = metalMaterial;
+  });
+
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.5, 5.1),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.14,
+    }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  group.add(shadow);
+
+  return { group, bodyMaterial, signMaterial: null, clickTarget: null };
+}
+
 function createVehicleGroup(
   kind: VehicleKind,
   palette: VehiclePalette,
-  taxiAssetTemplate: THREE.Group | null = null,
+  {
+    taxiAssetTemplate = null,
+    importedAssetTemplate = null,
+  }: {
+    taxiAssetTemplate?: THREE.Group | null;
+    importedAssetTemplate?: THREE.Group | null;
+  } = {},
 ) {
   if (kind === "taxi" && taxiAssetTemplate) {
     return createTaxiAssetGroup(palette, taxiAssetTemplate);
+  }
+  if (kind === "traffic" && importedAssetTemplate) {
+    return createTrafficAssetGroup(palette, importedAssetTemplate);
   }
 
   const group = new THREE.Group();
@@ -5540,10 +5664,10 @@ function createVehicleGroup(
       metalness: 0,
     });
     const sign = new THREE.Mesh(
-      new THREE.BoxGeometry(0.92, 0.26, 0.72),
+      new THREE.BoxGeometry(0.58, 0.14, 0.36),
       signMaterial,
     );
-    sign.position.set(0, 2.45, -0.25);
+    sign.position.set(0, 2.24, -0.08);
     group.add(sign);
   }
 
@@ -5705,14 +5829,14 @@ function setTaxiAppearance(vehicle: Vehicle) {
   if (vehicle.kind !== "taxi") {
     return;
   }
-  if (vehicle.isOccupied) {
+  if (vehicle.planMode === "dropoff" || vehicle.isOccupied) {
     vehicle.bodyMaterial.color.setHex(0xf08d1a);
     vehicle.bodyMaterial.emissive.setHex(0x472300);
     vehicle.bodyMaterial.emissiveIntensity = 0.18;
-    vehicle.signMaterial?.color.setHex(0xffefcc);
-    vehicle.signMaterial?.emissive.setHex(0x8a6314);
+    vehicle.signMaterial?.color.setHex(0xc7ffd1);
+    vehicle.signMaterial?.emissive.setHex(0x00c853);
     if (vehicle.signMaterial) {
-      vehicle.signMaterial.emissiveIntensity = 0.34;
+      vehicle.signMaterial.emissiveIntensity = 0.96;
     }
     return;
   }
@@ -5720,10 +5844,10 @@ function setTaxiAppearance(vehicle: Vehicle) {
   vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
   vehicle.bodyMaterial.emissive.setHex(0x321500);
   vehicle.bodyMaterial.emissiveIntensity = 0.1;
-  vehicle.signMaterial?.color.setHex(0xffe1aa);
-  vehicle.signMaterial?.emissive.setHex(0x7d4800);
+  vehicle.signMaterial?.color.setHex(0xffc7cc);
+  vehicle.signMaterial?.emissive.setHex(0xff3048);
   if (vehicle.signMaterial) {
-    vehicle.signMaterial.emissiveIntensity = 0.28;
+    vehicle.signMaterial.emissiveIntensity = 1.02;
   }
 }
 
@@ -5836,8 +5960,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const [showFps, setShowFps] = useState(false);
   const [fpsMode, setFpsMode] = useState<FpsMode>("fixed60");
   const [fpsStats, setFpsStats] = useState<FpsStats>({
-    fps: 0,
-    capLabel: renderCapLabel(renderFpsCapFor("drive"), false, "fixed60"),
+    fps: resolveRenderCap("drive", "fixed60", null) ?? 60,
+    capLabel: renderCapLabel(
+      resolveRenderCap("drive", "fixed60", null),
+      false,
+      "fixed60",
+    ),
     simulationMs: 0,
     signalMs: 0,
     vehicleMs: 0,
@@ -6768,6 +6896,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const pedestrianVisuals: PedestrianVisual[] = [];
     const vehicles: Vehicle[] = [];
     const taxiVehicles: Vehicle[] = [];
+    const trafficVehicles: Vehicle[] = [];
     const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const routeCache = new Map<string, RouteTemplate | null>();
@@ -6788,6 +6917,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const trafficRoutePool: RouteTemplate[] = data.trafficRoutePool;
     let vehicleLayerReady = false;
     let taxiAssetTemplate: THREE.Group | null = null;
+    let trafficAssetTemplates: THREE.Group[] = [];
     let activeVehicleSpeedMultiplier = 1;
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
@@ -7059,6 +7189,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       return trafficRoutePool[seed % trafficRoutePool.length]!;
     };
 
+    const resolveTrafficAssetTemplate = (vehicleIndex: number) =>
+      trafficAssetTemplates.length
+        ? trafficAssetTemplates[vehicleIndex % trafficAssetTemplates.length]!
+        : null;
+
     const updateVehicleLayerStats = (
       nextTaxiCount: number,
       nextTrafficCount: number,
@@ -7077,7 +7212,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       taxiVehicles.forEach((vehicle) => {
         const previousGroup = vehicle.group;
         const { group, bodyMaterial, signMaterial, clickTarget } =
-          createVehicleGroup("taxi", vehicle.palette, taxiAssetTemplate);
+          createVehicleGroup("taxi", vehicle.palette, { taxiAssetTemplate });
 
         group.userData.vehicleId = vehicle.id;
         group.traverse((child) => {
@@ -7105,6 +7240,40 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       labelRenderer.render(scene, camera);
     };
 
+    const upgradeTrafficVehicleMeshes = () => {
+      if (!trafficAssetTemplates.length || !trafficVehicles.length) {
+        return;
+      }
+
+      trafficVehicles.forEach((vehicle, index) => {
+        const previousGroup = vehicle.group;
+        const { group, bodyMaterial, signMaterial } = createVehicleGroup(
+          "traffic",
+          vehicle.palette,
+          { importedAssetTemplate: resolveTrafficAssetTemplate(index) },
+        );
+
+        group.userData.vehicleId = vehicle.id;
+        group.traverse((child) => {
+          child.userData.vehicleId = vehicle.id;
+        });
+        scene.add(group);
+
+        vehicle.group = group;
+        vehicle.bodyMaterial = bodyMaterial;
+        vehicle.signMaterial = signMaterial;
+        syncVehicleTransform(vehicle, 1);
+
+        previousGroup.removeFromParent();
+        disposeObject3DResources(previousGroup);
+      });
+
+      labelRenderPending = true;
+      labelRenderAccumulator = 0;
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    };
+
     const clearVehicleLayer = () => {
       vehicles.forEach((vehicle) => {
         vehicle.group.removeFromParent();
@@ -7112,6 +7281,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       });
       vehicles.length = 0;
       taxiVehicles.length = 0;
+      trafficVehicles.length = 0;
       taxiClickTargets.length = 0;
       taxiById.clear();
       activePickupsByHotspot.clear();
@@ -7157,7 +7327,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         }
 
         const { group, bodyMaterial, signMaterial, clickTarget } =
-          createVehicleGroup("taxi", TAXI_PALETTE, taxiAssetTemplate);
+          createVehicleGroup("taxi", TAXI_PALETTE, { taxiAssetTemplate });
         scene.add(group);
 
         const vehicle: Vehicle = {
@@ -7215,6 +7385,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const { group, bodyMaterial, signMaterial } = createVehicleGroup(
           "traffic",
           palette,
+          { importedAssetTemplate: resolveTrafficAssetTemplate(index) },
         );
         scene.add(group);
 
@@ -7259,6 +7430,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
         syncVehicleTransform(vehicle, 1);
         vehicles.push(vehicle);
+        trafficVehicles.push(vehicle);
       }
 
       replaceDemandMapContents(activePickupsByHotspot, bootstrapPickupDemandMap);
@@ -8342,6 +8514,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     let taxiAssetLoadScheduledId = 0;
     let taxiAssetLoadStarted = false;
+    let trafficAssetLoadScheduledId = 0;
+    let trafficAssetLoadStarted = false;
     const loadTaxiAssetInBackground = () => {
       if (sceneDisposed || taxiAssetTemplate || taxiAssetLoadStarted) {
         return;
@@ -8350,7 +8524,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       taxiAssetLoadStarted = true;
       void (async () => {
         try {
-          const loadedTemplate = await loadTaxiAssetTemplate(KAKAO_TAXI_ASSET_PATH);
+          const loadedTemplate = await loadVehicleAssetTemplate(KAKAO_TAXI_ASSET_PATH);
           if (sceneDisposed) {
             disposeObject3DResources(loadedTemplate);
             return;
@@ -8370,6 +8544,48 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             error,
           );
         }
+      })();
+    };
+    const loadTrafficAssetsInBackground = () => {
+      if (sceneDisposed || trafficAssetTemplates.length || trafficAssetLoadStarted) {
+        return;
+      }
+
+      trafficAssetLoadStarted = true;
+      void (async () => {
+        const results = await Promise.allSettled(
+          KAKAO_TRAFFIC_ASSET_PATHS.map(async (path) =>
+            normalizeTrafficAssetTemplate(await loadVehicleAssetTemplate(path)),
+          ),
+        );
+
+        if (sceneDisposed) {
+          results.forEach((result) => {
+            if (result.status === "fulfilled") {
+              disposeObject3DResources(result.value);
+            }
+          });
+          return;
+        }
+
+        trafficAssetTemplates = results.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : [],
+        );
+
+        results.forEach((result, index) => {
+          if (result.status === "rejected") {
+            console.warn(
+              `Failed to load traffic asset: ${KAKAO_TRAFFIC_ASSET_PATHS[index]}`,
+              result.reason,
+            );
+          }
+        });
+
+        if (!trafficAssetTemplates.length) {
+          return;
+        }
+
+        upgradeTrafficVehicleMeshes();
       })();
     };
     const timer = new THREE.Timer();
@@ -10107,8 +10323,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           isPageHidden,
           fpsModeRef.current,
         );
+        const nextFps = Math.max(1, Math.round(fpsFrameCount / fpsSampleElapsed));
         if (showFpsRef.current) {
-          const nextFps = Math.round(fpsFrameCount / fpsSampleElapsed);
           const nextSimulationMs =
             Math.round(
               (simulationCpuSampleMs / Math.max(1, fpsFrameCount)) * 100,
@@ -10154,11 +10370,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           );
         } else {
           setFpsStats((current) =>
-            current.capLabel === nextCapLabel
+            current.fps === nextFps &&
+              current.capLabel === nextCapLabel &&
+              current.vehicles === vehicles.length
               ? current
               : {
                 ...current,
+                fps: nextFps,
                 capLabel: nextCapLabel,
+                vehicles: vehicles.length,
               },
           );
         }
@@ -10234,12 +10454,19 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     finalizeVehicleLayerSetup();
     taxiAssetLoadScheduledId = window.setTimeout(loadTaxiAssetInBackground, 900);
+    trafficAssetLoadScheduledId = window.setTimeout(
+      loadTrafficAssetsInBackground,
+      1300,
+    );
     animate();
 
     return () => {
       sceneDisposed = true;
       if (taxiAssetLoadScheduledId) {
         window.clearTimeout(taxiAssetLoadScheduledId);
+      }
+      if (trafficAssetLoadScheduledId) {
+        window.clearTimeout(trafficAssetLoadScheduledId);
       }
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", onResize);
@@ -10269,6 +10496,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       moonMaterial.dispose();
       timer.dispose();
       renderer.dispose();
+      if (taxiAssetTemplate) {
+        disposeObject3DResources(taxiAssetTemplate);
+      }
+      trafficAssetTemplates.forEach((template) => {
+        disposeObject3DResources(template);
+      });
       const currentNonRoadGroup = nonRoadGroup;
       if (currentNonRoadGroup) {
         currentNonRoadGroup.removeFromParent();
@@ -10507,6 +10740,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         : status === "ready"
           ? "주행 준비 완료"
           : "불러오기 실패";
+  const isSceneBusy = status === "loading" || status === "rendering";
+  const loadingProgress = status === "loading" ? 36 : 78;
+  const loadingHint =
+    status === "loading"
+      ? "지도 자산과 도로 그래프를 읽는 중입니다."
+      : "3D 장면과 차량 레이어를 맞추는 중입니다.";
   const controlHint =
     cameraMode === "overview"
       ? "오버뷰: 좌클릭 드래그로 도시를 돌려보고 휠로 줌을 조절합니다. 택시를 클릭하면 택시 시점으로 들어갑니다."
@@ -10580,6 +10819,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     { id: "fixed60", label: "60 FPS" },
     { id: "unlimited", label: "무제한" },
   ];
+  const fpsFloatingAnchorClass = "absolute bottom-4 right-4 z-20";
   const isDensityApplying =
     status !== "ready" ||
     simulationDensity.taxis !== stats.taxis ||
@@ -10634,8 +10874,27 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       (option) => option.id === activeLocalScenario.weather,
     )?.label ?? selectedWeather.label
     : selectedWeather.label;
+  const circumstanceHelpTitle =
+    circumstanceMode === "live" ? "Live 모드" : "특정 시각 모드";
+  const circumstanceHelpBody =
+    circumstanceMode === "live"
+      ? "강남 기준 현재 KST 시간을 따라갑니다. 날씨는 API 연동 전까지 수동 선택입니다."
+      : "날짜와 시간을 고정해 같은 장면을 반복 재현합니다. 비교 시연에 적합합니다.";
+  const weatherManualHelp =
+    "실시간 기상 API 연동 전 단계라 수동 선택입니다.";
+  const timeLightingHelp =
+    "하늘과 전체 조도 중심으로 바뀌고, 도로·건물 톤은 크게 흔들지 않습니다.";
   const timeWeatherControls = (
     <>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+          기준 선택
+        </div>
+        <HoverInfo title={circumstanceHelpTitle} align="right">
+          {circumstanceHelpBody}
+        </HoverInfo>
+      </div>
+
       <div className="mb-3 grid grid-cols-2 gap-2">
         {circumstanceOptions.map((option) => (
           <button
@@ -10663,8 +10922,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
-            시간 + 날씨
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-slate-400">
+            <span>시간 + 날씨</span>
+            <HoverInfo title="시간대 연출">
+              {timeLightingHelp}
+            </HoverInfo>
           </div>
           <div className="mt-2 flex items-end gap-3">
             <div className="text-[28px] font-semibold tracking-tight tabular-nums text-slate-50">
@@ -10680,8 +10942,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2 text-right">
-          <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-            날씨
+          <div className="flex items-center justify-end gap-2 text-[10px] uppercase tracking-[0.18em] text-slate-500">
+            <span>날씨</span>
+            <HoverInfo title="날씨 선택" align="right">
+              {weatherManualHelp}
+            </HoverInfo>
           </div>
           <div className="mt-1 text-sm font-semibold text-slate-100">
             {selectedWeather.label}
@@ -10740,9 +11005,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <div className={`mt-3 ${PANEL_INSET_PADDED_CLASS}`}>
             <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.14em] text-slate-500">
               <span>시간 슬라이더</span>
-              <span className="tabular-nums text-[#d7efe6]">
-                {formattedSimulationTime}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="tabular-nums text-[#d7efe6]">
+                  {formattedSimulationTime}
+                </span>
+                <HoverInfo title="시간 고정">
+                  특정 시각 모드에서 날짜와 시간을 고정해 비교용 장면을 재현합니다.
+                </HoverInfo>
+              </div>
             </div>
             <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
@@ -10775,17 +11045,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <span>18:30</span>
               <span>23:59</span>
             </div>
-            <div className="mt-2 text-[11px] leading-5 text-slate-500">
-              특정 시각 모드에서는 날짜와 시간을 직접 고정해 해/달/별과 조명
-              변화를 확인할 수 있습니다.
-            </div>
           </div>
         </>
-      ) : (
-        <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
-          Live 모드에서는 강남 기준 현재 KST 날짜와 시간을 따라갑니다.
-        </div>
-      )}
+      ) : null}
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         {WEATHER_OPTIONS.map((option) => (
@@ -10805,15 +11067,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         ))}
       </div>
 
-      <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
-        날씨는 현재 수동 지정입니다. 실시간 모드여도 실제 기상 API를 붙이기
-        전까지는 시각 연출을 직접 고를 수 있게 유지합니다.
-      </div>
-
-      <div className={`mt-3 ${PANEL_INSET_CLASS}`}>
-        시간대 연출은 하늘, 해, 달, 별 중심으로 적용되고 도로/건물 표면은 최대한
-        고정해 가독성을 유지합니다. 대중교통 구조물은 기본적으로 숨겨두었습니다.
-      </div>
     </>
   );
 
@@ -10821,112 +11074,187 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
       <div ref={containerRef} className="h-full w-full" />
 
-      {showFps ? (
+      {isSceneBusy ? (
         <div
-          data-ui-panel="fps-overlay"
-          className="pointer-events-none absolute right-4 top-24 z-20 rounded-2xl border border-lime-300/20 bg-slate-950/80 px-4 py-3 text-sm text-slate-200 shadow-xl backdrop-blur-md"
+          data-ui-panel="scene-loading"
+          className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/46 px-6 backdrop-blur-[2px]"
         >
-          <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
-            성능
-          </div>
-          <div className="mt-1 flex items-end gap-3">
-            <div className="text-2xl font-semibold tabular-nums text-lime-100">
-              {fpsStats.fps}
-            </div>
-            <div className="space-y-0.5 pb-1 text-xs text-slate-400">
-              <div>모드: {fpsModeLabel(fpsMode)}</div>
-              <div>목표: {fpsStats.capLabel}</div>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] text-slate-300">
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                시뮬
-              </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.simulationMs.toFixed(2)} ms
+          <div className="w-full max-w-[420px] rounded-[24px] border border-white/12 bg-slate-950/88 p-5 text-white shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full border-2 border-white/15 border-t-[#87cbb0] animate-spin" />
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                  Scene Loading
+                </div>
+                <div className="mt-1 text-lg font-semibold text-slate-50">
+                  {statusLabel}
+                </div>
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                렌더
+
+            <div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
+              <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-400">
+                <span>현재 단계</span>
+                <span className="tabular-nums text-[#d7efe6]">
+                  {loadingProgress}%
+                </span>
               </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.renderMs.toFixed(2)} ms
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/8">
+                <div
+                  className="h-full rounded-full bg-[#87cbb0] transition-[width] duration-300"
+                  style={{ width: `${loadingProgress}%` }}
+                />
               </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                시뮬 Hz
-              </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.simulationHz}
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                차량 수
-              </div>
-              <div className="tabular-nums text-lime-100">{fpsStats.vehicles}</div>
-            </div>
-          </div>
-          <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px] text-slate-300">
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                신호
-              </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.signalMs.toFixed(2)} ms
+              <div className="mt-3 text-sm text-slate-100">{statusDetail}</div>
+              <div className="mt-1 text-xs leading-5 text-slate-400">
+                {loadingHint}
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                차량
-              </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.vehicleMs.toFixed(2)} ms
-              </div>
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <span className={PANEL_TOKEN_CLASS}>
+                환경 {buildVersion.environmentLabel}
+              </span>
+              <span className={PANEL_TOKEN_CLASS}>
+                브랜치 {buildVersion.branch}
+              </span>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
-                보조
-              </div>
-              <div className="tabular-nums text-lime-100">
-                {fpsStats.overlayMs.toFixed(2)} ms
-              </div>
+
+            <div className="mt-4 text-xs leading-5 text-slate-500">
+              배포 환경에서는 첫 접속이나 새로고침 직후 정적 자산과 3D 초기화 때문에
+              몇 초 더 걸릴 수 있습니다.
             </div>
-          </div>
-          <div className="pointer-events-auto mt-3 grid grid-cols-3 gap-1.5">
-            {fpsModeOptions.map((option) => {
-              const isSelected = fpsMode === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setFpsMode(option.id)}
-                  className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${isSelected
-                    ? "border-lime-300/40 bg-lime-400/10 text-lime-100"
-                    : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8"
-                    }`}
-                >
-                  <div className="font-medium">{option.label}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="mt-2 max-w-[240px] text-[11px] leading-4 text-slate-500">
-            {fpsModeSummary(fpsMode)}
-          </div>
-          <div className="mt-1 text-[11px] text-slate-400">
-            카메라 {cameraModeLabel} · F로 숨기기
           </div>
         </div>
       ) : null}
 
       <div
+        data-ui-panel={showFps ? "fps-overlay" : "fps-toggle"}
+        className={`${fpsFloatingAnchorClass} w-[188px] overflow-hidden rounded-2xl border border-lime-300/20 bg-slate-950/82 text-sm text-slate-200 shadow-xl backdrop-blur-md transition-all duration-200 ${showFps ? "w-[280px]" : ""}`}
+      >
+        <button
+          type="button"
+          aria-expanded={showFps}
+          onClick={() => setShowFps((current) => !current)}
+          className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
+        >
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-lime-300/80">
+              성능
+            </div>
+            <div className="mt-1 flex items-end gap-2">
+              <div className="text-2xl font-semibold tabular-nums text-lime-100">
+                {fpsStats.fps}
+              </div>
+              <div className="pb-1 text-[11px] text-slate-400">
+                {fpsStats.capLabel}
+              </div>
+            </div>
+          </div>
+          <div className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-slate-300 transition hover:border-white/20 hover:bg-white/10">
+            {showFps ? "접기" : "보기"}
+          </div>
+        </button>
+
+        {!showFps ? (
+          <div className="px-4 pb-3 text-[11px] text-slate-500">
+            클릭하거나 `F`로 펼칠 수 있습니다.
+          </div>
+        ) : null}
+
+        <div
+          className={`overflow-hidden transition-all duration-200 ${showFps ? "max-h-[520px] border-t border-white/8 opacity-100" : "max-h-0 opacity-0"}`}
+        >
+          <div className="px-4 py-3">
+            <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-300">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  시뮬
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.simulationMs.toFixed(2)} ms
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  렌더
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.renderMs.toFixed(2)} ms
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  시뮬 Hz
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.simulationHz}
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  차량 수
+                </div>
+                <div className="tabular-nums text-lime-100">{fpsStats.vehicles}</div>
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px] text-slate-300">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  신호
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.signalMs.toFixed(2)} ms
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  차량
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.vehicleMs.toFixed(2)} ms
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 px-2 py-1.5">
+                <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500">
+                  보조
+                </div>
+                <div className="tabular-nums text-lime-100">
+                  {fpsStats.overlayMs.toFixed(2)} ms
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
+              {fpsModeOptions.map((option) => {
+                const isSelected = fpsMode === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setFpsMode(option.id)}
+                    className={`rounded-xl border px-2 py-2 text-left text-[11px] transition ${isSelected
+                      ? "border-lime-300/40 bg-lime-400/10 text-lime-100"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/8"
+                      }`}
+                  >
+                    <div className="font-medium">{option.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 max-w-[240px] text-[11px] leading-4 text-slate-500">
+              {fpsModeSummary(fpsMode)}
+            </div>
+            <div className="mt-1 text-[11px] text-slate-400">
+              카메라 {cameraModeLabel} · F로 숨기기
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
         data-ui-panel="right-sidebar"
-        className={`absolute right-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block ${showFps ? "top-[22rem]" : "top-4"
-          }`}
+        className="absolute right-4 top-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block"
       >
         {timeWeatherControls}
       </div>
