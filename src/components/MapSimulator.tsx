@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import {
   CSS2DObject,
@@ -5950,7 +5950,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     () => HYDRATION_SAFE_SIMULATION_CLOCK.minutes,
   );
   const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
-  const [cameraMode, setCameraMode] = useState<CameraMode>("drive");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("overview");
   const [followTaxiId, setFollowTaxiId] = useState("");
   const [selectedSubwayName, setSelectedSubwayName] = useState("");
   const [simulationDensity, setSimulationDensity] = useState(() => ({
@@ -6053,6 +6053,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const intervalId = window.setInterval(syncClock, 15_000);
     return () => window.clearInterval(intervalId);
   }, [circumstanceMode]);
+
+  useLayoutEffect(() => {
+    cameraModeRef.current = cameraMode;
+  }, [cameraMode]);
 
   useEffect(() => {
     cameraModeRef.current = cameraMode;
@@ -7929,11 +7933,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
         cameraRig.yaw = overviewYaw;
-        cameraRig.pitch = Math.max(cameraRig.pitch, 0.86);
-        cameraRig.distance = Math.max(
-          cameraRig.distance,
-          overviewMinDistance * 1.04,
-        );
+        cameraRig.pitch = 0.7;
+        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
         return;
       }
 
@@ -10050,6 +10051,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         applyRenderBudget(currentMode);
         markLabelVisibilityDirty();
       }
+      // Always apply overview mode settings to ensure consistency
+      if (currentMode === "overview") {
+        applyModePreset(currentMode);
+      }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
       const signalCpuStart = performance.now();
@@ -10196,20 +10201,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           }
         }
       } else if (currentMode === "overview") {
-        cameraLookLift = 1.8;
+        cameraLookLift = CAMERA_LOOK_HEIGHT;
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
-        cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 4.8, delta);
-        cameraRig.pitch = THREE.MathUtils.clamp(
-          cameraRig.pitch,
-          0.82,
-          CAMERA_MAX_PITCH,
-        );
-        cameraRig.distance = THREE.MathUtils.clamp(
-          Math.max(cameraRig.distance, overviewMinDistance),
-          overviewMinDistance,
-          maxMapDistance,
-        );
+        cameraRig.yaw = overviewYaw;
+        cameraRig.pitch = 0.7;
+        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
       } else if (currentMode === "follow") {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;
