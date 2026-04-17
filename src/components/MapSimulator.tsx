@@ -28,6 +28,7 @@ import {
   SUBWAY_FOCUS_PITCH,
 } from "@/components/map-simulator/scene-constants";
 import { loadSimulationData } from "@/components/map-simulator/load-simulation-data";
+import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
 import MapSimulatorSceneRuntime from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 import {
@@ -78,6 +79,7 @@ type MapSimulatorProps = {
 
 export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const simulationSource = useMemo(() => createLocalSimulationSource(), []);
   const [data, setData] = useState<SimulationData | null>(null);
   const [status, setStatus] = useState<SceneStatus>("loading");
   const [statusDetail, setStatusDetail] = useState(
@@ -794,6 +796,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       <MapSimulatorSceneRuntime
         containerRef={containerRef}
         data={data}
+        simulationSource={simulationSource}
         appliedTaxiCountRef={appliedTaxiCountRef}
         appliedTrafficCountRef={appliedTrafficCountRef}
         cameraModeRef={cameraModeRef}
