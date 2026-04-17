@@ -69,7 +69,7 @@ export type DispatchPlanner<
   TRoute extends DispatchRoute,
   THotspot extends DispatchHotspot,
 > = {
-  id: string;
+  readonly id: string;
   createSession: (
     context: DispatchPlannerContext<TRoute, THotspot>,
   ) => DispatchPlannerSession<TRoute, THotspot>;
