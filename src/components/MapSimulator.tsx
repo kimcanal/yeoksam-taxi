@@ -24,120 +24,126 @@ import {
   type DispatchDemandSnapshot,
 } from "@/components/map-simulator/dispatch-planner";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import {
+  HYDRATION_SAFE_SIMULATION_CLOCK,
+  MINUTES_PER_DAY,
+  TIME_PRESETS,
+  WEATHER_OPTIONS,
+  buildEnvironmentState,
+  currentSimulationClock,
+  daylightFactor,
+  format24Hour,
+  formatDateLabel,
+  formatKstDateTime,
+  formatMetricDuration,
+  mixHexColor,
+  normalizeDayMinutes,
+  sunsetFactor,
+  timeBandLabel,
+  twilightFactor,
+  type WeatherMode,
+} from "@/components/map-simulator/simulation-environment";
+import {
+  ASSET_FETCH_TIMEOUT_MS,
+  AUTO_REFRESH_BAND_HYSTERESIS_RATIO,
+  AUTO_RENDER_HALF_REFRESH_THRESHOLD,
+  CAMERA_BASE_MOVE_SCALE,
+  CAMERA_BASE_TURN_SCALE,
+  CAMERA_DRAG_SENSITIVITY,
+  CAMERA_DRIVE_SPEED,
+  CAMERA_LOOK_HEIGHT,
+  CAMERA_MAX_DISTANCE,
+  CAMERA_MAX_PITCH,
+  CAMERA_MIN_DISTANCE,
+  CAMERA_MIN_PITCH,
+  CAMERA_STRAFE_SPEED,
+  CAMERA_TURN_SPEED,
+  COMMON_REFRESH_RATE_BANDS,
+  CROSSWALK_STEP,
+  CROSSWALK_STRIPE_COUNT,
+  CROSSWALK_WIDTH,
+  CURBSIDE_EDGE_INSET_MAX,
+  CURBSIDE_EDGE_INSET_MIN,
+  CURBSIDE_EXTRA_OFFSET_MAX,
+  CURBSIDE_SIDEWALK_OFFSET,
+  DRIVE_PIXEL_RATIO,
+  DRIVE_RENDER_FPS,
+  FOLLOW_PIXEL_RATIO,
+  FOLLOW_RENDER_FPS,
+  HIDDEN_PIXEL_RATIO,
+  HIDDEN_RENDER_FPS,
+  HOTSPOT_ACTIVITY_REFRESH_INTERVAL,
+  HOTSPOT_SLOWDOWN_DISTANCE,
+  HOTSPOT_TRIGGER_DISTANCE,
+  HOVER_REFRESH_INTERVAL,
+  INTERSECTION_BOX_ENTRY_LOOKAHEAD,
+  INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ,
+  INTERSECTION_EXIT_BLOCK_SPEED,
+  INTERSECTION_EXIT_QUEUE_RADIUS_SQ,
+  INTERSECTION_LEFT_TURN_GAP_DISTANCE,
+  INTERSECTION_OCCUPANCY_LOOKAHEAD,
+  INTERSECTION_SIGNAL_LOOKAHEAD,
+  LABEL_RENDER_INTERVAL,
+  LABEL_VISIBILITY_REFRESH_INTERVAL,
+  LARGE_LOW_RISE_BUILDING_AREA_M2,
+  LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M,
+  LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
+  LOCAL_SCENARIO_FOCUS_DISTANCE,
+  LOCAL_SCENARIO_FOCUS_PITCH,
+  LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
+  MAX_VEHICLE_SIMULATION_STEPS,
+  NON_ROAD_LAYER_Y,
+  OVERVIEW_PIXEL_RATIO,
+  OVERVIEW_RENDER_FPS,
+  PEDESTRIAN_SPAN,
+  POSITION_SCALE,
+  ROAD_LAYER_Y,
+  ROAD_NETWORK_EDGE_Y_OFFSET,
+  ROAD_NETWORK_NODE_Y,
+  ROAD_SEGMENT_INDEX_CELL_SIZE,
+  ROAD_WIDTH_SCALE,
+  SERVICE_STOP_DURATION,
+  SHOW_DONG_BOUNDARIES,
+  SIGNAL_CLUSTER_DISTANCE,
+  SIGNAL_COORDINATION_BAND_SIZE,
+  SIGNAL_COORDINATION_PHASE_STEP,
+  SIGNAL_CYCLE,
+  SIGNAL_NODE_SNAP_DISTANCE,
+  SIGNAL_RADIUS_SQ,
+  SIGNAL_ROAD_SNAP_DISTANCE,
+  SIGNAL_WAVE_TRAVEL_SPEED,
+  SIMULATION_STATS_UPDATE_INTERVAL,
+  SUBWAY_FOCUS_DISTANCE,
+  SUBWAY_FOCUS_PITCH,
+  TAXI_ASSET_TARGET_LENGTH,
+  TAXI_CLICK_MOVE_THRESHOLD,
+  TAXI_VIEW_CAMERA_BACK_OFFSET,
+  TAXI_VIEW_CAMERA_HEIGHT,
+  TAXI_VIEW_CAMERA_SIDE_OFFSET,
+  TAXI_VIEW_LOOK_AHEAD,
+  TRAFFIC_ASSET_TARGET_LENGTH,
+  TRAFFIC_ROUTE_REENTRY_DISTANCE,
+  VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
+  VEHICLE_PROXIMITY_CELL_SIZE,
+  VEHICLE_SIMULATION_STEP,
+  BUILDING_HEIGHT_SCALE,
+} from "@/components/map-simulator/scene-constants";
+import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 
 const DEFAULT_TAXI_COUNT = 12;
 const DEFAULT_TRAFFIC_COUNT = 16;
-const ASSET_FETCH_TIMEOUT_MS = 20_000;
 const MIN_TAXI_COUNT = 4;
 const MAX_TAXI_COUNT = 24;
 const MIN_TRAFFIC_COUNT = 8;
 const MAX_TRAFFIC_COUNT = 36;
-const POSITION_SCALE = 0.2;
-const ROAD_WIDTH_SCALE = 0.6;
-const BUILDING_HEIGHT_SCALE = 0.2;
-const SIGNAL_RADIUS = 7;
-const SIGNAL_CYCLE = 24;
-const SIGNAL_CLUSTER_DISTANCE = 18;
-const SIGNAL_ROAD_SNAP_DISTANCE = 14;
-const SIGNAL_NODE_SNAP_DISTANCE = 16;
-const SIGNAL_COORDINATION_BAND_SIZE = 14;
-const SIGNAL_COORDINATION_PHASE_STEP = 1.35;
-const SIGNAL_WAVE_TRAVEL_SPEED = 6.4;
 const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 const KAKAO_TRAFFIC_ASSET_PATHS = [
   "/assets/kakao-traffic/Sportage_01.fbx",
   "/assets/kakao-traffic/Porter_01.fbx",
 ] as const;
 const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
-const HOTSPOT_SLOWDOWN_DISTANCE = 16;
-const HOTSPOT_TRIGGER_DISTANCE = 1.2;
-const SERVICE_STOP_DURATION = 1.6;
-const VEHICLE_SIMULATION_FPS = 30;
-const VEHICLE_SIMULATION_STEP = 1 / VEHICLE_SIMULATION_FPS;
-const MAX_VEHICLE_SIMULATION_STEPS = 4;
-const SIGNAL_RADIUS_SQ = SIGNAL_RADIUS * SIGNAL_RADIUS;
-const CURBSIDE_EDGE_INSET_MIN = 0.45;
-const CURBSIDE_EDGE_INSET_MAX = 0.72;
-const CURBSIDE_EXTRA_OFFSET_MAX = 1.05;
-const CURBSIDE_SIDEWALK_OFFSET = 0.92;
-const INTERSECTION_BOX_OCCUPANCY_RADIUS = 2.35;
-const INTERSECTION_OCCUPANCY_LOOKAHEAD = 6;
-const INTERSECTION_EXIT_QUEUE_RADIUS = 8.8;
-const INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ =
-  INTERSECTION_BOX_OCCUPANCY_RADIUS * INTERSECTION_BOX_OCCUPANCY_RADIUS;
-const INTERSECTION_EXIT_QUEUE_RADIUS_SQ =
-  INTERSECTION_EXIT_QUEUE_RADIUS * INTERSECTION_EXIT_QUEUE_RADIUS;
-const INTERSECTION_EXIT_BLOCK_SPEED = 2.4;
-const INTERSECTION_BOX_ENTRY_LOOKAHEAD = 10.5;
-const INTERSECTION_SIGNAL_LOOKAHEAD = 18;
-const INTERSECTION_LEFT_TURN_GAP_DISTANCE = 7.2;
-const VEHICLE_FOLLOW_LOOKAHEAD_BUFFER = 8;
-const VEHICLE_PROXIMITY_CELL_SIZE = 12;
-const ROAD_SEGMENT_INDEX_CELL_SIZE = 24;
-const CROSSWALK_STRIPE_COUNT = 4;
-const CROSSWALK_STEP = 1.35;
-const CROSSWALK_WIDTH = 5.4;
-const PEDESTRIAN_SPAN = 4.2;
-const CAMERA_DRIVE_SPEED = 26;
-const CAMERA_STRAFE_SPEED = 22;
-const CAMERA_TURN_SPEED = 1.95;
-const CAMERA_BASE_MOVE_SCALE = 1.8;
-const CAMERA_BASE_TURN_SCALE = 0.95;
-const CAMERA_DRAG_SENSITIVITY = 0.0042;
-const CAMERA_MIN_DISTANCE = 34;
-const CAMERA_MAX_DISTANCE = 560;
-const CAMERA_MIN_PITCH = 0.34;
-const CAMERA_MAX_PITCH = 1.16;
-const CAMERA_LOOK_HEIGHT = 6;
-const SUBWAY_FOCUS_DISTANCE = 56;
-const SUBWAY_FOCUS_PITCH = 0.82;
-const TAXI_VIEW_CAMERA_HEIGHT = 4.1;
-const TAXI_VIEW_CAMERA_BACK_OFFSET = -10.5;
-const TAXI_VIEW_CAMERA_SIDE_OFFSET = 0.5;
-const TAXI_VIEW_LOOK_AHEAD = 18;
-const TAXI_CLICK_MOVE_THRESHOLD = 8;
-const SHOW_DONG_BOUNDARIES = false;
-const DRIVE_RENDER_FPS = 60;
-const FOLLOW_RENDER_FPS = 60;
-const OVERVIEW_RENDER_FPS = 60;
-const HIDDEN_RENDER_FPS = 12;
-const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
-const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 1.2;
-const HOVER_REFRESH_INTERVAL = 1 / 30;
-const LABEL_RENDER_INTERVAL = 1 / 30;
-const LABEL_VISIBILITY_REFRESH_INTERVAL = 0.14;
-const TRAFFIC_ROUTE_REENTRY_DISTANCE = 6.4;
-const COMMON_REFRESH_RATE_BANDS = [
-  60, 72, 75, 90, 100, 120, 144, 165, 180, 200, 240,
-] as const;
-const AUTO_RENDER_HALF_REFRESH_THRESHOLD = 100;
-const AUTO_REFRESH_BAND_HYSTERESIS_RATIO = 0.1;
-const DRIVE_PIXEL_RATIO = 0.85;
-const FOLLOW_PIXEL_RATIO = 0.85;
-const OVERVIEW_PIXEL_RATIO = 0.75;
-const HIDDEN_PIXEL_RATIO = 0.6;
-const ROAD_LAYER_Y = {
-  local: 0.116,
-  connector: 0.121,
-  arterial: 0.126,
-} as const;
-const NON_ROAD_LAYER_Y = {
-  facility: 0.048,
-  green: 0.056,
-  pedestrian: 0.064,
-  parking: 0.072,
-  water: 0.08,
-} as const;
-const ROAD_NETWORK_EDGE_Y_OFFSET = 0.42;
-const ROAD_NETWORK_NODE_Y = 0.72;
-const LARGE_LOW_RISE_BUILDING_AREA_M2 = 12_000;
-const LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M = 20;
-const LOCAL_SCENARIO_FOCUS_DISTANCE = 34;
-const LOCAL_SCENARIO_FOCUS_PITCH = 0.34;
-const LOCAL_SCENARIO_FOCUS_CENTER_BLEND = 0.3;
-const LOCAL_SCENARIO_FOCUS_YAW_OFFSET = -0.76;
-const TAXI_ASSET_TARGET_LENGTH = 4.28;
-const TRAFFIC_ASSET_TARGET_LENGTH = 4.2;
+const TAXI_ASSET_LOAD_DELAY_MS = 4_000;
+const TAXI_ASSET_IDLE_TIMEOUT_MS = 8_000;
 
 type SignalAxis = "ns" | "ew";
 type SignalDirection = "north" | "east" | "south" | "west";
@@ -404,11 +410,12 @@ type VehiclePalette = {
   sign: number | null;
 };
 
+type VehicleMaterialHint = "body" | "glass" | "trim" | "metal" | "default";
+
 type VehicleKind = "taxi" | "traffic";
 type VehiclePlanMode = "traffic" | "pickup" | "dropoff";
 type BaseCameraMode = "drive" | "overview" | "follow";
 type CameraMode = BaseCameraMode | "ride";
-type WeatherMode = "clear" | "cloudy" | "heavy-rain" | "heavy-snow";
 type CircumstanceMode = "live" | "specific";
 
 type VehicleMotionState = RouteSample & {
@@ -485,12 +492,6 @@ type FpsStats = {
   renderMs: number;
   simulationHz: number;
   vehicles: number;
-};
-
-type WeatherOption = {
-  id: WeatherMode;
-  label: string;
-  detail: string;
 };
 
 type LocalScenarioPreset = {
@@ -580,6 +581,221 @@ const SIMULATION_ASSET_LABELS: Array<{
 function assetFileName(path: string) {
   const segments = path.split("/").filter(Boolean);
   return segments[segments.length - 1] ?? path;
+}
+
+function markMeshResourceSharing(
+  mesh: THREE.Mesh,
+  {
+    geometry = true,
+    material = false,
+  }: { geometry?: boolean; material?: boolean } = {},
+) {
+  if (geometry) {
+    mesh.userData.skipGeometryDispose = true;
+  }
+  if (material) {
+    mesh.userData.skipMaterialDispose = true;
+  }
+  return mesh;
+}
+
+function disposeMaterialResources(material: THREE.Material) {
+  const materialWithTextures = material as THREE.Material &
+    Partial<Record<(typeof MATERIAL_TEXTURE_KEYS)[number], THREE.Texture | null>>;
+
+  MATERIAL_TEXTURE_KEYS.forEach((key) => {
+    materialWithTextures[key]?.dispose?.();
+  });
+  material.dispose();
+}
+
+function beginSuppressingFbxLoaderWarnings() {
+  if (fbxLoaderWarnSuppressionDepth === 0) {
+    originalConsoleWarnForFbxLoader = console.warn;
+    console.warn = (...args: unknown[]) => {
+      const first = args[0];
+      if (
+        typeof first === "string" &&
+        first.startsWith("THREE.FBXLoader:")
+      ) {
+        return;
+      }
+      originalConsoleWarnForFbxLoader?.(...args);
+    };
+  }
+
+  fbxLoaderWarnSuppressionDepth += 1;
+}
+
+function endSuppressingFbxLoaderWarnings() {
+  if (fbxLoaderWarnSuppressionDepth === 0) {
+    return;
+  }
+
+  fbxLoaderWarnSuppressionDepth -= 1;
+  if (fbxLoaderWarnSuppressionDepth === 0 && originalConsoleWarnForFbxLoader) {
+    console.warn = originalConsoleWarnForFbxLoader;
+    originalConsoleWarnForFbxLoader = null;
+  }
+}
+
+function pedestrianBodyMaterialFor(color: number) {
+  let material = PEDESTRIAN_BODY_MATERIALS.get(color);
+  if (!material) {
+    material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+    PEDESTRIAN_BODY_MATERIALS.set(color, material);
+  }
+  return material;
+}
+
+function callerTorsoMaterialFor(color: number) {
+  let material = CALLER_TORSO_MATERIALS.get(color);
+  if (!material) {
+    material = new THREE.MeshStandardMaterial({ color, roughness: 0.82 });
+    CALLER_TORSO_MATERIALS.set(color, material);
+  }
+  return material;
+}
+
+function callerArmMaterialFor(color: number) {
+  let material = CALLER_ARM_MATERIALS.get(color);
+  if (!material) {
+    material = new THREE.MeshStandardMaterial({ color, roughness: 0.84 });
+    CALLER_ARM_MATERIALS.set(color, material);
+  }
+  return material;
+}
+
+function callerBottomMaterialFor(color: number) {
+  let material = CALLER_BOTTOM_MATERIALS.get(color);
+  if (!material) {
+    material = new THREE.MeshStandardMaterial({ color, roughness: 0.88 });
+    CALLER_BOTTOM_MATERIALS.set(color, material);
+  }
+  return material;
+}
+
+function sharedVehicleTemplatePlaceholderMaterial() {
+  VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL ??= new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+  });
+  return VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL;
+}
+
+function sharedImportedTaxiSignGeometry() {
+  IMPORTED_TAXI_SIGN_GEOMETRY ??= new THREE.BoxGeometry(0.56, 0.12, 0.34);
+  return IMPORTED_TAXI_SIGN_GEOMETRY;
+}
+
+function sharedImportedTaxiShadowGeometry() {
+  IMPORTED_TAXI_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(2.5, 5);
+  return IMPORTED_TAXI_SHADOW_GEOMETRY;
+}
+
+function sharedImportedTrafficShadowGeometry() {
+  IMPORTED_TRAFFIC_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(2.5, 5.1);
+  return IMPORTED_TRAFFIC_SHADOW_GEOMETRY;
+}
+
+function sharedImportedTaxiClickTargetGeometry() {
+  IMPORTED_TAXI_CLICK_TARGET_GEOMETRY ??= new THREE.BoxGeometry(3.2, 3.2, 6.8);
+  return IMPORTED_TAXI_CLICK_TARGET_GEOMETRY;
+}
+
+function sharedPedestrianBodyGeometry() {
+  PEDESTRIAN_BODY_GEOMETRY ??= new THREE.BoxGeometry(0.34, 0.82, 0.24);
+  return PEDESTRIAN_BODY_GEOMETRY;
+}
+
+function sharedPedestrianHeadGeometry() {
+  PEDESTRIAN_HEAD_GEOMETRY ??= new THREE.SphereGeometry(0.18, 10, 10);
+  return PEDESTRIAN_HEAD_GEOMETRY;
+}
+
+function sharedPedestrianFeetGeometry() {
+  PEDESTRIAN_FEET_GEOMETRY ??= new THREE.BoxGeometry(0.28, 0.12, 0.2);
+  return PEDESTRIAN_FEET_GEOMETRY;
+}
+
+function sharedPedestrianHeadMaterial() {
+  PEDESTRIAN_HEAD_MATERIAL ??= new THREE.MeshStandardMaterial({
+    color: 0xf4d9c2,
+    roughness: 0.7,
+  });
+  return PEDESTRIAN_HEAD_MATERIAL;
+}
+
+function sharedPedestrianFeetMaterial() {
+  PEDESTRIAN_FEET_MATERIAL ??= new THREE.MeshStandardMaterial({
+    color: 0x1a2331,
+    roughness: 0.92,
+  });
+  return PEDESTRIAN_FEET_MATERIAL;
+}
+
+function sharedCallerShadowGeometry() {
+  CALLER_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(1.1, 0.72);
+  return CALLER_SHADOW_GEOMETRY;
+}
+
+function sharedCallerShoesGeometry() {
+  CALLER_SHOES_GEOMETRY ??= new THREE.BoxGeometry(0.36, 0.12, 0.24);
+  return CALLER_SHOES_GEOMETRY;
+}
+
+function sharedCallerLegsGeometry() {
+  CALLER_LEGS_GEOMETRY ??= new THREE.BoxGeometry(0.3, 0.52, 0.22);
+  return CALLER_LEGS_GEOMETRY;
+}
+
+function sharedCallerTorsoGeometry() {
+  CALLER_TORSO_GEOMETRY ??= new THREE.BoxGeometry(0.48, 0.62, 0.28);
+  return CALLER_TORSO_GEOMETRY;
+}
+
+function sharedCallerHeadGeometry() {
+  CALLER_HEAD_GEOMETRY ??= new THREE.BoxGeometry(0.3, 0.3, 0.3);
+  return CALLER_HEAD_GEOMETRY;
+}
+
+function sharedCallerLeftArmGeometry() {
+  CALLER_LEFT_ARM_GEOMETRY ??= new THREE.BoxGeometry(0.14, 0.56, 0.14);
+  return CALLER_LEFT_ARM_GEOMETRY;
+}
+
+function sharedCallerWaveArmGeometry() {
+  CALLER_WAVE_ARM_GEOMETRY ??= new THREE.BoxGeometry(0.14, 0.6, 0.14);
+  return CALLER_WAVE_ARM_GEOMETRY;
+}
+
+function sharedCallerHailCubeGeometry() {
+  CALLER_HAIL_CUBE_GEOMETRY ??= new THREE.BoxGeometry(0.24, 0.24, 0.16);
+  return CALLER_HAIL_CUBE_GEOMETRY;
+}
+
+function sharedCallerShadowMaterial() {
+  CALLER_SHADOW_MATERIAL ??= new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.14,
+  });
+  return CALLER_SHADOW_MATERIAL;
+}
+
+function sharedCallerShoesMaterial() {
+  CALLER_SHOES_MATERIAL ??= new THREE.MeshStandardMaterial({
+    color: 0x161c28,
+    roughness: 0.94,
+  });
+  return CALLER_SHOES_MATERIAL;
+}
+
+function sharedCallerHeadMaterial() {
+  CALLER_HEAD_MATERIAL ??= new THREE.MeshStandardMaterial({
+    color: 0xf2d7bd,
+    roughness: 0.75,
+  });
+  return CALLER_HEAD_MATERIAL;
 }
 
 // Register additional planners here as you add data-driven dispatch engines.
@@ -834,42 +1050,6 @@ function resolveDispatchPlannerPresentation(
   );
 }
 
-type EnvironmentState = {
-  skyColor: number;
-  fogColor: number;
-  fogNear: number;
-  fogFar: number;
-  ambientColor: number;
-  ambientIntensity: number;
-  hemiSkyColor: number;
-  hemiGroundColor: number;
-  hemiIntensity: number;
-  sunColor: number;
-  sunIntensity: number;
-  sunPosition: THREE.Vector3;
-  groundColor: number;
-  roadColors: Record<RoadProperties["roadClass"], number>;
-  roadRoughness: number;
-  roadMetalness: number;
-  laneMarkerColor: number;
-  laneMarkerEmissive: number;
-  laneMarkerIntensity: number;
-  crosswalkColor: number;
-  crosswalkEmissive: number;
-  crosswalkIntensity: number;
-  stopLineColor: number;
-  stopLineEmissive: number;
-  stopLineIntensity: number;
-  buildingTint: number;
-  buildingEmissive: number;
-  buildingEmissiveIntensity: number;
-  precipitation: "none" | "rain" | "snow";
-  precipitationOpacity: number;
-  precipitationIntensity: number;
-  vehicleSpeedMultiplier: number;
-  exposure: number;
-};
-
 const TAXI_PALETTE: VehiclePalette = {
   body: 0xd79a3a,
   cabin: 0xe4c17d,
@@ -891,6 +1071,54 @@ const HOTSPOT_IDLE_COLORS = [0x7a6b57, 0x62716c, 0x76645c];
 const CALLER_TOP_PALETTES = [0x8a7d70, 0x6f7d8a, 0x6d8376, 0x97846a, 0x7a7387];
 const CALLER_BOTTOM_PALETTES = [0x25292d, 0x2b3035, 0x31353a, 0x2a2e32];
 const SUBWAY_STRUCTURE_ACCENTS = [0x78aaa0, 0x89b9ae, 0x6f978f];
+const MATERIAL_TEXTURE_KEYS = [
+  "map",
+  "alphaMap",
+  "aoMap",
+  "bumpMap",
+  "displacementMap",
+  "emissiveMap",
+  "envMap",
+  "lightMap",
+  "metalnessMap",
+  "normalMap",
+  "roughnessMap",
+  "specularMap",
+  "clearcoatMap",
+  "clearcoatNormalMap",
+  "clearcoatRoughnessMap",
+  "sheenColorMap",
+  "sheenRoughnessMap",
+  "thicknessMap",
+  "transmissionMap",
+] as const;
+let VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL: THREE.MeshBasicMaterial | null = null;
+let IMPORTED_TAXI_SIGN_GEOMETRY: THREE.BoxGeometry | null = null;
+let IMPORTED_TAXI_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
+let IMPORTED_TRAFFIC_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
+let IMPORTED_TAXI_CLICK_TARGET_GEOMETRY: THREE.BoxGeometry | null = null;
+let PEDESTRIAN_BODY_GEOMETRY: THREE.BoxGeometry | null = null;
+let PEDESTRIAN_HEAD_GEOMETRY: THREE.SphereGeometry | null = null;
+let PEDESTRIAN_FEET_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
+let CALLER_SHOES_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_LEGS_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_TORSO_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_HEAD_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_LEFT_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_WAVE_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
+let CALLER_HAIL_CUBE_GEOMETRY: THREE.BoxGeometry | null = null;
+const PEDESTRIAN_BODY_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
+const CALLER_TORSO_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
+const CALLER_ARM_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
+const CALLER_BOTTOM_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
+let PEDESTRIAN_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
+let PEDESTRIAN_FEET_MATERIAL: THREE.MeshStandardMaterial | null = null;
+let CALLER_SHADOW_MATERIAL: THREE.MeshBasicMaterial | null = null;
+let CALLER_SHOES_MATERIAL: THREE.MeshStandardMaterial | null = null;
+let CALLER_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
+let fbxLoaderWarnSuppressionDepth = 0;
+let originalConsoleWarnForFbxLoader: typeof console.warn | null = null;
 const PANEL_EYEBROW_CLASS =
   "mb-2 text-[11px] uppercase tracking-[0.28em] text-[#99cbbd]";
 const PANEL_SECTION_LABEL_CLASS =
@@ -963,41 +1191,6 @@ function HoverInfo({
     </span>
   );
 }
-
-const MINUTES_PER_DAY = 24 * 60;
-const SIMULATION_TIME_ZONE = "Asia/Seoul";
-const KST_UTC_OFFSET_MINUTES = 9 * 60;
-const DEG_TO_RAD = Math.PI / 180;
-const SOLAR_OBLIQUITY = 23.4397 * DEG_TO_RAD;
-
-const WEATHER_OPTIONS: WeatherOption[] = [
-  { id: "clear", label: "맑음", detail: "기본 시야와 표준 주행 속도" },
-  { id: "cloudy", label: "흐림", detail: "광량 감소, 가벼운 감속" },
-  {
-    id: "heavy-rain",
-    label: "폭우",
-    detail: "빗줄기와 젖은 도로, 시야는 보수적으로 유지",
-  },
-  {
-    id: "heavy-snow",
-    label: "폭설",
-    detail: "눈발과 차가운 톤, 과한 안개 없이 표현",
-  },
-];
-
-const TIME_PRESETS = [
-  { label: "06:00", minutes: 6 * 60, detail: "새벽" },
-  { label: "12:00", minutes: 12 * 60, detail: "한낮" },
-  { label: "18:30", minutes: 18 * 60 + 30, detail: "노을" },
-  { label: "23:00", minutes: 23 * 60, detail: "심야" },
-];
-const HYDRATION_SAFE_SIMULATION_CLOCK: {
-  dateIso: string;
-  minutes: number;
-} = {
-  dateIso: "2026-01-01",
-  minutes: 12 * 60,
-};
 
 const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   {
@@ -1101,181 +1294,6 @@ const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   },
 ];
 
-function normalizeDayMinutes(minutes: number) {
-  return (
-    ((Math.round(minutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
-    MINUTES_PER_DAY
-  );
-}
-
-function format24Hour(minutes: number) {
-  const normalized = normalizeDayMinutes(minutes);
-  const hour = Math.floor(normalized / 60);
-  const minute = normalized % 60;
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
-
-function zonedDateTimeParts(date: Date, timeZone = SIMULATION_TIME_ZONE) {
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const partMap = new Map(
-    formatter.formatToParts(date).map((part) => [part.type, part.value]),
-  );
-
-  return {
-    year: Number(partMap.get("year") ?? 1970),
-    month: Number(partMap.get("month") ?? 1),
-    day: Number(partMap.get("day") ?? 1),
-    hour: Number(partMap.get("hour") ?? 0),
-    minute: Number(partMap.get("minute") ?? 0),
-  };
-}
-
-function dateIsoFromParts(parts: { year: number; month: number; day: number }) {
-  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-}
-
-function currentSimulationClock(date = new Date()) {
-  const parts = zonedDateTimeParts(date);
-  return {
-    dateIso: dateIsoFromParts(parts),
-    minutes: parts.hour * 60 + parts.minute,
-  };
-}
-
-function parseDateIso(dateIso: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    year: Number(match[1]),
-    month: Number(match[2]),
-    day: Number(match[3]),
-  };
-}
-
-function formatDateLabel(dateIso: string) {
-  const parsed = parseDateIso(dateIso);
-  if (!parsed) {
-    return dateIso;
-  }
-  return `${parsed.year}.${String(parsed.month).padStart(2, "0")}.${String(parsed.day).padStart(2, "0")}`;
-}
-
-function kstDateTimeToUtcDate(dateIso: string, minutes: number) {
-  const parsed = parseDateIso(dateIso);
-  if (!parsed) {
-    return new Date();
-  }
-
-  const normalizedMinutes = normalizeDayMinutes(minutes);
-  const utcMs =
-    Date.UTC(parsed.year, parsed.month - 1, parsed.day, 0, 0, 0, 0) +
-    normalizedMinutes * 60_000 -
-    KST_UTC_OFFSET_MINUTES * 60_000;
-
-  return new Date(utcMs);
-}
-
-function smoothstep(edge0: number, edge1: number, value: number) {
-  const alpha = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
-  return alpha * alpha * (3 - 2 * alpha);
-}
-
-function solarPositionForDateTime(
-  dateIso: string,
-  minutes: number,
-  center: { lat: number; lon: number },
-) {
-  const date = kstDateTimeToUtcDate(dateIso, minutes);
-  const julianDate = date.getTime() / 86400000 - 0.5 + 2440588;
-  const days = julianDate - 2451545;
-  const meanAnomaly = DEG_TO_RAD * (357.5291 + 0.98560028 * days);
-  const equationOfCenter =
-    DEG_TO_RAD *
-    (1.9148 * Math.sin(meanAnomaly) +
-      0.02 * Math.sin(2 * meanAnomaly) +
-      0.0003 * Math.sin(3 * meanAnomaly));
-  const perihelion = DEG_TO_RAD * 102.9372;
-  const eclipticLongitude =
-    meanAnomaly + equationOfCenter + perihelion + Math.PI;
-  const declination = Math.asin(
-    Math.sin(eclipticLongitude) * Math.sin(SOLAR_OBLIQUITY),
-  );
-  const rightAscension = Math.atan2(
-    Math.sin(eclipticLongitude) * Math.cos(SOLAR_OBLIQUITY),
-    Math.cos(eclipticLongitude),
-  );
-  const longitudeWest = -center.lon * DEG_TO_RAD;
-  const siderealTime =
-    DEG_TO_RAD * (280.16 + 360.9856235 * days) - longitudeWest;
-  const hourAngle = siderealTime - rightAscension;
-  const latitudeRad = center.lat * DEG_TO_RAD;
-  const altitude = Math.asin(
-    Math.sin(latitudeRad) * Math.sin(declination) +
-    Math.cos(latitudeRad) * Math.cos(declination) * Math.cos(hourAngle),
-  );
-  const azimuthFromSouth = Math.atan2(
-    Math.sin(hourAngle),
-    Math.cos(hourAngle) * Math.sin(latitudeRad) -
-    Math.tan(declination) * Math.cos(latitudeRad),
-  );
-  const azimuthFromNorth = (azimuthFromSouth + Math.PI * 3) % (Math.PI * 2);
-  const cosAltitude = Math.cos(altitude);
-
-  return {
-    altitude,
-    azimuth: azimuthFromNorth,
-    direction: new THREE.Vector3(
-      Math.sin(azimuthFromNorth) * cosAltitude,
-      Math.sin(altitude),
-      -Math.cos(azimuthFromNorth) * cosAltitude,
-    ).normalize(),
-  };
-}
-
-function formatKstDateTime(value: string | number | Date) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  const parts = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-
-  const partMap = new Map(parts.map((part) => [part.type, part.value]));
-  return `${partMap.get("year")}-${partMap.get("month")}-${partMap.get("day")} ${partMap.get("hour")}:${partMap.get("minute")} KST`;
-}
-
-function formatMetricDuration(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    return "0초";
-  }
-  if (seconds < 60) {
-    return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)}초`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.round(seconds % 60);
-  return `${minutes}분 ${String(remainingSeconds).padStart(2, "0")}초`;
-}
-
 function taxiDisplayNumber(vehicleId: string) {
   const matched = vehicleId.match(/(\d+)$/);
   return matched ? Number(matched[1]) + 1 : null;
@@ -1362,323 +1380,6 @@ async function fetchRoadNetworkAsset(path: string) {
     console.warn("Falling back to client-side road-graph build.", error);
     return null;
   }
-}
-
-function timeBandLabel(minutes: number) {
-  const normalized = normalizeDayMinutes(minutes);
-  if (normalized < 300) return "심야";
-  if (normalized < 420) return "새벽";
-  if (normalized < 720) return "오전";
-  if (normalized < 1020) return "오후";
-  if (normalized < 1260) return "저녁";
-  return "야간";
-}
-
-function daylightFactor(
-  dateIso: string,
-  minutes: number,
-  center: { lat: number; lon: number },
-) {
-  const altitudeDegrees =
-    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
-  return smoothstep(-3, 24, altitudeDegrees);
-}
-
-function twilightFactor(
-  dateIso: string,
-  minutes: number,
-  center: { lat: number; lon: number },
-) {
-  const altitudeDegrees =
-    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
-  return Math.exp(-Math.pow(altitudeDegrees / 8, 2));
-}
-
-function sunsetFactor(
-  dateIso: string,
-  minutes: number,
-  center: { lat: number; lon: number },
-) {
-  const altitudeDegrees =
-    solarPositionForDateTime(dateIso, minutes, center).altitude / DEG_TO_RAD;
-  return THREE.MathUtils.clamp(
-    Math.exp(-Math.pow(altitudeDegrees / 6.5, 2)),
-    0,
-    1,
-  );
-}
-
-function mixHexColor(start: number, end: number, alpha: number) {
-  return new THREE.Color(start)
-    .lerp(new THREE.Color(end), THREE.MathUtils.clamp(alpha, 0, 1))
-    .getHex();
-}
-
-function scaleHexColor(value: number, factor: number) {
-  return new THREE.Color(value).multiplyScalar(factor).getHex();
-}
-
-function buildEnvironmentState(
-  dateIso: string,
-  minutes: number,
-  weatherMode: WeatherMode,
-  center: { lat: number; lon: number },
-): EnvironmentState {
-  const normalizedMinutes = normalizeDayMinutes(minutes);
-  const solarPosition = solarPositionForDateTime(
-    dateIso,
-    normalizedMinutes,
-    center,
-  );
-  const altitudeDegrees = solarPosition.altitude / DEG_TO_RAD;
-  const daylight = smoothstep(-3, 24, altitudeDegrees);
-  const twilight = Math.exp(-Math.pow(altitudeDegrees / 8, 2));
-  const sunset = THREE.MathUtils.clamp(
-    Math.exp(-Math.pow(altitudeDegrees / 6.5, 2)),
-    0,
-    1,
-  );
-  const solarDirection = solarPosition.direction.clone();
-  const cloudCover =
-    weatherMode === "clear"
-      ? 0.04
-      : weatherMode === "cloudy"
-        ? 0.18
-        : weatherMode === "heavy-rain"
-          ? 0.36
-          : 0.28;
-  const skyDayColor =
-    weatherMode === "clear"
-      ? 0x8fc2e5
-      : weatherMode === "cloudy"
-        ? 0x90a5b7
-        : weatherMode === "heavy-rain"
-          ? 0x6d8092
-          : 0xc9d8e5;
-  const skyNightColor =
-    weatherMode === "heavy-snow"
-      ? 0x263443
-      : weatherMode === "heavy-rain"
-        ? 0x152130
-        : 0x152231;
-  const fogDayColor =
-    weatherMode === "clear"
-      ? 0x9bc4da
-      : weatherMode === "cloudy"
-        ? 0x97a6b3
-        : weatherMode === "heavy-rain"
-          ? 0x72818d
-          : 0xd3dee8;
-  const fogNightColor =
-    weatherMode === "heavy-snow"
-      ? 0x384959
-      : weatherMode === "heavy-rain"
-        ? 0x1d2b38
-        : 0x1d2b39;
-  const weatherSpeedMultiplier =
-    weatherMode === "clear"
-      ? 1
-      : weatherMode === "cloudy"
-        ? 0.97
-        : weatherMode === "heavy-rain"
-          ? 0.9
-          : 0.82;
-  const nightSpeedMultiplier =
-    daylight < 0.12 ? 0.94 : daylight < 0.3 ? 0.97 : 1;
-  const sunsetSkyColor = weatherMode === "heavy-snow" ? 0xf0c5ad : 0xf0915d;
-  const sunsetFogColor = weatherMode === "heavy-snow" ? 0xf4ddcf : 0xf0bb8e;
-  const nightBuildingFactor = THREE.MathUtils.clamp(
-    (0.3 - daylight) / 0.3,
-    0,
-    1,
-  );
-  const readabilitySkyMix = THREE.MathUtils.clamp(
-    daylight * 0.72 + twilight * 0.1 + 0.12,
-    0,
-    1,
-  );
-  const readabilityFogMix = THREE.MathUtils.clamp(
-    daylight * 0.68 + twilight * 0.1 + 0.18,
-    0,
-    1,
-  );
-  const readableNightLight = THREE.MathUtils.clamp(
-    daylight * 0.86 + twilight * 0.24 + 0.28,
-    0,
-    1,
-  );
-
-  const baseSkyColor = mixHexColor(
-    skyNightColor,
-    skyDayColor,
-    readabilitySkyMix,
-  );
-  const baseFogColor = mixHexColor(
-    fogNightColor,
-    fogDayColor,
-    readabilityFogMix,
-  );
-  const neutralGroundColor =
-    weatherMode === "heavy-snow"
-      ? 0x4b5057
-      : weatherMode === "heavy-rain"
-        ? 0x191c20
-        : 0x202327;
-  const roadBaseColors =
-    weatherMode === "heavy-snow"
-      ? {
-        arterial: 0x646a72,
-        connector: 0x5a6068,
-        local: 0x51565d,
-      }
-      : weatherMode === "heavy-rain"
-        ? {
-          arterial: 0x393d41,
-          connector: 0x34383c,
-          local: 0x2e3235,
-        }
-        : {
-          arterial: 0x4b5054,
-          connector: 0x44494d,
-          local: 0x3d4246,
-        };
-  const lightingPreset =
-    weatherMode === "clear"
-      ? {
-        ambientColor: 0xf4f8ff,
-        ambientIntensity: 0.72,
-        hemiSkyColor: 0xdce9ff,
-        hemiGroundColor: 0x415468,
-        hemiIntensity: 0.84,
-        sunColor: 0xfffbf2,
-        sunIntensity: 0.88,
-        fogNear: 144,
-        fogFar: 410,
-        exposure: 1.04,
-      }
-      : weatherMode === "cloudy"
-        ? {
-          ambientColor: 0xe7eef7,
-          ambientIntensity: 0.69,
-          hemiSkyColor: 0xc8d5e3,
-          hemiGroundColor: 0x3d4d60,
-          hemiIntensity: 0.78,
-          sunColor: 0xf8fbff,
-          sunIntensity: 0.8,
-          fogNear: 138,
-          fogFar: 392,
-          exposure: 1.01,
-        }
-        : weatherMode === "heavy-rain"
-          ? {
-            ambientColor: 0xe1e9f2,
-            ambientIntensity: 0.66,
-            hemiSkyColor: 0xbac9db,
-            hemiGroundColor: 0x334153,
-            hemiIntensity: 0.74,
-            sunColor: 0xf0f4fa,
-            sunIntensity: 0.72,
-            fogNear: 124,
-            fogFar: 350,
-            exposure: 0.98,
-          }
-          : {
-            ambientColor: 0xf0f6fb,
-            ambientIntensity: 0.74,
-            hemiSkyColor: 0xdbe6f1,
-            hemiGroundColor: 0x47586b,
-            hemiIntensity: 0.82,
-            sunColor: 0xf8fbff,
-            sunIntensity: 0.82,
-            fogNear: 132,
-            fogFar: 362,
-            exposure: 1,
-          };
-
-  return {
-    skyColor: mixHexColor(baseSkyColor, sunsetSkyColor, sunset * 0.72),
-    fogColor: mixHexColor(baseFogColor, sunsetFogColor, sunset * 0.54),
-    fogNear: lightingPreset.fogNear,
-    fogFar: lightingPreset.fogFar,
-    ambientColor: lightingPreset.ambientColor,
-    ambientIntensity: lightingPreset.ambientIntensity + (1 - daylight) * 0.05,
-    hemiSkyColor: lightingPreset.hemiSkyColor,
-    hemiGroundColor: lightingPreset.hemiGroundColor,
-    hemiIntensity: lightingPreset.hemiIntensity + (1 - daylight) * 0.04,
-    sunColor: lightingPreset.sunColor,
-    sunIntensity: THREE.MathUtils.lerp(
-      lightingPreset.sunIntensity * 0.42,
-      lightingPreset.sunIntensity,
-      readableNightLight,
-    ),
-    sunPosition: solarDirection.multiplyScalar(190),
-    groundColor: neutralGroundColor,
-    roadColors: {
-      arterial: scaleHexColor(roadBaseColors.arterial, 1 - cloudCover * 0.04),
-      connector: scaleHexColor(roadBaseColors.connector, 1 - cloudCover * 0.04),
-      local: scaleHexColor(roadBaseColors.local, 1 - cloudCover * 0.03),
-    },
-    roadRoughness:
-      weatherMode === "heavy-rain"
-        ? 0.84
-        : weatherMode === "heavy-snow"
-          ? 0.9
-          : 0.97,
-    roadMetalness:
-      weatherMode === "heavy-rain"
-        ? 0.08
-        : weatherMode === "heavy-snow"
-          ? 0.03
-          : 0.01,
-    laneMarkerColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd9d1bd,
-    laneMarkerEmissive:
-      daylight < 0.22
-        ? 0x4a4030
-        : weatherMode === "heavy-rain"
-          ? 0x2f2a22
-          : 0x373127,
-    laneMarkerIntensity:
-      daylight < 0.2 ? 0.12 : weatherMode === "heavy-rain" ? 0.05 : 0.04,
-    crosswalkColor: weatherMode === "heavy-snow" ? 0xe8ebee : 0xc6cbd1,
-    crosswalkEmissive: daylight < 0.2 ? 0x242a31 : 0x15181c,
-    crosswalkIntensity: daylight < 0.2 ? 0.05 : 0.02,
-    stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,
-    stopLineEmissive: daylight < 0.2 ? 0x262d36 : 0x181c22,
-    stopLineIntensity: daylight < 0.2 ? 0.08 : 0.03,
-    buildingTint:
-      weatherMode === "heavy-snow"
-        ? 0xd7dbe0
-        : weatherMode === "heavy-rain"
-          ? 0xc7ccd1
-          : 0xd0d4d9,
-    buildingEmissive: mixHexColor(
-      0x15191d,
-      0x2f3a46,
-      nightBuildingFactor * 0.22 + twilight * 0.08,
-    ),
-    buildingEmissiveIntensity:
-      0.05 + twilight * 0.03 + nightBuildingFactor * 0.08,
-    precipitation:
-      weatherMode === "heavy-rain"
-        ? "rain"
-        : weatherMode === "heavy-snow"
-          ? "snow"
-          : "none",
-    precipitationOpacity:
-      weatherMode === "heavy-rain"
-        ? 0.24
-        : weatherMode === "heavy-snow"
-          ? 0.42
-          : 0,
-    precipitationIntensity:
-      weatherMode === "heavy-rain"
-        ? 0.55
-        : weatherMode === "heavy-snow"
-          ? 0.4
-          : 0,
-    vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
-    exposure: lightingPreset.exposure + (1 - daylight) * 0.05,
-  };
 }
 
 function renderFpsCapFor(mode: CameraMode) {
@@ -4092,7 +3793,7 @@ function buildSignalsFromOsm(
       graph,
       SIGNAL_NODE_SNAP_DISTANCE,
     );
-    if (!anchorNode) {
+    if (!anchorNode || !anchorNode.isIntersection) {
       return;
     }
 
@@ -4129,34 +3830,6 @@ function buildSignalsFromOsm(
       return;
     }
 
-    const point = anchorNode.point.clone();
-    const visualShift = clusterPoint.clone().sub(point);
-    visualShift.y = 0;
-    const visualShiftDistance = visualShift.length();
-    if (visualShiftDistance > 0.001) {
-      const blendRatio =
-        cluster.points.length >= 4
-          ? 0.58
-          : cluster.points.length === 3
-            ? 0.48
-            : cluster.points.length === 2
-              ? 0.36
-              : 0.12;
-      const maxShiftDistance =
-        cluster.points.length >= 4
-          ? 5.6
-          : cluster.points.length === 3
-            ? 4.8
-            : cluster.points.length === 2
-              ? 3.8
-              : 1.8;
-      point.addScaledVector(
-        visualShift,
-        Math.min(visualShiftDistance * blendRatio, maxShiftDistance) /
-          visualShiftDistance,
-      );
-    }
-
     const rank = nearbySegmentsForSignal.reduce(
       (best, segment) => Math.max(best, roadRank(segment.roadClass)),
       1,
@@ -4176,7 +3849,6 @@ function buildSignalsFromOsm(
         anchorNode.point.clone(),
         approaches,
         hasProtectedLeft,
-        point,
       ),
       score,
     };
@@ -4548,13 +4220,24 @@ function disposeObject3DResources(object: THREE.Object3D) {
   object.traverse((child) => {
     const resourceHolder = child as THREE.Object3D & {
       geometry?: { dispose?: () => void };
-      material?: { dispose?: () => void } | { dispose?: () => void }[];
+      material?: THREE.Material | THREE.Material[];
     };
-    resourceHolder.geometry?.dispose?.();
+    if (!resourceHolder.userData.skipGeometryDispose) {
+      resourceHolder.geometry?.dispose?.();
+    }
+    if (resourceHolder.userData.skipMaterialDispose) {
+      return;
+    }
     if (Array.isArray(resourceHolder.material)) {
-      resourceHolder.material.forEach((material) => material.dispose?.());
+      resourceHolder.material.forEach((material) => {
+        if (material instanceof THREE.Material) {
+          disposeMaterialResources(material);
+        }
+      });
     } else {
-      resourceHolder.material?.dispose?.();
+      if (resourceHolder.material instanceof THREE.Material) {
+        disposeMaterialResources(resourceHolder.material);
+      }
     }
   });
 }
@@ -5293,37 +4976,35 @@ function loadVehicleAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_
   const loader = new FBXLoader();
 
   return new Promise<THREE.Group>((resolve, reject) => {
-    const originalWarn = console.warn;
-    const restoreWarn = () => {
-      console.warn = originalWarn;
-    };
-    console.warn = (...args: unknown[]) => {
-      const first = args[0];
-      if (
-        typeof first === "string" &&
-        first.startsWith("THREE.FBXLoader:")
-      ) {
+    beginSuppressingFbxLoaderWarnings();
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) {
         return;
       }
-      originalWarn(...args);
+      settled = true;
+      window.clearTimeout(timeoutId);
+      endSuppressingFbxLoaderWarnings();
+      callback();
     };
     const timeoutId = window.setTimeout(() => {
-      restoreWarn();
-      reject(new Error(`Timed out loading vehicle asset: ${path}`));
+      finish(() => {
+        reject(new Error(`Timed out loading vehicle asset: ${path}`));
+      });
     }, timeoutMs);
 
     loader.load(
       path,
       (object) => {
-        window.clearTimeout(timeoutId);
-        restoreWarn();
-        resolve(object);
+        finish(() => {
+          resolve(object);
+        });
       },
       undefined,
       (error) => {
-        window.clearTimeout(timeoutId);
-        restoreWarn();
-        reject(error);
+        finish(() => {
+          reject(error);
+        });
       },
     );
   });
@@ -5354,12 +5035,26 @@ function normalizeVehicleAssetTemplate(
   model.position.z -= center.z;
   model.position.y -= bounds.min.y;
 
+  const sourceMaterials = new Set<THREE.Material>();
   container.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) {
       return;
     }
     child.castShadow = true;
     child.receiveShadow = true;
+    child.userData.vehicleMaterialHint = vehicleAssetMaterialHint(child);
+    child.userData.skipMaterialDispose = true;
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    materials.forEach((material) => {
+      if (!(material instanceof THREE.Material) || sourceMaterials.has(material)) {
+        return;
+      }
+      sourceMaterials.add(material);
+      disposeMaterialResources(material);
+    });
+    child.material = sharedVehicleTemplatePlaceholderMaterial();
   });
 
   return container;
@@ -5373,7 +5068,18 @@ function normalizeTrafficAssetTemplate(source: THREE.Group) {
   return normalizeVehicleAssetTemplate(source, TRAFFIC_ASSET_TARGET_LENGTH);
 }
 
-function vehicleAssetMaterialHint(object: THREE.Object3D) {
+function vehicleAssetMaterialHint(object: THREE.Object3D): VehicleMaterialHint {
+  const cachedHint = object.userData.vehicleMaterialHint;
+  if (
+    cachedHint === "body" ||
+    cachedHint === "glass" ||
+    cachedHint === "trim" ||
+    cachedHint === "metal" ||
+    cachedHint === "default"
+  ) {
+    return cachedHint;
+  }
+
   const mesh = object as THREE.Mesh;
   const sourceLabel = [
     object.name,
@@ -5387,18 +5093,18 @@ function vehicleAssetMaterialHint(object: THREE.Object3D) {
     .toLowerCase();
 
   if (/paint|orange/.test(sourceLabel)) {
-    return "body" as const;
+    return "body";
   }
   if (/glass|screen|window|blue_grass/.test(sourceLabel)) {
-    return "glass" as const;
+    return "glass";
   }
   if (/rubber|tire|wheel|plastic|black|air_duct/.test(sourceLabel)) {
-    return "trim" as const;
+    return "trim";
   }
   if (/silver|metallic|chrome/.test(sourceLabel)) {
-    return "metal" as const;
+    return "metal";
   }
-  return "default" as const;
+  return "default";
 }
 
 function createTaxiAssetGroup(
@@ -5447,6 +5153,8 @@ function createTaxiAssetGroup(
 
     child.castShadow = true;
     child.receiveShadow = true;
+    child.userData.skipGeometryDispose = true;
+    child.userData.skipMaterialDispose = false;
 
     const hint = vehicleAssetMaterialHint(child);
     if (hint === "body") {
@@ -5469,28 +5177,28 @@ function createTaxiAssetGroup(
   });
 
   const assetBounds = new THREE.Box3().setFromObject(group);
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(0.56, 0.12, 0.34),
-    signMaterial,
+  const sign = markMeshResourceSharing(
+    new THREE.Mesh(sharedImportedTaxiSignGeometry(), signMaterial),
   );
   sign.position.set(0, assetBounds.max.y + 0.1, -0.08);
   sign.castShadow = true;
   group.add(sign);
 
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.5, 5),
+    sharedImportedTaxiShadowGeometry(),
     new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
       opacity: 0.14,
     }),
   );
+  shadow.userData.skipGeometryDispose = true;
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   group.add(shadow);
 
   const clickTarget = new THREE.Mesh(
-    new THREE.BoxGeometry(3.2, 3.2, 6.8),
+    sharedImportedTaxiClickTargetGeometry(),
     new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
@@ -5498,6 +5206,7 @@ function createTaxiAssetGroup(
       colorWrite: false,
     }),
   );
+  clickTarget.userData.skipGeometryDispose = true;
   clickTarget.position.y = 1.4;
   group.add(clickTarget);
 
@@ -5543,6 +5252,8 @@ function createTrafficAssetGroup(
 
     child.castShadow = true;
     child.receiveShadow = true;
+    child.userData.skipGeometryDispose = true;
+    child.userData.skipMaterialDispose = false;
 
     const hint = vehicleAssetMaterialHint(child);
     if (hint === "body") {
@@ -5565,13 +5276,14 @@ function createTrafficAssetGroup(
   });
 
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.5, 5.1),
+    sharedImportedTrafficShadowGeometry(),
     new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
       opacity: 0.14,
     }),
   );
+  shadow.userData.skipGeometryDispose = true;
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   group.add(shadow);
@@ -5705,23 +5417,26 @@ function createPedestrianGroup(seed: number) {
   const palette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][seed % 5];
   const group = new THREE.Group();
 
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.34, 0.82, 0.24),
-    new THREE.MeshStandardMaterial({ color: palette, roughness: 0.8 }),
+  const body = markMeshResourceSharing(
+    new THREE.Mesh(
+      sharedPedestrianBodyGeometry(),
+      pedestrianBodyMaterialFor(palette),
+    ),
+    { material: true },
   );
   body.position.y = 0.74;
   group.add(body);
 
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 10, 10),
-    new THREE.MeshStandardMaterial({ color: 0xf4d9c2, roughness: 0.7 }),
+  const head = markMeshResourceSharing(
+    new THREE.Mesh(sharedPedestrianHeadGeometry(), sharedPedestrianHeadMaterial()),
+    { material: true },
   );
   head.position.y = 1.34;
   group.add(head);
 
-  const feet = new THREE.Mesh(
-    new THREE.BoxGeometry(0.28, 0.12, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x1a2331, roughness: 0.92 }),
+  const feet = markMeshResourceSharing(
+    new THREE.Mesh(sharedPedestrianFeetGeometry(), sharedPedestrianFeetMaterial()),
+    { material: true },
   );
   feet.position.y = 0.12;
   group.add(feet);
@@ -5735,49 +5450,48 @@ function createCallerGroup(seed: number) {
     CALLER_BOTTOM_PALETTES[seed % CALLER_BOTTOM_PALETTES.length]!;
   const group = new THREE.Group();
 
-  const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.1, 0.72),
-    new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.14,
-    }),
+  const torsoMaterial = callerTorsoMaterialFor(topPalette);
+  const armMaterial = callerArmMaterialFor(topPalette);
+  const bottomMaterial = callerBottomMaterialFor(bottomPalette);
+  const shadow = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerShadowGeometry(), sharedCallerShadowMaterial()),
+    { material: true },
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   group.add(shadow);
 
-  const shoes = new THREE.Mesh(
-    new THREE.BoxGeometry(0.36, 0.12, 0.24),
-    new THREE.MeshStandardMaterial({ color: 0x161c28, roughness: 0.94 }),
+  const shoes = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerShoesGeometry(), sharedCallerShoesMaterial()),
+    { material: true },
   );
   shoes.position.y = 0.06;
   group.add(shoes);
 
-  const legs = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.52, 0.22),
-    new THREE.MeshStandardMaterial({ color: bottomPalette, roughness: 0.88 }),
+  const legs = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerLegsGeometry(), bottomMaterial),
+    { material: true },
   );
   legs.position.y = 0.38;
   group.add(legs);
 
-  const torso = new THREE.Mesh(
-    new THREE.BoxGeometry(0.48, 0.62, 0.28),
-    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.82 }),
+  const torso = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerTorsoGeometry(), torsoMaterial),
+    { material: true },
   );
   torso.position.y = 0.94;
   group.add(torso);
 
-  const head = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.3, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0xf2d7bd, roughness: 0.75 }),
+  const head = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerHeadGeometry(), sharedCallerHeadMaterial()),
+    { material: true },
   );
   head.position.y = 1.42;
   group.add(head);
 
-  const leftArm = new THREE.Mesh(
-    new THREE.BoxGeometry(0.14, 0.56, 0.14),
-    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.84 }),
+  const leftArm = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerLeftArmGeometry(), armMaterial),
+    { material: true },
   );
   leftArm.position.set(-0.34, 0.9, 0);
   leftArm.rotation.z = 0.18;
@@ -5787,15 +5501,15 @@ function createCallerGroup(seed: number) {
   waveArmPivot.position.set(0.32, 1.16, 0);
   group.add(waveArmPivot);
 
-  const waveArm = new THREE.Mesh(
-    new THREE.BoxGeometry(0.14, 0.6, 0.14),
-    new THREE.MeshStandardMaterial({ color: topPalette, roughness: 0.84 }),
+  const waveArm = markMeshResourceSharing(
+    new THREE.Mesh(sharedCallerWaveArmGeometry(), armMaterial),
+    { material: true },
   );
   waveArm.position.set(0, -0.28, 0);
   waveArmPivot.add(waveArm);
 
   const hailCube = new THREE.Mesh(
-    new THREE.BoxGeometry(0.24, 0.24, 0.16),
+    sharedCallerHailCubeGeometry(),
     new THREE.MeshStandardMaterial({
       color: 0xb8c2c9,
       emissive: 0x21303c,
@@ -5803,6 +5517,7 @@ function createCallerGroup(seed: number) {
       roughness: 0.58,
     }),
   );
+  hailCube.userData.skipGeometryDispose = true;
   hailCube.position.set(0.12, -0.62, 0.08);
   waveArmPivot.add(hailCube);
 
@@ -5937,6 +5652,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const [statusDetail, setStatusDetail] = useState(
     "OSM 지도 데이터 불러오는 중",
   );
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [showLabels, setShowLabels] = useState(false);
   const [showNonRoad, setShowNonRoad] = useState(true);
   const [showTransit, setShowTransit] = useState(false);
@@ -5950,7 +5666,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     () => HYDRATION_SAFE_SIMULATION_CLOCK.minutes,
   );
   const [weatherMode, setWeatherMode] = useState<WeatherMode>("clear");
-  const [cameraMode, setCameraMode] = useState<CameraMode>("drive");
+  const [cameraMode, setCameraMode] = useState<CameraMode>("overview");
   const [followTaxiId, setFollowTaxiId] = useState("");
   const [selectedSubwayName, setSelectedSubwayName] = useState("");
   const [simulationDensity, setSimulationDensity] = useState(() => ({
@@ -5976,25 +5692,25 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   });
   const appliedTaxiCount = simulationDensity.taxis;
   const appliedTrafficCount = simulationDensity.traffic;
-  const appliedTaxiCountRef = useRef(appliedTaxiCount);
-  const appliedTrafficCountRef = useRef(appliedTrafficCount);
-  const simulationDateRef = useRef(HYDRATION_SAFE_SIMULATION_CLOCK.dateIso);
-  const simulationTimeRef = useRef(HYDRATION_SAFE_SIMULATION_CLOCK.minutes);
-  const weatherModeRef = useRef<WeatherMode>("clear");
-  const cameraModeRef = useRef<CameraMode>("drive");
-  const followTaxiIdRef = useRef("");
+  const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
+  const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
+  const simulationDateRef = useSyncRef(simulationDate);
+  const simulationTimeRef = useSyncRef(simulationTimeMinutes);
+  const weatherModeRef = useSyncRef<WeatherMode>(weatherMode);
+  const cameraModeRef = useSyncRef<CameraMode>(cameraMode);
+  const followTaxiIdRef = useSyncRef(followTaxiId);
   const rideExitModeRef = useRef<BaseCameraMode>("drive");
-  const showLabelsRef = useRef(false);
+  const showLabelsRef = useSyncRef(showLabels);
   const optionalLabelObjectsRef = useRef<CSS2DObject[]>([]);
-  const showTransitRef = useRef(false);
+  const showTransitRef = useSyncRef(showTransit);
   const transitGroupRef = useRef<THREE.Group | null>(null);
   const hoverRefreshRequestRef = useRef(0);
   const labelRefreshRequestRef = useRef(0);
-  const showFpsRef = useRef(false);
-  const fpsModeRef = useRef<FpsMode>("fixed60");
-  const showNonRoadRef = useRef(true);
+  const showFpsRef = useSyncRef(showFps);
+  const fpsModeRef = useSyncRef<FpsMode>(fpsMode);
+  const showNonRoadRef = useSyncRef(showNonRoad);
   const nonRoadGroupRef = useRef<THREE.Group | null>(null);
-  const showRoadNetworkRef = useRef(false);
+  const showRoadNetworkRef = useSyncRef(showRoadNetwork);
   const roadNetworkGroupRef = useRef<THREE.Group | null>(null);
   const cameraFocusTargetRef = useRef<CameraFocusTarget | null>(null);
   const [stats, setStats] = useState<Stats>({
@@ -6023,18 +5739,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }
 
   useEffect(() => {
-    simulationDateRef.current = simulationDate;
-  }, [simulationDate]);
-
-  useEffect(() => {
-    simulationTimeRef.current = simulationTimeMinutes;
-  }, [simulationTimeMinutes]);
-
-  useEffect(() => {
-    weatherModeRef.current = weatherMode;
-  }, [weatherMode]);
-
-  useEffect(() => {
     if (circumstanceMode !== "live") {
       return;
     }
@@ -6055,21 +5759,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [circumstanceMode]);
 
   useEffect(() => {
-    cameraModeRef.current = cameraMode;
-  }, [cameraMode]);
-
-  useEffect(() => {
-    appliedTaxiCountRef.current = appliedTaxiCount;
-    appliedTrafficCountRef.current = appliedTrafficCount;
-  }, [appliedTaxiCount, appliedTrafficCount]);
-
-  useEffect(() => {
-    showLabelsRef.current = showLabels;
     labelRefreshRequestRef.current += 1;
   }, [showLabels]);
 
   useEffect(() => {
-    showTransitRef.current = showTransit;
     if (transitGroupRef.current) {
       transitGroupRef.current.visible = showTransit;
     }
@@ -6078,22 +5771,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [showTransit]);
 
   useEffect(() => {
-    showFpsRef.current = showFps;
-  }, [showFps]);
-
-  useEffect(() => {
-    fpsModeRef.current = fpsMode;
-  }, [fpsMode]);
-
-  useEffect(() => {
-    showNonRoadRef.current = showNonRoad;
     if (nonRoadGroupRef.current) {
       nonRoadGroupRef.current.visible = showNonRoad;
     }
   }, [showNonRoad]);
 
   useEffect(() => {
-    showRoadNetworkRef.current = showRoadNetwork;
     if (roadNetworkGroupRef.current) {
       roadNetworkGroupRef.current.visible = showRoadNetwork;
     }
@@ -6101,21 +5784,27 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
   useEffect(() => {
     let cancelled = false;
+    let assetsLoaded = 0;
+    const trackAsset = <T,>(p: Promise<T>): Promise<T> =>
+      p.then((r) => {
+        if (!cancelled) setLoadingProgress(Math.round((++assetsLoaded / 7) * 42));
+        return r;
+      });
 
     Promise.all([
-      fetchOptionalGeoJsonAsset<NonRoadFeatureCollection>(
+      trackAsset(fetchOptionalGeoJsonAsset<NonRoadFeatureCollection>(
         "/non-road.geojson",
         "non-road",
-      ),
-      fetchGeoJsonAsset<RoadFeatureCollection>("/roads.geojson"),
-      fetchGeoJsonAsset<BuildingFeatureCollection>("/buildings.geojson"),
-      fetchGeoJsonAsset<DongFeatureCollection>("/dongs.geojson"),
-      fetchGeoJsonAsset<TransitFeatureCollection>("/transit.geojson"),
-      fetchOptionalGeoJsonAsset<TrafficSignalFeatureCollection>(
+      )),
+      trackAsset(fetchGeoJsonAsset<RoadFeatureCollection>("/roads.geojson")),
+      trackAsset(fetchGeoJsonAsset<BuildingFeatureCollection>("/buildings.geojson")),
+      trackAsset(fetchGeoJsonAsset<DongFeatureCollection>("/dongs.geojson")),
+      trackAsset(fetchGeoJsonAsset<TransitFeatureCollection>("/transit.geojson")),
+      trackAsset(fetchOptionalGeoJsonAsset<TrafficSignalFeatureCollection>(
         "/traffic-signals.geojson",
         "traffic-signals",
-      ),
-      fetchRoadNetworkAsset("/road-network.json"),
+      )),
+      trackAsset(fetchRoadNetworkAsset("/road-network.json")),
     ])
       .then(
         ([
@@ -6131,6 +5820,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             return;
           }
           setStatusDetail("도로 세그먼트와 공간 인덱스 준비 중");
+          setLoadingProgress(50);
           const nonRoad =
             nonRoadAsset?.data ?? EMPTY_NON_ROAD_FEATURE_COLLECTION;
           const roads = roadsAsset.data;
@@ -6173,6 +5863,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             roadSegmentSpatialIndex,
           );
           setStatusDetail("도로 그래프와 신호 체계 준비 중");
+          setLoadingProgress(58);
           const graph = roadNetwork
             ? deserializeRoadGraph(roadNetwork)
             : buildRoadGraph(roads, center);
@@ -6200,6 +5891,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             throw new Error("No drivable routes available for vehicle simulation");
           }
           setStatusDetail("배차 경로와 승차 포인트 준비 중");
+          setLoadingProgress(65);
           const hotspotPool = buildTaxiHotspots(
             taxiRoutePool,
             buildingMasses,
@@ -6248,6 +5940,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               },
             },
           };
+          setLoadingProgress(72);
           markSceneRendering("3D 장면과 차량 레이어 구성 중");
           requestAnimationFrame(() => {
             if (!cancelled) {
@@ -6366,11 +6059,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const maxMapDistance = Math.max(
       CAMERA_MAX_DISTANCE,
       Math.max(size.x, size.z) * 1.28,
-    );
-    const overviewMinDistance = THREE.MathUtils.clamp(
-      Math.max(size.x, size.z) * 0.94,
-      96,
-      Math.max(140, maxMapDistance - 34),
     );
     const dummy = new THREE.Object3D();
     const initialOffset = new THREE.Vector3(-120, 135, 150);
@@ -7301,6 +6989,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       }
       if (!sceneDisposed) {
         setStatusDetail("차량 레이어 구성 중");
+        setLoadingProgress(86);
       }
 
       clearVehicleLayer();
@@ -7441,6 +7130,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       hoverNeedsUpdate = true;
       updateVehicleLayerStats(taxiVehicles.length, vehicles.length - taxiVehicles.length);
       if (!sceneDisposed) {
+        setLoadingProgress(100);
         setStatus("ready");
         setStatusDetail("주행 준비 완료");
       }
@@ -7929,11 +7619,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
         cameraRig.yaw = overviewYaw;
-        cameraRig.pitch = Math.max(cameraRig.pitch, 0.86);
-        cameraRig.distance = Math.max(
-          cameraRig.distance,
-          overviewMinDistance * 1.04,
-        );
+        cameraRig.pitch = 0.7;
+        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
         return;
       }
 
@@ -8512,10 +8199,54 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       labelRenderAccumulator = 0;
     };
 
-    let taxiAssetLoadScheduledId = 0;
     let taxiAssetLoadStarted = false;
     let trafficAssetLoadScheduledId = 0;
     let trafficAssetLoadStarted = false;
+    const waitForIdleSlice = (callback: () => void, timeoutMs: number) => {
+      const requestIdleCallback = window.requestIdleCallback?.bind(window);
+      if (requestIdleCallback) {
+        return requestIdleCallback(
+          () => {
+            if (!sceneDisposed) {
+              callback();
+            }
+          },
+          { timeout: timeoutMs },
+        );
+      }
+
+      return window.setTimeout(() => {
+        if (!sceneDisposed) {
+          callback();
+        }
+      }, 0);
+    };
+    const cancelIdleSlice = (handle: number) => {
+      if (!handle) {
+        return;
+      }
+      const cancelIdleCallback = window.cancelIdleCallback?.bind(window);
+      if (cancelIdleCallback) {
+        cancelIdleCallback(handle);
+        return;
+      }
+      window.clearTimeout(handle);
+    };
+    const scheduleDeferredAssetLoad = (
+      callback: () => void,
+      delayMs: number,
+      idleTimeoutMs: number,
+    ) => {
+      let idleHandle = 0;
+      const timeoutHandle = window.setTimeout(() => {
+        idleHandle = waitForIdleSlice(callback, idleTimeoutMs);
+      }, delayMs);
+
+      return () => {
+        window.clearTimeout(timeoutHandle);
+        cancelIdleSlice(idleHandle);
+      };
+    };
     const loadTaxiAssetInBackground = () => {
       if (sceneDisposed || taxiAssetTemplate || taxiAssetLoadStarted) {
         return;
@@ -9113,11 +8844,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         const state =
           frameSignalStates.get(pedestrian.signalId) ??
           signalState(signal, elapsedTime);
+        const cycleNumber = Math.floor(elapsedTime / SIGNAL_CYCLE);
+        const signalSeed = Math.round(signal.offset * 100);
+        const skipThisCycle = ((cycleNumber * 7 + signalSeed) % 5) < 2;
         const pedestrianFlashVisible =
+          !skipThisCycle &&
           state.pedestrian === "flash" &&
           Math.sin(elapsedTime * 14 + pedestrian.phaseOffset) > 0;
         const isVisible =
-          state.pedestrian === "walk" || pedestrianFlashVisible;
+          !skipThisCycle &&
+          (state.pedestrian === "walk" || pedestrianFlashVisible);
 
         pedestrian.group.visible = isVisible;
         if (!isVisible) {
@@ -10050,6 +9786,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         applyRenderBudget(currentMode);
         markLabelVisibilityDirty();
       }
+      if (currentMode === "overview") {
+        applyModePreset(currentMode);
+      }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
       const signalCpuStart = performance.now();
@@ -10196,20 +9935,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           }
         }
       } else if (currentMode === "overview") {
-        cameraLookLift = 1.8;
+        cameraLookLift = CAMERA_LOOK_HEIGHT;
         cameraRig.focus.copy(centerPoint);
         cameraRig.focus.y = 0;
-        cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 4.8, delta);
-        cameraRig.pitch = THREE.MathUtils.clamp(
-          cameraRig.pitch,
-          0.82,
-          CAMERA_MAX_PITCH,
-        );
-        cameraRig.distance = THREE.MathUtils.clamp(
-          Math.max(cameraRig.distance, overviewMinDistance),
-          overviewMinDistance,
-          maxMapDistance,
-        );
+        cameraRig.yaw = overviewYaw;
+        cameraRig.pitch = 0.7;
+        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
       } else if (currentMode === "follow") {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;
@@ -10453,7 +10184,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     };
 
     finalizeVehicleLayerSetup();
-    taxiAssetLoadScheduledId = window.setTimeout(loadTaxiAssetInBackground, 900);
+    const cancelTaxiAssetLoadSchedule = scheduleDeferredAssetLoad(
+      loadTaxiAssetInBackground,
+      TAXI_ASSET_LOAD_DELAY_MS,
+      TAXI_ASSET_IDLE_TIMEOUT_MS,
+    );
     trafficAssetLoadScheduledId = window.setTimeout(
       loadTrafficAssetsInBackground,
       1300,
@@ -10462,9 +10197,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     return () => {
       sceneDisposed = true;
-      if (taxiAssetLoadScheduledId) {
-        window.clearTimeout(taxiAssetLoadScheduledId);
-      }
+      cancelTaxiAssetLoadSchedule();
       if (trafficAssetLoadScheduledId) {
         window.clearTimeout(trafficAssetLoadScheduledId);
       }
@@ -10530,7 +10263,22 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       container.removeChild(renderer.domElement);
       container.removeChild(labelRenderer.domElement);
     };
-  }, [data]);
+  }, [
+    appliedTaxiCountRef,
+    appliedTrafficCountRef,
+    cameraModeRef,
+    data,
+    fpsModeRef,
+    followTaxiIdRef,
+    showFpsRef,
+    showLabelsRef,
+    showNonRoadRef,
+    showRoadNetworkRef,
+    showTransitRef,
+    simulationDateRef,
+    simulationTimeRef,
+    weatherModeRef,
+  ]);
 
   const roadNames = useMemo(
     () => buildMajorRoadNames(data?.roads ?? null),
@@ -10714,9 +10462,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     taxiOptions.find((taxi) => taxi.id === followTaxiId)?.id ??
     taxiOptions[0]?.id ??
     "";
-  useEffect(() => {
-    followTaxiIdRef.current = selectedTaxiId;
-  }, [selectedTaxiId]);
   const selectedTaxi = useMemo(
     () =>
       taxiOptions.find((taxi) => taxi.id === selectedTaxiId) ??
@@ -10741,7 +10486,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           ? "주행 준비 완료"
           : "불러오기 실패";
   const isSceneBusy = status === "loading" || status === "rendering";
-  const loadingProgress = status === "loading" ? 36 : 78;
   const loadingHint =
     status === "loading"
       ? "지도 자산과 도로 그래프를 읽는 중입니다."
@@ -11542,6 +11286,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
             <div className="mt-1 text-[11px] leading-5 text-slate-500">
               {dispatchPresentation.routingDetail}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <span className={PANEL_TOKEN_CLASS}>planner {dispatchPlannerId}</span>
             </div>
           </div>
         </div>
