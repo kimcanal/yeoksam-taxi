@@ -904,6 +904,7 @@ export default function MapSimulatorSceneRuntime({
     let taxiAssetTemplate: THREE.Group | null = null;
     let trafficAssetTemplates: THREE.Group[] = [];
     let activeVehicleSpeedMultiplier = 1;
+    let activeDaylight = 1;
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
     let latestSimulationSnapshot: SimulationSnapshot | null = null;
@@ -1190,7 +1191,14 @@ export default function MapSimulatorSceneRuntime({
           : {
             importedAssetTemplate: resolveTrafficAssetTemplate(snapshotIndex),
           };
-      const { group, bodyMaterial, signMaterial, clickTarget } =
+      const {
+        group,
+        bodyMaterial,
+        signMaterial,
+        headlightMaterial,
+        tailLightMaterial,
+        clickTarget,
+      } =
         createVehicleGroup(
           vehicleSnapshot.kind,
           vehicleSnapshot.palette,
@@ -1205,6 +1213,8 @@ export default function MapSimulatorSceneRuntime({
         group,
         bodyMaterial,
         signMaterial,
+        headlightMaterial,
+        tailLightMaterial,
         baseSpeed: vehicleSnapshot.baseSpeed,
         speed: vehicleSnapshot.speed,
         distance: 0,
@@ -1242,7 +1252,7 @@ export default function MapSimulatorSceneRuntime({
       writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
       writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
       copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
-      setTaxiAppearance(vehicle);
+      setTaxiAppearance(vehicle, activeDaylight);
       syncVehicleTransform(vehicle, 1);
       vehicleById.set(vehicle.id, vehicle);
       return vehicle;
@@ -1294,7 +1304,14 @@ export default function MapSimulatorSceneRuntime({
       taxiClickTargets.length = 0;
       taxiVehicles.forEach((vehicle) => {
         const previousGroup = vehicle.group;
-        const { group, bodyMaterial, signMaterial, clickTarget } =
+        const {
+          group,
+          bodyMaterial,
+          signMaterial,
+          headlightMaterial,
+          tailLightMaterial,
+          clickTarget,
+        } =
           createVehicleGroup("taxi", vehicle.palette, { taxiAssetTemplate });
 
         group.userData.vehicleId = vehicle.id;
@@ -1306,7 +1323,9 @@ export default function MapSimulatorSceneRuntime({
         vehicle.group = group;
         vehicle.bodyMaterial = bodyMaterial;
         vehicle.signMaterial = signMaterial;
-        setTaxiAppearance(vehicle);
+        vehicle.headlightMaterial = headlightMaterial;
+        vehicle.tailLightMaterial = tailLightMaterial;
+        setTaxiAppearance(vehicle, activeDaylight);
         syncVehicleTransform(vehicle, 1);
         if (clickTarget) {
           taxiClickTargets.push(clickTarget);
@@ -1454,7 +1473,7 @@ export default function MapSimulatorSceneRuntime({
             : null) ?? null;
         writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
         writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
-        setTaxiAppearance(vehicle);
+        setTaxiAppearance(vehicle, activeDaylight);
         syncVehicleTransform(vehicle, interpolationAlpha);
       });
 
@@ -1501,7 +1520,14 @@ export default function MapSimulatorSceneRuntime({
           continue;
         }
 
-        const { group, bodyMaterial, signMaterial, clickTarget } =
+        const {
+          group,
+          bodyMaterial,
+          signMaterial,
+          headlightMaterial,
+          tailLightMaterial,
+          clickTarget,
+        } =
           createVehicleGroup("taxi", TAXI_PALETTE, { taxiAssetTemplate });
         scene.add(group);
 
@@ -1512,6 +1538,8 @@ export default function MapSimulatorSceneRuntime({
           group,
           bodyMaterial,
           signMaterial,
+          headlightMaterial,
+          tailLightMaterial,
           baseSpeed: 7.1 + (index % 4) * 0.55,
           speed: 0,
           distance: 0,
@@ -1543,7 +1571,7 @@ export default function MapSimulatorSceneRuntime({
         if (clickTarget) {
           taxiClickTargets.push(clickTarget);
         }
-        setTaxiAppearance(vehicle);
+        setTaxiAppearance(vehicle, activeDaylight);
         updateVehicleMotionState(vehicle);
         copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
         copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
@@ -2241,7 +2269,7 @@ export default function MapSimulatorSceneRuntime({
       const leftArrows: SignalLampVisual[] = [];
       const pedestrianLamps: SignalLampVisual[] = [];
 
-      const mastDistance = signal.approaches.length >= 4 ? 2.9 : 2.55;
+      const mastDistance = signal.approaches.length >= 4 ? 4.2 : 3.6;
       const mastLayout = signal.approaches.map((direction) => {
         switch (direction) {
           case "north":
@@ -2601,12 +2629,21 @@ export default function MapSimulatorSceneRuntime({
       });
       hotspotVisuals.push(...nextHotspotVisuals);
 
+      const createPedestrianVisualGroup = (seed: number) => {
+        const group = createPedestrianGroup(seed);
+        return {
+          group,
+          leftArm: group.getObjectByName("pedestrian-left-arm") ?? null,
+          rightArm: group.getObjectByName("pedestrian-right-arm") ?? null,
+        };
+      };
+
       const nextPedestrianVisuals: PedestrianVisual[] = signalVisuals.flatMap(
         (signal, signalIndex) => [
           {
             signalId: signal.id,
             axis: "ns" as const,
-            group: createPedestrianGroup(signalIndex),
+            ...createPedestrianVisualGroup(signalIndex),
             phaseOffset: signalIndex * 0.17,
             speed: 0.18 + (signalIndex % 3) * 0.03,
             lateralOffset: -2.1,
@@ -2615,7 +2652,7 @@ export default function MapSimulatorSceneRuntime({
           {
             signalId: signal.id,
             axis: "ns" as const,
-            group: createPedestrianGroup(signalIndex + 2),
+            ...createPedestrianVisualGroup(signalIndex + 2),
             phaseOffset: signalIndex * 0.13 + 0.4,
             speed: 0.16 + (signalIndex % 2) * 0.02,
             lateralOffset: 2.1,
@@ -2624,7 +2661,7 @@ export default function MapSimulatorSceneRuntime({
           {
             signalId: signal.id,
             axis: "ew" as const,
-            group: createPedestrianGroup(signalIndex + 4),
+            ...createPedestrianVisualGroup(signalIndex + 4),
             phaseOffset: signalIndex * 0.11 + 0.2,
             speed: 0.19 + (signalIndex % 4) * 0.02,
             lateralOffset: -2.1,
@@ -2633,7 +2670,7 @@ export default function MapSimulatorSceneRuntime({
           {
             signalId: signal.id,
             axis: "ew" as const,
-            group: createPedestrianGroup(signalIndex + 7),
+            ...createPedestrianVisualGroup(signalIndex + 7),
             phaseOffset: signalIndex * 0.09 + 0.6,
             speed: 0.17 + (signalIndex % 3) * 0.02,
             lateralOffset: 2.1,
@@ -3064,6 +3101,8 @@ export default function MapSimulatorSceneRuntime({
       });
 
       activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
+      activeDaylight = daylight;
+      taxiVehicles.forEach((vehicle) => setTaxiAppearance(vehicle, activeDaylight));
       rainLayer.points.visible = environment.precipitation === "rain";
       rainLayer.material.opacity = environment.precipitationOpacity;
       rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;
@@ -3363,6 +3402,16 @@ export default function MapSimulatorSceneRuntime({
         );
         const bob =
           Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
+        const armSwing =
+          Math.sin(elapsedTime * 8.8 + pedestrian.phaseOffset * 12) *
+          pedestrian.direction *
+          0.42;
+        if (pedestrian.leftArm) {
+          pedestrian.leftArm.rotation.x = armSwing;
+        }
+        if (pedestrian.rightArm) {
+          pedestrian.rightArm.rotation.x = -armSwing;
+        }
 
         if (pedestrian.axis === "ns") {
           pedestrian.group.position.set(
@@ -3532,7 +3581,7 @@ export default function MapSimulatorSceneRuntime({
               );
               hotspotDemandMapsDirty = false;
               hotspotActivityAccumulator = 0;
-              setTaxiAppearance(vehicle);
+              setTaxiAppearance(vehicle, activeDaylight);
               const dropRoute = routeBuilder(
                 vehicle.route.endKey,
                 vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
@@ -3591,7 +3640,7 @@ export default function MapSimulatorSceneRuntime({
                 );
                 hotspotDemandMapsDirty = false;
                 hotspotActivityAccumulator = 0;
-                setTaxiAppearance(vehicle);
+                setTaxiAppearance(vehicle, activeDaylight);
                 nextStopState = resolveNextStopInto(
                   vehicle.route,
                   vehicle.distance,

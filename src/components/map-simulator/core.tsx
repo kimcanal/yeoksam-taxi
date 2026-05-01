@@ -74,8 +74,8 @@ export const KAKAO_TRAFFIC_ASSET_PATHS = [
   "/assets/kakao-traffic/Porter_01.fbx",
 ] as const;
 export const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
-export const TAXI_ASSET_LOAD_DELAY_MS = 4_000;
-export const TAXI_ASSET_IDLE_TIMEOUT_MS = 8_000;
+export const TAXI_ASSET_LOAD_DELAY_MS = 1_500;
+export const TAXI_ASSET_IDLE_TIMEOUT_MS = 800;
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -364,6 +364,8 @@ export type Vehicle = {
   group: THREE.Group;
   bodyMaterial: THREE.MeshStandardMaterial;
   signMaterial: THREE.MeshStandardMaterial | null;
+  headlightMaterial?: THREE.MeshStandardMaterial | null;
+  tailLightMaterial?: THREE.MeshStandardMaterial | null;
   baseSpeed: number;
   speed: number;
   distance: number;
@@ -615,7 +617,7 @@ export function sharedVehicleTemplatePlaceholderMaterial() {
 }
 
 export function sharedImportedTaxiSignGeometry() {
-  IMPORTED_TAXI_SIGN_GEOMETRY ??= new THREE.BoxGeometry(0.56, 0.12, 0.34);
+  IMPORTED_TAXI_SIGN_GEOMETRY ??= new THREE.BoxGeometry(0.74, 0.22, 0.38);
   return IMPORTED_TAXI_SIGN_GEOMETRY;
 }
 
@@ -634,6 +636,16 @@ export function sharedImportedTaxiClickTargetGeometry() {
   return IMPORTED_TAXI_CLICK_TARGET_GEOMETRY;
 }
 
+export function sharedTaxiHeadlightGeometry() {
+  TAXI_HEADLIGHT_GEOMETRY ??= new THREE.BoxGeometry(1.22, 0.13, 0.08);
+  return TAXI_HEADLIGHT_GEOMETRY;
+}
+
+export function sharedTaxiTailLightGeometry() {
+  TAXI_TAIL_LIGHT_GEOMETRY ??= new THREE.BoxGeometry(1.08, 0.12, 0.08);
+  return TAXI_TAIL_LIGHT_GEOMETRY;
+}
+
 export function sharedPedestrianBodyGeometry() {
   PEDESTRIAN_BODY_GEOMETRY ??= new THREE.BoxGeometry(0.34, 0.82, 0.24);
   return PEDESTRIAN_BODY_GEOMETRY;
@@ -647,6 +659,11 @@ export function sharedPedestrianHeadGeometry() {
 export function sharedPedestrianFeetGeometry() {
   PEDESTRIAN_FEET_GEOMETRY ??= new THREE.BoxGeometry(0.28, 0.12, 0.2);
   return PEDESTRIAN_FEET_GEOMETRY;
+}
+
+export function sharedPedestrianArmGeometry() {
+  PEDESTRIAN_ARM_GEOMETRY ??= new THREE.BoxGeometry(0.13, 0.38, 0.17);
+  return PEDESTRIAN_ARM_GEOMETRY;
 }
 
 export function sharedPedestrianHeadMaterial() {
@@ -856,6 +873,8 @@ export type PedestrianVisual = {
   signalId: string;
   axis: SignalAxis;
   group: THREE.Group;
+  leftArm: THREE.Object3D | null;
+  rightArm: THREE.Object3D | null;
   phaseOffset: number;
   speed: number;
   lateralOffset: number;
@@ -983,8 +1002,8 @@ export function resolveDispatchPlannerPresentation(
 }
 
 export const TAXI_PALETTE: VehiclePalette = {
-  body: 0xd79a3a,
-  cabin: 0xe4c17d,
+  body: 0xf5a100,
+  cabin: 0x1e252e,
   sign: 0xf4ebcf,
 };
 
@@ -1029,9 +1048,12 @@ let IMPORTED_TAXI_SIGN_GEOMETRY: THREE.BoxGeometry | null = null;
 let IMPORTED_TAXI_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let IMPORTED_TRAFFIC_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let IMPORTED_TAXI_CLICK_TARGET_GEOMETRY: THREE.BoxGeometry | null = null;
+let TAXI_HEADLIGHT_GEOMETRY: THREE.BoxGeometry | null = null;
+let TAXI_TAIL_LIGHT_GEOMETRY: THREE.BoxGeometry | null = null;
 let PEDESTRIAN_BODY_GEOMETRY: THREE.BoxGeometry | null = null;
 let PEDESTRIAN_HEAD_GEOMETRY: THREE.SphereGeometry | null = null;
 let PEDESTRIAN_FEET_GEOMETRY: THREE.BoxGeometry | null = null;
+let PEDESTRIAN_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let CALLER_SHOES_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_LEGS_GEOMETRY: THREE.BoxGeometry | null = null;
@@ -5077,6 +5099,18 @@ export function createTaxiAssetGroup(
     roughness: 0.66,
     metalness: 0.24,
   });
+  const headlightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffdf8a,
+    emissive: 0xffb22e,
+    emissiveIntensity: 0.05,
+    roughness: 0.34,
+  });
+  const tailLightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xdd1111,
+    emissive: 0xdd1111,
+    emissiveIntensity: 0.08,
+    roughness: 0.42,
+  });
 
   group.traverse((child) => {
     if (!(child instanceof THREE.Mesh)) {
@@ -5116,6 +5150,18 @@ export function createTaxiAssetGroup(
   sign.castShadow = true;
   group.add(sign);
 
+  const headlight = markMeshResourceSharing(
+    new THREE.Mesh(sharedTaxiHeadlightGeometry(), headlightMaterial),
+  );
+  headlight.position.set(0, assetBounds.min.y + 0.48, assetBounds.max.z + 0.035);
+  group.add(headlight);
+
+  const tailLight = markMeshResourceSharing(
+    new THREE.Mesh(sharedTaxiTailLightGeometry(), tailLightMaterial),
+  );
+  tailLight.position.set(0, assetBounds.min.y + 0.5, assetBounds.min.z - 0.035);
+  group.add(tailLight);
+
   const shadow = new THREE.Mesh(
     sharedImportedTaxiShadowGeometry(),
     new THREE.MeshBasicMaterial({
@@ -5142,7 +5188,14 @@ export function createTaxiAssetGroup(
   clickTarget.position.y = 1.4;
   group.add(clickTarget);
 
-  return { group, bodyMaterial, signMaterial, clickTarget };
+  return {
+    group,
+    bodyMaterial,
+    signMaterial,
+    headlightMaterial,
+    tailLightMaterial,
+    clickTarget,
+  };
 }
 
 export function createTrafficAssetGroup(
@@ -5220,7 +5273,14 @@ export function createTrafficAssetGroup(
   shadow.position.y = 0.02;
   group.add(shadow);
 
-  return { group, bodyMaterial, signMaterial: null, clickTarget: null };
+  return {
+    group,
+    bodyMaterial,
+    signMaterial: null,
+    headlightMaterial: null,
+    tailLightMaterial: null,
+    clickTarget: null,
+  };
 }
 
 export function createVehicleGroup(
@@ -5299,6 +5359,8 @@ export function createVehicleGroup(
   group.add(windshield);
 
   let signMaterial: THREE.MeshStandardMaterial | null = null;
+  let headlightMaterial: THREE.MeshStandardMaterial | null = null;
+  let tailLightMaterial: THREE.MeshStandardMaterial | null = null;
   if (kind === "taxi") {
     signMaterial = new THREE.MeshStandardMaterial({
       color: palette.sign ?? 0xfff9d8,
@@ -5308,11 +5370,35 @@ export function createVehicleGroup(
       metalness: 0,
     });
     const sign = new THREE.Mesh(
-      new THREE.BoxGeometry(0.58, 0.14, 0.36),
+      new THREE.BoxGeometry(0.74, 0.22, 0.38),
       signMaterial,
     );
-    sign.position.set(0, 2.24, -0.08);
+    sign.position.set(0, 2.28, -0.08);
     group.add(sign);
+
+    headlightMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffdf8a,
+      emissive: 0xffb22e,
+      emissiveIntensity: 0.05,
+      roughness: 0.34,
+    });
+    const headlight = markMeshResourceSharing(
+      new THREE.Mesh(sharedTaxiHeadlightGeometry(), headlightMaterial),
+    );
+    headlight.position.set(0, 0.7, 2.18);
+    group.add(headlight);
+
+    tailLightMaterial = new THREE.MeshStandardMaterial({
+      color: 0xdd1111,
+      emissive: 0xdd1111,
+      emissiveIntensity: 0.08,
+      roughness: 0.42,
+    });
+    const tailLight = markMeshResourceSharing(
+      new THREE.Mesh(sharedTaxiTailLightGeometry(), tailLightMaterial),
+    );
+    tailLight.position.set(0, 0.7, -2.18);
+    group.add(tailLight);
   }
 
   const shadow = new THREE.Mesh(
@@ -5342,7 +5428,14 @@ export function createVehicleGroup(
     group.add(clickTarget);
   }
 
-  return { group, bodyMaterial, signMaterial, clickTarget };
+  return {
+    group,
+    bodyMaterial,
+    signMaterial,
+    headlightMaterial,
+    tailLightMaterial,
+    clickTarget,
+  };
 }
 
 export function createPedestrianGroup(seed: number) {
@@ -5356,14 +5449,14 @@ export function createPedestrianGroup(seed: number) {
     ),
     { material: true },
   );
-  body.position.y = 0.74;
+  body.position.y = 0.59;
   group.add(body);
 
   const head = markMeshResourceSharing(
     new THREE.Mesh(sharedPedestrianHeadGeometry(), sharedPedestrianHeadMaterial()),
     { material: true },
   );
-  head.position.y = 1.34;
+  head.position.y = 1.17;
   group.add(head);
 
   const feet = markMeshResourceSharing(
@@ -5372,6 +5465,24 @@ export function createPedestrianGroup(seed: number) {
   );
   feet.position.y = 0.12;
   group.add(feet);
+
+  const leftArm = markMeshResourceSharing(
+    new THREE.Mesh(sharedPedestrianArmGeometry(), pedestrianBodyMaterialFor(palette)),
+    { material: true },
+  );
+  leftArm.name = "pedestrian-left-arm";
+  leftArm.position.set(-0.28, 0.64, 0);
+  leftArm.rotation.z = 0.12;
+  group.add(leftArm);
+
+  const rightArm = markMeshResourceSharing(
+    new THREE.Mesh(sharedPedestrianArmGeometry(), pedestrianBodyMaterialFor(palette)),
+    { material: true },
+  );
+  rightArm.name = "pedestrian-right-arm";
+  rightArm.position.set(0.28, 0.64, 0);
+  rightArm.rotation.z = -0.12;
+  group.add(rightArm);
 
   return group;
 }
@@ -5472,29 +5583,40 @@ export function buildMajorRoadNames(roads: RoadFeatureCollection | null) {
   ].slice(0, 6);
 }
 
-export function setTaxiAppearance(vehicle: Vehicle) {
+export function setTaxiAppearance(vehicle: Vehicle, daylight = 1) {
   if (vehicle.kind !== "taxi") {
     return;
   }
+  const nightGlow = THREE.MathUtils.clamp((0.28 - daylight) / 0.28, 0, 1);
   if (vehicle.planMode === "dropoff" || vehicle.isOccupied) {
     vehicle.bodyMaterial.color.setHex(0xf08d1a);
     vehicle.bodyMaterial.emissive.setHex(0x472300);
     vehicle.bodyMaterial.emissiveIntensity = 0.18;
+    vehicle.signMaterial?.color.setHex(0xffc7cc);
+    vehicle.signMaterial?.emissive.setHex(0xdd1111);
+    if (vehicle.signMaterial) {
+      vehicle.signMaterial.emissiveIntensity = 1.02;
+    }
+  } else {
+    vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
+    vehicle.bodyMaterial.emissive.setHex(0x321500);
+    vehicle.bodyMaterial.emissiveIntensity = 0.1;
     vehicle.signMaterial?.color.setHex(0xc7ffd1);
-    vehicle.signMaterial?.emissive.setHex(0x00c853);
+    vehicle.signMaterial?.emissive.setHex(0x00cc44);
     if (vehicle.signMaterial) {
       vehicle.signMaterial.emissiveIntensity = 0.96;
     }
-    return;
   }
 
-  vehicle.bodyMaterial.color.setHex(vehicle.palette.body);
-  vehicle.bodyMaterial.emissive.setHex(0x321500);
-  vehicle.bodyMaterial.emissiveIntensity = 0.1;
-  vehicle.signMaterial?.color.setHex(0xffc7cc);
-  vehicle.signMaterial?.emissive.setHex(0xff3048);
-  if (vehicle.signMaterial) {
-    vehicle.signMaterial.emissiveIntensity = 1.02;
+  if (vehicle.headlightMaterial) {
+    vehicle.headlightMaterial.color.setHex(0xffdf8a);
+    vehicle.headlightMaterial.emissive.setHex(0xffb22e);
+    vehicle.headlightMaterial.emissiveIntensity = 0.08 + nightGlow * 1.25;
+  }
+  if (vehicle.tailLightMaterial) {
+    vehicle.tailLightMaterial.color.setHex(0xdd1111);
+    vehicle.tailLightMaterial.emissive.setHex(0xdd1111);
+    vehicle.tailLightMaterial.emissiveIntensity = 0.12 + nightGlow * 1.15;
   }
 }
 

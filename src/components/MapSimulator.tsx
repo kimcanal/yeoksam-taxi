@@ -9,6 +9,7 @@ import {
   MINUTES_PER_DAY,
   TIME_PRESETS,
   WEATHER_OPTIONS,
+  buildEnvironmentState,
   currentSimulationClock,
   daylightFactor,
   format24Hour,
@@ -521,6 +522,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     normalizedSimulationTimeMinutes,
     solarReferenceCenter,
   );
+  const environmentSpeedMultiplier = buildEnvironmentState(
+    simulationDate,
+    normalizedSimulationTimeMinutes,
+    weatherMode,
+    solarReferenceCenter,
+  ).vehicleSpeedMultiplier;
+  const speedReferenceKmh = Math.max(
+    1,
+    Math.round(40 * environmentSpeedMultiplier),
+  );
+  const speedMultiplierPercent = Math.round(environmentSpeedMultiplier * 100);
   const twilightValue = twilightFactor(
     simulationDate,
     normalizedSimulationTimeMinutes,
@@ -673,6 +685,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
           <div className="text-[11px] text-slate-400">
             {selectedWeather.detail}
+          </div>
+          <div className="mt-2 rounded-xl border border-white/8 bg-white/[0.04] px-2 py-1 text-[11px] text-slate-300">
+            평균 {speedReferenceKmh}km/h → 속도 {speedMultiplierPercent}% 반영
           </div>
         </div>
       </div>

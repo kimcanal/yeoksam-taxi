@@ -20,6 +20,7 @@ import {
 } from "@/components/map-simulator/scene-constants";
 import {
   ACTIVE_DISPATCH_PLANNER,
+  TAXI_PALETTE,
   TRAFFIC_PALETTES,
   type NextStopState,
   type RouteTemplate,
@@ -522,11 +523,7 @@ export function createLocalSimulationSource(): SimulationSource {
         length: 4.6,
         currentSignalId: null,
         roadName: job.pickupRoute.name,
-        palette: {
-          body: 0xffcc4d,
-          cabin: 0x1e252e,
-          sign: 0xffd970,
-        },
+        palette: TAXI_PALETTE,
         isOccupied: false,
         pickupHotspot: job.pickupHotspot,
         dropoffHotspot: job.dropoffHotspot,
