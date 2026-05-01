@@ -36,6 +36,12 @@ yarn-error.log*
 /tmp-playwright-*.png
 /.tmp/
 
+# local raw/derived datasets
+/data/seoul-raw/
+/data/raw/
+/data/cache/
+/data/tmp/
+
 # env files (can opt-in for committing if needed)
 .env*
 
