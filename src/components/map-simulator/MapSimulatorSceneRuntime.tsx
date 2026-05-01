@@ -195,6 +195,7 @@ type MapSimulatorSceneRuntimeProps = {
   simulationDateRef: MutableRefObject<string>;
   simulationTimeRef: MutableRefObject<number>;
   weatherModeRef: MutableRefObject<WeatherMode>;
+  trafficSpeedMultiplierRef: RefObject<number>;
   setStatus: Dispatch<SetStateAction<SceneStatus>>;
   setStatusDetail: Dispatch<SetStateAction<string>>;
   setLoadingProgress: Dispatch<SetStateAction<number>>;
@@ -230,6 +231,7 @@ export default function MapSimulatorSceneRuntime({
   simulationDateRef,
   simulationTimeRef,
   weatherModeRef,
+  trafficSpeedMultiplierRef,
   setStatus,
   setStatusDetail,
   setLoadingProgress,
@@ -911,6 +913,7 @@ export default function MapSimulatorSceneRuntime({
     let activeVehicleIdentitySignature = "";
     let appliedDateIso: string | null = null;
     let appliedWeatherMode: WeatherMode | null = null;
+    let appliedTrafficSpeedMultiplier = trafficSpeedMultiplierRef.current ?? 1;
     let appliedTimeMinutes = -1;
     let hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
     void hotspotActivityAccumulator;
@@ -2712,6 +2715,7 @@ export default function MapSimulatorSceneRuntime({
         minutes: simulationTimeRef.current,
         weatherMode: weatherModeRef.current,
       },
+      trafficSpeedMultiplier: trafficSpeedMultiplierRef.current ?? 1,
       preserveState,
     });
 
@@ -2736,6 +2740,7 @@ export default function MapSimulatorSceneRuntime({
       appliedDateIso = nextConfig.clock.dateIso;
       appliedTimeMinutes = nextConfig.clock.minutes;
       appliedWeatherMode = nextConfig.clock.weatherMode;
+      appliedTrafficSpeedMultiplier = nextConfig.trafficSpeedMultiplier ?? 1;
       vehicleSimulationAccumulator = 0;
       const snapshot = simulationSource.getSnapshot();
       syncSimulationSnapshot(snapshot, 1, snapshot.clock.elapsedTimeSeconds);
@@ -3100,7 +3105,8 @@ export default function MapSimulatorSceneRuntime({
         cluster.visible = stormCloudOpacity > 0.01;
       });
 
-      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
+      activeVehicleSpeedMultiplier =
+        environment.vehicleSpeedMultiplier * (trafficSpeedMultiplierRef.current ?? 1);
       activeDaylight = daylight;
       taxiVehicles.forEach((vehicle) => setTaxiAppearance(vehicle, activeDaylight));
       rainLayer.points.visible = environment.precipitation === "rain";
@@ -4307,10 +4313,12 @@ export default function MapSimulatorSceneRuntime({
       const nextWeatherMode = weatherModeRef.current;
       const nextTaxiCount = appliedTaxiCountRef.current;
       const nextTrafficCount = appliedTrafficCountRef.current;
+      const nextTrafficSpeedMultiplier = trafficSpeedMultiplierRef.current ?? 1;
       const simulationConfigChanged =
         nextSimulationDate !== appliedDateIso ||
         nextSimulationTime !== appliedTimeMinutes ||
         nextWeatherMode !== appliedWeatherMode ||
+        nextTrafficSpeedMultiplier !== appliedTrafficSpeedMultiplier ||
         nextTaxiCount !== activeVehicleDensity.taxis ||
         nextTrafficCount !== activeVehicleDensity.traffic;
       if (simulationConfigChanged) {

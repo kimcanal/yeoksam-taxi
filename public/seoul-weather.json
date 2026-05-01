@@ -1,0 +1,1056 @@
+{
+  "meta": {
+    "source": "KMA VilageFcstInfoService_2.0",
+    "grid": {
+      "nx": 61,
+      "ny": 125
+    },
+    "fetched_at": "2026-04-29T15:35:04.966Z"
+  },
+  "nowcast": {
+    "base_date": "20260430",
+    "base_time": "0000",
+    "categories": [
+      "T1H",
+      "RN1",
+      "PTY",
+      "REH"
+    ],
+    "items": [
+      {
+        "category": "PTY",
+        "forecast_date": null,
+        "forecast_time": null,
+        "value": "0",
+        "base_date": "20260430",
+        "base_time": "0000",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": null,
+        "forecast_time": null,
+        "value": "53",
+        "base_date": "20260430",
+        "base_time": "0000",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "RN1",
+        "forecast_date": null,
+        "forecast_time": null,
+        "value": "0",
+        "base_date": "20260430",
+        "base_time": "0000",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "T1H",
+        "forecast_date": null,
+        "forecast_time": null,
+        "value": "12",
+        "base_date": "20260430",
+        "base_time": "0000",
+        "nx": 61,
+        "ny": 125
+      }
+    ]
+  },
+  "forecast": {
+    "base_date": "20260429",
+    "base_time": "2300",
+    "categories": [
+      "TMP",
+      "PCP",
+      "SKY",
+      "PTY",
+      "REH",
+      "POP"
+    ],
+    "items": [
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "13",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0000",
+        "value": "75",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "12",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "4",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "30",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0100",
+        "value": "75",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "12",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "3",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "20",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0200",
+        "value": "75",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "11",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0300",
+        "value": "80",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "11",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0400",
+        "value": "80",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "11",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0500",
+        "value": "85",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "10",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0600",
+        "value": "85",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "11",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0700",
+        "value": "80",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "14",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0800",
+        "value": "65",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "16",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "0900",
+        "value": "55",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "18",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1000",
+        "value": "45",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "19",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1100",
+        "value": "40",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "20",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1200",
+        "value": "35",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "21",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1300",
+        "value": "30",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "22",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1400",
+        "value": "30",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "22",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PTY",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "POP",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "0",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "PCP",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "강수없음",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "REH",
+        "forecast_date": "20260430",
+        "forecast_time": "1500",
+        "value": "30",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "TMP",
+        "forecast_date": "20260430",
+        "forecast_time": "1600",
+        "value": "21",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      },
+      {
+        "category": "SKY",
+        "forecast_date": "20260430",
+        "forecast_time": "1600",
+        "value": "1",
+        "base_date": "20260429",
+        "base_time": "2300",
+        "nx": 61,
+        "ny": 125
+      }
+    ]
+  }
+}

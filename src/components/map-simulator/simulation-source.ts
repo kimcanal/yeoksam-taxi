@@ -40,6 +40,7 @@ export type SimulationConfig = {
   taxiCount: number;
   trafficCount: number;
   clock: Omit<SimulationClock, "elapsedTimeSeconds">;
+  trafficSpeedMultiplier?: number;
   preserveState?: boolean;
 };
 

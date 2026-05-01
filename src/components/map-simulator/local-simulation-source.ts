@@ -618,7 +618,7 @@ export function createLocalSimulationSource(): SimulationSource {
       configState.clock.minutes,
       configState.clock.weatherMode,
       staticContext.center,
-    ).vehicleSpeedMultiplier;
+    ).vehicleSpeedMultiplier * (configState.trafficSpeedMultiplier ?? 1);
   };
 
   const updateVehicles = (deltaSeconds: number) => {

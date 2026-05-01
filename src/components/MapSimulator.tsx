@@ -32,6 +32,7 @@ import { loadSimulationData } from "@/components/map-simulator/load-simulation-d
 import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
 import MapSimulatorSceneRuntime from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
+import { useLiveData } from "@/components/map-simulator/use-live-data";
 import {
   ACTIVE_DISPATCH_PLANNER_ID,
   BaseCameraMode,
@@ -130,7 +131,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
   const simulationDateRef = useSyncRef(simulationDate);
   const simulationTimeRef = useSyncRef(simulationTimeMinutes);
-  const weatherModeRef = useSyncRef<WeatherMode>(weatherMode);
   const cameraModeRef = useSyncRef<CameraMode>(cameraMode);
   const followTaxiIdRef = useSyncRef(followTaxiId);
   const rideExitModeRef = useRef<BaseCameraMode>("drive");
@@ -161,6 +161,28 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     avgPickupWaitSeconds: 0,
     avgRideSeconds: 0,
   });
+  const { liveData, status: liveDataStatus } = useLiveData();
+  const liveAverageSpeedKmh = useMemo(() => {
+    if (!liveData || liveData.isStale) {
+      return null;
+    }
+
+    const validSpeeds = liveData.areas
+      .map((area) => area.speedKmh)
+      .filter((speed) => Number.isFinite(speed) && speed > 0);
+
+    if (!validSpeeds.length) {
+      return null;
+    }
+
+    return validSpeeds.reduce((sum, speed) => sum + speed, 0) / validSpeeds.length;
+  }, [liveData]);
+  const effectiveWeatherMode =
+    circumstanceMode === "live" && liveData && !liveData.isStale
+      ? liveData.weather.weatherMode
+      : weatherMode;
+  const effectiveWeatherModeRef =
+    useSyncRef<WeatherMode>(effectiveWeatherMode);
 
   function markSceneRendering(detail: string) {
     setStatus("rendering");
@@ -476,7 +498,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           ? `택시 시점: ${selectedTaxi?.label ?? "선택한 택시"} 뒤를 따라가며 이동합니다. Esc를 누르면 이전 시점으로 돌아갑니다.`
           : "드라이브: 좌클릭 드래그로 시점을 돌리고 W/S 또는 ↑/↓로 전후진, A/D 또는 ←/→로 좌우 이동, Q/E로 회전합니다. 택시를 클릭하면 택시 시점으로 들어갑니다.";
   const selectedWeather =
-    WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
+    WEATHER_OPTIONS.find((option) => option.id === effectiveWeatherMode) ??
     WEATHER_OPTIONS[0];
   const assetVersionDetails = useMemo(() => {
     if (!data) {
@@ -525,14 +547,24 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const environmentSpeedMultiplier = buildEnvironmentState(
     simulationDate,
     normalizedSimulationTimeMinutes,
-    weatherMode,
+    effectiveWeatherMode,
     solarReferenceCenter,
   ).vehicleSpeedMultiplier;
+  const trafficSpeedMultiplier =
+    liveAverageSpeedKmh === null
+      ? 1
+      : Math.min(1, Math.max(0.35, liveAverageSpeedKmh / 40));
+  const effectiveSpeedMultiplier = Math.max(
+    0.25,
+    environmentSpeedMultiplier * trafficSpeedMultiplier,
+  );
+  const trafficSpeedMultiplierRef = useSyncRef(trafficSpeedMultiplier);
   const speedReferenceKmh = Math.max(
     1,
-    Math.round(40 * environmentSpeedMultiplier),
+    Math.round(40 * effectiveSpeedMultiplier),
   );
-  const speedMultiplierPercent = Math.round(environmentSpeedMultiplier * 100);
+  const speedMultiplierPercent = Math.round(effectiveSpeedMultiplier * 100);
+  const speedSourceLabel = liveAverageSpeedKmh === null ? "기준" : "실측";
   const twilightValue = twilightFactor(
     simulationDate,
     normalizedSimulationTimeMinutes,
@@ -610,12 +642,171 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     circumstanceMode === "live" ? "Live 모드" : "특정 시각 모드";
   const circumstanceHelpBody =
     circumstanceMode === "live"
-      ? "강남 기준 현재 KST 시간을 따라갑니다. 날씨는 API 연동 전까지 수동 선택입니다."
+      ? "강남 기준 현재 KST 시간과 저장된 서울/KMA 스냅샷을 따라갑니다."
       : "날짜와 시간을 고정해 같은 장면을 반복 재현합니다. 비교 시연에 적합합니다.";
   const weatherManualHelp =
-    "실시간 기상 API 연동 전 단계라 수동 선택입니다.";
+    circumstanceMode === "live"
+      ? "KMA 초단기실황 스냅샷이 최신이면 자동 적용됩니다. 오래된 스냅샷이면 현재 선택값을 유지합니다."
+      : "날씨를 직접 선택해 시나리오를 구성합니다.";
   const timeLightingHelp =
     "하늘과 전체 조도 중심으로 바뀌고, 도로·건물 톤은 크게 흔들지 않습니다.";
+  const liveStatusLabel =
+    liveDataStatus === "ok"
+      ? liveData?.isStale
+        ? "스냅샷"
+        : "연결됨"
+      : liveDataStatus === "loading"
+        ? "불러오는 중"
+        : liveDataStatus === "error"
+          ? "오류"
+          : "대기";
+  const liveAreas = liveData?.areas.slice(0, 7) ?? [];
+  const liveDataPanel = (
+    <div className="mb-5">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className={PANEL_EYEBROW_CLASS}>실시간 현황</span>
+          <span
+            className={`inline-flex h-1.5 w-1.5 rounded-full ${
+              liveDataStatus === "ok" && !liveData?.isStale
+                ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                : liveDataStatus === "loading"
+                  ? "animate-pulse bg-amber-400"
+                  : "bg-slate-500"
+            }`}
+          />
+        </div>
+        <span className={PANEL_TOKEN_CLASS}>{liveStatusLabel}</span>
+      </div>
+
+      {liveDataStatus === "error" ? (
+        <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.07] px-3 py-2 text-xs text-red-300">
+          실시간 스냅샷을 불러오지 못했습니다. 수동 시나리오 값으로 계속
+          진행합니다.
+        </div>
+      ) : null}
+
+      {liveData ? (
+        <>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                  KMA 초단기실황
+                </div>
+                <div className="mt-1 flex items-end gap-2">
+                  <span className="text-3xl font-semibold tabular-nums text-white">
+                    {liveData.weather.tempC}°
+                  </span>
+                  <span className="mb-0.5 text-sm text-slate-300">
+                    {liveData.weather.precipitationType === "없음"
+                      ? selectedWeather.label
+                      : liveData.weather.precipitationType}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                  습도
+                </div>
+                <div className="mt-1 text-lg font-semibold tabular-nums text-cyan-300">
+                  {liveData.weather.humidity}%
+                </div>
+                {liveData.weather.precipitationMm > 0 ? (
+                  <div className="mt-0.5 text-[11px] tabular-nums text-sky-300">
+                    {liveData.weather.precipitationMm} mm/h
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <div
+              className={`mt-2 text-[10px] ${
+                circumstanceMode === "live" && !liveData.isStale
+                  ? "text-emerald-400"
+                  : liveData.isStale
+                    ? "text-amber-400"
+                    : "text-slate-500"
+              }`}
+            >
+              {circumstanceMode === "live" && !liveData.isStale
+                ? "날씨 자동 적용 중"
+                : liveData.isStale
+                  ? "스냅샷이 오래돼 자동 적용을 멈췄습니다"
+                  : "특정 시각 모드에서는 참고값으로만 표시됩니다"}
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-slate-500">
+              주요 지역 혼잡도
+            </div>
+            <div className="grid grid-cols-1 gap-1.5">
+              {liveAreas.map((area) => {
+                const congestionColor =
+                  area.congestionLevel === "여유"
+                    ? "text-emerald-400 border-emerald-400/20 bg-emerald-400/[0.07]"
+                    : area.congestionLevel === "보통"
+                      ? "text-sky-400 border-sky-400/20 bg-sky-400/[0.07]"
+                      : area.congestionLevel === "약간 붐빔"
+                        ? "text-amber-400 border-amber-400/20 bg-amber-400/[0.07]"
+                        : area.congestionLevel === "붐빔"
+                          ? "text-orange-400 border-orange-400/20 bg-orange-400/[0.07]"
+                          : "text-red-400 border-red-400/20 bg-red-400/[0.07]";
+                const speedColor =
+                  area.trafficIndex === "원활"
+                    ? "text-emerald-300"
+                    : area.trafficIndex === "서행"
+                      ? "text-amber-300"
+                      : "text-red-300";
+
+                return (
+                  <div
+                    key={area.areaName}
+                    className={`flex items-center justify-between rounded-xl border px-3 py-2 ${congestionColor}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium text-white">
+                        {area.areaName}
+                      </div>
+                      <div className="mt-0.5 text-[10px]">
+                        {area.congestionLevel}
+                      </div>
+                    </div>
+                    <div className="ml-3 text-right">
+                      <div
+                        className={`text-xs font-semibold tabular-nums ${speedColor}`}
+                      >
+                        {area.speedKmh} km/h
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        {area.trafficIndex}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div
+              className={`mt-2 text-[10px] ${
+                liveData.isStale ? "text-amber-500" : "text-slate-600"
+              }`}
+            >
+              서울 공공데이터 · {liveData.snapshotLabel}
+            </div>
+          </div>
+        </>
+      ) : liveDataStatus === "idle" || liveDataStatus === "loading" ? (
+        <div className="space-y-1.5">
+          {[1, 2, 3].map((index) => (
+            <div
+              key={index}
+              className="h-10 animate-pulse rounded-xl bg-white/[0.04]"
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
   const timeWeatherControls = (
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -687,7 +878,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             {selectedWeather.detail}
           </div>
           <div className="mt-2 rounded-xl border border-white/8 bg-white/[0.04] px-2 py-1 text-[11px] text-slate-300">
-            평균 {speedReferenceKmh}km/h → 속도 {speedMultiplierPercent}% 반영
+            {speedSourceLabel} 평균 {speedReferenceKmh}km/h → 속도 {speedMultiplierPercent}% 반영
           </div>
         </div>
       </div>
@@ -791,7 +982,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             type="button"
             onClick={() => setWeatherMode(option.id)}
             className={`rounded-2xl border px-3 py-3 text-left transition ${panelSelectableClass(
-              weatherMode === option.id,
+              effectiveWeatherMode === option.id,
             )}`}
           >
             <div className="text-sm font-medium">{option.label}</div>
@@ -832,7 +1023,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         cameraFocusTargetRef={cameraFocusTargetRef}
         simulationDateRef={simulationDateRef}
         simulationTimeRef={simulationTimeRef}
-        weatherModeRef={weatherModeRef}
+        weatherModeRef={effectiveWeatherModeRef}
+        trafficSpeedMultiplierRef={trafficSpeedMultiplierRef}
         setStatus={setStatus}
         setStatusDetail={setStatusDetail}
         setLoadingProgress={setLoadingProgress}
@@ -1025,6 +1217,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         data-ui-panel="right-sidebar"
         className="absolute right-4 top-4 z-10 hidden max-h-[calc(100vh-2rem)] w-[360px] overflow-y-auto rounded-[28px] border border-white/10 bg-slate-950/82 p-5 text-white shadow-2xl backdrop-blur-md lg:block"
       >
+        {liveDataPanel}
+        <div className="mb-5 border-t border-white/8" />
         {timeWeatherControls}
       </div>
 
