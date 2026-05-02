@@ -36,6 +36,12 @@ yarn-error.log*
 /tmp-playwright-*.png
 /.tmp/
 
+# locally collected data
+/data/raw/*
+!/data/raw/.gitkeep
+/data/processed/*
+!/data/processed/.gitkeep
+
 # env files (can opt-in for committing if needed)
 .env*
 

@@ -1,0 +1,129 @@
+{
+  "generated_at": "2026-05-02T15:19:28.689Z",
+  "raw_citydata_path": "data/raw/citydata/2026-05-03/0013.json",
+  "citydata": {
+    "collected_at": "2026-05-02T15:13:46.298Z",
+    "source": "Seoul citydata OA-21285",
+    "place_count": 7,
+    "top_population": {
+      "area_name": "강남역",
+      "congestion_level": "여유",
+      "population_min": 26000,
+      "population_max": 28000,
+      "traffic_index": "서행",
+      "traffic_speed_kmh": 19,
+      "traffic_observed_at": "2026-05-03 00:10",
+      "temperature_c": 14.9,
+      "precipitation_type": "비",
+      "observed_at": "2026-05-02 23:45"
+    },
+    "places": [
+      {
+        "area_name": "강남 MICE 관광특구",
+        "congestion_level": "여유",
+        "population_min": 3500,
+        "population_max": 4000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 22,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 14.9,
+        "precipitation_type": "비",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "강남역",
+        "congestion_level": "여유",
+        "population_min": 26000,
+        "population_max": 28000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 19,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 14.9,
+        "precipitation_type": "비",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "선릉역",
+        "congestion_level": "여유",
+        "population_min": 16000,
+        "population_max": 18000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 20,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 14.9,
+        "precipitation_type": "비",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "신논현역·논현역",
+        "congestion_level": "여유",
+        "population_min": 6500,
+        "population_max": 7000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 21,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 14.9,
+        "precipitation_type": "비",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "압구정로데오거리",
+        "congestion_level": "여유",
+        "population_min": 14000,
+        "population_max": 16000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 22,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 15.8,
+        "precipitation_type": "없음",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "역삼역",
+        "congestion_level": "여유",
+        "population_min": 9500,
+        "population_max": 10000,
+        "traffic_index": "서행",
+        "traffic_speed_kmh": 20,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 14.9,
+        "precipitation_type": "비",
+        "observed_at": "2026-05-02 23:45"
+      },
+      {
+        "area_name": "청담동 명품거리",
+        "congestion_level": "여유",
+        "population_min": 2000,
+        "population_max": 2500,
+        "traffic_index": "원활",
+        "traffic_speed_kmh": 25,
+        "traffic_observed_at": "2026-05-03 00:10",
+        "temperature_c": 15.8,
+        "precipitation_type": "없음",
+        "observed_at": "2026-05-02 23:45"
+      }
+    ]
+  },
+  "forecast": {
+    "source": "demo",
+    "target_datetime": "2026-05-03T00:30:00+09:00",
+    "weather": "rain",
+    "generated_at": "2026-05-03T00:15:00+09:00",
+    "region_count": 9
+  },
+  "dispatch": {
+    "generated_at": "2026-05-02T15:19:28.464Z",
+    "top_region": {
+      "dong_name": "삼성2동",
+      "predicted_demand_score": 0.58,
+      "confidence": 0.68,
+      "idle_taxis": 0,
+      "imbalance_score": 0.58,
+      "action": "선제 이동",
+      "action_level": "high",
+      "recommended_taxis": 2,
+      "incentive_multiplier": 1.2
+    },
+    "decision_count": 9
+  }
+}

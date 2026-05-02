@@ -25,6 +25,19 @@ This project does not use Google Maps Platform for map rendering. The only Googl
 - `OpenStreetMap + Overpass API` for roads and buildings
 - `osmtogeojson` for converting OSM data into GeoJSON
 
+## Capstone Module Layout
+
+The runnable dashboard remains in `src/`, but the repository now exposes the
+assignment modules explicitly:
+
+- `module1_simulation/`: how the Next.js + Three.js digital twin maps to Module 1.
+- `module2_preprocessing/`: public-data collection and feature-engineering plan.
+- `module3_prediction/`: demand forecast handoff contract and evaluation notes.
+- `module4_dispatch/`: imbalance and incentive policy script.
+- `data/`: raw/processed/sample data layout.
+- `notebooks/`: placeholder for EDA and model-evaluation notebooks.
+- `docs/`: report notes, source reliability, forecast contract, and dispatch interpretation.
+
 ## Scripts
 
 ```bash
@@ -40,6 +53,9 @@ npm run fetch:non-road
 npm run fetch:roads
 npm run fetch:road-network
 npm run fetch:map
+npm run data:collect:citydata
+npm run data:summary
+npm run dispatch:plan
 ```
 
 ## Local Development
@@ -150,6 +166,20 @@ npm run asset:update
 - `npm run asset:update` is the recommended asset refresh command.
 - `npm run fetch:map` remains as a compatibility alias to the same updater.
 - Asset refresh can take a few minutes because Overpass mirrors may rate-limit and retry.
+
+For the data pipeline:
+
+```bash
+npm run data:collect:citydata
+npm run data:summary
+npm run dispatch:plan
+```
+
+- `data:collect:citydata` writes raw local Seoul citydata snapshots under
+  `data/raw/citydata/`; this path is intentionally git-ignored.
+- `data:summary` writes `public/data-summary.json` for a lightweight data-status page.
+- `dispatch:plan` reads `public/forecast/latest.json` and
+  `data/samples/supply-proxy.json`, then writes `public/dispatch-plan.json`.
 
 ## How The Map Is Built
 

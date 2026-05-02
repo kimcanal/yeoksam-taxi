@@ -1,0 +1,108 @@
+{
+  "source": "demo_dispatch_policy_v1",
+  "generated_at": "2026-05-02T15:19:28.464Z",
+  "forecast_source": "demo",
+  "forecast_target_datetime": "2026-05-03T00:30:00+09:00",
+  "policy": "imbalance_score = predicted_demand_score / (idle_taxis + 1)",
+  "decisions": [
+    {
+      "dong_name": "삼성2동",
+      "predicted_demand_score": 0.58,
+      "confidence": 0.68,
+      "idle_taxis": 0,
+      "imbalance_score": 0.58,
+      "action": "선제 이동",
+      "action_level": "high",
+      "recommended_taxis": 2,
+      "incentive_multiplier": 1.2
+    },
+    {
+      "dong_name": "역삼1동",
+      "predicted_demand_score": 0.94,
+      "confidence": 0.81,
+      "idle_taxis": 1,
+      "imbalance_score": 0.47,
+      "action": "커버 보강",
+      "action_level": "medium",
+      "recommended_taxis": 1,
+      "incentive_multiplier": 1.1
+    },
+    {
+      "dong_name": "신사동",
+      "predicted_demand_score": 0.63,
+      "confidence": 0.72,
+      "idle_taxis": 1,
+      "imbalance_score": 0.315,
+      "action": "커버 보강",
+      "action_level": "medium",
+      "recommended_taxis": 1,
+      "incentive_multiplier": 1.1
+    },
+    {
+      "dong_name": "논현2동",
+      "predicted_demand_score": 0.47,
+      "confidence": 0.63,
+      "idle_taxis": 1,
+      "imbalance_score": 0.235,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    },
+    {
+      "dong_name": "논현1동",
+      "predicted_demand_score": 0.71,
+      "confidence": 0.76,
+      "idle_taxis": 3,
+      "imbalance_score": 0.177,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    },
+    {
+      "dong_name": "청담동",
+      "predicted_demand_score": 0.52,
+      "confidence": 0.65,
+      "idle_taxis": 2,
+      "imbalance_score": 0.173,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    },
+    {
+      "dong_name": "대치4동",
+      "predicted_demand_score": 0.29,
+      "confidence": 0.58,
+      "idle_taxis": 1,
+      "imbalance_score": 0.145,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    },
+    {
+      "dong_name": "삼성1동",
+      "predicted_demand_score": 0.38,
+      "confidence": 0.6,
+      "idle_taxis": 2,
+      "imbalance_score": 0.127,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    },
+    {
+      "dong_name": "역삼2동",
+      "predicted_demand_score": 0.18,
+      "confidence": 0.54,
+      "idle_taxis": 2,
+      "imbalance_score": 0.06,
+      "action": "유지",
+      "action_level": "low",
+      "recommended_taxis": 0,
+      "incentive_multiplier": 1
+    }
+  ]
+}

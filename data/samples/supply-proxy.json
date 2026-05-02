@@ -1,0 +1,16 @@
+{
+  "source": "simulated_supply_proxy",
+  "generated_at": "2026-05-03T00:00:00+09:00",
+  "description": "Idle taxi supply proxy used before real taxi GPS availability.",
+  "regions": [
+    { "dong_name": "역삼1동", "idle_taxis": 1 },
+    { "dong_name": "역삼2동", "idle_taxis": 2 },
+    { "dong_name": "논현1동", "idle_taxis": 3 },
+    { "dong_name": "논현2동", "idle_taxis": 1 },
+    { "dong_name": "삼성1동", "idle_taxis": 2 },
+    { "dong_name": "삼성2동", "idle_taxis": 0 },
+    { "dong_name": "신사동", "idle_taxis": 1 },
+    { "dong_name": "청담동", "idle_taxis": 2 },
+    { "dong_name": "대치4동", "idle_taxis": 1 }
+  ]
+}
