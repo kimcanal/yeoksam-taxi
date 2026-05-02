@@ -52,11 +52,11 @@ type MapSimulatorProps = {
 
 const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
 const MAP_SCOPE_DONGS = "역삼1·2, 논현1·2, 삼성1·2, 신사, 청담, 대치4";
-const MAP_LANDMARKS = [
-  { name: "강남역", label: "강남", lon: 127.027619, lat: 37.497952 },
-  { name: "역삼역", label: "역삼", lon: 127.03639, lat: 37.50066 },
-  { name: "선릉역", label: "선릉", lon: 127.04895, lat: 37.5045 },
-  { name: "신논현역", label: "신논현", lon: 127.02503, lat: 37.5046 },
+const MAP_SUBWAY_STATIONS = [
+  { id: "node/5927529147", name: "강남", label: "강남" },
+  { id: "node/6033314995", name: "역삼", label: "역삼" },
+  { id: "node/5924268024", name: "선릉", label: "선릉" },
+  { id: "node/3824606390", name: "신논현", label: "신논현" },
 ];
 
 type DemandMiniMapRegion = {
@@ -73,6 +73,13 @@ type DemandMiniMapLandmark = {
   x: number;
   y: number;
 };
+
+function isSubwayStationFeature(feature: SimulationData["transit"]["features"][number]) {
+  return (
+    feature.properties.category === "subway_station" &&
+    feature.properties.sourceType === "station"
+  );
+}
 
 type MiniMapFocus = {
   x: number;
@@ -506,15 +513,26 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
         } satisfies DemandMiniMapRegion;
       }),
-      landmarks: MAP_LANDMARKS.map((landmark) => {
-        const projected = projectPoint([landmark.lon, landmark.lat], data.center);
+      landmarks: MAP_SUBWAY_STATIONS.flatMap((station) => {
+        const feature = data.transit.features.find(
+          (candidate) =>
+            isSubwayStationFeature(candidate) &&
+            (candidate.id === station.id ||
+              candidate.properties.name === station.name),
+        );
+        if (!feature) {
+          return [];
+        }
+        const projected = projectPoint(feature.geometry.coordinates, data.center);
         const point = mapPoint(projected);
-        return {
-          name: landmark.name,
-          label: landmark.label,
-          x: THREE.MathUtils.clamp(point.x, 4, 96),
-          y: THREE.MathUtils.clamp(point.y, 4, 96),
-        } satisfies DemandMiniMapLandmark;
+        return [
+          {
+            name: `${feature.properties.name}역`,
+            label: station.label,
+            x: THREE.MathUtils.clamp(point.x, 4, 96),
+            y: THREE.MathUtils.clamp(point.y, 4, 96),
+          } satisfies DemandMiniMapLandmark,
+        ];
       }),
       focus,
       focusHeading,
