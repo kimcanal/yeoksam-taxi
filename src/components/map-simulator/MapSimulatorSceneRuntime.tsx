@@ -195,6 +195,7 @@ type MapSimulatorSceneRuntimeProps = {
   simulationDateRef: MutableRefObject<string>;
   simulationTimeRef: MutableRefObject<number>;
   weatherModeRef: MutableRefObject<WeatherMode>;
+  congestionSpeedMultiplierRef: MutableRefObject<number>;
   setStatus: Dispatch<SetStateAction<SceneStatus>>;
   setStatusDetail: Dispatch<SetStateAction<string>>;
   setLoadingProgress: Dispatch<SetStateAction<number>>;
@@ -203,6 +204,13 @@ type MapSimulatorSceneRuntimeProps = {
   setShowFps: Dispatch<SetStateAction<boolean>>;
   setFollowTaxiId: Dispatch<SetStateAction<string>>;
   setCameraMode: Dispatch<SetStateAction<CameraMode>>;
+  onCameraFocusChange?: (focus: {
+    x: number;
+    z: number;
+    label: string;
+    headingX: number;
+    headingZ: number;
+  }) => void;
 };
 
 export default function MapSimulatorSceneRuntime({
@@ -230,6 +238,7 @@ export default function MapSimulatorSceneRuntime({
   simulationDateRef,
   simulationTimeRef,
   weatherModeRef,
+  congestionSpeedMultiplierRef,
   setStatus,
   setStatusDetail,
   setLoadingProgress,
@@ -238,6 +247,7 @@ export default function MapSimulatorSceneRuntime({
   setShowFps,
   setFollowTaxiId,
   setCameraMode,
+  onCameraFocusChange,
 }: MapSimulatorSceneRuntimeProps) {
   useEffect(() => {
     if (!data || !containerRef.current) {
@@ -358,6 +368,12 @@ export default function MapSimulatorSceneRuntime({
       pointerX: 0,
       pointerY: 0,
     };
+    let lastMiniMapFocusReportTimestamp = 0;
+    let lastMiniMapFocusReportX = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportZ = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportHeadingX = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportHeadingZ = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportLabel = "";
     const pressedKeys = new Set<string>();
     const followOrbit = { yawOffset: 0.22 };
     let activeCameraMode = cameraModeRef.current;
@@ -395,6 +411,7 @@ export default function MapSimulatorSceneRuntime({
     const rideHeading = new THREE.Vector3();
     const rideLookTarget = new THREE.Vector3();
     const rideDesiredLookTarget = new THREE.Vector3();
+    const miniMapCameraDirection = new THREE.Vector3();
     let rideLookInitialized = false;
     let nonRoadGroup: THREE.Group | null = null;
     const districtLabelEntries: SceneLabelEntry[] = [];
@@ -2241,7 +2258,7 @@ export default function MapSimulatorSceneRuntime({
       const leftArrows: SignalLampVisual[] = [];
       const pedestrianLamps: SignalLampVisual[] = [];
 
-      const mastDistance = signal.approaches.length >= 4 ? 2.9 : 2.55;
+      const mastDistance = signal.approaches.length >= 4 ? 4.2 : 3.6;
       const mastLayout = signal.approaches.map((direction) => {
         switch (direction) {
           case "north":
@@ -2729,7 +2746,7 @@ export default function MapSimulatorSceneRuntime({
     let taxiAssetLoadStarted = false;
     let trafficAssetLoadStarted = false;
     let lastUserInteractionTimestamp = performance.now();
-    const DEFERRED_ASSET_USER_IDLE_MS = 4_000;
+    const DEFERRED_ASSET_USER_IDLE_MS = 800;
     const markUserInteraction = () => {
       lastUserInteractionTimestamp = performance.now();
     };
@@ -3063,7 +3080,7 @@ export default function MapSimulatorSceneRuntime({
         cluster.visible = stormCloudOpacity > 0.01;
       });
 
-      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
+      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier * congestionSpeedMultiplierRef.current;
       rainLayer.points.visible = environment.precipitation === "rain";
       rainLayer.material.opacity = environment.precipitationOpacity;
       rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;
@@ -4517,6 +4534,56 @@ export default function MapSimulatorSceneRuntime({
       }
       if (currentMode !== "follow" && currentMode !== "ride") {
         syncCamera();
+      }
+      if (onCameraFocusChange) {
+        const nextMiniMapFocus =
+          currentMode === "ride"
+            ? rideLookTarget
+            : currentMode === "follow"
+              ? cameraRig.focus
+              : cameraRig.focus;
+        camera.getWorldDirection(miniMapCameraDirection);
+        miniMapCameraDirection.y = 0;
+        if (miniMapCameraDirection.lengthSq() < 0.0001) {
+          miniMapCameraDirection.set(
+            -Math.sin(cameraRig.yaw),
+            0,
+            -Math.cos(cameraRig.yaw),
+          );
+        }
+        miniMapCameraDirection.normalize();
+        const nextMiniMapFocusLabel =
+          currentMode === "ride"
+            ? "택시 시점"
+            : currentMode === "follow"
+              ? "택시 추적 위치"
+              : "현재 보고 있는 위치";
+        const focusDeltaSq =
+          (nextMiniMapFocus.x - lastMiniMapFocusReportX) ** 2 +
+          (nextMiniMapFocus.z - lastMiniMapFocusReportZ) ** 2;
+        const headingDeltaSq =
+          (miniMapCameraDirection.x - lastMiniMapFocusReportHeadingX) ** 2 +
+          (miniMapCameraDirection.z - lastMiniMapFocusReportHeadingZ) ** 2;
+        if (
+          frameTimestamp - lastMiniMapFocusReportTimestamp > 240 &&
+          (focusDeltaSq > 1.6 ||
+            headingDeltaSq > 0.006 ||
+            nextMiniMapFocusLabel !== lastMiniMapFocusReportLabel)
+        ) {
+          lastMiniMapFocusReportTimestamp = frameTimestamp;
+          lastMiniMapFocusReportX = nextMiniMapFocus.x;
+          lastMiniMapFocusReportZ = nextMiniMapFocus.z;
+          lastMiniMapFocusReportHeadingX = miniMapCameraDirection.x;
+          lastMiniMapFocusReportHeadingZ = miniMapCameraDirection.z;
+          lastMiniMapFocusReportLabel = nextMiniMapFocusLabel;
+          onCameraFocusChange({
+            x: nextMiniMapFocus.x,
+            z: nextMiniMapFocus.z,
+            label: nextMiniMapFocusLabel,
+            headingX: miniMapCameraDirection.x,
+            headingZ: miniMapCameraDirection.z,
+          });
+        }
       }
 
       const overlayCpuStart = performance.now();
