@@ -52,6 +52,8 @@ type MapSimulatorProps = {
 type DemandMiniMapRegion = {
   name: string;
   path: string;
+  labelX: number;
+  labelY: number;
   score: number;
 };
 
@@ -128,7 +130,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   );
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showLabels] = useState(false);
-  const [showNonRoad] = useState(true);
+  const [showNonRoad] = useState(false);
   const [showTransit] = useState(false);
   const showRoadNetwork = false;
   const [forecastOffsetMinutes, setForecastOffsetMinutes] = useState(15);
@@ -478,9 +480,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               .concat(" Z"),
           )
           .join(" ");
+        const labelPoint = mapPoint(dong.position);
         return {
           name: dong.name,
           path,
+          labelX: labelPoint.x,
+          labelY: labelPoint.y,
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
         } satisfies DemandMiniMapRegion;
       }),
@@ -603,9 +608,19 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       ) : null}
 
+      <div className="absolute bottom-4 left-4 z-10 hidden rounded-2xl border border-white/10 bg-slate-950/78 px-4 py-3 text-xs text-slate-300 shadow-xl backdrop-blur-md lg:block">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-cyan-100">OSM context</span>
+          <span className="text-slate-500">행정동 경계 / 도로 / 건물</span>
+          <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
+            9개 동
+          </span>
+        </div>
+      </div>
+
       <div
         data-ui-panel="desktop-simulation-clock"
-        className="absolute left-4 top-4 z-10 hidden w-[320px] rounded-2xl border border-white/10 bg-slate-950/84 p-4 text-white shadow-2xl backdrop-blur-md lg:block"
+        className="absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -708,7 +723,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       <div
         data-ui-panel="right-sidebar"
-        className="absolute right-0 top-0 z-10 hidden h-full w-[42vw] min-w-[420px] max-w-[560px] overflow-y-auto border-l border-white/10 bg-slate-950/92 p-5 text-white shadow-2xl backdrop-blur-md lg:block"
+        className="absolute bottom-0 left-0 right-0 z-10 max-h-[64vh] overflow-y-auto border-t border-white/10 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-md lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[42vw] lg:min-w-[420px] lg:max-w-[560px] lg:border-l lg:border-t-0 lg:p-5"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -804,13 +819,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 </defs>
                 <rect x="0" y="0" width="100" height="100" fill="#07111c" />
                 {demandMiniMap.regions.map((region) => (
-                  <path
-                    key={region.name}
-                    d={region.path}
-                    fill={demandFillForScore(region.score)}
-                    stroke={demandStrokeForScore(region.score)}
-                    strokeWidth={region.score >= 0.36 ? 0.7 : 0.42}
-                  />
+                  <g key={`${region.name}-shape`}>
+                    <path
+                      d={region.path}
+                      fill={demandFillForScore(region.score)}
+                      stroke={demandStrokeForScore(region.score)}
+                      strokeWidth={region.score >= 0.36 ? 0.7 : 0.42}
+                    />
+                    <title>
+                      {region.name} 수요 {Math.round(region.score * 100)}
+                    </title>
+                  </g>
                 ))}
                 {demandMiniMap.focus ? (
                   <g>
@@ -842,6 +861,25 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     />
                   </g>
                 ) : null}
+                {demandMiniMap.regions.map((region) => (
+                  <text
+                    key={`${region.name}-label`}
+                    x={region.labelX}
+                    y={region.labelY}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill={region.score >= 0.36 ? "#fff7ed" : "#dbeafe"}
+                    fontSize={region.score >= 0.72 ? 3.8 : 3.2}
+                    fontWeight={region.score >= 0.36 ? 700 : 600}
+                    paintOrder="stroke"
+                    stroke="rgba(7, 17, 28, 0.82)"
+                    strokeWidth="0.72"
+                    strokeLinejoin="round"
+                    pointerEvents="none"
+                  >
+                    {region.name}
+                  </text>
+                ))}
               </svg>
             ) : (
               <div className="flex aspect-square items-center justify-center text-sm text-slate-500">
