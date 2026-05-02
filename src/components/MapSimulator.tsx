@@ -44,10 +44,20 @@ import {
   Stats,
   panelBadgeClass,
   panelSelectableClass,
+  projectPoint,
 } from "@/components/map-simulator/core";
 type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
 };
+
+const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
+const MAP_SCOPE_DONGS = "역삼1·2, 논현1·2, 삼성1·2, 신사, 청담, 대치4";
+const MAP_LANDMARKS = [
+  { name: "강남역", label: "강남", lon: 127.027619, lat: 37.497952 },
+  { name: "역삼역", label: "역삼", lon: 127.03639, lat: 37.50066 },
+  { name: "선릉역", label: "선릉", lon: 127.04895, lat: 37.5045 },
+  { name: "신논현역", label: "신논현", lon: 127.02503, lat: 37.5046 },
+];
 
 type DemandMiniMapRegion = {
   name: string;
@@ -55,6 +65,13 @@ type DemandMiniMapRegion = {
   labelX: number;
   labelY: number;
   score: number;
+};
+
+type DemandMiniMapLandmark = {
+  name: string;
+  label: string;
+  x: number;
+  y: number;
 };
 
 type MiniMapFocus = {
@@ -423,7 +440,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   );
   const demandMiniMap = useMemo(() => {
     const dongRegions = data?.dongRegions;
-    if (!dongRegions?.length) {
+    if (!data || !dongRegions?.length) {
       return null;
     }
 
@@ -489,16 +506,59 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
         } satisfies DemandMiniMapRegion;
       }),
+      landmarks: MAP_LANDMARKS.map((landmark) => {
+        const projected = projectPoint([landmark.lon, landmark.lat], data.center);
+        const point = mapPoint(projected);
+        return {
+          name: landmark.name,
+          label: landmark.label,
+          x: THREE.MathUtils.clamp(point.x, 4, 96),
+          y: THREE.MathUtils.clamp(point.y, 4, 96),
+        } satisfies DemandMiniMapLandmark;
+      }),
       focus,
       focusHeading,
       focusLabel: miniMapFocus?.label ?? "현재 지도 중심",
     };
   }, [
-    data?.dongRegions,
+    data,
     demandByDong,
     miniMapFocus,
     scenarioMapCenter,
   ]);
+  const mapEvidenceMetrics = useMemo(() => {
+    if (!data) {
+      return [
+        { label: "행정동", value: "-", detail: "OSM 경계" },
+        { label: "도로", value: "-", detail: "OSM road" },
+        { label: "건물", value: "-", detail: "OSM building" },
+        { label: "그래프", value: "-", detail: "경로 세그먼트" },
+      ];
+    }
+    return [
+      {
+        label: "행정동",
+        value: `${data.dongs.features.length}개`,
+        detail: "OSM 경계",
+      },
+      {
+        label: "도로",
+        value: data.roads.features.length.toLocaleString("ko-KR"),
+        detail: "OSM road",
+      },
+      {
+        label: "건물",
+        value: data.buildings.features.length.toLocaleString("ko-KR"),
+        detail: "OSM building",
+      },
+      {
+        label: "그래프",
+        value: (data.roadNetwork?.stats.segmentCount ?? data.graph.edgeById.size)
+          .toLocaleString("ko-KR"),
+        detail: "경로 세그먼트",
+      },
+    ];
+  }, [data]);
   const topDemandDong = rankedForecastDongs[0] ?? null;
   const topDemandScoreLabel = topDemandDong
     ? Math.round(topDemandDong.relativeScore * 100)
@@ -610,10 +670,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       <div className="absolute bottom-4 left-4 z-10 hidden rounded-2xl border border-white/10 bg-slate-950/78 px-4 py-3 text-xs text-slate-300 shadow-xl backdrop-blur-md lg:block">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-cyan-100">OSM context</span>
-          <span className="text-slate-500">행정동 경계 / 도로 / 건물</span>
+          <span className="font-medium text-cyan-100">지도 범위</span>
+          <span className="text-slate-500">{MAP_SCOPE_LABEL}</span>
           <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
-            9개 동
+            OSM 기반
           </span>
         </div>
       </div>
@@ -630,6 +690,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
             <div className="mt-1 text-xs text-slate-400">
               {formattedSimulationDate} · {simulationTimeBand}
+            </div>
+            <div className="mt-1 text-[11px] text-cyan-100/80">
+              {MAP_SCOPE_LABEL}
             </div>
           </div>
           <span className={panelBadgeClass(circumstanceMode === "live")}>
@@ -729,8 +792,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <div>
             <p className={PANEL_EYEBROW_CLASS}>수요 예측</p>
             <h2 className="mt-1 text-xl font-semibold leading-tight text-slate-50">
-              미래 수요 heatmap
+              역삼동 주변 수요 heatmap
             </h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {MAP_SCOPE_DONGS}
+            </p>
           </div>
           <span
             className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
@@ -753,6 +819,42 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </span>
           </div>
         )}
+
+        <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>지도 신뢰성</div>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                OSM 기반 디지털 트윈 프로토타입
+              </div>
+            </div>
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
+              실제 경계/도로
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {mapEvidenceMetrics.map((metric) => (
+              <div
+                key={metric.label}
+                className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2"
+              >
+                <div className="text-[10px] text-slate-500">{metric.label}</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-100">
+                  {metric.value}
+                </div>
+                <div className="mt-0.5 truncate text-[10px] text-slate-500">
+                  {metric.detail}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 text-[11px] leading-5 text-slate-500">
+            실제 차량 궤적이 아니라 OSM 도로 그래프 위에서 수요 예측과
+            배차 판단을 검증하는 시뮬레이션입니다.
+          </div>
+        </div>
 
         <div className={`mt-4 ${PANEL_CARD_CLASS} py-3`}>
           <div className="flex items-center justify-between gap-3">
@@ -807,7 +909,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <svg
                 viewBox="0 0 100 100"
                 role="img"
-                aria-label="강남 9개 동 미래 수요 heatmap"
+                aria-label="역삼동 주변 9개 동 미래 수요 heatmap"
                 className="block aspect-square w-full"
               >
                 <defs>
@@ -861,6 +963,31 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     />
                   </g>
                 ) : null}
+                {demandMiniMap.landmarks.map((landmark) => (
+                  <g key={landmark.name}>
+                    <circle
+                      cx={landmark.x}
+                      cy={landmark.y}
+                      r="1.45"
+                      fill="#67e8f9"
+                      stroke="#082f49"
+                      strokeWidth="0.45"
+                    />
+                    <text
+                      x={landmark.x + 2.1}
+                      y={landmark.y - 1.4}
+                      fill="#cffafe"
+                      fontSize="2.55"
+                      fontWeight="700"
+                      paintOrder="stroke"
+                      stroke="rgba(7, 17, 28, 0.9)"
+                      strokeWidth="0.55"
+                      pointerEvents="none"
+                    >
+                      {landmark.label}
+                    </text>
+                  </g>
+                ))}
                 {demandMiniMap.regions.map((region) => (
                   <text
                     key={`${region.name}-label`}
