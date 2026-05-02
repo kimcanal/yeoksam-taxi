@@ -54,6 +54,9 @@ npm run fetch:roads
 npm run fetch:road-network
 npm run fetch:map
 npm run data:collect:citydata
+npm run data:collect:weather
+npm run data:features
+npm run data:collect:live
 npm run data:summary
 npm run dispatch:plan
 ```
@@ -171,12 +174,20 @@ For the data pipeline:
 
 ```bash
 npm run data:collect:citydata
+npm run data:collect:weather
+npm run data:features
 npm run data:summary
 npm run dispatch:plan
 ```
 
 - `data:collect:citydata` writes raw local Seoul citydata snapshots under
   `data/raw/citydata/`; this path is intentionally git-ignored.
+- `data:collect:weather` writes raw KMA nowcast snapshots under
+  `data/raw/weather/`; this path is also git-ignored.
+- `data:features` converts the latest public signals into
+  `public/feature-snapshot.json` for model-handoff checks.
+- `data:collect:live` runs citydata collection, weather collection, feature
+  generation, and summary generation together.
 - `data:summary` writes `public/data-summary.json` for a lightweight data-status page.
 - `dispatch:plan` reads `public/forecast/latest.json` and
   `data/samples/supply-proxy.json`, then writes `public/dispatch-plan.json`.

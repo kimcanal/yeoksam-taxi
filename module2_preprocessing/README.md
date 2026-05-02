@@ -15,12 +15,23 @@ final taxi demand model arrives.
 
 ```bash
 npm run data:collect:citydata
+npm run data:collect:weather
+npm run data:features
 npm run data:summary
 ```
 
 `data:collect:citydata` writes raw local snapshots under `data/raw/citydata/`.
-That directory is git-ignored. `data:summary` writes the small dashboard-facing
+`data:collect:weather` writes KMA nowcast snapshots under `data/raw/weather/`.
+Those directories are git-ignored. `data:features` writes a model-facing
+public signal feature snapshot to `data/processed/features/latest.json` and
+`public/feature-snapshot.json`. `data:summary` writes the small dashboard-facing
 summary at `public/data-summary.json`.
+
+Run the current live pipeline with:
+
+```bash
+npm run data:collect:live
+```
 
 ## Feature Direction
 
@@ -32,6 +43,8 @@ The target feature table for the model should include:
 - `weather`, `temperature`, `precipitation`
 - `live_population_min`, `live_population_max`
 - `crowding_level`, `traffic_index`
+- `subway_station_count`, `bus_stop_count`, `event_count`
+- `demand_proxy_score` for pre-model demos only
 - lag or transferred demand priors such as `demand_lag_1h` and
   `same_hour_last_week`
 

@@ -13,6 +13,8 @@ large or frequently changing raw files.
 
 ```bash
 npm run data:collect:citydata
+npm run data:collect:weather
+npm run data:features
 npm run data:summary
 npm run dispatch:plan
 ```
@@ -20,6 +22,7 @@ npm run dispatch:plan
 The dashboard should read small public summaries, not all raw samples:
 
 - `public/data-summary.json`
+- `public/feature-snapshot.json`
 - `public/forecast/latest.json`
 - `public/dispatch-plan.json`
 

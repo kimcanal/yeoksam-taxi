@@ -1,46 +1,47 @@
 {
-  "generated_at": "2026-05-02T15:19:28.689Z",
-  "raw_citydata_path": "data/raw/citydata/2026-05-03/0013.json",
+  "generated_at": "2026-05-02T15:55:13.035Z",
+  "raw_citydata_path": "data/raw/citydata/2026-05-03/0053.json",
+  "raw_weather_path": "data/raw/weather/2026-05-03/0053.json",
   "citydata": {
-    "collected_at": "2026-05-02T15:13:46.298Z",
+    "collected_at": "2026-05-02T15:53:39.591Z",
     "source": "Seoul citydata OA-21285",
     "place_count": 7,
     "top_population": {
       "area_name": "강남역",
       "congestion_level": "여유",
-      "population_min": 26000,
-      "population_max": 28000,
+      "population_min": 24000,
+      "population_max": 26000,
       "traffic_index": "서행",
-      "traffic_speed_kmh": 19,
-      "traffic_observed_at": "2026-05-03 00:10",
-      "temperature_c": 14.9,
+      "traffic_speed_kmh": 20,
+      "traffic_observed_at": "2026-05-03 00:50",
+      "temperature_c": 14.2,
       "precipitation_type": "비",
-      "observed_at": "2026-05-02 23:45"
+      "observed_at": "2026-05-03 00:25"
     },
     "places": [
       {
         "area_name": "강남 MICE 관광특구",
         "congestion_level": "여유",
-        "population_min": 3500,
-        "population_max": 4000,
+        "population_min": 2500,
+        "population_max": 3000,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 22,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 14.9,
+        "traffic_speed_kmh": 21,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 14.2,
         "precipitation_type": "비",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "강남역",
         "congestion_level": "여유",
-        "population_min": 26000,
-        "population_max": 28000,
+        "population_min": 24000,
+        "population_max": 26000,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 19,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 14.9,
+        "traffic_speed_kmh": 20,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 14.2,
         "precipitation_type": "비",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "선릉역",
@@ -48,59 +49,59 @@
         "population_min": 16000,
         "population_max": 18000,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 20,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 14.9,
+        "traffic_speed_kmh": 21,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 14.2,
         "precipitation_type": "비",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "신논현역·논현역",
         "congestion_level": "여유",
-        "population_min": 6500,
-        "population_max": 7000,
+        "population_min": 6000,
+        "population_max": 6500,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 21,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 14.9,
+        "traffic_speed_kmh": 22,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 14.2,
         "precipitation_type": "비",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "압구정로데오거리",
         "congestion_level": "여유",
-        "population_min": 14000,
-        "population_max": 16000,
+        "population_min": 12000,
+        "population_max": 14000,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 22,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 15.8,
+        "traffic_speed_kmh": 24,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 15,
         "precipitation_type": "없음",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "역삼역",
         "congestion_level": "여유",
-        "population_min": 9500,
-        "population_max": 10000,
+        "population_min": 9000,
+        "population_max": 9500,
         "traffic_index": "서행",
-        "traffic_speed_kmh": 20,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 14.9,
+        "traffic_speed_kmh": 24,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 14.2,
         "precipitation_type": "비",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       },
       {
         "area_name": "청담동 명품거리",
         "congestion_level": "여유",
-        "population_min": 2000,
-        "population_max": 2500,
+        "population_min": 1500,
+        "population_max": 2000,
         "traffic_index": "원활",
-        "traffic_speed_kmh": 25,
-        "traffic_observed_at": "2026-05-03 00:10",
-        "temperature_c": 15.8,
+        "traffic_speed_kmh": 26,
+        "traffic_observed_at": "2026-05-03 00:50",
+        "temperature_c": 15,
         "precipitation_type": "없음",
-        "observed_at": "2026-05-02 23:45"
+        "observed_at": "2026-05-03 00:25"
       }
     ]
   },
@@ -125,5 +126,37 @@
       "incentive_multiplier": 1.2
     },
     "decision_count": 9
+  },
+  "features": {
+    "generated_at": "2026-05-02T15:55:12.805Z",
+    "row_count": 7,
+    "top_area": {
+      "area_code": "POI014",
+      "area_name": "강남역",
+      "hour": 0,
+      "weekday": 0,
+      "is_weekend": true,
+      "time_band": "late_night",
+      "live_population_min": 24000,
+      "live_population_max": 26000,
+      "live_population_mid": 25000,
+      "congestion_level": "여유",
+      "congestion_score": 0.2,
+      "traffic_index": "서행",
+      "traffic_score": 0.6,
+      "traffic_speed_kmh": 20,
+      "city_weather_temp_c": 14.2,
+      "city_precipitation_type": "비",
+      "kma_temperature_c": 0,
+      "kma_precipitation_mm_1h": 0,
+      "kma_humidity_pct": 0,
+      "kma_wind_speed_ms": 0,
+      "subway_station_count": 4,
+      "subway_arrival_count": 0,
+      "bus_stop_count": 43,
+      "event_count": 0,
+      "demand_proxy_score": 0.516
+    },
+    "source": "public_signal_feature_snapshot_v1"
   }
 }

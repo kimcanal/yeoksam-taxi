@@ -1,5 +1,6 @@
 import dataSummary from "../../../public/data-summary.json";
 import dispatchPlan from "../../../public/dispatch-plan.json";
+import featureSnapshot from "../../../public/feature-snapshot.json";
 
 type DataSummary = typeof dataSummary;
 type DispatchPlan = typeof dispatchPlan;
@@ -32,8 +33,10 @@ function actionTone(level: DispatchPlan["decisions"][number]["action_level"]) {
 export default function DataPage() {
   const places = dataSummary.citydata.places;
   const decisions = dispatchPlan.decisions.slice(0, 5);
+  const featureRows = featureSnapshot.features.slice(0, 5);
   const topPopulation = dataSummary.citydata.top_population;
   const topDecision = dispatchPlan.decisions[0] ?? null;
+  const topFeature = featureSnapshot.features[0] ?? null;
 
   return (
     <main className="h-screen overflow-y-auto bg-[#0b1020] text-slate-100">
@@ -49,7 +52,7 @@ export default function DataPage() {
           </div>
         </header>
 
-        <section className="grid grid-cols-4 gap-4">
+        <section className="grid grid-cols-5 gap-4">
           <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
             <p className="text-xs font-semibold uppercase text-slate-400">Citydata 장소</p>
             <p className="mt-3 text-3xl font-bold">{dataSummary.citydata.place_count}</p>
@@ -70,6 +73,11 @@ export default function DataPage() {
             <p className="text-xs font-semibold uppercase text-slate-400">배차 최우선</p>
             <p className="mt-3 text-2xl font-bold">{topDecision?.dong_name ?? "-"}</p>
             <p className="mt-1 text-sm text-slate-300">{topDecision?.action ?? "-"}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-xs font-semibold uppercase text-slate-400">Feature Top</p>
+            <p className="mt-3 text-2xl font-bold">{topFeature?.area_name ?? "-"}</p>
+            <p className="mt-1 text-sm text-slate-300">{topFeature?.demand_proxy_score ?? "-"} proxy</p>
           </div>
         </section>
 
@@ -147,6 +155,62 @@ export default function DataPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.04]">
+          <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold">모델 입력 Feature 스냅샷</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                생활인구, 혼잡도, 도로, 날씨, 대중교통, 이벤트를 수요 proxy로 정리
+              </p>
+            </div>
+            <div className="text-right text-sm text-slate-400">
+              <p>{featureSnapshot.row_count} rows · {featureSnapshot.source}</p>
+              <p>
+                KMA {featureSnapshot.weather_status.kma_ok ? "연결" : "대기"}
+                {featureSnapshot.weather_status.kma_ok ? "" : ` · ${featureSnapshot.weather_status.kma_status ?? "-"}`}
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead className="text-xs uppercase text-slate-400">
+                <tr className="border-b border-white/10">
+                  <th className="px-5 py-3 font-semibold">장소</th>
+                  <th className="px-5 py-3 font-semibold">시간대</th>
+                  <th className="px-5 py-3 font-semibold">생활인구</th>
+                  <th className="px-5 py-3 font-semibold">혼잡/도로</th>
+                  <th className="px-5 py-3 font-semibold">날씨</th>
+                  <th className="px-5 py-3 font-semibold">교통 노드</th>
+                  <th className="px-5 py-3 font-semibold">이벤트</th>
+                  <th className="px-5 py-3 font-semibold">Proxy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {featureRows.map((row) => (
+                  <tr key={row.area_code} className="border-b border-white/5 last:border-0">
+                    <td className="px-5 py-3 font-medium text-slate-100">{row.area_name}</td>
+                    <td className="px-5 py-3 text-slate-300">{row.time_band} · {row.hour}시</td>
+                    <td className="px-5 py-3 text-slate-300">
+                      {row.live_population_mid.toLocaleString("ko-KR")}
+                    </td>
+                    <td className="px-5 py-3 text-slate-300">
+                      {row.congestion_level} · {row.traffic_index} {row.traffic_speed_kmh}km/h
+                    </td>
+                    <td className="px-5 py-3 text-slate-300">
+                      {row.city_precipitation_type} · {row.city_weather_temp_c}°C
+                    </td>
+                    <td className="px-5 py-3 text-slate-300">
+                      지하철 {row.subway_station_count} · 버스 {row.bus_stop_count}
+                    </td>
+                    <td className="px-5 py-3 text-slate-300">{row.event_count}</td>
+                    <td className="px-5 py-3 font-semibold text-cyan-100">{row.demand_proxy_score}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </section>

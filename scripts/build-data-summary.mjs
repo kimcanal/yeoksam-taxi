@@ -15,8 +15,8 @@ async function readJsonIfExists(relativePath, fallback = null) {
   }
 }
 
-async function latestRawCitydataPath() {
-  const rawRoot = path.join(projectRoot, "data", "raw", "citydata");
+async function latestRawPath(...segments) {
+  const rawRoot = path.join(projectRoot, ...segments);
   try {
     const days = (await readdir(rawRoot, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
@@ -91,17 +91,22 @@ function summarizeCitydata(raw) {
   };
 }
 
-const latestPath = await latestRawCitydataPath();
+const latestPath = await latestRawPath("data", "raw", "citydata");
+const latestWeatherPath = await latestRawPath("data", "raw", "weather");
 const rawCitydata = latestPath
   ? JSON.parse(await readFile(latestPath, "utf8"))
   : null;
 const forecast = await readJsonIfExists("public/forecast/latest.json");
 const dispatchPlan = await readJsonIfExists("public/dispatch-plan.json");
+const featureSnapshot = await readJsonIfExists("public/feature-snapshot.json");
 
 const summary = {
   generated_at: new Date().toISOString(),
   raw_citydata_path: latestPath
     ? path.relative(projectRoot, latestPath)
+    : null,
+  raw_weather_path: latestWeatherPath
+    ? path.relative(projectRoot, latestWeatherPath)
     : null,
   citydata: rawCitydata
     ? summarizeCitydata(rawCitydata)
@@ -126,6 +131,14 @@ const summary = {
         generated_at: dispatchPlan.generated_at,
         top_region: dispatchPlan.decisions?.[0] ?? null,
         decision_count: dispatchPlan.decisions?.length ?? 0,
+      }
+    : null,
+  features: featureSnapshot
+    ? {
+        generated_at: featureSnapshot.generated_at,
+        row_count: featureSnapshot.row_count,
+        top_area: featureSnapshot.features?.[0] ?? null,
+        source: featureSnapshot.source,
       }
     : null,
 };
