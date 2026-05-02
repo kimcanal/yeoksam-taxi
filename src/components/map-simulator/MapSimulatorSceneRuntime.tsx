@@ -1746,23 +1746,27 @@ export default function MapSimulatorSceneRuntime({
 
     const roadMaterials = {
       arterial: new THREE.MeshStandardMaterial({
-        color: 0x4b5054,
-        roughness: 0.97,
+        color: 0x626d77,
+        roughness: 0.94,
         metalness: 0.01,
+        emissive: 0x0d1720,
+        emissiveIntensity: 0.05,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       }),
       connector: new THREE.MeshStandardMaterial({
-        color: 0x44494d,
-        roughness: 0.97,
+        color: 0x4e5861,
+        roughness: 0.95,
         metalness: 0.01,
+        emissive: 0x0b131b,
+        emissiveIntensity: 0.035,
         polygonOffset: true,
         polygonOffsetFactor: -1,
         polygonOffsetUnits: -1,
       }),
       local: new THREE.MeshStandardMaterial({
-        color: 0x3d4246,
+        color: 0x343c44,
         roughness: 0.98,
         metalness: 0.01,
         polygonOffset: true,
@@ -1845,9 +1849,9 @@ export default function MapSimulatorSceneRuntime({
     });
 
     const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd9d1bd,
-      emissive: 0x373127,
-      emissiveIntensity: 0.04,
+      color: 0xf3e9cf,
+      emissive: 0x4c412d,
+      emissiveIntensity: 0.06,
       roughness: 0.82,
     });
     const laneMarkerMesh = new THREE.InstancedMesh(
@@ -2025,7 +2029,9 @@ export default function MapSimulatorSceneRuntime({
       labelDistanceEntries.length = 0;
       optionalLabelEntries.forEach((entry) => {
         entry.label.visible = false;
-        if (!showLabelsRef.current) {
+        const isMapContextLabel =
+          entry.kind === "transit" || entry.kind === "road";
+        if (!showLabelsRef.current && !isMapContextLabel) {
           return;
         }
         if (entry.kind === "transit" && !showTransitRef.current) {

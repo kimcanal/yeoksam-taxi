@@ -187,7 +187,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showLabels] = useState(false);
   const [showNonRoad] = useState(false);
-  const [showTransit] = useState(false);
+  const [showTransit] = useState(true);
   const showRoadNetwork = false;
   const [forecastOffsetMinutes, setForecastOffsetMinutes] = useState(15);
   const [circumstanceMode, setCircumstanceMode] =
@@ -935,6 +935,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             출처는 OpenStreetMap/Overpass에서 추출한 `public/*.geojson`과
             파생 도로 그래프입니다. 히트맵은 발표 가독성을 위해 분리된
             작은 행정동 조각을 단순화해 표시합니다.
+          </div>
+          <div className="mt-2 text-[11px] leading-5 text-slate-500">
+            검증 기준점은 강남역·역삼역·선릉역·신논현역 station 노드와
+            주변 주요 도로/건물의 근접 일치입니다.
           </div>
         </div>
 
