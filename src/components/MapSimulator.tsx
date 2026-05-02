@@ -52,12 +52,7 @@ type MapSimulatorProps = {
 
 const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
 const MAP_SCOPE_DONGS = "역삼1·2, 논현1·2, 삼성1·2, 신사, 청담, 대치4";
-const MAP_SUBWAY_STATIONS = [
-  { id: "node/5927529147", name: "강남", label: "강남" },
-  { id: "node/6033314995", name: "역삼", label: "역삼" },
-  { id: "node/5924268024", name: "선릉", label: "선릉" },
-  { id: "node/3824606390", name: "신논현", label: "신논현" },
-];
+const PRIMARY_SUBWAY_STATION_NAMES = new Set(["강남", "역삼", "선릉", "신논현"]);
 
 type DemandMiniMapRegion = {
   name: string;
@@ -70,8 +65,12 @@ type DemandMiniMapRegion = {
 type DemandMiniMapLandmark = {
   name: string;
   label: string;
+  isPrimary: boolean;
   x: number;
   y: number;
+  labelX: number;
+  labelY: number;
+  textAnchor: "start" | "end";
 };
 
 function isSubwayStationFeature(feature: SimulationData["transit"]["features"][number]) {
@@ -513,27 +512,38 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
         } satisfies DemandMiniMapRegion;
       }),
-      landmarks: MAP_SUBWAY_STATIONS.flatMap((station) => {
-        const feature = data.transit.features.find(
-          (candidate) =>
-            isSubwayStationFeature(candidate) &&
-            (candidate.id === station.id ||
-              candidate.properties.name === station.name),
-        );
-        if (!feature) {
-          return [];
-        }
-        const projected = projectPoint(feature.geometry.coordinates, data.center);
-        const point = mapPoint(projected);
-        return [
-          {
-            name: `${feature.properties.name}역`,
-            label: station.label,
-            x: THREE.MathUtils.clamp(point.x, 4, 96),
-            y: THREE.MathUtils.clamp(point.y, 4, 96),
-          } satisfies DemandMiniMapLandmark,
-        ];
-      }),
+      landmarks: data.transit.features
+        .filter(isSubwayStationFeature)
+        .flatMap((feature) => {
+          const name = feature.properties.name ?? "";
+          if (!name) {
+            return [];
+          }
+          const isPrimary = PRIMARY_SUBWAY_STATION_NAMES.has(name);
+          const projected = projectPoint(feature.geometry.coordinates, data.center);
+          const point = mapPoint(projected);
+          const x = THREE.MathUtils.clamp(point.x, 4, 96);
+          const y = THREE.MathUtils.clamp(point.y, 4, 96);
+          const labelOnLeft = x > 76;
+          return [
+            {
+              name: `${name}역`,
+              label: name,
+              isPrimary,
+              x,
+              y,
+              labelX: labelOnLeft ? x - 2.1 : x + 2.1,
+              labelY: y - 1.2,
+              textAnchor: labelOnLeft ? "end" : "start",
+            } satisfies DemandMiniMapLandmark,
+          ];
+        })
+        .sort((left, right) => {
+          if (left.isPrimary !== right.isPrimary) {
+            return left.isPrimary ? 1 : -1;
+          }
+          return left.label.localeCompare(right.label, "ko");
+        }),
       focus,
       focusHeading,
       focusLabel: miniMapFocus?.label ?? "현재 지도 중심",
@@ -981,31 +991,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     />
                   </g>
                 ) : null}
-                {demandMiniMap.landmarks.map((landmark) => (
-                  <g key={landmark.name}>
-                    <circle
-                      cx={landmark.x}
-                      cy={landmark.y}
-                      r="1.45"
-                      fill="#67e8f9"
-                      stroke="#082f49"
-                      strokeWidth="0.45"
-                    />
-                    <text
-                      x={landmark.x + 2.1}
-                      y={landmark.y - 1.4}
-                      fill="#cffafe"
-                      fontSize="2.55"
-                      fontWeight="700"
-                      paintOrder="stroke"
-                      stroke="rgba(7, 17, 28, 0.9)"
-                      strokeWidth="0.55"
-                      pointerEvents="none"
-                    >
-                      {landmark.label}
-                    </text>
-                  </g>
-                ))}
                 {demandMiniMap.regions.map((region) => (
                   <text
                     key={`${region.name}-label`}
@@ -1024,6 +1009,37 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   >
                     {region.name}
                   </text>
+                ))}
+                {demandMiniMap.landmarks.map((landmark) => (
+                  <g
+                    key={landmark.name}
+                    opacity={landmark.isPrimary ? 1 : 0.78}
+                  >
+                    <circle
+                      cx={landmark.x}
+                      cy={landmark.y}
+                      r={landmark.isPrimary ? "1.45" : "1.05"}
+                      fill={landmark.isPrimary ? "#67e8f9" : "#bae6fd"}
+                      stroke="#082f49"
+                      strokeWidth={landmark.isPrimary ? "0.45" : "0.34"}
+                    >
+                      <title>{landmark.name}</title>
+                    </circle>
+                    <text
+                      x={landmark.labelX}
+                      y={landmark.labelY}
+                      textAnchor={landmark.textAnchor}
+                      fill={landmark.isPrimary ? "#cffafe" : "#e0f2fe"}
+                      fontSize={landmark.isPrimary ? "2.55" : "2.1"}
+                      fontWeight={landmark.isPrimary ? "700" : "600"}
+                      paintOrder="stroke"
+                      stroke="rgba(7, 17, 28, 0.9)"
+                      strokeWidth={landmark.isPrimary ? "0.55" : "0.48"}
+                      pointerEvents="none"
+                    >
+                      {landmark.label}
+                    </text>
+                  </g>
                 ))}
               </svg>
             ) : (
