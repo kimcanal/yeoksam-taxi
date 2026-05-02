@@ -505,6 +505,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const forecastResult = useForecastResult();
   const forecastSource: ForecastSource =
     forecastResult?.regions?.length ? "model" : "sample";
+  const forecastResultLabel =
+    forecastResult?.source === "demo" ? "데모 예측" : "모델 예측";
+  const forecastResultBadgeClass =
+    forecastResult?.source === "demo"
+      ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
+      : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+  const forecastResultTextClass =
+    forecastResult?.source === "demo"
+      ? "text-amber-300/85"
+      : "text-emerald-400/80";
 
   // effectiveDongs is what the heatmap actually renders.
   // In model mode the scores come from latest.json; in sample mode from the
@@ -933,7 +943,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-2 text-xs leading-5 text-slate-300">
           {forecastSource === "model" ? (
             <>
-              <span className="text-emerald-400/80">모델 예측</span> ·{" "}
+              <span className={forecastResultTextClass}>
+                {forecastResultLabel}
+              </span> ·{" "}
               {forecastResult?.target_datetime.slice(0, 16).replace("T", " ")} ·{" "}
               {forecastResult?.weather}
             </>
@@ -963,17 +975,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <span
             className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
               forecastSource === "model"
-                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                ? forecastResultBadgeClass
                 : "border-white/10 bg-white/[0.06] text-slate-400"
             }`}
           >
-            {forecastSource === "model" ? "모델 예측" : "샘플 예측"}
+            {forecastSource === "model" ? forecastResultLabel : "샘플 예측"}
           </span>
         </div>
 
         {forecastSource === "model" && forecastResult && (
           <div className="mt-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[11px] leading-5 text-slate-400">
-            <span className="text-emerald-400/80">대상</span>{" "}
+            <span className={forecastResultTextClass}>대상</span>{" "}
             {forecastResult.target_datetime.slice(0, 16).replace("T", " ")} ·{" "}
             {forecastResult.weather} ·{" "}
             <span className="text-slate-500">

@@ -1,4 +1,5 @@
 {
+  "source": "demo",
   "target_datetime": "2026-05-02T21:00:00+09:00",
   "weather": "clear",
   "generated_at": "2026-05-02T20:45:00+09:00",

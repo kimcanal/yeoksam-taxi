@@ -1,0 +1,17 @@
+{
+  "source": "demo",
+  "target_datetime": "2026-05-02T21:00:00+09:00",
+  "weather": "rain",
+  "generated_at": "2026-05-02T20:45:00+09:00",
+  "regions": [
+    { "dong_name": "역삼1동", "score": 0.98, "confidence": 0.78 },
+    { "dong_name": "논현1동", "score": 0.82, "confidence": 0.73 },
+    { "dong_name": "삼성2동", "score": 0.74, "confidence": 0.68 },
+    { "dong_name": "신사동", "score": 0.69, "confidence": 0.67 },
+    { "dong_name": "논현2동", "score": 0.61, "confidence": 0.65 },
+    { "dong_name": "청담동", "score": 0.56, "confidence": 0.63 },
+    { "dong_name": "삼성1동", "score": 0.44, "confidence": 0.6 },
+    { "dong_name": "대치4동", "score": 0.36, "confidence": 0.57 },
+    { "dong_name": "역삼2동", "score": 0.27, "confidence": 0.55 }
+  ]
+}

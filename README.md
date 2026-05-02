@@ -127,6 +127,8 @@ npm run screenshot:scenarios -- --skip-build
 - `docs/added-taxi-call-review.md`: historical comparison notes from the early OSM expansion branch
 - `docs/dispatch-road-network-review.md`: current OSM road graph suitability for dispatch and pickup/dropoff routing
 - `docs/a-eye-module1-alignment.md`: how this 9-dong OSM viewer maps back to the active `A-Eye` scope
+- `docs/forecast-contract.md`: exact JSON handoff expected from the demand model
+- `docs/dispatch-interpretation.md`: how to explain demand heatmap scores as dispatch decisions
 
 ## Data
 
@@ -204,6 +206,7 @@ Example model handoff:
 
 ```json
 {
+  "source": "model",
   "target_datetime": "2026-05-02T21:00:00+09:00",
   "weather": "clear",
   "generated_at": "2026-05-02T20:45:00+09:00",
@@ -213,6 +216,13 @@ Example model handoff:
   ]
 }
 ```
+
+- Use `"source": "demo"` for placeholder output before the external model is
+  ready. The UI labels this as `데모 예측`.
+- Use `"source": "model"` or omit `source` for the final model handoff. The UI
+  labels this as `모델 예측`.
+- Demo scenario files are kept under `public/forecast/examples/`; copy one to
+  `public/forecast/latest.json` to rehearse a presentation scenario.
 
 Weather is split the same way:
 
