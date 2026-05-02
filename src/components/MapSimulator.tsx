@@ -704,9 +704,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [liveData]);
   const primaryLiveArea = topLiveAreas[0] ?? null;
   const liveStatusLabel =
-    liveData && liveDataStatus === "loading"
+    primaryLiveArea && liveDataStatus === "loading"
       ? "업데이트 중"
-      : liveData && liveDataStatus !== "error"
+      : primaryLiveArea && liveData && liveDataStatus !== "error"
         ? liveData.isStale
           ? "스냅샷"
           : "실시간 연결"
@@ -716,7 +716,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             ? "연결 실패"
             : "대기";
   const isLiveFresh =
-    Boolean(liveData && !liveData.isStale && liveDataStatus !== "error");
+    Boolean(primaryLiveArea && liveData && !liveData.isStale && liveDataStatus !== "error");
   const liveObservedAt = primaryLiveArea?.observedAt
     || liveData?.weather.observedAt
     || liveData?.fetchedAt
@@ -987,7 +987,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div>
               <div className={PANEL_SECTION_LABEL_CLASS}>실시간 상황</div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
-                {primaryLiveArea?.areaName ?? "서울 citydata 연결 대기"}
+                {primaryLiveArea?.areaName ?? "서울 citydata 확인 중"}
               </div>
             </div>
             <span

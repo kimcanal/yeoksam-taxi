@@ -73,10 +73,17 @@ function snapshotLabel(isoString: string): { label: string; isStale: boolean } {
 
 async function fetchLiveData(): Promise<LiveData> {
   const realtimeRes = await fetch("/api/realtime", { cache: "no-store" });
+  if (!realtimeRes.ok) {
+    throw new Error(`Realtime API failed: ${realtimeRes.status}`);
+  }
   const realtimeJson = await realtimeRes.json();
+  const places = Array.isArray(realtimeJson.places) ? realtimeJson.places : [];
+  if (!places.length) {
+    throw new Error("Realtime API returned no places");
+  }
 
   // Parse areas from citydata
-  const areas: LiveArea[] = (realtimeJson.places ?? []).map(
+  const areas: LiveArea[] = places.map(
     (place: Record<string, unknown>) => {
       const pop = place.live_population as Record<string, unknown> ?? {};
       const traffic = place.road_traffic as Record<string, unknown> ?? {};
@@ -92,7 +99,7 @@ async function fetchLiveData(): Promise<LiveData> {
     },
   );
 
-  const cityWeather = realtimeJson.places?.[0]?.weather as
+  const cityWeather = places[0]?.weather as
     | Record<string, unknown>
     | undefined;
   const precipitationType = String(cityWeather?.precipitation_type ?? "없음");
