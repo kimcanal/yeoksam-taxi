@@ -19,6 +19,7 @@ import { createLocalSimulationSource } from "@/components/map-simulator/local-si
 import MapSimulatorSceneRuntime from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 import { useLiveData } from "@/components/map-simulator/use-live-data";
+import type { LiveArea } from "@/components/map-simulator/use-live-data";
 import {
   conditionDemandForecast,
   DEMAND_FORECAST_SNAPSHOTS,
@@ -53,6 +54,18 @@ type MapSimulatorProps = {
 const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
 const MAP_SCOPE_DONGS = "역삼1·2, 논현1·2, 삼성1·2, 신사, 청담, 대치4";
 const PRIMARY_SUBWAY_STATION_NAMES = new Set(["강남", "역삼", "선릉", "신논현"]);
+const LIVE_CONGESTION_SCORE: Record<string, number> = {
+  "매우 붐빔": 5,
+  "붐빔": 4,
+  "약간 붐빔": 3,
+  "보통": 2,
+  "여유": 1,
+};
+const LIVE_TRAFFIC_SCORE: Record<string, number> = {
+  "정체": 3,
+  "서행": 2,
+  "원활": 1,
+};
 
 type DemandMiniMapRegion = {
   name: string;
@@ -176,6 +189,60 @@ function parseTimeInput(value: string) {
   return normalizeDayMinutes(hour * 60 + minute);
 }
 
+function formatLivePopulation(area: LiveArea) {
+  if (area.populationMax <= 0) {
+    return "정보 없음";
+  }
+  if (area.populationMin > 0 && area.populationMin !== area.populationMax) {
+    return `${area.populationMin.toLocaleString("ko-KR")}-${area.populationMax.toLocaleString("ko-KR")}`;
+  }
+  return area.populationMax.toLocaleString("ko-KR");
+}
+
+function formatLiveObservedAt(value: string) {
+  if (!value) {
+    return "관측 시간 미제공";
+  }
+  if (value.includes("T")) {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) {
+      const parts = new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(parsed);
+      const part = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((item) => item.type === type)?.value ?? "";
+      return `${part("year")}.${part("month")}.${part("day")} ${part("hour")}:${part("minute")}`;
+    }
+  }
+  const normalized = value.replace("T", " ");
+  if (normalized.length >= 16) {
+    return normalized.slice(0, 16);
+  }
+  return normalized;
+}
+
+function formatLiveWeather(tempC: number, precipitationType: string) {
+  const tempLabel = Number.isFinite(tempC) && tempC !== 0
+    ? `${Math.round(tempC * 10) / 10}도`
+    : "기온 미제공";
+  const precipLabel = precipitationType && precipitationType !== "없음"
+    ? precipitationType
+    : "강수 없음";
+  return `${tempLabel} · ${precipLabel}`;
+}
+
+function liveAreaScore(area: LiveArea) {
+  const congestion = LIVE_CONGESTION_SCORE[area.congestionLevel] ?? 0;
+  const traffic = LIVE_TRAFFIC_SCORE[area.trafficIndex] ?? 0;
+  return area.populationMax + congestion * 5_000 + traffic * 2_000;
+}
+
 export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const simulationSource = useMemo(() => createLocalSimulationSource(), []);
@@ -254,7 +321,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     avgRideSeconds: 0,
   });
 
-  const { liveData } = useLiveData();
+  const { liveData, status: liveDataStatus } = useLiveData();
 
   // Live mode: auto-apply weather from Seoul citydata (스냅샷이 3시간 이상 오래되면 적용 안 함)
   useEffect(() => {
@@ -627,6 +694,33 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       },
     ];
   }, [data]);
+  const topLiveAreas = useMemo(() => {
+    if (!liveData?.areas.length) {
+      return [];
+    }
+    return [...liveData.areas]
+      .sort((left, right) => liveAreaScore(right) - liveAreaScore(left))
+      .slice(0, 3);
+  }, [liveData]);
+  const primaryLiveArea = topLiveAreas[0] ?? null;
+  const liveStatusLabel =
+    liveData && liveDataStatus === "loading"
+      ? "업데이트 중"
+      : liveData && liveDataStatus !== "error"
+        ? liveData.isStale
+          ? "스냅샷"
+          : "실시간 연결"
+        : liveDataStatus === "loading"
+          ? "연결 중"
+          : liveDataStatus === "error"
+            ? "연결 실패"
+            : "대기";
+  const isLiveFresh =
+    Boolean(liveData && !liveData.isStale && liveDataStatus !== "error");
+  const liveObservedAt = primaryLiveArea?.observedAt
+    || liveData?.weather.observedAt
+    || liveData?.fetchedAt
+    || "";
   const topDemandDong = rankedForecastDongs[0] ?? null;
   const topDemandScoreLabel = topDemandDong
     ? Math.round(topDemandDong.relativeScore * 100)
@@ -891,55 +985,71 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className={PANEL_SECTION_LABEL_CLASS}>지도 출처 / 신뢰도</div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>실시간 상황</div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
-                OSM 기반 디지털 트윈 프로토타입
+                {primaryLiveArea?.areaName ?? "서울 citydata 연결 대기"}
               </div>
             </div>
-            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
-              OpenStreetMap
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                isLiveFresh
+                  ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
+                  : liveDataStatus === "error"
+                    ? "border-rose-400/25 bg-rose-400/[0.08] text-rose-300"
+                    : "border-white/10 bg-white/[0.05] text-slate-400"
+              }`}
+            >
+              {liveStatusLabel}
             </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] leading-5">
-            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-2 text-emerald-100/80">
-              <span className="font-medium text-emerald-300">신뢰 높음</span>
-              <br />
-              행정동 경계, 주요 도로, 지하철역 좌표
-            </div>
-            <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.045] px-3 py-2 text-amber-100/75">
-              <span className="font-medium text-amber-200">시뮬레이션</span>
-              <br />
-              차선 수, 신호 주기, 실제 차량 궤적
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-4 gap-2">
-            {mapEvidenceMetrics.map((metric) => (
-              <div
-                key={metric.label}
-                className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2"
-              >
-                <div className="text-[10px] text-slate-500">{metric.label}</div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-100">
-                  {metric.value}
+          {liveData && primaryLiveArea ? (
+            <>
+              <div className="mt-3 grid grid-cols-[1.08fr_0.92fr] gap-2 text-[11px]">
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2">
+                  <div className="text-slate-500">생활인구</div>
+                  <div className="mt-1 truncate font-semibold tabular-nums text-slate-100">
+                    {formatLivePopulation(primaryLiveArea)}
+                  </div>
                 </div>
-                <div className="mt-0.5 truncate text-[10px] text-slate-500">
-                  {metric.detail}
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2">
+                  <div className="text-slate-500">혼잡 / 교통</div>
+                  <div className="mt-1 truncate font-semibold text-slate-100">
+                    {primaryLiveArea.congestionLevel} ·{" "}
+                    {primaryLiveArea.trafficIndex || "정보 없음"}
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <div className="mt-3 text-[11px] leading-5 text-slate-500">
-            출처는 OpenStreetMap/Overpass에서 추출한 `public/*.geojson`과
-            파생 도로 그래프입니다. 히트맵은 발표 가독성을 위해 분리된
-            작은 행정동 조각을 단순화해 표시합니다.
-          </div>
-          <div className="mt-2 text-[11px] leading-5 text-slate-500">
-            검증 기준점은 강남역·역삼역·선릉역·신논현역 station 노드와
-            주변 주요 도로/건물의 근접 일치입니다.
-          </div>
+              <div className="mt-2 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.045] px-3 py-2 text-[11px] leading-5 text-cyan-50/80">
+                날씨 {formatLiveWeather(
+                  liveData.weather.tempC,
+                  liveData.weather.precipitationType,
+                )}
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {topLiveAreas.map((area) => (
+                  <span
+                    key={area.areaName}
+                    className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[10px] text-slate-400"
+                  >
+                    {area.areaName} {formatLivePopulation(area)}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-2 text-[11px] leading-5 text-slate-500">
+                서울 열린데이터광장 citydata · {liveData.snapshotLabel} · 관측{" "}
+                {formatLiveObservedAt(liveObservedAt)}
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] leading-5 text-slate-500">
+              강남역·역삼역·선릉역 등 주변 실시간 생활인구, 혼잡도, 날씨를
+              불러오는 중입니다.
+            </div>
+          )}
         </div>
 
         <div className={`mt-4 ${PANEL_CARD_CLASS} py-3`}>
@@ -1185,6 +1295,60 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>지도 출처 / 신뢰도</div>
+              <div className="mt-1 text-sm font-semibold text-slate-100">
+                OSM 기반 디지털 트윈 프로토타입
+              </div>
+            </div>
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
+              OpenStreetMap
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] leading-5">
+            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-2 text-emerald-100/80">
+              <span className="font-medium text-emerald-300">신뢰 높음</span>
+              <br />
+              행정동 경계, 주요 도로, 지하철역 좌표
+            </div>
+            <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.045] px-3 py-2 text-amber-100/75">
+              <span className="font-medium text-amber-200">시뮬레이션</span>
+              <br />
+              차선 수, 신호 주기, 실제 차량 궤적
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {mapEvidenceMetrics.map((metric) => (
+              <div
+                key={metric.label}
+                className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2"
+              >
+                <div className="text-[10px] text-slate-500">{metric.label}</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-slate-100">
+                  {metric.value}
+                </div>
+                <div className="mt-0.5 truncate text-[10px] text-slate-500">
+                  {metric.detail}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 text-[11px] leading-5 text-slate-500">
+            출처는 OpenStreetMap/Overpass에서 추출한 `public/*.geojson`과
+            파생 도로 그래프입니다. 히트맵은 발표 가독성을 위해 분리된
+            작은 행정동 조각을 단순화해 표시합니다.
+          </div>
+          <div className="mt-2 text-[11px] leading-5 text-slate-500">
+            검증 기준점은 강남역·역삼역·선릉역·신논현역 station 노드와
+            주변 주요 도로/건물의 근접 일치입니다.
           </div>
         </div>
       </div>
