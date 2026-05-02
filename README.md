@@ -186,6 +186,40 @@ flowchart LR
 - If OSM data changes, you need to run `npm run asset:update` again to regenerate the local assets.
 - Weather, taxi movement, routing, signal behavior, and pickup/dropoff events are app-side simulation layers on top of that saved OSM geometry.
 
+## Live Data And Forecast Inputs
+
+The dashboard separates three kinds of data so the demo remains explainable:
+
+1. `OSM snapshot geometry`
+   - roads, buildings, dongs, transit landmarks, and the derived road graph
+   - saved under `public/*.geojson` and `public/road-network.json`
+2. `current situation`
+   - `/api/realtime` reads Seoul citydata (`OA-21285`) with `SEOUL_OPEN_API_KEY`
+   - currently used for nearby live population, crowding, traffic status, and observed weather
+3. `future demand`
+   - `/forecast/latest.json` is the contract file produced by the demand model
+   - when this file exists, the heatmap switches from sample mode to model mode
+
+Example model handoff:
+
+```json
+{
+  "target_datetime": "2026-05-02T21:00:00+09:00",
+  "weather": "clear",
+  "generated_at": "2026-05-02T20:45:00+09:00",
+  "regions": [
+    { "dong_name": "역삼1동", "score": 0.94, "confidence": 0.81 },
+    { "dong_name": "논현1동", "score": 0.71, "confidence": 0.74 }
+  ]
+}
+```
+
+Weather is split the same way:
+
+- `/api/realtime` exposes the observed citydata weather bundled with each Seoul POI.
+- `/api/weather` is prepared for KMA ultra-short nowcast via `KMA_API_KEY`.
+- Future forecast weather should be joined into the model pipeline before writing `public/forecast/latest.json`.
+
 ## Notes
 
 - In `A-Eye`, the current active baseline is still the simplified `Yeoksam 3x3 SUMO` path for before/after dispatch validation.
@@ -214,7 +248,8 @@ flowchart LR
 - 9-dong OSM scene coverage across the Gangnam Station micro-area
 - road-level taxi and traffic movement on a separate prebuilt road graph
 - OSM-based signal anchors plus coordinated signal phases
-- local-only scenario presets for presentation and quick validation
+- right-side demand heatmap that can read `public/forecast/latest.json`
+- live Seoul citydata card for nearby population, crowding, traffic status, and weather context
 - automated Playwright screenshot capture for those presets
 
 ## Automated Scenario Gallery
