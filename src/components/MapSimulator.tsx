@@ -80,6 +80,39 @@ function isSubwayStationFeature(feature: SimulationData["transit"]["features"][n
   );
 }
 
+function projectedRingArea(ring: THREE.Vector3[]) {
+  if (ring.length < 3) {
+    return 0;
+  }
+  let area = 0;
+  ring.forEach((point, index) => {
+    const next = ring[(index + 1) % ring.length]!;
+    area += point.x * next.z - next.x * point.z;
+  });
+  return Math.abs(area) / 2;
+}
+
+function displayRingsForHeatmap(rings: THREE.Vector3[][]) {
+  const validRings = rings.filter((ring) => ring.length >= 3);
+  if (validRings.length <= 1) {
+    return validRings;
+  }
+
+  return [
+    validRings.reduce((largest, ring) =>
+      projectedRingArea(ring) > projectedRingArea(largest) ? ring : largest,
+    ),
+  ];
+}
+
+function centerOfRings(rings: THREE.Vector3[][]) {
+  const bounds = new THREE.Box3();
+  rings.forEach((ring) =>
+    ring.forEach((point) => bounds.expandByPoint(point)),
+  );
+  return bounds.getCenter(new THREE.Vector3());
+}
+
 type MiniMapFocus = {
   x: number;
   z: number;
@@ -450,8 +483,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       return null;
     }
 
+    const displayDongs = dongRegions
+      .map((dong) => ({
+        ...dong,
+        rings: displayRingsForHeatmap(dong.rings),
+      }))
+      .filter((dong) => dong.rings.length > 0);
+
     const bounds = new THREE.Box3();
-    dongRegions.forEach((dong) => {
+    displayDongs.forEach((dong) => {
       dong.rings.forEach((ring) => {
         ring.forEach((point) => bounds.expandByPoint(point));
       });
@@ -491,7 +531,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         : null;
 
     return {
-      regions: dongRegions.map((dong) => {
+      regions: displayDongs.map((dong) => {
         const path = dong.rings
           .map((ring) =>
             ring
@@ -503,7 +543,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               .concat(" Z"),
           )
           .join(" ");
-        const labelPoint = mapPoint(dong.position);
+        const labelPoint = mapPoint(centerOfRings(dong.rings));
         return {
           name: dong.name,
           path,
@@ -851,14 +891,27 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className={PANEL_SECTION_LABEL_CLASS}>지도 신뢰성</div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>지도 출처 / 신뢰도</div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 OSM 기반 디지털 트윈 프로토타입
               </div>
             </div>
             <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
-              실제 경계/도로
+              OpenStreetMap
             </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] leading-5">
+            <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-2 text-emerald-100/80">
+              <span className="font-medium text-emerald-300">신뢰 높음</span>
+              <br />
+              행정동 경계, 주요 도로, 지하철역 좌표
+            </div>
+            <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.045] px-3 py-2 text-amber-100/75">
+              <span className="font-medium text-amber-200">시뮬레이션</span>
+              <br />
+              차선 수, 신호 주기, 실제 차량 궤적
+            </div>
           </div>
 
           <div className="mt-3 grid grid-cols-4 gap-2">
@@ -879,8 +932,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
 
           <div className="mt-3 text-[11px] leading-5 text-slate-500">
-            실제 차량 궤적이 아니라 OSM 도로 그래프 위에서 수요 예측과
-            배차 판단을 검증하는 시뮬레이션입니다.
+            출처는 OpenStreetMap/Overpass에서 추출한 `public/*.geojson`과
+            파생 도로 그래프입니다. 히트맵은 발표 가독성을 위해 분리된
+            작은 행정동 조각을 단순화해 표시합니다.
           </div>
         </div>
 
