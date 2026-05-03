@@ -3,45 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>A-Eye 발표 시각 자료</title>
+<title>A-Eye 발표 이미지 모음</title>
 <style>
-body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',Arial,sans-serif;margin:32px;background:#f5f7fb;color:#203040}
-a.button{display:inline-block;margin:10px 10px 18px 0;padding:12px 16px;border-radius:10px;background:#2f80ed;color:white;text-decoration:none;font-weight:800}
-a.button.secondary{background:#17856b}
-img{width:100%;max-width:1100px;border:1px solid #d9e1ec;border-radius:12px;background:white;margin:12px 0 32px;display:block}
-h1{margin-bottom:8px}p{color:#6b7280}.note{padding:14px 18px;background:#fff;border:1px solid #d9e1ec;border-radius:10px;max-width:1060px;line-height:1.55}
-code{background:#edf2f7;padding:2px 5px;border-radius:4px}.note a{color:#1f5fa9;font-weight:800;text-decoration:none}.note a:hover{text-decoration:underline}
+body{font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',Arial,sans-serif;margin:0;background:#f6f7f9;color:#1f2937}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 24px 48px}
+h1{font-size:32px;margin:0 0 12px}
+h2{font-size:20px;margin:34px 0 10px}
+p{line-height:1.7;color:#4b5563}
+.note{padding:18px 20px;background:white;border:1px solid #d9e1ec;border-radius:10px}
+.buttons{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+a.button{display:inline-block;padding:11px 15px;border-radius:8px;background:#2563eb;color:white;text-decoration:none;font-weight:800}
+a.button.secondary{background:#16805f}
+img{width:100%;max-width:1100px;border:1px solid #d9e1ec;border-radius:10px;background:white;margin:10px 0 22px;display:block}
+a{color:#1f5fa9;font-weight:800;text-decoration:none}
+a:hover{text-decoration:underline}
 </style>
 </head>
 <body>
-<h1>A-Eye 발표용 시각 자료</h1>
-<p class="note"><b>PPT에는 SVG 또는 PNG 파일을 넣는 것을 추천합니다.</b> 현재 대중교통 결합 데이터는 서울시 행정동 OD 대중교통 자료와 기상청 ASOS 서울 지점(108) 시간자료, 공휴일 정보를 결합한 것입니다. Cloudflare 배포용 페이지에는 가벼운 요약 자료만 포함했고, 대용량 인터랙티브 HTML은 로컬 발표 폴더에 보관합니다.</p>
-<a class="button secondary" href="transit_correlation_report.html">요일·날씨·휴일 상관 분석 열기</a>
+<main class="wrap">
+<h1>A-Eye 발표 이미지 모음</h1>
+<p class="note">
+  이 자료는 발표 중 빠르게 그림만 열어보기 위한 페이지입니다. 핵심은 간단합니다.
+  실제 택시 호출 데이터 대신, 공개 대중교통 승차량을 이동 수요의 대체 지표로 두고
+  강남 9개 동의 다음 1시간 수요를 예측했습니다.
+</p>
+
+<div class="buttons">
+  <a class="button" href="/presentation">발표 요약 페이지로 돌아가기</a>
+  <a class="button secondary" href="transit_correlation_report.html">요일·날씨·휴일 분석 보기</a>
+</div>
 
 <h2>데이터 출처</h2>
 <p class="note">
-  대중교통: <a href="https://data.seoul.go.kr/dataList/OA-21226/F/1/datasetView.do" target="_blank" rel="noreferrer">서울시 행정동 단위 대중교통 출발지/도착지 승객수 정보</a><br>
-  행정동 매핑: <a href="https://data.seoul.go.kr/dataList/OA-21234/S/1/datasetView.do" target="_blank" rel="noreferrer">서울시 읍면동마스터 정보</a><br>
-  날씨: <a href="https://www.data.go.kr/data/15057210/openapi.do" target="_blank" rel="noreferrer">기상청 지상(종관, ASOS) 시간자료 조회서비스</a><br>
-  공휴일: <a href="https://www.data.go.kr/data/15012690/openapi.do" target="_blank" rel="noreferrer">한국천문연구원 특일 정보</a>
+  대중교통:
+  <a href="https://data.seoul.go.kr/dataList/OA-21226/F/1/datasetView.do" target="_blank" rel="noreferrer">서울시 행정동 단위 대중교통 승객수 정보</a><br>
+  행정동 매핑:
+  <a href="https://data.seoul.go.kr/dataList/OA-21234/S/1/datasetView.do" target="_blank" rel="noreferrer">서울시 읍면동마스터 정보</a><br>
+  날씨:
+  <a href="https://www.data.go.kr/data/15057210/openapi.do" target="_blank" rel="noreferrer">기상청 ASOS 시간자료 조회서비스</a><br>
+  공휴일:
+  <a href="https://www.data.go.kr/data/15012690/openapi.do" target="_blank" rel="noreferrer">한국천문연구원 특일 정보</a>
 </p>
 
-<h2>분석 결론</h2>
-<p class="note">
-  모델은 실제 택시 호출량이 아니라 <b>다음 1시간 강남 9개 동 대중교통 승차량</b>을 예측합니다.
-  테스트 성능은 R² 0.9854, MAE 약 166명/동·시간입니다.
-  요일 효과가 가장 크고, 금요일·목요일·화요일 수요가 높으며 일요일과 공휴일은 낮습니다.
-  날씨는 요일/시간보다 영향이 작지만, 눈·강수·영하 조건에서는 같은 요일·시간 평균 대비 수요가 낮아지는 경향이 보입니다.
-</p>
+<h2>모델 성능 요약</h2>
+<img src="06_model_metrics_summary.svg" alt="대중교통 예측 모델 성능 요약">
 
-<h2>06_model_metrics_summary.svg</h2><img src="06_model_metrics_summary.svg" alt="대중교통 예측 모델 성능 요약">
-<h2>07_actual_vs_predicted_scatter.svg</h2><img src="07_actual_vs_predicted_scatter.svg" alt="실제값과 예측값 산점도">
-<h2>08_prediction_timeseries_sample.svg</h2><img src="08_prediction_timeseries_sample.svg" alt="시간 흐름의 실제값과 예측값 비교">
-<h2>09_model_feature_pipeline.svg</h2><img src="09_model_feature_pipeline.svg" alt="모델 feature pipeline">
-<h2>01_taxi_proxy_forecast_ranking.png</h2><img src="01_taxi_proxy_forecast_ranking.png" alt="택시 proxy 예측 순위">
-<h2>02_transit_hourly_pattern.png</h2><img src="02_transit_hourly_pattern.png" alt="대중교통 시간대별 패턴">
-<h2>03_transit_dong_ranking.png</h2><img src="03_transit_dong_ranking.png" alt="대중교통 동별 순위">
-<h2>04_model_result_summary.png</h2><img src="04_model_result_summary.png" alt="모델 결과 요약">
-<h2>05_pipeline_diagram.png</h2><img src="05_pipeline_diagram.png" alt="데이터 파이프라인 다이어그램">
+<h2>실제값과 예측값</h2>
+<img src="07_actual_vs_predicted_scatter.svg" alt="실제값과 예측값 산점도">
+
+<h2>시간 흐름 예측 예시</h2>
+<img src="08_prediction_timeseries_sample.svg" alt="시간 흐름의 실제값과 예측값 비교">
+
+<h2>학습 구조</h2>
+<img src="09_model_feature_pipeline.svg" alt="모델 feature pipeline">
+
+<h2>추가 참고 이미지</h2>
+<img src="02_transit_hourly_pattern.png" alt="대중교통 시간대별 패턴">
+<img src="03_transit_dong_ranking.png" alt="대중교통 동별 순위">
+<img src="05_pipeline_diagram.png" alt="데이터 파이프라인 다이어그램">
+</main>
 </body>
 </html>
