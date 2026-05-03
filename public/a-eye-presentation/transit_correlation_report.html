@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A-Eye 요일·날씨·휴일 상관 분석</title>
+<style>
+:root{--bg:#f5f7fb;--panel:#fff;--ink:#1f2937;--muted:#687386;--line:#d8e1ec;--blue:#2f80ed;--green:#17856b;--red:#d94b3d;--amber:#b15f00;--soft:#eef4fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',Arial,sans-serif}.app{max-width:1320px;margin:0 auto;padding:30px 32px 44px}
+h1{font-size:32px;margin:0 0 8px;letter-spacing:0}.sub{color:var(--muted);font-size:15px;line-height:1.55;max-width:980px}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}.card,.panel{background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 22px rgba(31,41,55,.05)}.card{padding:16px}.k{font-size:12px;color:var(--muted);font-weight:850;margin-bottom:8px}.v{font-size:24px;font-weight:950;white-space:nowrap}.s{font-size:12px;color:var(--muted);line-height:1.35;margin-top:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel{padding:20px;margin-bottom:16px}.panel h2{font-size:20px;margin:0 0 8px}.panel p{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5}
+.badge{display:inline-block;border-radius:999px;padding:6px 10px;font-weight:850;font-size:12px}.badge.warn{background:#fff2df;color:#935300}.badge.ok{background:#e8f7f2;color:#08745d}.tbl{width:100%;border-collapse:collapse}.tbl th,.tbl td{padding:11px 12px;border-bottom:1px solid #e7edf5;text-align:right;white-space:nowrap;font-size:13px}.tbl th:first-child,.tbl td:first-child{text-align:left}.tbl th{background:#f8fafc;color:var(--muted);font-size:12px}.tbl td:first-child{font-weight:900}.tbl a{color:#1f5fa9;font-weight:850;text-decoration:none}.tbl a:hover{text-decoration:underline}.metric{position:relative;min-width:120px;height:25px;background:#eef3f8;border-radius:7px;overflow:hidden;text-align:right;padding:5px 8px;font-variant-numeric:tabular-nums}.metric i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--blue),#67b7ff);opacity:.28}.metric span{position:relative;z-index:1;font-weight:900}.corr-pos{color:#08745d;font-weight:900}.corr-neg{color:#bd2f2f;font-weight:900}.note{padding:14px 16px;border:1px solid #dbe6f1;background:#fbfdff;border-radius:10px;color:var(--muted);font-size:13px;line-height:1.55;margin-bottom:16px}ul{margin:12px 0 0;padding-left:22px;color:#263244;line-height:1.7;font-size:14px}li{margin:6px 0}.toplist{display:grid;gap:8px}.toprow{display:flex;justify-content:space-between;border-bottom:1px solid #edf2f7;padding:9px 0;font-size:14px}.toprow b{font-weight:900}.small{font-size:12px;color:var(--muted)}@media(max-width:980px){.cards,.grid{grid-template-columns:1fr}.app{padding:22px 16px}.tbl{display:block;overflow:auto}.v{font-size:22px}}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>요일·날씨·휴일·월별 대중교통 패턴 분석</h1>
+  <p class="sub">2024-2025 강남 9개 동 행정동 OD 시간대별 대중교통 승차량을 기준으로, 요일·강수·기온·공휴일·월/계절별 차이를 정리했습니다. 상관계수는 인과관계가 아니라 함께 움직이는 정도입니다.</p>
+  <p><span class="badge ok">날씨 소스: 기상청 ASOS 공식 시간자료</span></p>
+  <div class="note"><b>보정 지수 설명:</b> 시간대와 요일 자체의 영향이 너무 커서, 날씨 상관은 원자료 상관과 함께 <b>요일+시간 평균을 1.0으로 둔 상대 지수</b>를 같이 봅니다. 예를 들어 1.04는 같은 요일·시간 평균보다 약 4% 높은 수요입니다.</div>
+  <section class="panel">
+    <h2>데이터 출처</h2>
+    <p>아래 공공데이터를 직접 내려받아 강남 9개 행정동 기준으로 집계했습니다.</p>
+    <table class="tbl"><thead><tr><th>데이터</th><th>제공처</th><th>사용 목적</th><th>링크</th></tr></thead><tbody>
+    <tr><td>서울시 행정동 단위 대중교통 출발지/도착지 승객수 정보</td><td>서울특별시 열린데이터광장 / 공공데이터포털</td><td>2024-2025 행정동 OD 시간대별 승객수 원천 데이터</td><td><a href="https://data.seoul.go.kr/dataList/OA-21226/F/1/datasetView.do" target="_blank" rel="noreferrer">바로가기</a></td></tr>
+<tr><td>서울시 읍면동마스터 정보</td><td>서울특별시 열린데이터광장</td><td>행정동 ID를 강남 9개 동 이름과 매핑</td><td><a href="https://data.seoul.go.kr/dataList/OA-21234/S/1/datasetView.do" target="_blank" rel="noreferrer">바로가기</a></td></tr>
+<tr><td>기상청_지상(종관, ASOS) 시간자료 조회서비스</td><td>기상청 / 공공데이터포털</td><td>서울 ASOS 108 시간별 기온, 강수량, 습도, 풍속, 적설 등</td><td><a href="https://www.data.go.kr/data/15057210/openapi.do" target="_blank" rel="noreferrer">바로가기</a></td></tr>
+<tr><td>한국천문연구원_특일 정보</td><td>한국천문연구원 / 공공데이터포털</td><td>2024-2025 공휴일 및 공휴일 전날 feature</td><td><a href="https://www.data.go.kr/data/15012690/openapi.do" target="_blank" rel="noreferrer">바로가기</a></td></tr>
+    </tbody></table>
+  </section>
+  <section class="panel">
+    <h2>분석 결론</h2>
+    <p>모델과 통계 리포트에서 발표용으로 가져갈 수 있는 핵심 결론입니다.</p>
+    <ul>
+      <li>요일 효과가 가장 강하게 나타났습니다. 평균 일 승차량은 금요일이 478,910명으로 가장 높고, 일요일은 190,755명으로 낮았습니다.</li>
+<li>공휴일은 같은 요일·시간 평균 대비 보정 지수 0.504로 크게 낮아졌습니다. 발표에서는 휴일 여부가 핵심 feature라고 설명할 수 있습니다.</li>
+<li>날씨는 요일/시간보다 영향이 작지만, 악천후 조건에서는 보정 지수가 내려갑니다. 강수 시간 0.979, 시간당 3mm 이상 0.973, 눈 관측 시간 0.900입니다.</li>
+<li>계절성은 여름이 보정 지수 1.034로 높고, 겨울이 0.955로 낮았습니다.</li>
+<li>월별로는 2025-12 평균 일 승차량이 476,155명으로 높고, 2025-01은 323,522명으로 낮았습니다. 다만 2025년 원천 데이터는 일부 날짜가 빠져 있어 일수와 함께 해석해야 합니다.</li>
+    </ul>
+  </section>
+  <section class="cards">
+    <div class="card"><div class="k">원본 행</div><div class="v">153,792</div><div class="s">동·날짜·시간 단위</div></div>
+    <div class="card"><div class="k">분석 기간</div><div class="v">2024-01-01~</div><div class="s">2025-12-31, 712일</div></div>
+    <div class="card"><div class="k">시간 단위 표본</div><div class="v">17,088</div><div class="s">9개 동 합산 후 분석</div></div>
+    <div class="card"><div class="k">행정동</div><div class="v">9개</div><div class="s">강남 주요 target dong</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <h2>요일별 평균 일 승차량</h2>
+      <p>요일마다 하루 전체 수요가 얼마나 다른지 봅니다.</p>
+      <table class="tbl"><thead><tr><th>요일</th><th>일수</th><th>평균 일 승차</th><th>전체 평균 대비</th></tr></thead><tbody>
+      <tr><td>일요일</td><td>103</td><td><div class="metric"><span>190,755</span><i style="width:39.83105809815702%"></i></div></td><td>0.473</td></tr>
+<tr><td>월요일</td><td>102</td><td><div class="metric"><span>451,720</span><i style="width:94.3224637938386%"></i></div></td><td>1.120</td></tr>
+<tr><td>화요일</td><td>101</td><td><div class="metric"><span>470,891</span><i style="width:98.32546895012885%"></i></div></td><td>1.167</td></tr>
+<tr><td>수요일</td><td>100</td><td><div class="metric"><span>468,872</span><i style="width:97.90392854443276%"></i></div></td><td>1.162</td></tr>
+<tr><td>목요일</td><td>102</td><td><div class="metric"><span>474,022</span><i style="width:98.9793911259355%"></i></div></td><td>1.175</td></tr>
+<tr><td>금요일</td><td>102</td><td><div class="metric"><span>478,910</span><i style="width:100%"></i></div></td><td>1.187</td></tr>
+<tr><td>토요일</td><td>102</td><td><div class="metric"><span>293,021</span><i style="width:61.1848943705939%"></i></div></td><td>0.726</td></tr>
+      </tbody></table>
+    </div>
+    <div class="panel">
+      <h2>날씨·휴일 조건별 차이</h2>
+      <p>시간대별 표본 기준입니다. 보정 지수가 1보다 크면 같은 요일·시간 평균보다 높습니다.</p>
+      <table class="tbl"><thead><tr><th>조건</th><th>시간</th><th>평균 시간 승차</th><th>보정 지수</th><th>평균 기온</th><th>평균 강수</th></tr></thead><tbody>
+      <tr><td>강수 없음</td><td>15,228</td><td>16,940</td><td>1.006</td><td>15.1℃</td><td>0.000mm</td></tr>
+<tr><td>비/강수 시간</td><td>1,147</td><td>17,145</td><td>0.979</td><td>17.8℃</td><td>2.426mm</td></tr>
+<tr><td>시간당 3mm 이상</td><td>263</td><td>17,322</td><td>0.973</td><td>19.3℃</td><td>7.760mm</td></tr>
+<tr><td>눈 관측 시간</td><td>786</td><td>13,793</td><td>0.900</td><td>-1.1℃</td><td>0.149mm</td></tr>
+<tr><td>영하 시간</td><td>1,812</td><td>10,159</td><td>0.910</td><td>-3.5℃</td><td>0.015mm</td></tr>
+<tr><td>30도 이상</td><td>1,065</td><td>28,153</td><td>1.002</td><td>32.0℃</td><td>0.012mm</td></tr>
+<tr><td>공휴일</td><td>888</td><td>7,080</td><td>0.504</td><td>12.9℃</td><td>0.205mm</td></tr>
+<tr><td>공휴일 전날</td><td>888</td><td>12,493</td><td>0.815</td><td>13.8℃</td><td>0.209mm</td></tr>
+<tr><td>평일</td><td>11,400</td><td>20,365</td><td>1.036</td><td>14.5℃</td><td>0.162mm</td></tr>
+<tr><td>주말</td><td>4,920</td><td>10,068</td><td>1.000</td><td>14.9℃</td><td>0.168mm</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>날씨 feature와 수요의 상관계수</h2>
+    <p>Raw는 시간/요일 효과가 섞인 값이고, 보정 지수는 요일+시간 평균을 제거한 뒤의 관계입니다.</p>
+    <table class="tbl"><thead><tr><th>feature</th><th>사용 표본</th><th>Raw 승차량 상관</th><th>보정 지수 상관</th></tr></thead><tbody>
+    <tr><td>기온</td><td>17,088</td><td><span class="corr-pos">+0.148</span></td><td><span class="corr-pos">+0.129</span></td></tr>
+<tr><td>체감온도</td><td>17,088</td><td><span class="corr-pos">+0.148</span></td><td><span class="corr-pos">+0.129</span></td></tr>
+<tr><td>습도</td><td>17,088</td><td><span class="corr-neg">-0.291</span></td><td><span class="corr-neg">-0.017</span></td></tr>
+<tr><td>강수량</td><td>17,088</td><td><span class="corr-neg">-0.001</span></td><td><span class="corr-neg">-0.004</span></td></tr>
+<tr><td>비/강수량</td><td>17,088</td><td><span class="corr-neg">-0.001</span></td><td><span class="corr-neg">-0.004</span></td></tr>
+<tr><td>적설/신적설</td><td>17,088</td><td><span class="corr-neg">-0.005</span></td><td><span class="corr-neg">-0.008</span></td></tr>
+<tr><td>운량</td><td>17,088</td><td><span class="corr-neg">-0.000</span></td><td><span class="corr-neg">-0.024</span></td></tr>
+<tr><td>풍속</td><td>17,057</td><td><span class="corr-pos">+0.232</span></td><td><span class="corr-neg">-0.063</span></td></tr>
+<tr><td>악천후 점수</td><td>17,088</td><td><span class="corr-neg">-0.042</span></td><td><span class="corr-neg">-0.133</span></td></tr>
+<tr><td>시정</td><td>17,088</td><td><span class="corr-pos">+0.088</span></td><td><span class="corr-neg">-0.030</span></td></tr>
+    </tbody></table>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <h2>월별 평균</h2>
+      <p>2025년 원천 데이터는 일부 날짜가 빠져 있어 일수도 같이 확인합니다.</p>
+      <table class="tbl"><thead><tr><th>월</th><th>일수</th><th>평균 일 승차</th><th>보정 지수</th><th>평균 기온</th><th>비 온 날</th></tr></thead><tbody>
+      <tr><td>2024-01</td><td>31</td><td><div class="metric"><span>385,331</span><i style="width:80.92549197173862%"></i></div></td><td>0.920</td><td>-0.5℃</td><td>9</td></tr>
+<tr><td>2024-02</td><td>29</td><td><div class="metric"><span>368,869</span><i style="width:77.46819630734%"></i></div></td><td>0.903</td><td>3.8℃</td><td>11</td></tr>
+<tr><td>2024-03</td><td>31</td><td><div class="metric"><span>384,456</span><i style="width:80.74164442952868%"></i></div></td><td>0.969</td><td>6.9℃</td><td>10</td></tr>
+<tr><td>2024-04</td><td>30</td><td><div class="metric"><span>397,192</span><i style="width:83.41642245367792%"></i></div></td><td>0.985</td><td>16.3℃</td><td>4</td></tr>
+<tr><td>2024-05</td><td>31</td><td><div class="metric"><span>387,670</span><i style="width:81.41661314772445%"></i></div></td><td>0.967</td><td>18.5℃</td><td>8</td></tr>
+<tr><td>2024-06</td><td>30</td><td><div class="metric"><span>383,584</span><i style="width:80.55859494610372%"></i></div></td><td>0.996</td><td>24.6℃</td><td>6</td></tr>
+<tr><td>2024-07</td><td>31</td><td><div class="metric"><span>408,383</span><i style="width:85.76668457398571%"></i></div></td><td>0.994</td><td>26.6℃</td><td>22</td></tr>
+<tr><td>2024-08</td><td>31</td><td><div class="metric"><span>358,243</span><i style="width:75.23650892124714%"></i></div></td><td>0.872</td><td>29.3℃</td><td>12</td></tr>
+<tr><td>2024-09</td><td>30</td><td><div class="metric"><span>346,961</span><i style="width:72.8670933900991%"></i></div></td><td>0.866</td><td>25.5℃</td><td>11</td></tr>
+<tr><td>2024-10</td><td>31</td><td><div class="metric"><span>373,061</span><i style="width:78.34856015494101%"></i></div></td><td>0.905</td><td>16.7℃</td><td>6</td></tr>
+<tr><td>2024-11</td><td>30</td><td><div class="metric"><span>392,490</span><i style="width:82.4290137211507%"></i></div></td><td>0.947</td><td>9.8℃</td><td>6</td></tr>
+<tr><td>2024-12</td><td>31</td><td><div class="metric"><span>379,103</span><i style="width:79.617536627748%"></i></div></td><td>0.948</td><td>0.9℃</td><td>5</td></tr>
+<tr><td>2025-01</td><td>23</td><td><div class="metric"><span>323,522</span><i style="width:67.94456179642192%"></i></div></td><td>0.783</td><td>-0.5℃</td><td>6</td></tr>
+<tr><td>2025-02</td><td>26</td><td><div class="metric"><span>383,541</span><i style="width:80.54958528245191%"></i></div></td><td>0.914</td><td>-0.6℃</td><td>3</td></tr>
+<tr><td>2025-03</td><td>31</td><td><div class="metric"><span>390,170</span><i style="width:81.94177783135505%"></i></div></td><td>0.974</td><td>8.0℃</td><td>8</td></tr>
+<tr><td>2025-04</td><td>30</td><td><div class="metric"><span>419,610</span><i style="width:88.12465426203293%"></i></div></td><td>1.029</td><td>13.4℃</td><td>7</td></tr>
+<tr><td>2025-05</td><td>31</td><td><div class="metric"><span>437,116</span><i style="width:91.80114307219868%"></i></div></td><td>1.099</td><td>17.8℃</td><td>12</td></tr>
+<tr><td>2025-06</td><td>29</td><td><div class="metric"><span>436,819</span><i style="width:91.73881048078%"></i></div></td><td>1.111</td><td>23.9℃</td><td>12</td></tr>
+<tr><td>2025-07</td><td>29</td><td><div class="metric"><span>468,892</span><i style="width:98.4745736370941%"></i></div></td><td>1.145</td><td>28.7℃</td><td>9</td></tr>
+<tr><td>2025-08</td><td>31</td><td><div class="metric"><span>436,135</span><i style="width:91.5949918871024%"></i></div></td><td>1.097</td><td>28.2℃</td><td>13</td></tr>
+<tr><td>2025-09</td><td>24</td><td><div class="metric"><span>469,897</span><i style="width:98.68566018572928%"></i></div></td><td>1.179</td><td>22.7℃</td><td>10</td></tr>
+<tr><td>2025-10</td><td>31</td><td><div class="metric"><span>408,297</span><i style="width:85.74874925286996%"></i></div></td><td>1.008</td><td>16.5℃</td><td>14</td></tr>
+<tr><td>2025-11</td><td>30</td><td><div class="metric"><span>462,045</span><i style="width:97.03659771578774%"></i></div></td><td>1.163</td><td>9.0℃</td><td>6</td></tr>
+<tr><td>2025-12</td><td>31</td><td><div class="metric"><span>476,155</span><i style="width:100%"></i></div></td><td>1.208</td><td>1.3℃</td><td>11</td></tr>
+      </tbody></table>
+    </div>
+    <div class="panel">
+      <h2>계절별 평균</h2>
+      <p>월 단위보다 크게 묶어 계절성을 확인합니다.</p>
+      <table class="tbl"><thead><tr><th>계절</th><th>일수</th><th>평균 일 승차</th><th>보정 지수</th><th>평균 기온</th><th>비 온 날</th></tr></thead><tbody>
+      <tr><td>봄</td><td>184</td><td><div class="metric"><span>402,640</span><i style="width:97.09452143654642%"></i></div></td><td>1.004</td><td>13.4℃</td><td>49</td></tr>
+<tr><td>여름</td><td>181</td><td><div class="metric"><span>414,689</span><i style="width:100%"></i></div></td><td>1.034</td><td>26.9℃</td><td>74</td></tr>
+<tr><td>가을</td><td>176</td><td><div class="metric"><span>406,503</span><i style="width:98.02596644714473%"></i></div></td><td>1.005</td><td>16.5℃</td><td>53</td></tr>
+<tr><td>겨울</td><td>171</td><td><div class="metric"><span>389,290</span><i style="width:93.875120873715%"></i></div></td><td>0.955</td><td>0.8℃</td><td>45</td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>요일별 상위 동</h2>
+    <p>각 요일에 평균 일 승차량이 높은 동 3개입니다.</p>
+    <div class="toplist">
+    <div class="toprow"><b>일요일</b><span>역삼1동 <span class="small">56,222</span> · 논현1동 <span class="small">32,255</span> · 삼성1동 <span class="small">27,513</span></span></div><div class="toprow"><b>월요일</b><span>역삼1동 <span class="small">135,064</span> · 대치4동 <span class="small">76,558</span> · 논현1동 <span class="small">72,490</span></span></div><div class="toprow"><b>화요일</b><span>역삼1동 <span class="small">139,269</span> · 대치4동 <span class="small">80,191</span> · 논현1동 <span class="small">75,178</span></span></div><div class="toprow"><b>수요일</b><span>역삼1동 <span class="small">138,130</span> · 대치4동 <span class="small">79,059</span> · 논현1동 <span class="small">74,505</span></span></div><div class="toprow"><b>목요일</b><span>역삼1동 <span class="small">139,249</span> · 대치4동 <span class="small">79,807</span> · 논현1동 <span class="small">75,356</span></span></div><div class="toprow"><b>금요일</b><span>역삼1동 <span class="small">142,490</span> · 논현1동 <span class="small">78,404</span> · 대치4동 <span class="small">77,617</span></span></div><div class="toprow"><b>토요일</b><span>역삼1동 <span class="small">86,010</span> · 논현1동 <span class="small">54,827</span> · 대치4동 <span class="small">40,028</span></span></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

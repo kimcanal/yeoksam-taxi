@@ -83,7 +83,15 @@ export default function Home() {
   const buildVersion = resolveBuildVersion();
 
   return (
-    <main className="w-full h-screen bg-black overflow-hidden">
+    <main className="relative h-screen w-full overflow-hidden bg-black">
+      <div className="pointer-events-none absolute left-1/2 top-3 z-50 flex -translate-x-1/2 items-center gap-2 px-3 sm:top-4">
+        <a
+          className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/82 px-4 py-2 text-sm font-extrabold text-white shadow-2xl backdrop-blur-md transition hover:border-blue-300/70 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          href="/presentation"
+        >
+          A-Eye 발표 자료
+        </a>
+      </div>
       <MapSimulatorClient buildVersion={buildVersion} />
     </main>
   );

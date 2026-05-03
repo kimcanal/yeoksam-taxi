@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <style>
+      .bg{fill:#f5f7fb}.panel{fill:#fff;stroke:#d8e1ec;stroke-width:1.2}.title{font:800 34px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.subtitle{font:500 17px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.label{font:700 15px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.text{font:600 16px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#263244}.small{font:500 13px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.num{font:850 30px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.axis{font:500 12px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.grid{stroke:#e5ecf5;stroke-width:1}.blue{fill:#2f80ed}.green{fill:#17856b}.red{fill:#d94b3d}.amber{fill:#b15f00}.line-blue{fill:none;stroke:#2f80ed;stroke-width:4}.line-red{fill:none;stroke:#d94b3d;stroke-width:3.5;stroke-dasharray:8 6}.line-green{fill:none;stroke:#17856b;stroke-width:3}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1280" height="720"/>
+  <text class="title" x="48" y="58">모델이 무엇을 보고 예측했는가</text>
+  <text class="subtitle" x="48" y="88">대중교통 실측 수요와 공공 날씨/휴일 feature를 결합한 근미래 수요 예측 구조</text>
+  <rect class="panel" x="70" y="170" width="205" height="142" rx="14"/>
+      <text class="label" x="88" y="204">시간</text>
+      <foreignObject x="88" y="224" width="170" height="70">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font:600 14px 'Malgun Gothic',Arial,sans-serif;color:#263244;line-height:1.38">hour, weekday, weekend</div>
+      </foreignObject>
+<rect class="panel" x="308" y="170" width="205" height="142" rx="14"/>
+      <text class="label" x="326" y="204">지역</text>
+      <foreignObject x="326" y="224" width="170" height="70">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font:600 14px 'Malgun Gothic',Arial,sans-serif;color:#263244;line-height:1.38">dong_name</div>
+      </foreignObject>
+<rect class="panel" x="546" y="170" width="205" height="142" rx="14"/>
+      <text class="label" x="564" y="204">수요 lag</text>
+      <foreignObject x="564" y="224" width="170" height="70">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font:600 14px 'Malgun Gothic',Arial,sans-serif;color:#263244;line-height:1.38">현재, 1시간 전, 전날 같은 시간, 전주 같은 시간</div>
+      </foreignObject>
+<rect class="panel" x="784" y="170" width="205" height="142" rx="14"/>
+      <text class="label" x="802" y="204">날씨</text>
+      <foreignObject x="802" y="224" width="170" height="70">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font:600 14px 'Malgun Gothic',Arial,sans-serif;color:#263244;line-height:1.38">기온, 강수량, 눈, 습도, 풍속, 안개, weather_score</div>
+      </foreignObject>
+<rect class="panel" x="1022" y="170" width="205" height="142" rx="14"/>
+      <text class="label" x="1040" y="204">휴일</text>
+      <foreignObject x="1040" y="224" width="170" height="70">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="font:600 14px 'Malgun Gothic',Arial,sans-serif;color:#263244;line-height:1.38">공휴일, 공휴일 전날</div>
+      </foreignObject><path d="M275 242 L305 242" stroke="#94a3b8" stroke-width="3"/><path d="M305 242 l-9 -7 v14 z" fill="#94a3b8"/>
+<path d="M513 242 L543 242" stroke="#94a3b8" stroke-width="3"/><path d="M543 242 l-9 -7 v14 z" fill="#94a3b8"/>
+<path d="M751 242 L781 242" stroke="#94a3b8" stroke-width="3"/><path d="M781 242 l-9 -7 v14 z" fill="#94a3b8"/>
+<path d="M989 242 L1019 242" stroke="#94a3b8" stroke-width="3"/><path d="M1019 242 l-9 -7 v14 z" fill="#94a3b8"/>
+    <rect class="panel" x="122" y="400" width="1036" height="150" rx="16"/>
+    <text class="label" x="166" y="438">모델</text>
+    <text class="num" x="166" y="486">HistGradientBoostingRegressor</text>
+    <text class="text" x="166" y="526">Target: target_transit_boardings_t_plus_1h · Rows: 153,783 · Dates: 712일</text>
+    <path d="M640 312 L640 392" stroke="#94a3b8" stroke-width="3"/><path d="M640 392 l-8 -10 h16 z" fill="#94a3b8"/>
+    <text class="small" x="166" y="590">예측 의미: 특정 동·요일·시간·날씨·휴일 조건에서 다음 1시간 대중교통 승차량을 예측합니다.</text>
+    <text class="small" x="166" y="616">택시 호출량이 아니라, 공개 대중교통 수요를 활용한 이동 수요 proxy 모델입니다.</text>
+</svg>

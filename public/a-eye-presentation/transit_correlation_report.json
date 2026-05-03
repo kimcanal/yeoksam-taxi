@@ -1,0 +1,694 @@
+{
+  "generated_at": "2026-05-03T15:28:36.820Z",
+  "source_csv": "data\\exports\\public_transportation\\gangnam_transit_2024_2025_weather_hourly.csv",
+  "weather_source": "kma_asos_108",
+  "source_rows": 153792,
+  "hourly_rows": 17088,
+  "daily_rows": 712,
+  "dong_count": 9,
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2025-12-31"
+  },
+  "weekdaySummary": [
+    {
+      "label": "일요일",
+      "days": 103,
+      "hours": 2472,
+      "avgDailyTotal": 190755,
+      "avgHourlyTotal": 7948.1,
+      "adjustedIndex": 1,
+      "dailyIndex": 0.4728
+    },
+    {
+      "label": "월요일",
+      "days": 102,
+      "hours": 2448,
+      "avgDailyTotal": 451719.9,
+      "avgHourlyTotal": 18821.7,
+      "adjustedIndex": 1,
+      "dailyIndex": 1.1196
+    },
+    {
+      "label": "화요일",
+      "days": 101,
+      "hours": 2424,
+      "avgDailyTotal": 470890.7,
+      "avgHourlyTotal": 19620.4,
+      "adjustedIndex": 1,
+      "dailyIndex": 1.1672
+    },
+    {
+      "label": "수요일",
+      "days": 100,
+      "hours": 2400,
+      "avgDailyTotal": 468871.9,
+      "avgHourlyTotal": 19536.3,
+      "adjustedIndex": 1,
+      "dailyIndex": 1.1622
+    },
+    {
+      "label": "목요일",
+      "days": 102,
+      "hours": 2448,
+      "avgDailyTotal": 474022.4,
+      "avgHourlyTotal": 19750.9,
+      "adjustedIndex": 1,
+      "dailyIndex": 1.1749
+    },
+    {
+      "label": "금요일",
+      "days": 102,
+      "hours": 2448,
+      "avgDailyTotal": 478910.2,
+      "avgHourlyTotal": 19954.6,
+      "adjustedIndex": 1,
+      "dailyIndex": 1.187
+    },
+    {
+      "label": "토요일",
+      "days": 102,
+      "hours": 2448,
+      "avgDailyTotal": 293020.7,
+      "avgHourlyTotal": 12209.2,
+      "adjustedIndex": 1,
+      "dailyIndex": 0.7263
+    }
+  ],
+  "monthSummary": [
+    {
+      "label": "2024-01",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 385331.1,
+      "avgHourlyTotal": 16055.5,
+      "adjustedIndex": 0.9204,
+      "avgTemp": -0.5,
+      "rainTotal": 0.61,
+      "rainDays": 9
+    },
+    {
+      "label": "2024-02",
+      "days": 29,
+      "hours": 696,
+      "avgDailyTotal": 368869,
+      "avgHourlyTotal": 15369.5,
+      "adjustedIndex": 0.9033,
+      "avgTemp": 3.8,
+      "rainTotal": 2.58,
+      "rainDays": 11
+    },
+    {
+      "label": "2024-03",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 384455.7,
+      "avgHourlyTotal": 16019,
+      "adjustedIndex": 0.9689,
+      "avgTemp": 6.9,
+      "rainTotal": 0.96,
+      "rainDays": 10
+    },
+    {
+      "label": "2024-04",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 397191.8,
+      "avgHourlyTotal": 16549.7,
+      "adjustedIndex": 0.9854,
+      "avgTemp": 16.3,
+      "rainTotal": 1.11,
+      "rainDays": 4
+    },
+    {
+      "label": "2024-05",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 387669.6,
+      "avgHourlyTotal": 16152.9,
+      "adjustedIndex": 0.9665,
+      "avgTemp": 18.5,
+      "rainTotal": 4.04,
+      "rainDays": 8
+    },
+    {
+      "label": "2024-06",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 383584.1,
+      "avgHourlyTotal": 15982.7,
+      "adjustedIndex": 0.9956,
+      "avgTemp": 24.6,
+      "rainTotal": 3.86,
+      "rainDays": 6
+    },
+    {
+      "label": "2024-07",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 408382.7,
+      "avgHourlyTotal": 17015.9,
+      "adjustedIndex": 0.9937,
+      "avgTemp": 26.6,
+      "rainTotal": 17.98,
+      "rainDays": 22
+    },
+    {
+      "label": "2024-08",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 358242.7,
+      "avgHourlyTotal": 14926.8,
+      "adjustedIndex": 0.8721,
+      "avgTemp": 29.3,
+      "rainTotal": 2.35,
+      "rainDays": 12
+    },
+    {
+      "label": "2024-09",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 346960.6,
+      "avgHourlyTotal": 14456.7,
+      "adjustedIndex": 0.8656,
+      "avgTemp": 25.5,
+      "rainTotal": 4.8,
+      "rainDays": 11
+    },
+    {
+      "label": "2024-10",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 373060.9,
+      "avgHourlyTotal": 15544.2,
+      "adjustedIndex": 0.905,
+      "avgTemp": 16.7,
+      "rainTotal": 2.39,
+      "rainDays": 6
+    },
+    {
+      "label": "2024-11",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 392490.2,
+      "avgHourlyTotal": 16353.8,
+      "adjustedIndex": 0.9473,
+      "avgTemp": 9.8,
+      "rainTotal": 2,
+      "rainDays": 6
+    },
+    {
+      "label": "2024-12",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 379103.2,
+      "avgHourlyTotal": 15796,
+      "adjustedIndex": 0.9475,
+      "avgTemp": 0.9,
+      "rainTotal": 0.18,
+      "rainDays": 5
+    },
+    {
+      "label": "2025-01",
+      "days": 23,
+      "hours": 552,
+      "avgDailyTotal": 323521.7,
+      "avgHourlyTotal": 13480.1,
+      "adjustedIndex": 0.7832,
+      "avgTemp": -0.5,
+      "rainTotal": 0.42,
+      "rainDays": 6
+    },
+    {
+      "label": "2025-02",
+      "days": 26,
+      "hours": 624,
+      "avgDailyTotal": 383541.2,
+      "avgHourlyTotal": 15980.9,
+      "adjustedIndex": 0.9142,
+      "avgTemp": -0.6,
+      "rainTotal": 0.2,
+      "rainDays": 3
+    },
+    {
+      "label": "2025-03",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 390170.2,
+      "avgHourlyTotal": 16257.1,
+      "adjustedIndex": 0.9739,
+      "avgTemp": 8,
+      "rainTotal": 1.23,
+      "rainDays": 8
+    },
+    {
+      "label": "2025-04",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 419610.3,
+      "avgHourlyTotal": 17483.8,
+      "adjustedIndex": 1.0291,
+      "avgTemp": 13.4,
+      "rainTotal": 3.15,
+      "rainDays": 7
+    },
+    {
+      "label": "2025-05",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 437116.1,
+      "avgHourlyTotal": 18213.2,
+      "adjustedIndex": 1.0986,
+      "avgTemp": 17.8,
+      "rainTotal": 3.99,
+      "rainDays": 12
+    },
+    {
+      "label": "2025-06",
+      "days": 29,
+      "hours": 696,
+      "avgDailyTotal": 436819.3,
+      "avgHourlyTotal": 18200.8,
+      "adjustedIndex": 1.1105,
+      "avgTemp": 23.9,
+      "rainTotal": 3.38,
+      "rainDays": 12
+    },
+    {
+      "label": "2025-07",
+      "days": 29,
+      "hours": 696,
+      "avgDailyTotal": 468892,
+      "avgHourlyTotal": 19537.2,
+      "adjustedIndex": 1.1445,
+      "avgTemp": 28.7,
+      "rainTotal": 10.1,
+      "rainDays": 9
+    },
+    {
+      "label": "2025-08",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 436134.5,
+      "avgHourlyTotal": 18172.3,
+      "adjustedIndex": 1.0974,
+      "avgTemp": 28.2,
+      "rainTotal": 9.36,
+      "rainDays": 13
+    },
+    {
+      "label": "2025-09",
+      "days": 24,
+      "hours": 576,
+      "avgDailyTotal": 469897.1,
+      "avgHourlyTotal": 19579,
+      "adjustedIndex": 1.1789,
+      "avgTemp": 22.7,
+      "rainTotal": 11.26,
+      "rainDays": 10
+    },
+    {
+      "label": "2025-10",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 408297.3,
+      "avgHourlyTotal": 17012.4,
+      "adjustedIndex": 1.0083,
+      "avgTemp": 16.5,
+      "rainTotal": 6.01,
+      "rainDays": 14
+    },
+    {
+      "label": "2025-11",
+      "days": 30,
+      "hours": 720,
+      "avgDailyTotal": 462045,
+      "avgHourlyTotal": 19251.9,
+      "adjustedIndex": 1.1629,
+      "avgTemp": 9,
+      "rainTotal": 0.7,
+      "rainDays": 6
+    },
+    {
+      "label": "2025-12",
+      "days": 31,
+      "hours": 744,
+      "avgDailyTotal": 476155.4,
+      "avgHourlyTotal": 19839.8,
+      "adjustedIndex": 1.2076,
+      "avgTemp": 1.3,
+      "rainTotal": 1.33,
+      "rainDays": 11
+    }
+  ],
+  "seasonSummary": [
+    {
+      "label": "봄",
+      "days": 184,
+      "hours": 4416,
+      "avgDailyTotal": 402640.3,
+      "avgHourlyTotal": 16776.7,
+      "adjustedIndex": 1.0037,
+      "avgTemp": 13.4,
+      "rainDays": 49
+    },
+    {
+      "label": "여름",
+      "days": 181,
+      "hours": 4344,
+      "avgDailyTotal": 414689,
+      "avgHourlyTotal": 17278.7,
+      "adjustedIndex": 1.0338,
+      "avgTemp": 26.9,
+      "rainDays": 74
+    },
+    {
+      "label": "가을",
+      "days": 176,
+      "hours": 4224,
+      "avgDailyTotal": 406502.9,
+      "avgHourlyTotal": 16937.6,
+      "adjustedIndex": 1.005,
+      "avgTemp": 16.5,
+      "rainDays": 53
+    },
+    {
+      "label": "겨울",
+      "days": 171,
+      "hours": 4104,
+      "avgDailyTotal": 389289.8,
+      "avgHourlyTotal": 16220.4,
+      "adjustedIndex": 0.9551,
+      "avgTemp": 0.8,
+      "rainDays": 45
+    }
+  ],
+  "conditionGroups": [
+    {
+      "label": "강수 없음",
+      "hours": 15228,
+      "avgHourlyTotal": 16939.7,
+      "adjustedIndex": 1.0064,
+      "avgTemp": 15.1,
+      "avgRain": 0
+    },
+    {
+      "label": "비/강수 시간",
+      "hours": 1147,
+      "avgHourlyTotal": 17145.1,
+      "adjustedIndex": 0.9791,
+      "avgTemp": 17.8,
+      "avgRain": 2.426
+    },
+    {
+      "label": "시간당 3mm 이상",
+      "hours": 263,
+      "avgHourlyTotal": 17321.7,
+      "adjustedIndex": 0.9729,
+      "avgTemp": 19.3,
+      "avgRain": 7.76
+    },
+    {
+      "label": "눈 관측 시간",
+      "hours": 786,
+      "avgHourlyTotal": 13792.8,
+      "adjustedIndex": 0.8996,
+      "avgTemp": -1.1,
+      "avgRain": 0.149
+    },
+    {
+      "label": "영하 시간",
+      "hours": 1812,
+      "avgHourlyTotal": 10159.4,
+      "adjustedIndex": 0.9098,
+      "avgTemp": -3.5,
+      "avgRain": 0.015
+    },
+    {
+      "label": "30도 이상",
+      "hours": 1065,
+      "avgHourlyTotal": 28152.5,
+      "adjustedIndex": 1.0018,
+      "avgTemp": 32,
+      "avgRain": 0.012
+    },
+    {
+      "label": "공휴일",
+      "hours": 888,
+      "avgHourlyTotal": 7079.8,
+      "adjustedIndex": 0.5042,
+      "avgTemp": 12.9,
+      "avgRain": 0.205
+    },
+    {
+      "label": "공휴일 전날",
+      "hours": 888,
+      "avgHourlyTotal": 12493.1,
+      "adjustedIndex": 0.815,
+      "avgTemp": 13.8,
+      "avgRain": 0.209
+    },
+    {
+      "label": "평일",
+      "hours": 11400,
+      "avgHourlyTotal": 20364.5,
+      "adjustedIndex": 1.0357,
+      "avgTemp": 14.5,
+      "avgRain": 0.162
+    },
+    {
+      "label": "주말",
+      "hours": 4920,
+      "avgHourlyTotal": 10068.3,
+      "adjustedIndex": 1,
+      "avgTemp": 14.9,
+      "avgRain": 0.168
+    }
+  ],
+  "correlations": [
+    {
+      "key": "temperature_c",
+      "label": "기온",
+      "usable": 17088,
+      "rawCorr": 0.14791592219910515,
+      "adjustedCorr": 0.1289764257219214
+    },
+    {
+      "key": "apparent_temperature_c",
+      "label": "체감온도",
+      "usable": 17088,
+      "rawCorr": 0.14791592219910515,
+      "adjustedCorr": 0.1289764257219214
+    },
+    {
+      "key": "relative_humidity_pct",
+      "label": "습도",
+      "usable": 17088,
+      "rawCorr": -0.29132659598122573,
+      "adjustedCorr": -0.016785088980246398
+    },
+    {
+      "key": "precipitation_mm",
+      "label": "강수량",
+      "usable": 17088,
+      "rawCorr": -0.0008446695476283918,
+      "adjustedCorr": -0.004095042736898681
+    },
+    {
+      "key": "rain_mm",
+      "label": "비/강수량",
+      "usable": 17088,
+      "rawCorr": -0.0008446695476283918,
+      "adjustedCorr": -0.004095042736898681
+    },
+    {
+      "key": "snowfall_cm",
+      "label": "적설/신적설",
+      "usable": 17088,
+      "rawCorr": -0.005237181258617282,
+      "adjustedCorr": -0.0077132495087527805
+    },
+    {
+      "key": "cloud_cover_pct",
+      "label": "운량",
+      "usable": 17088,
+      "rawCorr": -0.00016811001628363767,
+      "adjustedCorr": -0.023517288560108086
+    },
+    {
+      "key": "wind_speed_kmh",
+      "label": "풍속",
+      "usable": 17057,
+      "rawCorr": 0.23156663320113632,
+      "adjustedCorr": -0.06289155824255101
+    },
+    {
+      "key": "weather_score",
+      "label": "악천후 점수",
+      "usable": 17088,
+      "rawCorr": -0.04151003443616831,
+      "adjustedCorr": -0.132586010647392
+    },
+    {
+      "key": "visibility_m",
+      "label": "시정",
+      "usable": 17088,
+      "rawCorr": 0.08783291891205734,
+      "adjustedCorr": -0.030010869588124097
+    }
+  ],
+  "weekdayDongSummary": [
+    {
+      "weekday": "일요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 56221.69902912621
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 32254.844660194176
+        },
+        {
+          "dong": "삼성1동",
+          "avgDailyTotal": 27513.349514563106
+        }
+      ]
+    },
+    {
+      "weekday": "월요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 135063.74509803922
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 76557.95098039215
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 72489.61764705883
+        }
+      ]
+    },
+    {
+      "weekday": "화요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 139269.08910891088
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 80191.0594059406
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 75178.0396039604
+        }
+      ]
+    },
+    {
+      "weekday": "수요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 138130.46
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 79059
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 74505.15
+        }
+      ]
+    },
+    {
+      "weekday": "목요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 139249.23529411765
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 79806.73529411765
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 75356.06862745098
+        }
+      ]
+    },
+    {
+      "weekday": "금요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 142489.75490196078
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 78404.03921568628
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 77617.30392156863
+        }
+      ]
+    },
+    {
+      "weekday": "토요일",
+      "topDongs": [
+        {
+          "dong": "역삼1동",
+          "avgDailyTotal": 86010.08823529411
+        },
+        {
+          "dong": "논현1동",
+          "avgDailyTotal": 54827.186274509804
+        },
+        {
+          "dong": "대치4동",
+          "avgDailyTotal": 40027.813725490196
+        }
+      ]
+    }
+  ],
+  "sourceLinks": [
+    {
+      "name": "서울시 행정동 단위 대중교통 출발지/도착지 승객수 정보",
+      "provider": "서울특별시 열린데이터광장 / 공공데이터포털",
+      "use": "2024-2025 행정동 OD 시간대별 승객수 원천 데이터",
+      "url": "https://data.seoul.go.kr/dataList/OA-21226/F/1/datasetView.do"
+    },
+    {
+      "name": "서울시 읍면동마스터 정보",
+      "provider": "서울특별시 열린데이터광장",
+      "use": "행정동 ID를 강남 9개 동 이름과 매핑",
+      "url": "https://data.seoul.go.kr/dataList/OA-21234/S/1/datasetView.do"
+    },
+    {
+      "name": "기상청_지상(종관, ASOS) 시간자료 조회서비스",
+      "provider": "기상청 / 공공데이터포털",
+      "use": "서울 ASOS 108 시간별 기온, 강수량, 습도, 풍속, 적설 등",
+      "url": "https://www.data.go.kr/data/15057210/openapi.do"
+    },
+    {
+      "name": "한국천문연구원_특일 정보",
+      "provider": "한국천문연구원 / 공공데이터포털",
+      "use": "2024-2025 공휴일 및 공휴일 전날 feature",
+      "url": "https://www.data.go.kr/data/15012690/openapi.do"
+    }
+  ],
+  "conclusions": [
+    "요일 효과가 가장 강하게 나타났습니다. 평균 일 승차량은 금요일이 478,910명으로 가장 높고, 일요일은 190,755명으로 낮았습니다.",
+    "공휴일은 같은 요일·시간 평균 대비 보정 지수 0.504로 크게 낮아졌습니다. 발표에서는 휴일 여부가 핵심 feature라고 설명할 수 있습니다.",
+    "날씨는 요일/시간보다 영향이 작지만, 악천후 조건에서는 보정 지수가 내려갑니다. 강수 시간 0.979, 시간당 3mm 이상 0.973, 눈 관측 시간 0.900입니다.",
+    "계절성은 여름이 보정 지수 1.034로 높고, 겨울이 0.955로 낮았습니다.",
+    "월별로는 2025-12 평균 일 승차량이 476,155명으로 높고, 2025-01은 323,522명으로 낮았습니다. 다만 2025년 원천 데이터는 일부 날짜가 빠져 있어 일수와 함께 해석해야 합니다."
+  ]
+}

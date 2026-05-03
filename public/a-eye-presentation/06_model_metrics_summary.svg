@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <style>
+      .bg{fill:#f5f7fb}.panel{fill:#fff;stroke:#d8e1ec;stroke-width:1.2}.title{font:800 34px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.subtitle{font:500 17px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.label{font:700 15px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.text{font:600 16px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#263244}.small{font:500 13px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.num{font:850 30px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.axis{font:500 12px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.grid{stroke:#e5ecf5;stroke-width:1}.blue{fill:#2f80ed}.green{fill:#17856b}.red{fill:#d94b3d}.amber{fill:#b15f00}.line-blue{fill:none;stroke:#2f80ed;stroke-width:4}.line-red{fill:none;stroke:#d94b3d;stroke-width:3.5;stroke-dasharray:8 6}.line-green{fill:none;stroke:#17856b;stroke-width:3}
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1280" height="720"/>
+  <text class="title" x="48" y="58">다음 1시간 대중교통 수요 예측 모델 성능</text>
+  <text class="subtitle" x="48" y="88">2024-2025 강남 9개 동 OD 시간자료 + KMA ASOS 날씨 + 공휴일 feature</text>
+  <rect class="panel" x="48" y="130" width="272" height="150" rx="14"/>
+      <text class="label" x="70" y="166">Test R²</text>
+      <text class="num" x="70" y="214">0.9854</text>
+      <circle class="blue" cx="286" cy="166" r="8"/>
+      <text class="small" x="70" y="250">설명력, 1에 가까울수록 좋음</text>
+<rect class="panel" x="348" y="130" width="272" height="150" rx="14"/>
+      <text class="label" x="370" y="166">Test MAE</text>
+      <text class="num" x="370" y="214">165.7명</text>
+      <circle class="green" cx="586" cy="166" r="8"/>
+      <text class="small" x="370" y="250">동·시간 단위 평균 절대오차</text>
+<rect class="panel" x="648" y="130" width="272" height="150" rx="14"/>
+      <text class="label" x="670" y="166">MAE / 평균</text>
+      <text class="num" x="670" y="214">7.9%</text>
+      <circle class="amber" cx="886" cy="166" r="8"/>
+      <text class="small" x="670" y="250">테스트 평균 승차량 대비</text>
+<rect class="panel" x="948" y="130" width="272" height="150" rx="14"/>
+      <text class="label" x="970" y="166">학습 표본</text>
+      <text class="num" x="970" y="214">153,783</text>
+      <circle class="red" cx="1186" cy="166" r="8"/>
+      <text class="small" x="970" y="250">2024-2025, 712일</text>
+  <rect class="panel" x="48" y="326" width="1184" height="250" rx="14"/>
+  <text class="label" x="92" y="348">Split별 모델 성능</text>
+  <text class="text" x="92" y="380">train</text>
+      <rect x="240" y="358" width="430" height="22" rx="6" fill="#edf2f7"/>
+      <rect x="240" y="358" width="428.06312065870935" height="22" rx="6" fill="#2f80ed" opacity=".82"/>
+      <text class="text" x="710" y="380">R² 0.9955</text>
+      <text class="text" x="870" y="380">MAE 94.0</text>
+      <text class="text" x="1040" y="380">RMSE 187.7</text>
+<text class="text" x="92" y="442">validation</text>
+      <rect x="240" y="420" width="430" height="22" rx="6" fill="#edf2f7"/>
+      <rect x="240" y="420" width="425.26906493805205" height="22" rx="6" fill="#2f80ed" opacity=".82"/>
+      <text class="text" x="710" y="442">R² 0.989</text>
+      <text class="text" x="870" y="442">MAE 152.5</text>
+      <text class="text" x="1040" y="442">RMSE 340.6</text>
+<text class="text" x="92" y="504">test</text>
+      <rect x="240" y="482" width="430" height="22" rx="6" fill="#edf2f7"/>
+      <rect x="240" y="482" width="423.7225632850815" height="22" rx="6" fill="#2f80ed" opacity=".82"/>
+      <text class="text" x="710" y="504">R² 0.9854</text>
+      <text class="text" x="870" y="504">MAE 165.7</text>
+      <text class="text" x="1040" y="504">RMSE 393.7</text>
+  <text class="small" x="92" y="610">Target: 다음 1시간 강남 행정동별 대중교통 승차량 · Weather: 기상청 ASOS 서울 108</text>
+  <text class="small" x="92" y="636">Validation MAE 152.5명, Test MAE 165.7명으로 검증/테스트 성능이 크게 무너지지 않았음.</text>
+</svg>
