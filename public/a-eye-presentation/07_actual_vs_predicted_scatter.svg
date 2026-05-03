@@ -5,8 +5,8 @@
     </style>
   </defs>
   <rect class="bg" x="0" y="0" width="1280" height="780"/>
-  <text class="title" x="48" y="58">테스트 구간 Actual vs Predicted</text>
-  <text class="subtitle" x="48" y="88">학습에 쓰지 않은 2025년 후반부 test split에서 실제 승차량과 예측값 비교</text>
+  <text class="title" x="48" y="58">테스트 구간 실제값 vs 예측값</text>
+  <text class="subtitle" x="48" y="88">각 시점의 1시간 뒤 대중교통 승차량을 실제값과 예측값으로 비교</text>
   <rect class="panel" x="48" y="116" width="1184" height="548" rx="14"/>
     <line class="grid" x1="110" y1="140" x2="110" y2="610"/>
       <line class="grid" x1="110" y1="610" x2="890" y2="610"/>
@@ -2340,8 +2340,8 @@
 <circle cx="111.5" cy="609.4" r="2.2" fill="#2f80ed" opacity=".35"/>
 <circle cx="146.8" cy="587.4" r="2.2" fill="#2f80ed" opacity=".35"/>
 <circle cx="150.2" cy="585.8" r="2.2" fill="#2f80ed" opacity=".35"/>
-    <text class="label" x="410" y="690">실제 다음 1시간 승차량</text>
-    <text class="label" transform="translate(28 450) rotate(-90)">예측 승차량</text>
+    <text class="label" x="410" y="690">실제 대중교통 승차량</text>
+    <text class="label" transform="translate(28 450) rotate(-90)">예측 대중교통 승차량</text>
     <rect x="940" y="164" width="238" height="284" rx="14" fill="#f8fafc" stroke="#d8e1ec"/>
     <text class="label" x="966" y="198">테스트 결과 요약</text>
     <text class="num" x="966" y="248">R² 0.9854</text>
@@ -2349,6 +2349,6 @@
     <text class="text" x="966" y="326">RMSE 393.7명</text>
     <text class="text" x="966" y="360">평균 2,099명</text>
     <text class="small" x="966" y="402">점들이 검은 기준선 주변에 모일수록</text>
-    <text class="small" x="966" y="424">실제값과 예측값이 가까움.</text>
+    <text class="small" x="966" y="424">실제 승차량과 예측 승차량이 가까움.</text>
     <text class="small" x="110" y="646">상위 극단값은 가독성을 위해 축에서 일부 제한했습니다.</text>
 </svg>

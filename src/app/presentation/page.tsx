@@ -62,9 +62,9 @@ const slides = [
     note: "Train, validation, test 성능을 한 장으로 확인합니다.",
   },
   {
-    title: "실제값과 예측값",
+    title: "실제 대중교통 승차량과 예측값",
     file: "07_actual_vs_predicted_scatter.svg",
-    note: "점이 대각선에 가까울수록 실제 흐름을 잘 따라간 것입니다.",
+    note: "각 점은 특정 동의 특정 시간대입니다. 대각선에 가까울수록 실제 승차량과 예측 승차량이 비슷합니다.",
   },
   {
     title: "시간 흐름 예시",
@@ -159,6 +159,12 @@ export default function PresentationPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <a
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+                href="/a-eye-presentation/A-Eye_midterm_data_collection_forecast.pptx"
+              >
+                PPT 다운로드
+              </a>
               <a
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white"
                 href="/a-eye-presentation/index.html"
