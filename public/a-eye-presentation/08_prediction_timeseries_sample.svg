@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="780" viewBox="0 0 1280 780">
   <defs>
     <style>
       .bg{fill:#f5f7fb}.panel{fill:#fff;stroke:#d8e1ec;stroke-width:1.2}.title{font:800 34px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.subtitle{font:500 17px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.label{font:700 15px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.text{font:600 16px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#263244}.small{font:500 13px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.num{font:850 30px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#1f2937}.axis{font:500 12px 'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;fill:#687386}.grid{stroke:#e5ecf5;stroke-width:1}.blue{fill:#2f80ed}.green{fill:#17856b}.red{fill:#d94b3d}.amber{fill:#b15f00}.line-blue{fill:none;stroke:#2f80ed;stroke-width:4}.line-red{fill:none;stroke:#d94b3d;stroke-width:3.5;stroke-dasharray:8 6}.line-green{fill:none;stroke:#17856b;stroke-width:3}
     </style>
   </defs>
-  <rect class="bg" x="0" y="0" width="1280" height="720"/>
+  <rect class="bg" x="0" y="0" width="1280" height="780"/>
   <text class="title" x="48" y="58">시간 흐름에서 본 예측 결과</text>
   <text class="subtitle" x="48" y="88">한 행정동의 실제 다음 1시간 승차량과 모델 예측값 비교</text>
   <rect class="panel" x="48" y="116" width="1184" height="548" rx="14"/>
@@ -33,6 +33,6 @@
     <rect x="920" y="154" width="238" height="90" rx="12" fill="#f8fafc" stroke="#d8e1ec"/>
     <circle cx="946" cy="184" r="6" fill="#2f80ed"/><text class="text" x="964" y="190">실제 승차량</text>
     <line x1="940" y1="216" x2="954" y2="216" stroke="#d94b3d" stroke-width="4" stroke-dasharray="7 5"/><text class="text" x="964" y="222">예측 승차량</text>
-    <text class="label" x="84" y="610">역삼1동 · 테스트 구간 일부 120시간</text>
-    <text class="small" x="84" y="636">피크와 저점의 시간대 패턴을 모델이 따라가는지 보여주는 발표용 예시입니다.</text>
+    <text class="label" x="84" y="626">역삼1동 · 테스트 구간 일부 120시간</text>
+    <text class="small" x="84" y="654">피크와 저점의 시간대 패턴을 모델이 따라가는지 보여주는 예시입니다.</text>
 </svg>
