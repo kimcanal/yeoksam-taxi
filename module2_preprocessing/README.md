@@ -51,3 +51,18 @@ The target feature table for the model should include:
 The current repository does not claim to have real KakaoT call logs. Public
 signals are used as context and transfer features until a richer demand dataset
 is available.
+
+## Spec Mapping
+
+The preprocessing layer changed from a taxi-call-first pipeline to a
+public-data-first pipeline because restricted KakaoT call logs are not available
+in this repository.
+
+- Seoul citydata is used as current context, not as future demand itself.
+- OSM geometry provides dong, road, transit, and road-network context.
+- The presentation model uses public-transit boardings, weather, holiday, and
+  lag features as the movement-demand proxy.
+- `demand_proxy_score` is for demos and handoff checks, not a claim of exact
+  taxi-call volume.
+
+See `../docs/spec-alignment.md` for the full capstone-spec comparison.

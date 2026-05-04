@@ -31,6 +31,17 @@ The original assignment asks for 5-minute taxi-call forecasts over the next
 dong-level relative demand for selected future target times. The UI and JSON
 contract can be extended to multiple horizons later.
 
+For the current presentation deck, the model should be described as:
+
+- `HistGradientBoostingRegressor`
+- target: `target_transit_boardings_t_plus_1h`
+- unit: 9 Gangnam dongs by datetime
+- interpretation: public-transit-boardings-based movement-demand proxy
+
+Do not describe the current model as a direct taxi-call forecast. It is a
+1-hour-ahead proxy signal that can be swapped to real taxi-call targets when
+those data become available.
+
 ## Evaluation Placeholder
 
 The final model handoff should add:
@@ -38,3 +49,5 @@ The final model handoff should add:
 - `metrics.json` with RMSE, MAE, and MAPE.
 - actual-vs-predicted CSV or chart output.
 - short explanation of training/validation/test time split.
+
+See `../docs/spec-alignment.md` for the full capstone-spec comparison.

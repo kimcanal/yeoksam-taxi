@@ -14,14 +14,14 @@ The dispatch layer should answer the next question:
 For each dong:
 
 ```text
-imbalance_score = predicted_demand_score - current_supply_score
+imbalance_score = predicted_demand_score / (idle_taxis + 1)
 ```
 
 Where:
 
 - `predicted_demand_score` comes from `public/forecast/latest.json`.
-- `current_supply_score` is a proxy from the current 3D taxi distribution until
-  real taxi GPS/supply data is available.
+- `idle_taxis` comes from `data/samples/supply-proxy.json` or the current 3D
+  taxi distribution until real taxi GPS/supply data is available.
 
 The simplest interpretation:
 

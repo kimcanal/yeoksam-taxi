@@ -36,7 +36,23 @@ assignment modules explicitly:
 - `module4_dispatch/`: imbalance and incentive policy script.
 - `data/`: raw/processed/sample data layout.
 - `notebooks/`: placeholder for EDA and model-evaluation notebooks.
-- `docs/`: report notes, source reliability, forecast contract, and dispatch interpretation.
+- `docs/`: report notes, source reliability, spec alignment, forecast contract, and dispatch interpretation.
+
+## Specification Alignment
+
+The original assignment describes a compact taxi-dispatch simulation with a
+minimum `3x3` block world, short-horizon taxi-call forecasting, and dynamic
+dispatch logic. This repository keeps that story, but presents it as a richer
+web prototype:
+
+- `3x3 abstract cells` -> `9 real Gangnam dongs + OSM road geometry`
+- `local simulator baseline` -> `Next.js + Three.js browser digital twin`
+- `taxi-call forecast` -> `public-transit-boardings demand proxy`
+- `5-minute horizons over 30 minutes` -> `1-hour dong-level proxy forecast`
+- `real taxi supply` -> `sample/simulated idle-taxi supply proxy`
+
+See `docs/spec-alignment.md` for the detailed module-by-module mapping and
+the exact presentation wording to use.
 
 ## Scripts
 
@@ -144,6 +160,7 @@ npm run screenshot:scenarios -- --skip-build
 
 - `CHANGELOG.md`: dated update history
 - `docs/added-taxi-call-review.md`: historical comparison notes from the early OSM expansion branch
+- `docs/spec-alignment.md`: how the current implementation differs from the original capstone specification
 - `docs/dispatch-road-network-review.md`: current OSM road graph suitability for dispatch and pickup/dropoff routing
 - `docs/a-eye-module1-alignment.md`: how this 9-dong OSM viewer maps back to the active `A-Eye` scope
 - `docs/forecast-contract.md`: exact JSON handoff expected from the demand model

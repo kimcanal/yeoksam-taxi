@@ -28,7 +28,17 @@ general vehicles, one autonomous vehicle, and obstacles. This project uses a
 larger OSM-derived 9-dong scene for presentation, while treating the simplified
 3x3 baseline as the compact evaluation layer described in `README.md`.
 
+The important change is scope and delivery format:
+
+- `3x3 abstract blocks` became `9 real administrative dongs`.
+- Synthetic road geometry became OSM roads, buildings, transit landmarks, and
+  traffic signal anchors.
+- A local-only simulator view became a browser demo that can be deployed and
+  shared through Cloudflare.
+
 For grading or presentation, describe this module as:
 
 > a Module 1 spatial companion that makes the Gangnam Station dispatch scenario
 > visible on real OSM road geometry.
+
+See `../docs/spec-alignment.md` for the full capstone-spec comparison.
