@@ -198,11 +198,11 @@ This project does not stream a live 3D city map from a map provider at runtime.
 
 Instead, it uses a small offline pipeline:
 
-1. `fetch-dongs.mjs` fetches the 9 target administrative dongs from OpenStreetMap administrative relations through Overpass.
-2. `fetch-buildings.mjs`, `fetch-non-road.mjs`, `fetch-roads.mjs`, and `fetch-transit.mjs` query Overpass again, but only for geometry that falls inside those dong boundaries.
+1. `scripts/osm/fetch-dongs.mjs` fetches the 9 target administrative dongs from OpenStreetMap administrative relations through Overpass.
+2. `scripts/osm/fetch-buildings.mjs`, `scripts/osm/fetch-non-road.mjs`, `scripts/osm/fetch-roads.mjs`, and `scripts/osm/fetch-transit.mjs` query Overpass again, but only for geometry that falls inside those dong boundaries.
 3. The raw OSM responses are converted into simplified GeoJSON with `osmtogeojson`.
-4. `fetch-non-road.mjs` stores OSM polygon areas such as parks, plazas, parking lots, water, and campus-like surfaces in `public/non-road.geojson`.
-5. `fetch-roads.mjs` also derives a separate `public/road-network.json` graph asset from the road geometry.
+4. `scripts/osm/fetch-non-road.mjs` stores OSM polygon areas such as parks, plazas, parking lots, water, and campus-like surfaces in `public/non-road.geojson`.
+5. `scripts/osm/fetch-roads.mjs` also derives a separate `public/road-network.json` graph asset from the road geometry.
 6. The processed results are saved into `public/*.geojson` plus `public/road-network.json`.
 7. At app runtime, the browser loads those local assets and Three.js turns them into roads, non-road surfaces, buildings, transit landmarks, and the simulation scene while the routing layer reads the lighter graph asset directly.
 
