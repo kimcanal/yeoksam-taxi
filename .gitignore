@@ -33,7 +33,6 @@ yarn-error.log*
 
 # local verification artifacts
 /.codex
-/docs/reports/soak/
 /tmp-playwright-*.png
 /.tmp/
 
