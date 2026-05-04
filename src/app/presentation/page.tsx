@@ -160,12 +160,6 @@ export default function PresentationPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <a
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-                href="/a-eye-presentation/A-Eye_midterm_data_collection_forecast.pptx"
-              >
-                PPT 다운로드
-              </a>
-              <a
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white"
                 href="/a-eye-presentation/index.html"
               >
