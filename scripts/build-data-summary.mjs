@@ -21,6 +21,7 @@ async function latestRawPath(...segments) {
     const days = (await readdir(rawRoot, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
+      .filter((name) => /^\d{4}-\d{2}-\d{2}$/.test(name))
       .sort();
     const day = days.at(-1);
     if (!day) return null;
@@ -121,6 +122,9 @@ const summary = {
     ? {
         source: forecast.source ?? "model",
         target_datetime: forecast.target_datetime,
+        strategy: forecast.strategy ?? null,
+        feature_set: forecast.feature_set ?? null,
+        model_feature_set: forecast.model_feature_set ?? null,
         weather: forecast.weather,
         generated_at: forecast.generated_at,
         region_count: forecast.regions?.length ?? 0,

@@ -28,6 +28,10 @@ import {
 import { useForecastResult } from "@/components/map-simulator/use-forecast-result";
 import type { ForecastSource } from "@/components/map-simulator/forecast-contract";
 import {
+  useDispatchPlan,
+  type DispatchDecision,
+} from "@/components/map-simulator/use-dispatch-plan";
+import {
   BaseCameraMode,
   CameraFocusTarget,
   CameraMode,
@@ -73,6 +77,7 @@ type DemandMiniMapRegion = {
   labelX: number;
   labelY: number;
   score: number;
+  dispatchActionLevel?: string;
 };
 
 type DemandMiniMapLandmark = {
@@ -135,26 +140,26 @@ type MiniMapFocus = {
 };
 
 function demandFillForScore(score: number) {
-  if (score >= 0.72) return "rgba(244, 63, 94, 0.78)";
-  if (score >= 0.36) return "rgba(249, 115, 22, 0.68)";
-  if (score >= 0.22) return "rgba(234, 179, 8, 0.58)";
-  if (score >= 0.12) return "rgba(45, 212, 191, 0.38)";
+  if (score >= 0.85) return "rgba(244, 63, 94, 0.78)";
+  if (score >= 0.55) return "rgba(249, 115, 22, 0.68)";
+  if (score >= 0.25) return "rgba(234, 179, 8, 0.58)";
+  if (score >= 0.04) return "rgba(45, 212, 191, 0.38)";
   return "rgba(148, 163, 184, 0.18)";
 }
 
 function demandStrokeForScore(score: number) {
-  if (score >= 0.72) return "rgba(251, 113, 133, 0.92)";
-  if (score >= 0.36) return "rgba(251, 146, 60, 0.82)";
-  if (score >= 0.22) return "rgba(250, 204, 21, 0.72)";
-  if (score >= 0.12) return "rgba(94, 234, 212, 0.62)";
+  if (score >= 0.85) return "rgba(251, 113, 133, 0.92)";
+  if (score >= 0.55) return "rgba(251, 146, 60, 0.82)";
+  if (score >= 0.25) return "rgba(250, 204, 21, 0.72)";
+  if (score >= 0.04) return "rgba(94, 234, 212, 0.62)";
   return "rgba(148, 163, 184, 0.34)";
 }
 
 function demandLevelLabel(score: number) {
-  if (score >= 0.72) return "매우 높음";
-  if (score >= 0.36) return "높음";
-  if (score >= 0.22) return "중간";
-  if (score >= 0.12) return "낮음";
+  if (score >= 0.85) return "매우 높음";
+  if (score >= 0.55) return "높음";
+  if (score >= 0.25) return "중간";
+  if (score >= 0.04) return "낮음";
   return "매우 낮음";
 }
 
@@ -164,7 +169,7 @@ function demandReasonsFor(dong: DemandForecastDong) {
     reasons.push("대중교통 압력");
   }
   if (dong.contextMultiplier >= 1.14) {
-    reasons.push("NYC 전이 가중");
+    reasons.push("상권·교통 맥락 가중");
   }
   if (dong.contextPrior >= 0.008) {
     reasons.push("시간대 prior");
@@ -235,6 +240,108 @@ function formatLiveWeather(tempC: number, precipitationType: string) {
     ? precipitationType
     : "강수 없음";
   return `${tempLabel} · ${precipLabel}`;
+}
+
+function formatKstClock(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return value.slice(0, 16).replace("T", " ");
+  }
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+}
+
+function formatKstDateTime(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return value.slice(0, 16).replace("T", " ");
+  }
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+}
+
+function formatKstFullDateTime(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return value.slice(0, 16).replace("T", " ");
+  }
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(parsed);
+  const partMap = new Map(parts.map((part) => [part.type, part.value]));
+
+  return [
+    partMap.get("year"),
+    partMap.get("month"),
+    partMap.get("day"),
+  ].join("-") + ` ${partMap.get("hour")}:${partMap.get("minute")}`;
+}
+
+function forecastStrategyLabel(strategy: string | null | undefined) {
+  if (strategy === "pattern") return "패턴 추정";
+  if (strategy === "exact") return "관측 feature";
+  return strategy ? strategy : "모델";
+}
+
+function scoreText(value: number | null | undefined) {
+  return typeof value === "number" ? value.toFixed(3) : "-";
+}
+
+function dispatchUnits(decision: DispatchDecision) {
+  return decision.coverage_units ?? decision.recommended_taxis ?? 0;
+}
+
+function dispatchActionTextClass(level: string | null | undefined) {
+  if (level === "high") return "text-red-400";
+  if (level === "medium") return "text-yellow-300";
+  if (level === "watch") return "text-blue-300";
+  return "text-slate-400";
+}
+
+function dispatchActionBadgeClass(level: string | null | undefined) {
+  if (level === "high") return "border-red-400/25 bg-red-400/[0.08] text-red-300";
+  if (level === "medium") return "border-yellow-300/25 bg-yellow-300/[0.08] text-yellow-200";
+  if (level === "watch") return "border-blue-300/25 bg-blue-300/[0.08] text-blue-200";
+  return "border-white/10 bg-white/[0.05] text-slate-400";
+}
+
+function dispatchMiniMapIcon(level: string | null | undefined) {
+  if (level === "high") return "▲";
+  if (level === "medium") return "◆";
+  if (level === "watch") return "●";
+  return "";
+}
+
+function dispatchMiniMapIconColor(level: string | null | undefined) {
+  if (level === "high") return "#fb7185";
+  if (level === "medium") return "#fde047";
+  if (level === "watch") return "#7dd3fc";
+  return "#94a3b8";
 }
 
 function liveAreaScore(area: LiveArea) {
@@ -503,10 +610,31 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     [forecastOffsetMinutes, normalizedSimulationTimeMinutes, weatherMode],
   );
   const forecastResult = useForecastResult();
+  const dispatchPlan = useDispatchPlan();
   const forecastSource: ForecastSource =
     forecastResult?.regions?.length ? "model" : "sample";
   const forecastResultLabel =
     forecastResult?.source === "demo" ? "데모 예측" : "모델 예측";
+  const forecastStrategyText = forecastStrategyLabel(
+    forecastResult?.strategy ?? dispatchPlan?.forecast_strategy,
+  );
+  const forecastAverageConfidence =
+    forecastResult?.regions?.length
+      ? forecastResult.regions.reduce(
+        (sum, region) => sum + region.confidence,
+        0,
+      ) / forecastResult.regions.length
+      : null;
+  const isForecastLowConfidence =
+    forecastAverageConfidence != null && forecastAverageConfidence < 0.6;
+  const forecastBadgeText =
+    forecastSource === "model"
+      ? [
+        forecastResultLabel,
+        forecastStrategyText,
+        isForecastLowConfidence ? "신뢰도 낮음" : null,
+      ].filter(Boolean).join(" · ")
+      : "샘플 예측";
   const forecastResultBadgeClass =
     forecastResult?.source === "demo"
       ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
@@ -515,6 +643,30 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     forecastResult?.source === "demo"
       ? "text-amber-300/85"
       : "text-emerald-400/80";
+  const forecastSourceTokenClass =
+    forecastSource === "model"
+      ? `${PANEL_TOKEN_CLASS} border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-200`
+      : `${PANEL_TOKEN_CLASS} border-amber-300/25 bg-amber-300/[0.08] text-amber-200`;
+  const forecastSourceTokenText =
+    forecastSource === "model" && forecastResult
+      ? `모델 예측 · ${formatKstFullDateTime(forecastResult.target_datetime)}`
+      : "데모 데이터";
+  const sortedDispatchDecisions = useMemo(
+    () =>
+      [...(dispatchPlan?.decisions ?? [])].sort(
+        (left, right) => right.imbalance_score - left.imbalance_score,
+      ),
+    [dispatchPlan],
+  );
+  const dispatchByDong = useMemo(
+    () =>
+      new Map(
+        sortedDispatchDecisions.map(
+          (decision) => [decision.dong_name, decision] as const,
+        ),
+      ),
+    [sortedDispatchDecisions],
+  );
 
   // effectiveDongs is what the heatmap actually renders.
   // In model mode the scores come from latest.json; in sample mode from the
@@ -621,12 +773,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           )
           .join(" ");
         const labelPoint = mapPoint(centerOfRings(dong.rings));
+        const dispatchDecision = dispatchByDong.get(dong.name);
         return {
           name: dong.name,
           path,
           labelX: labelPoint.x,
           labelY: labelPoint.y,
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
+          dispatchActionLevel: dispatchDecision?.action_level,
         } satisfies DemandMiniMapRegion;
       }),
       landmarks: data.transit.features
@@ -668,6 +822,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [
     data,
     demandByDong,
+    dispatchByDong,
     miniMapFocus,
     scenarioMapCenter,
   ]);
@@ -872,6 +1027,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </span>
         </div>
 
+        <div className="mt-3 flex items-center">
+          <span className={`${forecastSourceTokenClass} text-[11px] font-medium`}>
+            {forecastSourceTokenText}
+          </span>
+        </div>
+
         <div className="mt-3 grid grid-cols-2 gap-2">
           {circumstanceOptions.map((option) => (
             <button
@@ -946,8 +1107,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <span className={forecastResultTextClass}>
                 {forecastResultLabel}
               </span> ·{" "}
-              {forecastResult?.target_datetime.slice(0, 16).replace("T", " ")} ·{" "}
+              {forecastStrategyText} ·{" "}
+              {formatKstClock(forecastResult?.target_datetime)} 기준 ·{" "}
               {forecastResult?.weather}
+              {isForecastLowConfidence ? " · 신뢰도 낮음" : ""}
             </>
           ) : (
             <>
@@ -979,17 +1142,20 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 : "border-white/10 bg-white/[0.06] text-slate-400"
             }`}
           >
-            {forecastSource === "model" ? forecastResultLabel : "샘플 예측"}
+            {forecastBadgeText}
           </span>
         </div>
 
         {forecastSource === "model" && forecastResult && (
           <div className="mt-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[11px] leading-5 text-slate-400">
             <span className={forecastResultTextClass}>대상</span>{" "}
-            {forecastResult.target_datetime.slice(0, 16).replace("T", " ")} ·{" "}
-            {forecastResult.weather} ·{" "}
+            {formatKstDateTime(forecastResult.target_datetime)} ·{" "}
+            {forecastStrategyText} · {forecastResult.weather}
+            {forecastAverageConfidence != null ? (
+              <> · 평균 신뢰도 {Math.round(forecastAverageConfidence * 100)}%</>
+            ) : null}{" "}
             <span className="text-slate-500">
-              {forecastResult.generated_at.slice(0, 16).replace("T", " ")} 생성
+              {formatKstDateTime(forecastResult.generated_at)} 생성
             </span>
           </div>
         )}
@@ -1134,7 +1300,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       d={region.path}
                       fill={demandFillForScore(region.score)}
                       stroke={demandStrokeForScore(region.score)}
-                      strokeWidth={region.score >= 0.36 ? 0.7 : 0.42}
+                      strokeWidth={region.score >= 0.55 ? 0.7 : 0.42}
                     />
                     <title>
                       {region.name} 수요 {Math.round(region.score * 100)}
@@ -1171,25 +1337,45 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     />
                   </g>
                 ) : null}
-                {demandMiniMap.regions.map((region) => (
-                  <text
-                    key={`${region.name}-label`}
-                    x={region.labelX}
-                    y={region.labelY}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill={region.score >= 0.36 ? "#fff7ed" : "#dbeafe"}
-                    fontSize={region.score >= 0.72 ? 3.8 : 3.2}
-                    fontWeight={region.score >= 0.36 ? 700 : 600}
-                    paintOrder="stroke"
-                    stroke="rgba(7, 17, 28, 0.82)"
-                    strokeWidth="0.72"
-                    strokeLinejoin="round"
-                    pointerEvents="none"
-                  >
-                    {region.name}
-                  </text>
-                ))}
+                {demandMiniMap.regions.map((region) => {
+                  const dispatchIcon = dispatchMiniMapIcon(region.dispatchActionLevel);
+                  return (
+                    <g key={`${region.name}-label`} pointerEvents="none">
+                      <text
+                        x={region.labelX}
+                        y={region.labelY}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fill={region.score >= 0.55 ? "#fff7ed" : "#dbeafe"}
+                        fontSize={region.score >= 0.85 ? 3.8 : 3.2}
+                        fontWeight={region.score >= 0.55 ? 700 : 600}
+                        paintOrder="stroke"
+                        stroke="rgba(7, 17, 28, 0.82)"
+                        strokeWidth="0.72"
+                        strokeLinejoin="round"
+                      >
+                        {region.name}
+                      </text>
+                      {dispatchIcon ? (
+                        <text
+                          x={region.labelX + 7.2}
+                          y={region.labelY - 4.1}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill={dispatchMiniMapIconColor(region.dispatchActionLevel)}
+                          fontSize="3.3"
+                          fontWeight="800"
+                          paintOrder="stroke"
+                          stroke="rgba(7, 17, 28, 0.92)"
+                          strokeWidth="0.64"
+                          strokeLinejoin="round"
+                        >
+                          {dispatchIcon}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                })}
                 {demandMiniMap.landmarks.map((landmark) => (
                   <g
                     key={landmark.name}
@@ -1309,6 +1495,70 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             ))}
           </div>
         </div>
+
+        {dispatchPlan && sortedDispatchDecisions.length > 0 ? (
+          <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className={PANEL_SECTION_LABEL_CLASS}>배차 권고</div>
+                <div className="mt-1 text-sm font-semibold text-slate-100">
+                  수급 불균형 우선순위
+                </div>
+              </div>
+              <span
+                className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                  dispatchPlan.forecast_strategy === "pattern"
+                    ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
+                    : "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
+                }`}
+              >
+                {forecastStrategyLabel(dispatchPlan.forecast_strategy)}
+              </span>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              {sortedDispatchDecisions.slice(0, 5).map((decision, index) => (
+                <div
+                  key={decision.dong_name}
+                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] text-slate-500">
+                          #{index + 1}
+                        </span>
+                        <span className="font-semibold text-slate-100">
+                          {decision.dong_name}
+                        </span>
+                        <span className={`text-[11px] font-semibold ${dispatchActionTextClass(decision.action_level)}`}>
+                          {decision.action}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[11px] leading-5 text-slate-500">
+                        불균형 {scoreText(decision.imbalance_score)} · 공급{" "}
+                        {scoreText(decision.supply_proxy_score)} · 평균속도{" "}
+                        {decision.avg_speed_kmh == null ? "-" : `${decision.avg_speed_kmh}km/h`}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${dispatchActionBadgeClass(
+                        decision.action_level,
+                      )}`}
+                    >
+                      권고 강도 {dispatchUnits(decision)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 text-[11px] leading-5 text-slate-500">
+              권고 강도는 실제 택시 대수가 아니라 수요 score와 도로 공급 proxy를
+              결합한 우선순위 단계입니다.
+            </div>
+          </div>
+        ) : null}
 
         <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-start justify-between gap-3">

@@ -36,11 +36,23 @@ yarn-error.log*
 /tmp-playwright-*.png
 /.tmp/
 
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# colab experiment artifacts (duplicate model files)
+/data/colab/
+
 # locally collected data
 /data/raw/*
 !/data/raw/.gitkeep
 /data/processed/*
 !/data/processed/.gitkeep
+!/data/processed/model_live_compatible/
+/data/processed/model_live_compatible/*
+!/data/processed/model_live_compatible/dong_demand_proxy_model.joblib
+!/data/processed/model_live_compatible/pattern_cache.json
 
 # env files (can opt-in for committing if needed)
 .env*

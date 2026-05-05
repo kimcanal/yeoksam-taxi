@@ -1,0 +1,110 @@
+{
+  "project": "A-Eye / Yeoksam Taxi Digital Twin",
+  "generated_at": "2026-05-05T16:00:00+09:00",
+  "target_area": {
+    "unit": "administrative dong",
+    "dong_count": 9,
+    "dongs": [
+      "논현1동",
+      "논현2동",
+      "대치4동",
+      "삼성1동",
+      "삼성2동",
+      "신사동",
+      "역삼1동",
+      "역삼2동",
+      "청담동"
+    ]
+  },
+  "feature_table": {
+    "path": "data/processed/features/dong_hour_features_v2_2023-01_2025-12.csv",
+    "rows": 236736,
+    "size_mb": 77,
+    "period": {
+      "start": "2023-01-01T00:00:00+09:00",
+      "end": "2025-12-31T23:00:00+09:00",
+      "granularity": "hourly"
+    },
+    "hosted_in_public_site": false,
+    "not_hosted_reason": "The full feature CSV is intentionally excluded from the Cloudflare static bundle because it is large and is a reproducible build artifact."
+  },
+  "prediction_target": {
+    "name": "target_inbound_boardings_per_1k_pop_t_plus_1h",
+    "base_signal": "inbound_boardings_per_1k_pop",
+    "horizon_hours": 1,
+    "interpretation": "1-hour-ahead movement-demand proxy, not direct taxi-call volume"
+  },
+  "models": [
+    {
+      "name": "full_observed",
+      "role": "offline upper-bound validation",
+      "algorithm": "scikit-learn HistGradientBoostingRegressor",
+      "feature_count": 53,
+      "metrics": {
+        "r2": 0.9888374831956291,
+        "mae": 2.530147508485211,
+        "rmse": 5.6787045583027815,
+        "mape_pct": 21.48575467134422
+      },
+      "live_usable": false,
+      "caveat": "Includes current public-transit OD and living-population features that are published after the fact."
+    },
+    {
+      "name": "live_compatible_calendar_weather_static",
+      "role": "live map prediction",
+      "algorithm": "scikit-learn HistGradientBoostingRegressor",
+      "artifact_path": "data/processed/model_live_compatible/dong_demand_proxy_model.joblib",
+      "artifact_size_mb": 1.1,
+      "feature_count": 33,
+      "metrics": {
+        "r2": 0.9585498103947521,
+        "mae": 4.367225884992877,
+        "rmse": 10.942875859906842,
+        "mape_pct": 34.57324167214736
+      },
+      "live_usable": true,
+      "uses": [
+        "calendar",
+        "holiday",
+        "weather",
+        "dong identity",
+        "static POI",
+        "road/building/transit infrastructure"
+      ],
+      "excludes": [
+        "current public-transit OD",
+        "current living population",
+        "monthly delayed TOPIS aggregate features"
+      ]
+    }
+  ],
+  "baseline": {
+    "persistence": {
+      "name": "persistence_current_hour",
+      "role": "naive baseline",
+      "metrics": {
+        "r2": 0.615574798211218,
+        "mae": 8.69418652293374,
+        "rmse": 33.30082268331092,
+        "mape_pct": 63.24725892422902
+      },
+      "interpretation": "Uses the current inbound movement proxy as the next-hour prediction."
+    }
+  },
+  "live_pipeline": {
+    "script": "scripts/run-live-demand-cycle.mjs",
+    "npm_script": "npm run model:live:demand-cycle",
+    "outputs": [
+      "public/forecast/latest.json",
+      "public/dispatch-plan.json",
+      "data/processed/live_validation/live_forecast_log.jsonl"
+    ],
+    "dispatch_logic": "predicted demand score minus live traffic supply proxy"
+  },
+  "public_downloads": [
+    "/data-catalog.json",
+    "/downloads/demand_proxy_feature_set_eval.csv",
+    "/forecast/latest.json",
+    "/dispatch-plan.json"
+  ]
+}

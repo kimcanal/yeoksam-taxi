@@ -29,8 +29,12 @@ export interface ForecastRegion {
 export interface ForecastResult {
   /** "demo" before the external model is ready; "model" for real model output */
   source?: ForecastResultSource;
+  /** "pattern" fallback or "exact" observed/live feature row when available */
+  strategy?: "pattern" | "exact" | string;
   /** ISO 8601+TZ — the datetime this forecast covers */
   target_datetime: string;
+  /** ISO 8601+TZ — source feature datetime when provided by the model */
+  feature_datetime?: string;
   /** "clear" | "rain" | "snow" */
   weather: string;
   /** ISO 8601 — when the model produced this file */

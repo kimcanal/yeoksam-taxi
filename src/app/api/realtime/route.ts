@@ -1,30 +1,35 @@
 const POI_CODES = ["POI001", "POI014", "POI034", "POI037", "POI071", "POI042", "POI080"];
 
-interface CityDataResponse {
-  CITYDATA?: {
-    AREA_NM?: string;
-    AREA_CONGEST_LVL?: string;
-    AREA_CONGEST_MSG?: string;
-    PPLTN_TIME?: string;
-    LIVE_PPLTN_STTS?: Array<{
-      AREA_PPLTN_MIN?: string;
-      AREA_PPLTN_MAX?: string;
-      AREA_CONGEST_LVL?: string;
-      PPLTN_TIME?: string;
-    }>;
-    ROAD_TRAFFIC_STTS?: Array<{
-      ROAD_TRAFFIC_IDX?: string;
-      ROAD_AVG_SPD?: string;
-      ROAD_TRAFFIC_TIME?: string;
-      ROAD_MSG?: string;
-    }>;
-    WEATHER_STTS?: Array<{
-      TEMP?: string;
-      WEATHER_TIME?: string;
-      PRECIPITATION?: string;
-      PRECPT_TYPE?: string;
-    }>;
-  };
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as JsonRecord
+    : null;
+}
+
+function asRecordArray(value: unknown): JsonRecord[] {
+  if (Array.isArray(value)) return value.flatMap((item) => asRecord(item) ? [item as JsonRecord] : []);
+  const record = asRecord(value);
+  return record ? [record] : [];
+}
+
+function stringValue(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+}
+
+function numberValue(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function unwrapCitydata(json: JsonRecord): JsonRecord | null {
+  const root =
+    asRecord(json["SeoulRtd.citydata"]) ??
+    asRecord(json.CITYDATA_ALL) ??
+    json;
+  return asRecord(root.CITYDATA);
 }
 
 async function fetchPoi(apiKey: string, code: string) {
@@ -32,43 +37,42 @@ async function fetchPoi(apiKey: string, code: string) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return null;
 
-  const json = await res.json() as Record<string, unknown>;
-  // Response key varies by dataset version
-  const root = (
-    (json["SeoulRtd.citydata"] as CityDataResponse | undefined) ??
-    (json["CITYDATA_ALL"] as CityDataResponse | undefined) ??
-    (json as CityDataResponse)
-  );
-  const data = root?.CITYDATA;
+  const json = await res.json() as JsonRecord;
+  const data = unwrapCitydata(json);
   if (!data) return null;
 
-  const pop = data.LIVE_PPLTN_STTS?.[0];
-  const road = data.ROAD_TRAFFIC_STTS?.[0];
-  const weather = data.WEATHER_STTS?.[0];
+  const pop = asRecordArray(data.LIVE_PPLTN_STTS)[0] ?? {};
+  const roadRoot =
+    asRecord(data.ROAD_TRAFFIC_STTS) ??
+    asRecordArray(data.ROAD_TRAFFIC_STTS)[0] ??
+    {};
+  const avgRoad = asRecord(roadRoot.AVG_ROAD_DATA) ?? roadRoot;
+  const roadLinks = asRecordArray(roadRoot.ROAD_TRAFFIC_STTS);
+  const weather = asRecordArray(data.WEATHER_STTS)[0] ?? {};
 
   return {
-    area_name: data.AREA_NM ?? code,
+    area_name: stringValue(data.AREA_NM, code),
     area_code: code,
     fetched_at: new Date().toISOString(),
     live_population: {
-      observed_at: pop?.PPLTN_TIME ?? data.PPLTN_TIME ?? "",
-      congestion_level: pop?.AREA_CONGEST_LVL ?? data.AREA_CONGEST_LVL ?? "여유",
-      congestion_message: data.AREA_CONGEST_MSG ?? "",
-      population_min: parseInt(pop?.AREA_PPLTN_MIN ?? "0", 10),
-      population_max: parseInt(pop?.AREA_PPLTN_MAX ?? "0", 10),
+      observed_at: stringValue(pop.PPLTN_TIME ?? data.PPLTN_TIME),
+      congestion_level: stringValue(pop.AREA_CONGEST_LVL ?? data.AREA_CONGEST_LVL, "여유"),
+      congestion_message: stringValue(data.AREA_CONGEST_MSG),
+      population_min: numberValue(pop.AREA_PPLTN_MIN),
+      population_max: numberValue(pop.AREA_PPLTN_MAX),
     },
     road_traffic: {
-      observed_at: road?.ROAD_TRAFFIC_TIME ?? "",
-      index: road?.ROAD_TRAFFIC_IDX ?? "원활",
-      message: road?.ROAD_MSG ?? "",
-      speed_kmh: parseFloat(road?.ROAD_AVG_SPD ?? "0"),
-      segment_count: 0,
+      observed_at: stringValue(avgRoad.ROAD_TRAFFIC_TIME),
+      index: stringValue(avgRoad.ROAD_TRAFFIC_IDX, "원활"),
+      message: stringValue(avgRoad.ROAD_MSG),
+      speed_kmh: numberValue(avgRoad.ROAD_TRAFFIC_SPD ?? avgRoad.ROAD_AVG_SPD),
+      segment_count: roadLinks.length,
     },
     weather: {
-      observed_at: weather?.WEATHER_TIME ?? "",
-      temp_c: parseFloat(weather?.TEMP ?? "0"),
-      precipitation: weather?.PRECIPITATION ?? "-",
-      precipitation_type: weather?.PRECPT_TYPE ?? "없음",
+      observed_at: stringValue(weather.WEATHER_TIME),
+      temp_c: numberValue(weather.TEMP),
+      precipitation: stringValue(weather.PRECIPITATION, "-"),
+      precipitation_type: stringValue(weather.PRECPT_TYPE, "없음"),
     },
   };
 }

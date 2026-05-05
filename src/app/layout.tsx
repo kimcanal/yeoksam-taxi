@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "yeoksam-taxi | A-Eye Module 1 Companion",
+  title: {
+    default: "A-Eye 역삼 택시 디지털 트윈",
+    template: "%s",
+  },
   description:
     "Gangnam Station micro-area 9-dong OSM digital twin companion for the A-Eye capstone.",
 };

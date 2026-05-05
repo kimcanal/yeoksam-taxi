@@ -11,62 +11,141 @@ async function readJson(relativePath) {
   return JSON.parse(text);
 }
 
+async function readJsonIfExists(relativePath) {
+  try {
+    return await readJson(relativePath);
+  } catch {
+    return null;
+  }
+}
+
+function clamp01(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function round(value, digits = 3) {
+  return Number(value.toFixed(digits));
+}
+
 function actionFor(imbalance) {
-  if (imbalance >= 0.55) {
+  if (imbalance >= 0.45) {
     return {
       level: "high",
       label: "선제 이동",
-      recommended_taxis: 2,
+      coverage_units: 3,
       incentive_multiplier: 1.2,
     };
   }
-  if (imbalance >= 0.3) {
+  if (imbalance >= 0.25) {
     return {
       level: "medium",
       label: "커버 보강",
-      recommended_taxis: 1,
+      coverage_units: 2,
       incentive_multiplier: 1.1,
+    };
+  }
+  if (imbalance >= 0.1) {
+    return {
+      level: "watch",
+      label: "관찰",
+      coverage_units: 1,
+      incentive_multiplier: 1.05,
     };
   }
   return {
     level: "low",
     label: "유지",
-    recommended_taxis: 0,
+    coverage_units: 0,
     incentive_multiplier: 1.0,
   };
 }
 
+function supplyProxyFromTraffic(row) {
+  if (!row) {
+    return {
+      supply_proxy_score: 0.5,
+      supply_source: "fallback_neutral",
+      congestion_score: null,
+      avg_speed_kmh: null,
+      link_count: 0,
+      congested_link_count: 0,
+      slow_link_count: 0,
+    };
+  }
+
+  const congestionScore = Number(row.congestion_score);
+  const avgSpeed = Number(row.avg_speed_kmh);
+  const congestionSupply = Number.isFinite(congestionScore)
+    ? 1 - clamp01(congestionScore)
+    : null;
+  const speedSupply = Number.isFinite(avgSpeed) ? clamp01(avgSpeed / 35) : null;
+
+  let supply = 0.5;
+  let source = "fallback_neutral";
+  if (congestionSupply != null && speedSupply != null) {
+    supply = congestionSupply * 0.7 + speedSupply * 0.3;
+    source = "citydata_congestion_and_speed";
+  } else if (congestionSupply != null) {
+    supply = congestionSupply;
+    source = "citydata_congestion";
+  } else if (speedSupply != null) {
+    supply = speedSupply;
+    source = "citydata_speed";
+  }
+
+  return {
+    supply_proxy_score: round(clamp01(supply)),
+    supply_source: source,
+    congestion_score: Number.isFinite(congestionScore) ? round(congestionScore) : null,
+    avg_speed_kmh: Number.isFinite(avgSpeed) ? round(avgSpeed, 1) : null,
+    link_count: row.link_count ?? 0,
+    congested_link_count: row.congested_link_count ?? 0,
+    slow_link_count: row.slow_link_count ?? 0,
+  };
+}
+
 const forecast = await readJson("public/forecast/latest.json");
-const supply = await readJson("data/samples/supply-proxy.json");
-const supplyByDong = new Map(
-  (supply.regions ?? []).map((region) => [region.dong_name, region.idle_taxis ?? 0]),
+const traffic = await readJsonIfExists("data/processed/traffic/citydata_dong_traffic_latest.json");
+const trafficByDong = new Map(
+  (traffic?.dong_summary ?? []).map((region) => [region.dong_name, region]),
 );
 
 const decisions = (forecast.regions ?? [])
   .map((region) => {
-    const idleTaxis = supplyByDong.get(region.dong_name) ?? 0;
-    const imbalance = region.score / (idleTaxis + 1);
+    const trafficSupply = supplyProxyFromTraffic(trafficByDong.get(region.dong_name));
+    const demandScore = clamp01(Number(region.score ?? 0));
+    const imbalance = demandScore - trafficSupply.supply_proxy_score;
     const action = actionFor(imbalance);
     return {
       dong_name: region.dong_name,
-      predicted_demand_score: region.score,
+      predicted_demand_score: round(demandScore),
       confidence: region.confidence,
-      idle_taxis: idleTaxis,
-      imbalance_score: Number(imbalance.toFixed(3)),
+      supply_proxy_score: trafficSupply.supply_proxy_score,
+      supply_source: trafficSupply.supply_source,
+      congestion_score: trafficSupply.congestion_score,
+      avg_speed_kmh: trafficSupply.avg_speed_kmh,
+      link_count: trafficSupply.link_count,
+      congested_link_count: trafficSupply.congested_link_count,
+      slow_link_count: trafficSupply.slow_link_count,
+      imbalance_score: round(imbalance),
       action: action.label,
       action_level: action.level,
-      recommended_taxis: action.recommended_taxis,
+      coverage_units: action.coverage_units,
       incentive_multiplier: action.incentive_multiplier,
     };
   })
   .sort((left, right) => right.imbalance_score - left.imbalance_score);
 
 const output = {
-  source: "demo_dispatch_policy_v1",
+  source: "traffic_aware_dispatch_policy_v2",
   generated_at: new Date().toISOString(),
   forecast_source: forecast.source ?? "model",
   forecast_target_datetime: forecast.target_datetime,
-  policy: "imbalance_score = predicted_demand_score / (idle_taxis + 1)",
+  forecast_strategy: forecast.strategy ?? null,
+  traffic_source: traffic?.meta?.source ?? null,
+  traffic_collected_at: traffic?.meta?.collected_at ?? null,
+  policy: "imbalance_score = predicted_demand_score - supply_proxy_score; coverage_units are dispatch priority bands, not taxi counts",
   decisions,
 };
 

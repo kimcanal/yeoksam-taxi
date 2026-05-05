@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,6 +15,22 @@ const POI_CODES = [
   "POI042",
   "POI080",
 ];
+
+async function loadEnvFile(filePath) {
+  try {
+    const text = await readFile(filePath, "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const index = trimmed.indexOf("=");
+      const key = trimmed.slice(0, index).trim();
+      const value = trimmed.slice(index + 1).trim().replace(/^["']|["']$/g, "");
+      if (key && process.env[key] == null) process.env[key] = value;
+    }
+  } catch {
+    // Optional local file.
+  }
+}
 
 function kstParts(date = new Date()) {
   const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
@@ -38,6 +54,8 @@ async function fetchPoi(apiKey, code) {
   const json = await res.json();
   return { code, ok: true, data: json };
 }
+
+await loadEnvFile(path.join(projectRoot, ".env.local"));
 
 const apiKey = process.env.SEOUL_OPEN_API_KEY;
 if (!apiKey) {

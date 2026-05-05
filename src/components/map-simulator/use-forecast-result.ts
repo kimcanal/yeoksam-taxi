@@ -18,13 +18,18 @@ export function useForecastResult(): ForecastResult | null {
     const load = async () => {
       try {
         const res = await fetch("/forecast/latest.json", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (!cancelled) setResult(null);
+          return;
+        }
         const json = (await res.json()) as ForecastResult | null;
         if (!cancelled && Array.isArray(json?.regions) && json.regions.length > 0) {
           setResult(json);
+        } else if (!cancelled) {
+          setResult(null);
         }
       } catch {
-        // file absent or malformed — stay in sample mode
+        if (!cancelled) setResult(null);
       }
     };
 

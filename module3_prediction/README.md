@@ -51,3 +51,80 @@ The final model handoff should add:
 - short explanation of training/validation/test time split.
 
 See `../docs/spec-alignment.md` for the full capstone-spec comparison.
+
+## Current Training Path
+
+The current model-ready training table is:
+
+```text
+data/processed/features/dong_hour_features_v2_2023-01_2025-12.csv
+```
+
+Recommended target:
+
+```text
+target_inbound_boardings_per_1k_pop_t_plus_1h
+```
+
+Meaning:
+
+```text
+1시간 뒤 행정동별 유입 이동 수요를 생활인구 1,000명 기준으로 예측
+```
+
+Colab-friendly cell script:
+
+```text
+notebooks/03_dong_demand_proxy_colab.py
+```
+
+Local reproducible training command:
+
+```bash
+npm run model:train:demand-proxy
+```
+
+Outputs:
+
+- `data/processed/model/dong_demand_proxy_metrics.json`
+- `data/processed/model/dong_demand_proxy_predictions_2025.csv`
+- `data/processed/model/dong_demand_proxy_feature_importance.json`
+- `data/processed/model/dong_demand_proxy_model.joblib`
+- `data/processed/model/forecast_latest_model_backtest.json`
+
+Current test metrics:
+
+| Model | R2 | MAE | RMSE | MAPE |
+| --- | ---: | ---: | ---: | ---: |
+| HistGradientBoostingRegressor | 0.9888 | 2.5301 | 5.6787 | 21.49% |
+| persistence baseline | 0.6156 | 13.5306 | 33.3253 | 63.25% |
+
+Top permutation-importance features in the current run:
+
+1. `net_inbound_boardings_per_1k_pop`
+2. `hour`
+3. `inbound_boardings_per_1k_pop`
+4. `dong_area_m2`
+5. `inbound_boardings`
+
+To replace the dashboard forecast JSON after validating metrics:
+
+```bash
+npm run model:train:demand-proxy -- --write-public-forecast
+```
+
+## Future Prediction Note
+
+The trained model can predict future demand proxy only when future feature rows
+are available. Some features are known ahead of time, while others need
+forecasts or assumptions:
+
+- known ahead: hour, weekday, holiday, dong POI/static features
+- forecastable: weather
+- must be supplied/estimated: future traffic proxy, future living population,
+  future public-transit OD/current lag features
+
+For a 1-hour-ahead demo, use the latest observed movement/traffic features plus
+future calendar and weather forecast. For multi-hour forecasts, create future
+feature rows from historical time-of-week averages or a separate nowcasting
+pipeline.

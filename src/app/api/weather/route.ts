@@ -29,9 +29,16 @@ function kstBaseTime(): { base_date: string; base_time: string } {
 }
 
 export async function GET() {
-  const apiKey = process.env.KMA_API_KEY;
+  const apiKey =
+    process.env.KMA_API_KEY ??
+    process.env.DATA_GO_KR_API ??
+    process.env.DATA_GO_KR_API_KEY ??
+    process.env.apihub_kma_go_kr_api;
   if (!apiKey) {
-    return Response.json({ error: "KMA_API_KEY not configured" }, { status: 503 });
+    return Response.json(
+      { error: "KMA API key not configured" },
+      { status: 503 },
+    );
   }
 
   const { base_date, base_time } = kstBaseTime();

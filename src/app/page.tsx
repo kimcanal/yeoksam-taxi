@@ -1,6 +1,12 @@
 import { execSync } from "node:child_process";
 import MapSimulatorClient from "@/components/MapSimulatorClient";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "A-Eye 역삼 택시 디지털 트윈",
+};
 
 function readGitValue(command: string) {
   try {
@@ -85,12 +91,18 @@ export default function Home() {
   return (
     <main className="relative h-screen w-full overflow-hidden bg-black">
       <div className="pointer-events-none absolute left-1/2 top-3 z-50 flex -translate-x-1/2 items-center gap-2 px-3 sm:top-4">
-        <a
+        <Link
           className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/82 px-4 py-2 text-sm font-extrabold text-white shadow-2xl backdrop-blur-md transition hover:border-blue-300/70 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
           href="/presentation"
         >
           A-Eye 발표 자료
-        </a>
+        </Link>
+        <Link
+          className="pointer-events-auto rounded-full border border-white/15 bg-slate-950/82 px-4 py-2 text-sm font-extrabold text-white shadow-2xl backdrop-blur-md transition hover:border-blue-300/70 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          href="/data"
+        >
+          데이터 현황
+        </Link>
       </div>
       <MapSimulatorClient buildVersion={buildVersion} />
     </main>

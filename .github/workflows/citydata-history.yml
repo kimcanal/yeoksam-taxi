@@ -1,0 +1,36 @@
+name: Citydata History Snapshot
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect-citydata-history:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.ENABLE_CITYDATA_HISTORY == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Collect citydata snapshot
+        env:
+          SEOUL_OPEN_API_KEY: ${{ secrets.SEOUL_OPEN_API_KEY }}
+        run: node scripts/collect-citydata-loop.mjs
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: citydata-history-${{ github.run_id }}
+          path: data/raw/citydata_history/
+          retention-days: 30

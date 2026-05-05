@@ -37,6 +37,7 @@ async function latestRawPath(...segments) {
     const days = (await readdir(rawRoot, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
+      .filter((name) => /^\d{4}-\d{2}-\d{2}$/.test(name))
       .sort();
     const day = days.at(-1);
     if (!day) return null;

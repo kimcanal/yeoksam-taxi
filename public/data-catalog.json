@@ -1,0 +1,106 @@
+{
+  "project": "A-Eye / Yeoksam Taxi Digital Twin",
+  "generated_at": "2026-05-05T16:00:00+09:00",
+  "distribution_policy": {
+    "full_dataset_hosted": false,
+    "reason": "The full feature table is 77MB and is better handled as a reproducible local artifact or shared-drive file rather than a Cloudflare static asset.",
+    "public_site_hosts": [
+      "model summary",
+      "data catalog",
+      "feature-set evaluation CSV",
+      "latest forecast JSON",
+      "latest dispatch plan JSON"
+    ]
+  },
+  "sources": [
+    {
+      "name": "Seoul public-transit OD by administrative dong",
+      "provider": "Seoul Open Data Plaza",
+      "url": "https://data.seoul.go.kr/dataList/OA-21226/F/1/datasetView.do",
+      "used_for": "Movement-demand proxy target and offline validation features",
+      "live_available": false,
+      "availability_note": "Published after the fact; not a live feature."
+    },
+    {
+      "name": "TOPIS traffic information",
+      "provider": "Seoul TOPIS",
+      "url": "https://topis.seoul.go.kr/refRoom/openRefRoom_4.do",
+      "used_for": "Traffic volume proxy, road speed, congestion and supply proxy",
+      "live_available": true
+    },
+    {
+      "name": "Seoul realtime citydata",
+      "provider": "Seoul Open Data Plaza",
+      "url": "https://data.seoul.go.kr/SeoulRtd/",
+      "used_for": "Realtime place population, road congestion and weather context",
+      "live_available": true
+    },
+    {
+      "name": "Seoul living population",
+      "provider": "Seoul Open Data Plaza",
+      "url": "https://data.seoul.go.kr/dataVisual/seoul/seoulLivingPopulation.do?tr_code=rsite",
+      "used_for": "Offline demographic context and full observed model",
+      "live_available": false,
+      "availability_note": "Published after the fact; excluded from live-compatible model."
+    },
+    {
+      "name": "KMA ASOS hourly weather and nowcast",
+      "provider": "Korea Meteorological Administration / data.go.kr",
+      "url": "https://www.data.go.kr/data/15057210/openapi.do",
+      "used_for": "Temperature, precipitation, humidity, wind, pressure, snow and live weather override",
+      "live_available": true
+    },
+    {
+      "name": "Korean public holidays",
+      "provider": "Korea Astronomy and Space Science Institute / data.go.kr",
+      "url": "https://www.data.go.kr/data/15012690/openapi.do",
+      "used_for": "Holiday flag and holiday names",
+      "live_available": true
+    },
+    {
+      "name": "OpenStreetMap and Seoul spatial features",
+      "provider": "OpenStreetMap / Seoul spatial data",
+      "url": "https://www.openstreetmap.org/copyright",
+      "used_for": "Roads, buildings, transit infrastructure and static POI features",
+      "live_available": true,
+      "availability_note": "Static features are refreshed manually or by data rebuild."
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "Dong-hour feature table v2",
+      "path": "data/processed/features/dong_hour_features_v2_2023-01_2025-12.csv",
+      "size": "77MB",
+      "hosted": false,
+      "purpose": "Main training/evaluation table"
+    },
+    {
+      "name": "Live-compatible model",
+      "path": "data/processed/model_live_compatible/dong_demand_proxy_model.joblib",
+      "size": "1.1MB",
+      "hosted": false,
+      "purpose": "Runtime model artifact"
+    },
+    {
+      "name": "Feature-set evaluation",
+      "path": "public/downloads/demand_proxy_feature_set_eval.csv",
+      "size": "4KB",
+      "hosted": true,
+      "purpose": "Compare full observed, live-compatible and baseline scores"
+    },
+    {
+      "name": "Latest forecast",
+      "path": "public/forecast/latest.json",
+      "size": "4KB",
+      "hosted": true,
+      "purpose": "Map demand scores"
+    },
+    {
+      "name": "Latest dispatch plan",
+      "path": "public/dispatch-plan.json",
+      "size": "8KB",
+      "hosted": true,
+      "purpose": "Dispatch priority and imbalance scores"
+    }
+  ]
+}

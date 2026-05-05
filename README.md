@@ -70,9 +70,11 @@ npm run fetch:roads
 npm run fetch:road-network
 npm run fetch:map
 npm run data:collect:citydata
+npm run data:collect:citydata-history
 npm run data:collect:weather
 npm run data:features
 npm run data:collect:live
+npm run model:build-pattern-cache
 npm run data:summary
 npm run dispatch:plan
 ```
@@ -199,6 +201,8 @@ npm run dispatch:plan
 
 - `data:collect:citydata` writes raw local Seoul citydata snapshots under
   `data/raw/citydata/`; this path is intentionally git-ignored.
+- `data:collect:citydata-history` writes timestamped history snapshots under
+  `data/raw/citydata_history/` for later live validation.
 - `data:collect:weather` writes raw KMA nowcast snapshots under
   `data/raw/weather/`; this path is also git-ignored.
 - `data:features` converts the latest public signals into
@@ -285,8 +289,12 @@ Example model handoff:
 Weather is split the same way:
 
 - `/api/realtime` exposes the observed citydata weather bundled with each Seoul POI.
-- `/api/weather` is prepared for KMA ultra-short nowcast via `KMA_API_KEY`.
+- `/api/weather` is prepared for KMA ultra-short nowcast via `KMA_API_KEY`
+  or the compatible `DATA_GO_KR_API` / `DATA_GO_KR_API_KEY` aliases.
 - Future forecast weather should be joined into the model pipeline before writing `public/forecast/latest.json`.
+- 서울교통공사 역별 일별 시간대별 승하차 CSV can be processed with
+  `npm run data:process:metro-station-hourly -- data/raw/metro` to create a
+  station-area pressure layer mapped back to the 9 dongs.
 
 ## Notes
 

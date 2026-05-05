@@ -1,0 +1,233 @@
+{
+  "generated_at": "2026-05-05T08:46:43.416Z",
+  "feature_importance": {
+    "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
+    "model_feature_set": "live_compatible_calendar_weather_static",
+    "feature_count": 33,
+    "top_features": [
+      {
+        "rank": 1,
+        "feature": "hour",
+        "importance_mean": 1.485103,
+        "importance_std": 0.021768,
+        "normalized_importance": 1
+      },
+      {
+        "rank": 2,
+        "feature": "day_type",
+        "importance_mean": 0.375908,
+        "importance_std": 0.028386,
+        "normalized_importance": 0.2531
+      },
+      {
+        "rank": 3,
+        "feature": "subway_station_count",
+        "importance_mean": 0.197107,
+        "importance_std": 0.010027,
+        "normalized_importance": 0.1327
+      },
+      {
+        "rank": 4,
+        "feature": "avg_building_height_m",
+        "importance_mean": 0.160308,
+        "importance_std": 0.019603,
+        "normalized_importance": 0.1079
+      },
+      {
+        "rank": 5,
+        "feature": "building_footprint_area_m2",
+        "importance_mean": 0.063667,
+        "importance_std": 0.001967,
+        "normalized_importance": 0.0429
+      },
+      {
+        "rank": 6,
+        "feature": "dong_area_m2",
+        "importance_mean": 0.039811,
+        "importance_std": 0.0018,
+        "normalized_importance": 0.0268
+      },
+      {
+        "rank": 7,
+        "feature": "connector_road_length_m",
+        "importance_mean": 0.025337,
+        "importance_std": 0.001114,
+        "normalized_importance": 0.0171
+      },
+      {
+        "rank": 8,
+        "feature": "weekday",
+        "importance_mean": 0.023699,
+        "importance_std": 0.000518,
+        "normalized_importance": 0.016
+      },
+      {
+        "rank": 9,
+        "feature": "building_count",
+        "importance_mean": 0.016022,
+        "importance_std": 0.001048,
+        "normalized_importance": 0.0108
+      },
+      {
+        "rank": 10,
+        "feature": "temperature_c",
+        "importance_mean": 0.006198,
+        "importance_std": 0.000607,
+        "normalized_importance": 0.0042
+      }
+    ]
+  },
+  "live_validation": {
+    "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
+    "log_count": 7,
+    "latest_generated_at": "2026-05-05T17:46:43+09:00",
+    "latest_target_datetime": "2026-05-05T18:00:00+09:00",
+    "latest_strategy": "pattern",
+    "latest_top_region": "논현1동",
+    "latest_dispatch_region": "논현1동",
+    "latest_dispatch_action": "선제 이동",
+    "recent": [
+      {
+        "generated_at": "2026-05-05T17:46:43+09:00",
+        "target_datetime": "2026-05-05T18:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "논현1동",
+        "top_score": 1,
+        "dispatch_region": "논현1동",
+        "dispatch_action": "선제 이동"
+      },
+      {
+        "generated_at": "2026-05-05T16:08:42+09:00",
+        "target_datetime": "2026-05-05T17:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "논현1동",
+        "top_score": 1,
+        "dispatch_region": "논현1동",
+        "dispatch_action": "선제 이동"
+      },
+      {
+        "generated_at": "2026-05-05T15:42:07+09:00",
+        "target_datetime": "2026-05-05T16:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "대치4동",
+        "top_score": 1,
+        "dispatch_region": "대치4동",
+        "dispatch_action": "선제 이동"
+      },
+      {
+        "generated_at": "2026-05-05T15:13:54+09:00",
+        "target_datetime": "2026-05-05T16:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "대치4동",
+        "top_score": 1,
+        "dispatch_region": "대치4동",
+        "dispatch_action": "선제 이동"
+      },
+      {
+        "generated_at": "2026-05-05T15:08:22+09:00",
+        "target_datetime": "2026-05-05T15:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "논현1동",
+        "top_score": 1,
+        "dispatch_region": "논현1동",
+        "dispatch_action": "선제 이동"
+      }
+    ]
+  },
+  "observed_validation_2026": {
+    "source_path": "data/processed/model_live_compatible/validation_2026_q1.json",
+    "validation_dataset": "data/processed/transit/seoul_transit_dong_hourly_2026-03-01_2026-04-30.csv",
+    "generated_at": "2026-05-05T17:19:19+09:00",
+    "note": "Observed=raw transit boardings (bus+subway), Predicted=inbound_boardings_per_1k_pop proxy. Different units — compared via per-dong z-score normalization and rank correlation.",
+    "row_count": 12960,
+    "normalized_row_count": 12960,
+    "dongs": [
+      "논현1동",
+      "논현2동",
+      "대치4동",
+      "삼성1동",
+      "삼성2동",
+      "신사동",
+      "역삼1동",
+      "역삼2동",
+      "청담동"
+    ],
+    "date_range": {
+      "start": "2026-03-01",
+      "end": "2026-04-29"
+    },
+    "overall": {
+      "spearman_r": 0.41321410055588725,
+      "spearman_p": 0,
+      "pearson_r": 0.15378738483830287,
+      "pearson_p": 2.0416864823588877e-69,
+      "per_dong_spearman_mean": 0.4354131290430654,
+      "normalized_mape_pct": 382.8301454510756
+    },
+    "per_dong": [
+      {
+        "dong_name": "역삼2동",
+        "spearman_r": 0.6547708828963735,
+        "spearman_p": 4.767129504856575e-177,
+        "row_count": 1440,
+        "normalized_mape_pct": 131.263900264075
+      },
+      {
+        "dong_name": "삼성2동",
+        "spearman_r": 0.6221987322011661,
+        "spearman_p": 4.423741854898594e-155,
+        "row_count": 1440,
+        "normalized_mape_pct": 206.27468095477886
+      },
+      {
+        "dong_name": "청담동",
+        "spearman_r": 0.5379373548885993,
+        "spearman_p": 8.323776434384695e-109,
+        "row_count": 1440,
+        "normalized_mape_pct": 301.00714214743147
+      },
+      {
+        "dong_name": "신사동",
+        "spearman_r": 0.4624160146080787,
+        "spearman_p": 3.417890069282282e-77,
+        "row_count": 1440,
+        "normalized_mape_pct": 274.1937442234407
+      },
+      {
+        "dong_name": "논현1동",
+        "spearman_r": 0.46123285714120177,
+        "spearman_p": 9.302888095265888e-77,
+        "row_count": 1440,
+        "normalized_mape_pct": 361.3798539213431
+      },
+      {
+        "dong_name": "역삼1동",
+        "spearman_r": 0.3730353451932114,
+        "spearman_p": 9.1264616223764e-49,
+        "row_count": 1440,
+        "normalized_mape_pct": 1083.7613140383658
+      },
+      {
+        "dong_name": "대치4동",
+        "spearman_r": 0.3476284829837087,
+        "spearman_p": 3.6522611689965265e-42,
+        "row_count": 1440,
+        "normalized_mape_pct": 243.85609194560712
+      },
+      {
+        "dong_name": "논현2동",
+        "spearman_r": 0.27663710685924375,
+        "spearman_p": 1.0402596136254408e-26,
+        "row_count": 1440,
+        "normalized_mape_pct": 343.3507275354621
+      },
+      {
+        "dong_name": "삼성1동",
+        "spearman_r": 0.182861384616005,
+        "spearman_p": 2.7078108698694487e-12,
+        "row_count": 1440,
+        "normalized_mape_pct": 500.3838540291767
+      }
+    ]
+  }
+}

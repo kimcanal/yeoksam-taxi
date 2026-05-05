@@ -60,7 +60,7 @@
 현재 모델 설명:
 
 - Model: `HistGradientBoostingRegressor`
-- Target: `target_transit_boardings_t_plus_1h`
+- Target: `target_inbound_boardings_per_1k_pop_t_plus_1h`
 - Unit: 강남 9개 동, 날짜/시간 단위
 - Output interpretation: 실제 택시 호출량이 아니라 근미래 이동 수요 신호
 
@@ -71,14 +71,15 @@
 현재 배차 정책은 실제 기사 수락률/택시 GPS 기반 최적화가 아니라 간단한 imbalance rule입니다.
 
 ```text
-imbalance_score = predicted_demand_score / (idle_taxis + 1)
+supply_proxy_score = inverse live road congestion/speed proxy
+imbalance_score = predicted_demand_score - supply_proxy_score
 ```
 
 해석은 단순합니다.
 
-- demand가 높고 idle taxi가 적으면 우선 이동
-- demand가 높지만 supply가 있으면 커버 보강 또는 유지
-- demand가 낮으면 관찰
+- demand가 높고 도로 기반 coverability가 낮으면 우선 이동
+- demand가 높지만 coverability가 있으면 커버 보강 또는 관찰
+- demand가 낮거나 imbalance가 음수면 유지
 
 이 단계의 목적은 운영 최적화가 아니라, 예측 결과가 서비스 판단으로 어떻게 이어지는지 보여주는 prototype입니다.
 

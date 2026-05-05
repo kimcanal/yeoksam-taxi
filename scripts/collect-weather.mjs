@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,10 +59,32 @@ function kmaBaseTime(date = new Date()) {
   };
 }
 
+async function loadEnvFile(filePath) {
+  try {
+    const text = await readFile(filePath, "utf8");
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const index = trimmed.indexOf("=");
+      const key = trimmed.slice(0, index).trim();
+      const value = trimmed.slice(index + 1).trim().replace(/^["']|["']$/g, "");
+      if (key && process.env[key] == null) process.env[key] = value;
+    }
+  } catch {
+    // Optional local file.
+  }
+}
+
+await loadEnvFile(path.join(projectRoot, ".env.local"));
+
 const collectedAt = new Date();
 const kst = kstParts(collectedAt);
 const { base_date, base_time } = kmaBaseTime(collectedAt);
-const apiKey = process.env.KMA_API_KEY;
+const apiKey =
+  process.env.KMA_API_KEY ??
+  process.env.DATA_GO_KR_API ??
+  process.env.DATA_GO_KR_API_KEY ??
+  process.env.apihub_kma_go_kr_api;
 const params = new URLSearchParams({
   numOfRows: "20",
   pageNo: "1",
@@ -79,7 +101,7 @@ let data = null;
 let error = null;
 
 if (!apiKey) {
-  error = "KMA_API_KEY is not configured";
+  error = "KMA API key is not configured. Expected KMA_API_KEY or DATA_GO_KR_API.";
 } else {
   const url =
     "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst" +
