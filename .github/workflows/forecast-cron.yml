@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   update-forecast:
@@ -72,7 +72,30 @@ jobs:
           DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
           KMA_API_KEY: ${{ secrets.KMA_API_KEY }}
           SEOUL_OPEN_API_KEY: ${{ secrets.SEOUL_OPEN_API_KEY }}
-        run: node scripts/run-live-demand-cycle.mjs --skip-collect
+        run: node scripts/run-live-demand-cycle.mjs
+
+      - name: Persist generated forecast artifacts
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f \
+            public/forecast/latest.json \
+            public/dispatch-plan.json \
+            public/data-summary.json \
+            public/feature-snapshot.json \
+            public/traffic-snapshot.json \
+            public/model-observability.json \
+            data/processed/features/latest.json \
+            data/processed/live_validation/latest.json \
+            data/processed/live_validation/live_forecast_log.jsonl \
+            data/processed/traffic/citydata_dong_traffic_latest.json
+          if git diff --cached --quiet; then
+            echo "No generated forecast changes to persist."
+          else
+            git commit -m "Update live forecast artifacts [skip ci]"
+            git push
+          fi
 
       - name: Build Next.js app
         run: npm run build
