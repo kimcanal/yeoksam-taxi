@@ -4,6 +4,18 @@ This module converts predicted demand into a dispatch decision.
 
 ## Current Policy
 
+The current preferred handoff is the fused pressure artifact:
+
+```text
+public/taxi-pressure/latest.json
+```
+
+It combines the future movement-demand proxy, future traffic-volume proxy,
+predicted congestion/speed, and road accessibility into a ranked dispatch
+priority score.
+
+Legacy rule-based dispatch is still available through:
+
 ```text
 imbalance_score = predicted_demand_score - supply_proxy_score
 supply_proxy_score = inverse live road congestion/speed proxy
@@ -63,3 +75,6 @@ And writes:
 > predicted demand is high and road-based supply proxy is low.
 
 See `../docs/spec-alignment.md` for the full capstone-spec comparison.
+
+For the latest pressure model formula and live validation output, see
+`../docs/taxi-pressure-model.md`.

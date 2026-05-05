@@ -160,6 +160,7 @@ const args = process.argv.slice(2);
 const targetArg = args.find((arg) => !arg.startsWith("--"));
 const skipCollect = args.includes("--skip-collect");
 const targetDatetime = targetArg ?? defaultTargetHour();
+const pythonCommand = process.env.PYTHON_BIN ?? (process.platform === "win32" ? "python" : "python3");
 
 if (!skipCollect) {
   await runStep("citydata", "node", ["scripts/collect-citydata.mjs"]);
@@ -193,12 +194,14 @@ if (weatherPath) {
   forecastArgs.push("--weather-snapshot", weatherPath);
 }
 
-await runStep("forecast", "python3", forecastArgs);
-await runStep("traffic-forecast", "python3", [
+await runStep("forecast", pythonCommand, forecastArgs);
+await runStep("traffic-forecast", pythonCommand, [
   "scripts/predict_traffic_forecast.py",
   targetDatetime,
 ]);
+await runStep("taxi-pressure", "node", ["scripts/build-taxi-pressure-forecast.mjs"]);
 await runStep("traffic-comparison", "node", ["scripts/build-traffic-forecast-comparison.mjs"]);
+await runStep("taxi-pressure-comparison", "node", ["scripts/build-taxi-pressure-comparison.mjs"]);
 await runStep("dispatch", "node", ["module4_dispatch/run_dispatch_policy.mjs"]);
 await runStep("data-summary", "node", ["scripts/build-data-summary.mjs"]);
 
@@ -247,6 +250,7 @@ await writeFile(latestPath, `${JSON.stringify(logEntry, null, 2)}\n`);
 await appendFile(logPath, `${JSON.stringify(logEntry)}\n`);
 await runStep("live-comparison", "node", ["scripts/build-live-forecast-comparison.mjs"]);
 await runStep("model-observability", "node", ["scripts/build-model-observability.mjs"]);
+await runStep("overnight-status", "node", ["scripts/build-overnight-status.mjs"]);
 
 console.log(`\nWrote ${path.relative(projectRoot, latestPath)}`);
 console.log(`Appended ${path.relative(projectRoot, logPath)}`);

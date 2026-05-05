@@ -496,25 +496,64 @@ export function buildEnvironmentState(
             exposure: 1.1,
           };
 
+  const nightReadability = THREE.MathUtils.clamp(1 - readableNightLight, 0, 1);
+  const surfaceNightBlend = THREE.MathUtils.clamp(
+    nightReadability * 0.8 + cloudCover * 0.12,
+    0,
+    1,
+  );
+  const buildingNightBlend = THREE.MathUtils.clamp(
+    nightBuildingFactor * 0.64 + cloudCover * 0.08,
+    0,
+    0.74,
+  );
+  const baseGroundColor = mixHexColor(neutralGroundColor, 0xb8c1cc, 0.62);
+  const groundPresentationColor = mixHexColor(
+    baseGroundColor,
+    weatherMode === "heavy-rain" ? 0x657587 : 0x76828f,
+    surfaceNightBlend,
+  );
+  const roadPresentationColors: Record<RoadClass, number> = {
+    arterial: mixHexColor(
+      roadBaseColors.arterial,
+      weatherMode === "heavy-rain" ? 0xaec3d4 : 0xcbd5e1,
+      surfaceNightBlend * 0.86,
+    ),
+    connector: mixHexColor(
+      roadBaseColors.connector,
+      weatherMode === "heavy-rain" ? 0x9fb4c7 : 0xbac4d0,
+      surfaceNightBlend * 0.78,
+    ),
+    local: mixHexColor(
+      roadBaseColors.local,
+      weatherMode === "heavy-rain" ? 0x8fa5b8 : 0xaab6c2,
+      surfaceNightBlend * 0.72,
+    ),
+  };
+  const buildingPresentationTint = mixHexColor(
+    0xf1f5f9,
+    weatherMode === "heavy-rain" ? 0x4e5d6b : 0x5d6977,
+    buildingNightBlend,
+  );
+
   return {
     skyColor: mixHexColor(baseSkyColor, sunsetSkyColor, sunset * 0.72),
     fogColor: mixHexColor(baseFogColor, sunsetFogColor, sunset * 0.54),
-    fogNear: lightingPreset.fogNear,
-    fogFar: lightingPreset.fogFar,
+    fogNear: lightingPreset.fogNear * (1 - cloudCover * 0.18),
+    fogFar: lightingPreset.fogFar * (1 - cloudCover * 0.1),
     ambientColor: lightingPreset.ambientColor,
-    ambientIntensity: 0.28, /* Lowered from 0.4 for comfort */
+    ambientIntensity:
+      lightingPreset.ambientIntensity * (0.14 + readableNightLight * 0.14),
     hemiSkyColor: lightingPreset.hemiSkyColor,
     hemiGroundColor: lightingPreset.hemiGroundColor,
-    hemiIntensity: 0.15,
+    hemiIntensity:
+      lightingPreset.hemiIntensity * (0.09 + readableNightLight * 0.06),
     sunColor: lightingPreset.sunColor,
-    sunIntensity: 0.65, /* Toned down */
+    sunIntensity:
+      lightingPreset.sunIntensity * (0.42 + daylight * 0.2 + twilight * 0.06),
     sunPosition: solarDirection.multiplyScalar(190),
-    groundColor: 0xd1d5db, /* Soft Grey Ground */
-    roadColors: {
-      arterial: 0xbcc4d1,
-      connector: 0xc9d1db,
-      local: 0xd9e1e8,
-    },
+    groundColor: groundPresentationColor,
+    roadColors: roadPresentationColors,
     roadRoughness:
       weatherMode === "heavy-rain"
         ? 0.12
@@ -523,7 +562,7 @@ export function buildEnvironmentState(
       weatherMode === "heavy-rain"
         ? 0.08
         : 0.01,
-    buildingTint: 0xf1f5f9, /* Soft Light Grey Building */
+    buildingTint: buildingPresentationTint,
     laneMarkerColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd9d1bd,
     laneMarkerEmissive:
       daylight < 0.22
@@ -539,8 +578,8 @@ export function buildEnvironmentState(
     stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,
     stopLineEmissive: daylight < 0.2 ? 0x262d36 : 0x181c22,
     stopLineIntensity: daylight < 0.2 ? 0.08 : 0.03,
-    buildingEmissive: 0xffffff,
-    buildingEmissiveIntensity: 0.03, /* Subtle constant highlight */
+    buildingEmissive: mixHexColor(0xffffff, 0x8fb9ff, nightBuildingFactor * 0.18),
+    buildingEmissiveIntensity: 0.02 + nightBuildingFactor * 0.035,
     precipitation:
       weatherMode === "heavy-rain"
         ? "rain"
@@ -560,6 +599,10 @@ export function buildEnvironmentState(
           ? 0.4
           : 0,
     vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
-    exposure: lightingPreset.exposure + (1 - daylight) * 0.05,
+    exposure: THREE.MathUtils.clamp(
+      lightingPreset.exposure - surfaceNightBlend * 0.09 + daylight * 0.04,
+      0.95,
+      1.16,
+    ),
   };
 }

@@ -128,3 +128,21 @@ For a 1-hour-ahead demo, use the latest observed movement/traffic features plus
 future calendar and weather forecast. For multi-hour forecasts, create future
 feature rows from historical time-of-week averages or a separate nowcasting
 pipeline.
+
+## Current Fusion Handoff
+
+The demand model is now one input to the final taxi dispatch pressure proxy.
+Run the live cycle to collect API data, predict demand, predict traffic, fuse
+the results, and write validation logs:
+
+```bash
+npm run model:live:demand-cycle
+```
+
+The fusion output is:
+
+```text
+public/taxi-pressure/latest.json
+```
+
+See `../docs/taxi-pressure-model.md` for the formula and validation contract.

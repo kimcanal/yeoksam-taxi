@@ -3,6 +3,8 @@ import featureSnapshotJson from "../../../public/feature-snapshot.json";
 import forecastJson from "../../../public/forecast/latest.json";
 import modelObservabilityJson from "../../../public/model-observability.json";
 import modelSummaryJson from "../../../public/model-summary.json";
+import taxiPressureComparisonJson from "../../../public/taxi-pressure-comparison.json";
+import taxiPressureJson from "../../../public/taxi-pressure/latest.json";
 import trafficForecastComparisonJson from "../../../public/traffic-forecast-comparison.json";
 import trafficForecastJson from "../../../public/traffic-forecast/latest.json";
 import trafficForecastSummaryJson from "../../../public/traffic-forecast-summary.json";
@@ -269,6 +271,56 @@ type TrafficForecastComparison = {
   latest: CompletedTrafficComparison | WaitingTrafficComparison | null;
 };
 
+type TaxiPressureRegion = {
+  dong_name: string;
+  taxi_pressure_score: number;
+  dispatch_priority_score: number;
+  predicted_movement_demand_score: number;
+  predicted_traffic_volume_score: number;
+  predicted_congestion_score: number;
+  predicted_avg_speed_kmh: number;
+  road_accessibility_score: number;
+  action_level: string;
+  incentive_multiplier: number;
+};
+
+type TaxiPressureStatus = {
+  generated_at: string | null;
+  target_datetime: string | null;
+  feature_datetime: string | null;
+  model_type: string;
+  interpretation: string;
+  regions: TaxiPressureRegion[];
+};
+
+type CompletedTaxiPressureComparison = {
+  kind: "completed";
+  target_datetime: string | null;
+  overall: {
+    priority_vs_congestion_rank_spearman: number | null;
+    top_predicted_priority_dong: string | null;
+    top_actual_congestion_dong: string | null;
+    same_top_dong: boolean | null;
+  };
+};
+
+type WaitingTaxiPressureComparison = {
+  kind: "waiting";
+  target_datetime: string | null;
+  top_predicted_priority_dong: string | null;
+  top_predicted_priority_score: number | null;
+  status: "waiting_for_target_time" | "waiting_for_observed_snapshot" | string;
+};
+
+type TaxiPressureComparison = {
+  generated_at: string | null;
+  status: string | null;
+  log_count: number;
+  completed_count: number;
+  waiting_count: number;
+  latest: CompletedTaxiPressureComparison | WaitingTaxiPressureComparison | null;
+};
+
 type ModelObservability = {
   generated_at: string | null;
   feature_importance: {
@@ -290,6 +342,8 @@ const forecast = forecastJson as ForecastStatus;
 const featureSnapshot = featureSnapshotJson as FeatureStatus;
 const modelSummary = modelSummaryJson as ModelSummary;
 const observability = modelObservabilityJson as ModelObservability;
+const taxiPressure = taxiPressureJson as TaxiPressureStatus;
+const taxiPressureComparison = taxiPressureComparisonJson as TaxiPressureComparison;
 const trafficForecast = trafficForecastJson as TrafficForecastStatus;
 const trafficForecastSummary = trafficForecastSummaryJson as TrafficForecastSummary;
 const trafficForecastComparison = trafficForecastComparisonJson as TrafficForecastComparison;
@@ -409,7 +463,19 @@ function trafficGapLabel(latest: TrafficForecastComparison["latest"]) {
   return `${formatMetric(latest.overall.speed_mae_kmh, 1)}km/h`;
 }
 
+function taxiPressureValidationLabel(comparison: TaxiPressureComparison) {
+  const latest = comparison.latest;
+  if (!latest) return "예측 없음";
+  if (latest.kind === "completed") return "비교 완료";
+  if (latest.status === "waiting_for_target_time") return "검증 대기";
+  return "실제 관측 대기";
+}
+
 const places = [...dataSummary.citydata.places];
+const taxiPressureRows = [...taxiPressure.regions].sort(
+  (left, right) => right.dispatch_priority_score - left.dispatch_priority_score,
+);
+const topTaxiPressure = taxiPressureRows[0] ?? null;
 const trafficForecastRows = [...trafficForecast.regions].sort(
   (left, right) => right.predicted_congestion_score - left.predicted_congestion_score,
 );
@@ -491,7 +557,7 @@ export default function DataStatusPage() {
           </section>
         </header>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-3">
+        <section className="mt-8 grid gap-4 lg:grid-cols-4">
           <FlowCard
             icon={<Radio className="h-5 w-5" />}
             eyebrow="1. 예측값 저장"
@@ -512,6 +578,13 @@ export default function DataStatusPage() {
             title="예측값과 실제값 비교"
             body="target 시간이 지난 뒤 들어온 API 관측값과 예측값을 매칭해 속도 MAE와 혼잡도 rank 차이를 누적합니다."
             footer={`도로 모델 MAPE: ${formatMetric(trafficForecastSummary.overall.mape_pct, 1)}%`}
+          />
+          <FlowCard
+            icon={<Route className="h-5 w-5" />}
+            eyebrow="4. 배차 판단"
+            title="택시 배차 pressure 모델"
+            body="수요 proxy, 교통량, 혼잡도, 도로 접근성을 결합해 1시간 뒤 우선 배차가 필요한 동을 순위화합니다."
+            footer={`pressure top: ${topTaxiPressure?.dong_name ?? "-"}`}
           />
         </section>
 
@@ -683,7 +756,40 @@ export default function DataStatusPage() {
           </Panel>
         </section>
 
-        <section className="mt-8 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="mt-8 grid gap-6 xl:grid-cols-3">
+          <Panel>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-rose-600">최종 배차 판단</p>
+                <h2 className="mt-2 text-2xl font-black text-slate-900">택시 배차 pressure</h2>
+              </div>
+              <ShieldCheck className="h-6 w-6 text-rose-600" />
+            </div>
+            <div className="mt-5 space-y-3">
+              {taxiPressureRows.slice(0, 6).map((row) => (
+                <div
+                  key={row.dong_name}
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="font-black text-slate-950">{row.dong_name}</p>
+                    <p className="text-sm font-bold text-rose-700">
+                      {(row.dispatch_priority_score * 100).toFixed(0)}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    demand {(row.predicted_movement_demand_score * 100).toFixed(0)} · traffic{" "}
+                    {(row.predicted_traffic_volume_score * 100).toFixed(0)} · access{" "}
+                    {(row.road_accessibility_score * 100).toFixed(0)} · {row.action_level}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs font-bold text-slate-500">
+              검증 상태: {taxiPressureValidationLabel(taxiPressureComparison)}
+            </p>
+          </Panel>
+
           <Panel>
             <div className="flex items-start justify-between gap-4">
               <div>

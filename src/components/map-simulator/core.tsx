@@ -3787,8 +3787,6 @@ export function buildSignalsFromOsm(
       east: Math.PI / 2,
       west: -Math.PI / 2,
     };
-    const directionsByAxis = new Map<SignalDirection, SignalDirection[]>();
-
     nearbySegmentsForSignal.forEach((segment) => {
       const startVector = segment.start.clone().sub(anchorNode.point);
       const endVector = segment.end.clone().sub(anchorNode.point);
@@ -3805,7 +3803,6 @@ export function buildSignalsFromOsm(
 
     const approaches = (Object.keys(approachYaws) as SignalDirection[]).filter(
       (dir) => {
-        const vector = signalVectorForDirection(dir);
         return nearbySegmentsForSignal.some((s) => {
           const v1 = s.start.clone().sub(anchorNode.point);
           const v2 = s.end.clone().sub(anchorNode.point);

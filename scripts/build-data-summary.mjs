@@ -100,6 +100,8 @@ const rawCitydata = latestPath
 const forecast = await readJsonIfExists("public/forecast/latest.json");
 const dispatchPlan = await readJsonIfExists("public/dispatch-plan.json");
 const featureSnapshot = await readJsonIfExists("public/feature-snapshot.json");
+const taxiPressure = await readJsonIfExists("public/taxi-pressure/latest.json");
+const taxiPressureComparison = await readJsonIfExists("public/taxi-pressure-comparison.json");
 
 const summary = {
   generated_at: new Date().toISOString(),
@@ -135,6 +137,24 @@ const summary = {
         generated_at: dispatchPlan.generated_at,
         top_region: dispatchPlan.decisions?.[0] ?? null,
         decision_count: dispatchPlan.decisions?.length ?? 0,
+      }
+    : null,
+  taxi_pressure: taxiPressure
+    ? {
+        source: taxiPressure.source,
+        generated_at: taxiPressure.generated_at,
+        target_datetime: taxiPressure.target_datetime,
+        top_region: taxiPressure.regions?.[0] ?? null,
+        region_count: taxiPressure.regions?.length ?? 0,
+      }
+    : null,
+  taxi_pressure_validation: taxiPressureComparison
+    ? {
+        generated_at: taxiPressureComparison.generated_at,
+        status: taxiPressureComparison.status,
+        completed_count: taxiPressureComparison.completed_count,
+        waiting_count: taxiPressureComparison.waiting_count,
+        latest: taxiPressureComparison.latest ?? null,
       }
     : null,
   features: featureSnapshot

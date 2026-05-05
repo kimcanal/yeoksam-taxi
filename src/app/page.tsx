@@ -90,8 +90,8 @@ export default function Home() {
 
   return (
     <main className="relative h-screen w-full overflow-hidden bg-black">
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 pointer-events-none">
-        <div className="glass-panel px-6 py-2 rounded-full flex items-center gap-6 pointer-events-auto bg-slate-900/50 backdrop-blur-xl border border-white/10 shadow-2xl">
+      <div className="pointer-events-none absolute top-6 left-1/2 z-50 hidden -translate-x-1/2 items-center gap-4 md:flex">
+        <div className="pointer-events-auto flex items-center gap-6 rounded-full border border-white/12 bg-slate-950/86 px-6 py-2 text-white shadow-2xl shadow-black/30 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="h-2 w-2 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]"></div>
@@ -105,13 +105,13 @@ export default function Home() {
           <nav className="flex items-center gap-1">
             <Link
               href="/presentation"
-              className="px-4 py-1.5 rounded-full text-xs font-bold text-slate-400 transition hover:text-slate-100 hover:bg-white/5"
+              className="rounded-full px-4 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/8 hover:text-white"
             >
               PRESENTATION
             </Link>
             <Link
               href="/data"
-              className="px-4 py-1.5 rounded-full text-xs font-bold text-slate-400 transition hover:text-slate-100 hover:bg-white/5"
+              className="rounded-full px-4 py-1.5 text-xs font-bold text-slate-300 transition hover:bg-white/8 hover:text-white"
             >
               DATA CENTER
             </Link>
@@ -122,8 +122,8 @@ export default function Home() {
       <div className="relative w-full h-full">
         <MapSimulatorClient buildVersion={buildVersion} />
 
-        <div className="absolute bottom-8 left-8 z-10 pointer-events-none">
-          <div className="glass-panel px-4 py-3 rounded-xl border-l-4 border-l-cyan-500 bg-slate-900/50 backdrop-blur-xl border border-white/10">
+        <div className="pointer-events-none absolute bottom-8 left-8 z-10 hidden md:block lg:hidden">
+          <div className="rounded-xl border border-white/10 border-l-4 border-l-cyan-400 bg-slate-950/84 px-4 py-3 text-white shadow-2xl shadow-black/30 backdrop-blur-xl">
             <div className="text-[10px] font-black text-cyan-500 uppercase tracking-wider mb-1">Area Focus</div>
             <div className="text-lg font-black text-slate-100">Gangnam-gu Yeoksam-dong</div>
             <div className="text-[10px] text-slate-500 mt-1">Digital Twin v1.0.4 · Real-time Sync Active</div>

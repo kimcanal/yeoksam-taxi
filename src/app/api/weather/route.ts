@@ -29,12 +29,19 @@ function kstBaseTime(): { base_date: string; base_time: string } {
 }
 
 export async function GET() {
-  const apiKey =
-    process.env.KMA_API_KEY ??
-    process.env.DATA_GO_KR_API ??
-    process.env.DATA_GO_KR_API_KEY ??
-    process.env.apihub_kma_go_kr_api;
-  if (!apiKey) {
+  const apiKeyCandidates = [
+    ["KMA_API_KEY", process.env.KMA_API_KEY],
+    ["DATA_GO_KR_API", process.env.DATA_GO_KR_API],
+    ["DATA_GO_KR_API_KEY", process.env.DATA_GO_KR_API_KEY],
+    ["apihub_kma_go_kr_api", process.env.apihub_kma_go_kr_api],
+  ]
+    .filter((candidate): candidate is [string, string] => Boolean(candidate[1]))
+    .filter(
+      (candidate, index, candidates) =>
+        candidates.findIndex(([, value]) => value === candidate[1]) === index,
+    );
+
+  if (!apiKeyCandidates.length) {
     return Response.json(
       { error: "KMA API key not configured" },
       { status: 503 },
@@ -44,7 +51,6 @@ export async function GET() {
   const { base_date, base_time } = kstBaseTime();
 
   const params = new URLSearchParams({
-    serviceKey: apiKey,
     numOfRows: "10",
     pageNo: "1",
     dataType: "JSON",
@@ -54,19 +60,37 @@ export async function GET() {
     ny: String(KMA_NY),
   });
 
-  const res = await fetch(
-    `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?${params}`,
-    { cache: "no-store" },
-  );
+  let json: Record<string, unknown> | null = null;
+  let credentialSource: string | null = null;
+  let lastStatus: number | null = null;
+  let lastError = "";
 
-  if (!res.ok) {
+  for (const [source, apiKey] of apiKeyCandidates) {
+    const res = await fetch(
+      `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey=${apiKey}&${params}`,
+      { cache: "no-store" },
+    );
+    lastStatus = res.status;
+    credentialSource = source;
+    if (res.ok) {
+      json = await res.json() as Record<string, unknown>;
+      break;
+    }
+    lastError = (await res.text()).slice(0, 500);
+  }
+
+  if (!json) {
     return Response.json(
-      { error: "KMA upstream error", status: res.status },
+      {
+        error: "KMA upstream error",
+        status: lastStatus,
+        credential_source: credentialSource,
+        detail: lastError,
+      },
       { status: 502 },
     );
   }
 
-  const json = await res.json() as Record<string, unknown>;
   const rawItems =
     (json as { response?: { body?: { items?: { item?: unknown[] } } } })
       ?.response?.body?.items?.item ?? [];
@@ -75,6 +99,7 @@ export async function GET() {
   return Response.json({
     meta: {
       source: "KMA VilageFcstInfoService_2.0",
+      credential_source: credentialSource,
       grid: { nx: KMA_NX, ny: KMA_NY },
       fetched_at: new Date().toISOString(),
     },

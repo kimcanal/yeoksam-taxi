@@ -1,174 +1,110 @@
 {
-  "generated_at": "2026-05-05T16:27:58.063Z",
-  "raw_citydata_path": "data\\raw\\citydata\\2026-05-06\\0127.json",
-  "raw_weather_path": "data\\raw\\weather\\2026-05-06\\0127.json",
-  "citydata": {
-    "collected_at": "2026-05-05T16:27:50.235Z",
-    "source": "Seoul citydata OA-21285",
-    "place_count": 7,
-    "top_population": {
-      "area_name": "강남역",
-      "congestion_level": "여유",
-      "population_min": 20000,
-      "population_max": 22000,
-      "traffic_index": "서행",
-      "traffic_speed_kmh": 19,
-      "traffic_observed_at": "2026-05-06 01:25",
-      "temperature_c": 9.5,
-      "precipitation_type": "없음",
-      "observed_at": "2026-05-06 00:55"
-    },
-    "places": [
+  "generated_at": "2026-05-05T16:27:58.245Z",
+  "generated_at_kst": "2026. 05. 06. 01:27",
+  "automation_window": {
+    "until_kst": "2026-05-06 09:00",
+    "purpose": "overnight model QA and public-data proxy model improvement"
+  },
+  "latest_api_collection": {
+    "citydata_collected_at": "2026-05-05T16:27:50.235Z",
+    "raw_citydata_path": "data\\raw\\citydata\\2026-05-06\\0127.json",
+    "raw_weather_path": "data\\raw\\weather\\2026-05-06\\0127.json",
+    "kma_ok": true,
+    "kma_status": 200,
+    "weather_meaning": "강수 없음. 데이터 누락이 아닙니다.",
+    "kma_nowcast": {
+      "temperature_c": 9.1,
+      "precipitation_mm_1h": 0,
+      "precipitation_type_code": "0",
+      "humidity_pct": 67,
+      "wind_speed_ms": 1.7
+    }
+  },
+  "latest_targets": {
+    "demand_target_datetime": "2026-05-06T02:00:00+09:00",
+    "traffic_target_datetime": "2026-05-06T02:00:00+09:00",
+    "taxi_pressure_target_datetime": "2026-05-06T02:00:00+09:00"
+  },
+  "top_predictions": {
+    "taxi_pressure": [
       {
-        "area_name": "강남 MICE 관광특구",
-        "congestion_level": "여유",
-        "population_min": 2000,
-        "population_max": 2500,
-        "traffic_index": "서행",
-        "traffic_speed_kmh": 23,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 9.5,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 1,
+        "dong_name": "역삼1동",
+        "score": 0.5204,
+        "action_level": "watch"
       },
       {
-        "area_name": "강남역",
-        "congestion_level": "여유",
-        "population_min": 20000,
-        "population_max": 22000,
-        "traffic_index": "서행",
-        "traffic_speed_kmh": 19,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 9.5,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 2,
+        "dong_name": "논현1동",
+        "score": 0.4103,
+        "action_level": "watch"
       },
       {
-        "area_name": "선릉역",
-        "congestion_level": "여유",
-        "population_min": 16000,
-        "population_max": 18000,
-        "traffic_index": "서행",
-        "traffic_speed_kmh": 22,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 9.5,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 3,
+        "dong_name": "청담동",
+        "score": 0.2329,
+        "action_level": "low"
       },
       {
-        "area_name": "신논현역·논현역",
-        "congestion_level": "여유",
-        "population_min": 5000,
-        "population_max": 5500,
-        "traffic_index": "서행",
-        "traffic_speed_kmh": 22,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 9.5,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 4,
+        "dong_name": "대치4동",
+        "score": 0.1838,
+        "action_level": "low"
       },
       {
-        "area_name": "압구정로데오거리",
-        "congestion_level": "여유",
-        "population_min": 10000,
-        "population_max": 12000,
-        "traffic_index": "원활",
-        "traffic_speed_kmh": 25,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 13.4,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 5,
+        "dong_name": "삼성1동",
+        "score": 0.177,
+        "action_level": "low"
+      }
+    ],
+    "demand_proxy": [
+      {
+        "rank": 1,
+        "dong_name": "역삼1동",
+        "score": 1,
+        "action_level": null
       },
       {
-        "area_name": "역삼역",
-        "congestion_level": "여유",
-        "population_min": 10000,
-        "population_max": 12000,
-        "traffic_index": "서행",
-        "traffic_speed_kmh": 23,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 9.5,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 2,
+        "dong_name": "논현1동",
+        "score": 0.3222,
+        "action_level": null
       },
       {
-        "area_name": "청담동 명품거리",
-        "congestion_level": "여유",
-        "population_min": 1500,
-        "population_max": 2000,
-        "traffic_index": "원활",
-        "traffic_speed_kmh": 25,
-        "traffic_observed_at": "2026-05-06 01:25",
-        "temperature_c": 13.4,
-        "precipitation_type": "없음",
-        "observed_at": "2026-05-06 00:55"
+        "rank": 3,
+        "dong_name": "대치4동",
+        "score": 0.2884,
+        "action_level": null
+      }
+    ],
+    "traffic_congestion": [
+      {
+        "rank": 1,
+        "dong_name": "논현1동",
+        "score": 0.783,
+        "action_level": null
+      },
+      {
+        "rank": 2,
+        "dong_name": "청담동",
+        "score": 0.5228,
+        "action_level": null
+      },
+      {
+        "rank": 3,
+        "dong_name": "신사동",
+        "score": 0.4921,
+        "action_level": null
       }
     ]
   },
-  "forecast": {
-    "source": "model",
-    "target_datetime": "2026-05-06T02:00:00+09:00",
-    "strategy": "pattern",
-    "feature_set": "live_compatible_calendar_weather_static",
-    "model_feature_set": "model_live_compatible",
-    "weather": "clear",
-    "generated_at": "2026-05-06T01:27:55+0900",
-    "region_count": 9
-  },
-  "dispatch": {
-    "generated_at": "2026-05-05T16:27:58.008Z",
-    "top_region": {
-      "dong_name": "역삼1동",
-      "predicted_demand_score": 1,
-      "confidence": 0.58,
-      "supply_proxy_score": 0.503,
-      "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.552,
-      "avg_speed_kmh": 22.1,
-      "link_count": 91,
-      "congested_link_count": 32,
-      "slow_link_count": 28,
-      "imbalance_score": 0.497,
-      "action": "수요 집중 매우 높음",
-      "action_level": "high",
-      "coverage_units": 3,
-      "incentive_multiplier": 1.2
-    },
-    "decision_count": 9
-  },
-  "taxi_pressure": {
-    "source": "taxi_pressure_fusion_model_v1",
-    "generated_at": "2026-05-05T16:27:57.828Z",
-    "target_datetime": "2026-05-06T02:00:00+09:00",
-    "top_region": {
-      "dong_name": "역삼1동",
-      "taxi_pressure_score": 0.6091,
-      "dispatch_priority_score": 0.5204,
-      "demand_access_gap": 0.2677,
-      "predicted_movement_demand_score": 1,
-      "predicted_movement_raw": 4.692949,
-      "predicted_traffic_volume_score": 0.071,
-      "predicted_traffic_volume_proxy": 714.194,
-      "predicted_congestion_score": 0.2538,
-      "predicted_avg_speed_kmh": 24.6,
-      "road_accessibility_score": 0.7323,
-      "current_congestion_score": 0.552,
-      "current_avg_speed_kmh": 22.1,
-      "current_link_count": 91,
-      "confidence": 0.706,
-      "action_level": "watch",
-      "action": "monitor_next_refresh",
-      "monitoring_units": 1,
-      "incentive_multiplier": 1.05
-    },
-    "region_count": 9
-  },
-  "taxi_pressure_validation": {
-    "generated_at": "2026-05-05T16:27:57.955Z",
-    "status": "has_completed_comparison",
-    "completed_count": 2,
-    "waiting_count": 1,
-    "latest": {
+  "validation": {
+    "taxi_pressure_status": "has_completed_comparison",
+    "taxi_pressure_log_count": 3,
+    "taxi_pressure_completed_count": 2,
+    "taxi_pressure_waiting_count": 1,
+    "latest_pressure_comparison": {
       "kind": "completed",
       "generated_at": "2026-05-05T15:55:09.660Z",
       "target_datetime": "2026-05-06T01:00:00+09:00",
@@ -379,38 +315,8 @@
           "actual_slowest_rank": 8
         }
       ]
-    }
-  },
-  "features": {
-    "generated_at": "2026-05-05T16:27:51.128Z",
-    "row_count": 7,
-    "top_area": {
-      "area_code": "POI014",
-      "area_name": "강남역",
-      "hour": 1,
-      "weekday": 3,
-      "is_weekend": false,
-      "time_band": "late_night",
-      "live_population_min": 20000,
-      "live_population_max": 22000,
-      "live_population_mid": 21000,
-      "congestion_level": "여유",
-      "congestion_score": 0.2,
-      "traffic_index": "서행",
-      "traffic_score": 0.6,
-      "traffic_speed_kmh": 19,
-      "city_weather_temp_c": 9.5,
-      "city_precipitation_type": "없음",
-      "kma_temperature_c": 9.1,
-      "kma_precipitation_mm_1h": 0,
-      "kma_humidity_pct": 67,
-      "kma_wind_speed_ms": 1.7,
-      "subway_station_count": 4,
-      "subway_arrival_count": 0,
-      "bus_stop_count": 43,
-      "event_count": 0,
-      "demand_proxy_score": 0.425
     },
-    "source": "public_signal_feature_snapshot_v1"
-  }
+    "live_log_count": 4
+  },
+  "note": "This status tracks public-data proxy forecasts, not direct KakaoT taxi-call predictions."
 }

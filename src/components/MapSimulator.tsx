@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Gauge,
+  Map as MapIcon,
+  Maximize2,
+  Minimize2,
+  Navigation,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
@@ -39,6 +48,7 @@ import {
   DEFAULT_TAXI_COUNT,
   DEFAULT_TRAFFIC_COUNT,
   FpsMode,
+  FpsStats,
   PANEL_ACCENT_CARD_CLASS,
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
@@ -352,6 +362,14 @@ function dispatchMiniMapIconColor(level: string | null | undefined) {
   return "#94a3b8";
 }
 
+function mapToolButtonClass(active: boolean) {
+  return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
+    active
+      ? "border-cyan-300/35 bg-cyan-300/14 text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.12)]"
+      : "border-white/10 bg-slate-950/82 text-slate-300 hover:border-white/20 hover:bg-slate-900/86 hover:text-white"
+  }`;
+}
+
 function liveAreaScore(area: LiveArea) {
   const congestion = LIVE_CONGESTION_SCORE[area.congestionLevel] ?? 0;
   const traffic = LIVE_TRAFFIC_SCORE[area.trafficIndex] ?? 0;
@@ -386,7 +404,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const [followTaxiId, setFollowTaxiId] = useState("");
   const [showFps, setShowFps] = useState(false);
   const [fpsMode] = useState<FpsMode>("fixed60");
-  const [, setFpsStats] = useState({
+  const [fpsStats, setFpsStats] = useState<FpsStats>({
     fps: 60,
     capLabel: "60 FPS",
     simulationMs: 0,
@@ -397,6 +415,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     simulationHz: 0,
     vehicles: 0,
   });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMapFocusMode, setIsMapFocusMode] = useState(false);
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
   const appliedTrafficCount = DEFAULT_TRAFFIC_COUNT;
   const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
@@ -905,12 +925,51 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     { id: "live", label: "실시간" },
     { id: "specific", label: "특정 시각" },
   ];
+  const isSidebarVisible = !isSidebarCollapsed && !isMapFocusMode;
+  const mapCanvasClass = isSidebarVisible
+    ? "h-full w-full border-r border-white/10 lg:w-[62vw] xl:w-[calc(100%-500px)]"
+    : "h-full w-full";
+  const floatingControlOffsetClass = isSidebarVisible
+    ? "lg:right-[calc(min(38vw,500px)+1rem)]"
+    : "lg:right-4";
+
+  function toggleMapFocusMode() {
+    setIsMapFocusMode((current) => {
+      const next = !current;
+      if (next) {
+        setIsSidebarCollapsed(true);
+        setCameraMode("overview");
+      } else {
+        setIsSidebarCollapsed(false);
+      }
+      return next;
+    });
+  }
+
+  function toggleOverviewCamera() {
+    setCameraMode((current) => {
+      const next = current === "overview" ? "drive" : "overview";
+      if (next === "overview") {
+        setIsSidebarCollapsed(true);
+      }
+      return next;
+    });
+  }
+
+  function toggleSidebar() {
+    if (isSidebarVisible) {
+      setIsSidebarCollapsed(true);
+      return;
+    }
+    setIsMapFocusMode(false);
+    setIsSidebarCollapsed(false);
+  }
 
   return (
     <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
       <div
         ref={containerRef}
-        className="h-full w-full border-r border-white/10 lg:w-[58vw] xl:w-[calc(100%-560px)]"
+        className={mapCanvasClass}
       />
       <MapSimulatorSceneRuntime
         containerRef={containerRef}
@@ -1003,6 +1062,118 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       ) : null}
 
+      <div
+        data-ui-panel="map-toolbar"
+        className={`absolute bottom-4 z-20 hidden items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/82 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:flex ${floatingControlOffsetClass}`}
+      >
+        <button
+          type="button"
+          data-ui-control="map-focus-toggle"
+          aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
+          aria-pressed={isMapFocusMode}
+          title={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
+          onClick={toggleMapFocusMode}
+          className={mapToolButtonClass(isMapFocusMode)}
+        >
+          {isMapFocusMode ? (
+            <Minimize2 className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{isMapFocusMode ? "해제" : "집중"}</span>
+        </button>
+        <button
+          type="button"
+          data-ui-control="camera-mode-toggle"
+          aria-label={cameraMode === "overview" ? "주행 카메라" : "조감 카메라"}
+          aria-pressed={cameraMode === "overview"}
+          title={cameraMode === "overview" ? "주행 카메라" : "조감 카메라"}
+          onClick={toggleOverviewCamera}
+          className={mapToolButtonClass(cameraMode === "overview")}
+        >
+          {cameraMode === "overview" ? (
+            <Navigation className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <MapIcon className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{cameraMode === "overview" ? "주행" : "조감"}</span>
+        </button>
+        <button
+          type="button"
+          data-ui-control="sidebar-toggle"
+          aria-label={isSidebarVisible ? "분석 패널 접기" : "분석 패널 열기"}
+          aria-pressed={!isSidebarVisible}
+          title={isSidebarVisible ? "분석 패널 접기" : "분석 패널 열기"}
+          onClick={toggleSidebar}
+          className={mapToolButtonClass(!isSidebarVisible)}
+        >
+          {isSidebarVisible ? (
+            <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{isSidebarVisible ? "접기" : "패널"}</span>
+        </button>
+        <button
+          type="button"
+          data-ui-control="render-diagnostics-toggle"
+          aria-label={showFps ? "렌더 상태 숨기기" : "렌더 상태 보기"}
+          aria-pressed={showFps}
+          title={showFps ? "렌더 상태 숨기기" : "렌더 상태 보기"}
+          onClick={() => setShowFps((current) => !current)}
+          className={mapToolButtonClass(showFps)}
+        >
+          <Gauge className="h-4 w-4" aria-hidden="true" />
+          <span>FPS</span>
+        </button>
+      </div>
+
+      {showFps ? (
+        <div
+          data-ui-panel="render-diagnostics"
+          className={`absolute bottom-20 z-20 hidden w-[260px] rounded-2xl border border-cyan-300/15 bg-slate-950/88 p-3 text-xs text-slate-300 shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:block ${floatingControlOffsetClass}`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className={PANEL_SECTION_LABEL_CLASS}>렌더 상태</div>
+            <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.08] px-2 py-0.5 font-semibold text-cyan-100">
+              {fpsStats.capLabel}
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="text-slate-500">FPS</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-slate-50">
+                {fpsStats.fps}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="text-slate-500">차량</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-slate-50">
+                {fpsStats.vehicles}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="text-slate-500">시뮬</div>
+              <div className="mt-1 font-semibold tabular-nums text-slate-100">
+                {fpsStats.simulationMs.toFixed(2)}ms
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="text-slate-500">렌더</div>
+              <div className="mt-1 font-semibold tabular-nums text-slate-100">
+                {fpsStats.renderMs.toFixed(2)}ms
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
+            <span className="text-slate-500">simulation Hz</span>
+            <span className="font-semibold tabular-nums text-slate-100">
+              {fpsStats.simulationHz}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="absolute bottom-4 left-4 z-10 hidden rounded-2xl border border-white/10 bg-slate-950/78 px-4 py-3 text-xs text-slate-300 shadow-xl backdrop-blur-md lg:block">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-cyan-100">지도 범위</span>
@@ -1015,7 +1186,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
       <div
         data-ui-panel="desktop-simulation-clock"
-        className="absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4"
+        className={`absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4 ${isMapFocusMode ? "lg:hidden" : ""}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1129,10 +1300,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       </div>
 
-      <div
-        data-ui-panel="right-sidebar"
-        className="absolute bottom-0 left-0 right-0 z-10 max-h-[64vh] overflow-y-auto border-t border-white/10 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-md lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[42vw] lg:min-w-[420px] lg:max-w-[560px] lg:border-l lg:border-t-0 lg:p-5"
-      >
+      {isSidebarVisible ? (
+        <div
+          data-ui-panel="right-sidebar"
+          className="absolute bottom-0 left-0 right-0 z-10 max-h-[64vh] overflow-y-auto border-t border-white/10 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-md lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:border-l lg:border-t-0 lg:p-5"
+        >
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className={PANEL_EYEBROW_CLASS}>수요 예측</p>
@@ -1621,7 +1793,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             주변 주요 도로/건물의 근접 일치입니다.
           </div>
         </div>
-      </div>
+        </div>
+      ) : null}
 
     </section>
   );

@@ -75,6 +75,8 @@ npm run data:collect:weather
 npm run data:features
 npm run data:collect:live
 npm run model:build-pattern-cache
+npm run model:taxi-pressure
+npm run model:taxi-pressure:compare
 npm run data:summary
 npm run dispatch:plan
 ```

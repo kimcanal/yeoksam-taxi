@@ -4026,6 +4026,9 @@ export default function MapSimulatorSceneRuntime({
     const onResize = () => {
       const width = container.clientWidth;
       const height = container.clientHeight;
+      if (width <= 0 || height <= 0) {
+        return;
+      }
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       applyRenderBudget(cameraModeRef.current);
@@ -4245,6 +4248,11 @@ export default function MapSimulatorSceneRuntime({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
     renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => onResize());
+    resizeObserver?.observe(container);
 
     applyEnvironment(
       simulationDateRef.current,
@@ -4846,6 +4854,7 @@ export default function MapSimulatorSceneRuntime({
       window.removeEventListener("keydown", markUserInteraction, true);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      resizeObserver?.disconnect();
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
