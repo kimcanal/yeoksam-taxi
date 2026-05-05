@@ -15,10 +15,10 @@ type RefreshResponse = {
 };
 
 function statusClass(status: RefreshState["status"]) {
-  if (status === "success") return "border-emerald-300/40 bg-emerald-400/10 text-emerald-100";
-  if (status === "error") return "border-rose-400/40 bg-rose-500/10 text-rose-100";
-  if (status === "loading") return "border-cyan-300/35 bg-cyan-400/10 text-cyan-100";
-  return "border-white/10 bg-black/15 text-slate-300";
+  if (status === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (status === "error") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (status === "loading") return "border-sky-200 bg-sky-50 text-sky-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 export default function RefreshForecastControl() {
@@ -72,21 +72,21 @@ export default function RefreshForecastControl() {
   }
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.04]">
-      <div className="border-b border-white/10 px-5 py-4">
-        <h2 className="text-lg font-semibold">예측 갱신 요청</h2>
-        <p className="mt-1 text-sm text-slate-400">
+    <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-lg font-black">예측 갱신 요청</h2>
+        <p className="mt-1 text-sm text-slate-500">
           버튼 하나로 예측 생성, 배차 계산, Cloudflare 배포를 이어 실행합니다.
         </p>
       </div>
       <div className="space-y-4 px-5 py-5">
         <label className="block text-sm">
-          <span className="text-slate-400">관리자 토큰</span>
+          <span className="font-semibold text-slate-600">관리자 토큰</span>
           <input
             type="password"
             value={token}
             onChange={(event) => setToken(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-300/45"
+            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
             placeholder="ADMIN_REFRESH_TOKEN"
           />
         </label>
@@ -94,7 +94,7 @@ export default function RefreshForecastControl() {
           type="button"
           onClick={requestRefresh}
           disabled={!canSubmit}
-          className="w-full rounded-lg border border-cyan-300/35 bg-cyan-400/15 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-slate-500"
+          className="w-full rounded-lg border border-sky-600 bg-sky-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
         >
           최신 예측 갱신
         </button>
