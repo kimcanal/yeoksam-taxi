@@ -162,7 +162,19 @@ def load_weather_overrides(path: Path | None) -> dict[str, float]:
         return {}
 
     data = json.loads(path.read_text(encoding="utf-8"))
-    items = data.get("data", {}).get("response", {}).get("body", {}).get("items", {}).get("item")
+    if not isinstance(data, dict):
+        return {}
+
+    response_data = data.get("data")
+    if not isinstance(response_data, dict):
+        return {}
+
+    items = (
+        response_data.get("response", {})
+        .get("body", {})
+        .get("items", {})
+        .get("item")
+    )
     if not isinstance(items, list):
         return {}
 

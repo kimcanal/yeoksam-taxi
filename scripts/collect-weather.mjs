@@ -80,11 +80,16 @@ await loadEnvFile(path.join(projectRoot, ".env.local"));
 const collectedAt = new Date();
 const kst = kstParts(collectedAt);
 const { base_date, base_time } = kmaBaseTime(collectedAt);
-const apiKey =
-  process.env.KMA_API_KEY ??
-  process.env.DATA_GO_KR_API ??
-  process.env.DATA_GO_KR_API_KEY ??
-  process.env.apihub_kma_go_kr_api;
+const apiKeyCandidates = [
+  ["KMA_API_KEY", process.env.KMA_API_KEY],
+  ["DATA_GO_KR_API", process.env.DATA_GO_KR_API],
+  ["DATA_GO_KR_API_KEY", process.env.DATA_GO_KR_API_KEY],
+  ["apihub_kma_go_kr_api", process.env.apihub_kma_go_kr_api],
+]
+  .filter(([, value]) => value)
+  .filter((candidate, index, candidates) => (
+    candidates.findIndex(([, value]) => value === candidate[1]) === index
+  ));
 const params = new URLSearchParams({
   numOfRows: "20",
   pageNo: "1",
@@ -99,19 +104,25 @@ let ok = false;
 let status = null;
 let data = null;
 let error = null;
+let credentialSource = null;
 
-if (!apiKey) {
+if (apiKeyCandidates.length === 0) {
   error = "KMA API key is not configured. Expected KMA_API_KEY or DATA_GO_KR_API.";
 } else {
-  const url =
-    "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst" +
-    `?serviceKey=${apiKey}&${params}`;
-  const res = await fetch(url, { cache: "no-store" });
-  status = res.status;
-  ok = res.ok;
-  if (res.ok) {
-    data = await res.json();
-  } else {
+  for (const [source, apiKey] of apiKeyCandidates) {
+    const url =
+      "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst" +
+      `?serviceKey=${apiKey}&${params}`;
+    const res = await fetch(url, { cache: "no-store" });
+    status = res.status;
+    credentialSource = source;
+    if (res.ok) {
+      ok = true;
+      data = await res.json();
+      error = null;
+      break;
+    }
+
     error = (await res.text()).slice(0, 500);
   }
 }
@@ -126,6 +137,7 @@ const payload = {
     base_date,
     base_time,
     grid: { nx: KMA_NX, ny: KMA_NY },
+    credential_source: credentialSource,
   },
   data,
 };
