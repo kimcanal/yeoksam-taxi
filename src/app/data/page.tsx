@@ -11,7 +11,89 @@ export const metadata: Metadata = {
   title: "데이터 현황 | A-Eye",
 };
 
-type DispatchPlan = typeof dispatchPlan;
+type CitydataPlace = {
+  area_name: string;
+  population_min: number;
+  population_max: number;
+  congestion_level: string;
+  traffic_index: string;
+  traffic_speed_kmh: number | null;
+  precipitation_type: string;
+  temperature_c: number | null;
+  observed_at: string | null;
+};
+type DataStatusSummary = {
+  generated_at: string | null;
+  citydata: {
+    collected_at: string | null;
+    place_count: number;
+    places: CitydataPlace[];
+    top_population: CitydataPlace | null;
+  };
+};
+type DispatchDecision = {
+  dong_name: string;
+  action: string;
+  action_level: string;
+  predicted_demand_score?: number | null;
+  supply_proxy_score?: number | null;
+  coverage_units?: number | null;
+  imbalance_score?: number | null;
+  avg_speed_kmh?: number | null;
+  link_count?: number | null;
+};
+type DispatchPlanStatus = {
+  policy?: string;
+  decisions: DispatchDecision[];
+};
+type FeatureRow = {
+  area_code: string;
+  area_name: string;
+  time_band: string;
+  hour: number;
+  live_population_mid: number;
+  congestion_level: string;
+  traffic_index: string;
+  traffic_speed_kmh: number | null;
+  city_precipitation_type: string;
+  city_weather_temp_c: number | null;
+  subway_station_count: number;
+  bus_stop_count: number;
+  event_count: number;
+  demand_proxy_score: number;
+};
+type FeatureStatus = {
+  row_count: number;
+  source: string;
+  weather_status: {
+    kma_ok: boolean;
+    kma_status?: string | null;
+  };
+  features: FeatureRow[];
+};
+type ModelRow = {
+  name: string;
+  role: string;
+  feature_count: number;
+  live_usable: boolean;
+  metrics: {
+    r2: number | null;
+    mape_pct: number | null;
+  };
+  uses?: string[];
+  caveat?: string;
+};
+type ModelSummaryStatus = {
+  models: ModelRow[];
+  baseline: {
+    persistence: {
+      metrics: {
+        r2: number | null;
+        mape_pct: number | null;
+      };
+    };
+  };
+};
 type ObservedValidation2026 = {
   row_count: number;
   dongs: string[];
@@ -32,10 +114,40 @@ type ObservedValidation2026 = {
     normalized_mape_pct: number | null;
   }>;
 };
-type ModelObservability = Omit<typeof modelObservability, "observed_validation_2026"> & {
+type ModelObservability = {
+  feature_importance: {
+    feature_count: number;
+    top_features: Array<{
+      rank: number;
+      feature: string;
+      importance_mean: number;
+      normalized_importance: number;
+    }>;
+  };
+  live_validation: {
+    log_count: number;
+    latest_strategy?: string | null;
+    latest_top_region?: string | null;
+    latest_generated_at?: string | null;
+    latest_target_datetime?: string | null;
+    latest_dispatch_region?: string | null;
+    latest_dispatch_action?: string | null;
+    recent: Array<{
+      generated_at: string | null;
+      target_datetime: string | null;
+      strategy?: string | null;
+      top_region?: string | null;
+      dispatch_region?: string | null;
+      dispatch_action?: string | null;
+    }>;
+  };
   observed_validation_2026: ObservedValidation2026 | null;
 };
 
+const summary = dataSummary as unknown as DataStatusSummary;
+const dispatch = dispatchPlan as unknown as DispatchPlanStatus;
+const featureStatus = featureSnapshot as unknown as FeatureStatus;
+const modelStatus = modelSummary as unknown as ModelSummaryStatus;
 const observability = modelObservability as unknown as ModelObservability;
 
 function formatKst(value: string | null | undefined) {
@@ -57,7 +169,7 @@ function populationLabel(place: { population_min: number; population_max: number
   return `${place.population_min.toLocaleString("ko-KR")}~${place.population_max.toLocaleString("ko-KR")}`;
 }
 
-function actionTone(level: DispatchPlan["decisions"][number]["action_level"]) {
+function actionTone(level: DispatchDecision["action_level"]) {
   if (level === "high") return "border-rose-400/50 bg-rose-500/15 text-rose-100";
   if (level === "medium") return "border-amber-300/50 bg-amber-400/15 text-amber-100";
   if (level === "watch") return "border-cyan-300/50 bg-cyan-400/15 text-cyan-100";
@@ -82,7 +194,7 @@ function modelNameLabel(name: string) {
   return name;
 }
 
-function modelInterpretation(model: (typeof modelSummary.models)[number]) {
+function modelInterpretation(model: ModelRow) {
   if ("uses" in model && Array.isArray(model.uses)) return model.uses.slice(0, 4).join(" · ");
   if ("caveat" in model) return model.caveat;
   return "-";
@@ -111,18 +223,18 @@ function strategyLabel(strategy: string | null | undefined) {
 }
 
 export default function DataPage() {
-  const places = dataSummary.citydata.places;
-  const decisions = dispatchPlan.decisions.slice(0, 5);
-  const featureRows = featureSnapshot.features.slice(0, 5);
+  const places = summary.citydata.places;
+  const decisions = dispatch.decisions.slice(0, 5);
+  const featureRows = featureStatus.features.slice(0, 5);
   const forecast = forecastLatest;
-  const models = modelSummary.models;
-  const persistenceBaseline = modelSummary.baseline.persistence;
+  const models = modelStatus.models;
+  const persistenceBaseline = modelStatus.baseline.persistence;
   const topImportance = observability.feature_importance.top_features.slice(0, 10);
   const validation = observability.live_validation;
   const validation2026 = observability.observed_validation_2026;
   const validation2026Dongs = validation2026?.per_dong.slice(0, 9) ?? [];
-  const topPopulation = dataSummary.citydata.top_population;
-  const topDecision = dispatchPlan.decisions[0] ?? null;
+  const topPopulation = summary.citydata.top_population;
+  const topDecision = dispatch.decisions[0] ?? null;
 
   return (
     <main className="h-screen overflow-y-auto bg-[#0b1020] text-slate-100">
@@ -150,14 +262,14 @@ export default function DataPage() {
             <h1 className="mt-2 text-3xl font-bold tracking-normal">실시간 수집 · 예측 · 배차 현황</h1>
           </div>
           <div className="text-right text-sm text-slate-300">
-            <p>요약 생성 {formatKst(dataSummary.generated_at)}</p>
+            <p>요약 생성 {formatKst(summary.generated_at)}</p>
           </div>
         </header>
 
         <section className="grid grid-cols-5 gap-4">
           <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
             <p className="text-xs font-semibold uppercase text-slate-400">Citydata 장소</p>
-            <p className="mt-3 text-3xl font-bold">{dataSummary.citydata.place_count}</p>
+            <p className="mt-3 text-3xl font-bold">{summary.citydata.place_count}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
             <p className="text-xs font-semibold uppercase text-slate-400">최대 생활인구</p>
@@ -429,7 +541,7 @@ export default function DataPage() {
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <h2 className="text-lg font-semibold">주변 실시간 지표</h2>
               <p className="text-sm text-slate-400">
-                수집 {formatKst(dataSummary.citydata.collected_at)}
+                수집 {formatKst(summary.citydata.collected_at)}
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -467,7 +579,7 @@ export default function DataPage() {
           <div className="rounded-lg border border-white/10 bg-white/[0.04]">
             <div className="border-b border-white/10 px-5 py-4">
               <h2 className="text-lg font-semibold">동적 배차 판단</h2>
-              <p className="mt-1 text-sm text-slate-400">{dispatchPlan.policy}</p>
+              <p className="mt-1 text-sm text-slate-400">{dispatch.policy ?? "-"}</p>
             </div>
             <div className="divide-y divide-white/10">
               {decisions.map((decision, index) => (
@@ -524,10 +636,10 @@ export default function DataPage() {
               </p>
             </div>
             <div className="text-right text-sm text-slate-400">
-              <p>{featureSnapshot.row_count} rows · {featureSnapshot.source}</p>
+              <p>{featureStatus.row_count} rows · {featureStatus.source}</p>
               <p>
-                KMA {featureSnapshot.weather_status.kma_ok ? "연결" : "대기"}
-                {featureSnapshot.weather_status.kma_ok ? "" : ` · ${featureSnapshot.weather_status.kma_status ?? "-"}`}
+                KMA {featureStatus.weather_status.kma_ok ? "연결" : "대기"}
+                {featureStatus.weather_status.kma_ok ? "" : ` · ${featureStatus.weather_status.kma_status ?? "-"}`}
               </p>
             </div>
           </div>
