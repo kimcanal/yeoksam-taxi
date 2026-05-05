@@ -168,6 +168,20 @@ function formatKst(value: string | null | undefined) {
   }).format(date);
 }
 
+function formatSeoulLocal(value: string | null | undefined) {
+  if (!value) return "-";
+
+  const seoulLocalMatch = value.match(
+    /^(\d{4})[-.](\d{2})[-.](\d{2})(?:[ T.]+)(\d{2}):(\d{2})/,
+  );
+  if (seoulLocalMatch) {
+    const [, year, month, day, hour, minute] = seoulLocalMatch;
+    return `${year}. ${month}. ${day}. ${hour}:${minute}`;
+  }
+
+  return formatKst(value);
+}
+
 function minutesSince(value: string | null | undefined, now: Date) {
   if (!value) return null;
   const date = new Date(value);
@@ -839,7 +853,7 @@ export default function DataPage() {
                       <td className="px-5 py-3 text-slate-600">
                         {place.precipitation_type} · {place.temperature_c}°C
                       </td>
-                      <td className="px-5 py-3 text-slate-500">{formatKst(place.observed_at)}</td>
+                      <td className="px-5 py-3 text-slate-500">{formatSeoulLocal(place.observed_at)}</td>
                     </tr>
                   ))}
                 </tbody>
