@@ -921,7 +921,7 @@ export default function PresentationPage() {
               />
             </div>
             <div className="mt-4">
-              <GuardrailList rows={topGuardrailDongs.slice(0, 3)} />
+              <GuardrailList rows={topGuardrailDongs} />
             </div>
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-950">
               pressure 점수는 수요, 도로 혼잡, 속도, 접근성을 합산한 보조 지표입니다.
