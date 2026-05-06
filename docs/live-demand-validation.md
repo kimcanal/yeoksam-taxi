@@ -44,6 +44,17 @@ npm run model:live:loop -- 10
 This loop is intentionally local-first because the model artifact and full
 feature table are local processed artifacts, not committed CI assets.
 
+For unattended local maintenance with a report, checks, and optional
+commit/push, use the overnight wrapper:
+
+```bash
+npm run overnight:maintenance
+npm run overnight:maintenance -- --commit --push
+```
+
+See `docs/overnight-maintenance.md` for the safety contract and approved command
+pattern.
+
 The GitHub workflow `.github/workflows/forecast-cron.yml` is guarded by the
 `ENABLE_FORECAST_CRON=true` repository variable. Enable it only after the live
 model and feature table can be restored in CI through artifact URLs.
