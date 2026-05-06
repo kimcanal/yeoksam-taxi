@@ -66,6 +66,7 @@
     "model:build:demand-pattern-cache": "node scripts/build-demand-pattern-cache.mjs",
     "model:build:demand-pattern-cache:features": "node scripts/build-demand-pattern-cache-from-features.mjs",
     "model:live:loop": "node scripts/run-live-demand-loop.mjs",
+    "overnight:maintenance": "node scripts/overnight-maintenance.mjs",
     "dispatch:plan": "node module4_dispatch/run_dispatch_policy.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
