@@ -97,6 +97,8 @@
     "outputs": [
       "public/forecast/latest.json",
       "public/traffic-forecast/latest.json",
+      "public/population-pressure-summary.json",
+      "public/demand-guardrail-summary.json",
       "public/traffic-forecast-comparison.json",
       "data/processed/live_validation/live_forecast_log.jsonl",
       "data/processed/live_validation/traffic_forecast_log.jsonl"
@@ -108,6 +110,8 @@
     "/downloads/demand_proxy_feature_set_eval.csv",
     "/forecast/latest.json",
     "/traffic-forecast/latest.json",
+    "/population-pressure-summary.json",
+    "/demand-guardrail-summary.json",
     "/traffic-forecast-comparison.json"
   ]
 }

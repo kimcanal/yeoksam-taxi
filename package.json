@@ -56,6 +56,8 @@
     "build:taxi-pressure-comparison": "node scripts/build-taxi-pressure-comparison.mjs",
     "build:public-pressure-baseline": "node scripts/build-public-pressure-baseline.mjs",
     "build:poi-forecast-comparison": "node scripts/build-poi-forecast-comparison.mjs",
+    "build:population-pressure-summary": "node scripts/build-population-pressure-summary.mjs",
+    "build:demand-guardrail-summary": "node scripts/build-demand-guardrail-summary.mjs",
     "model:observability": "node scripts/build-model-observability.mjs",
     "model:overnight-status": "node scripts/build-overnight-status.mjs",
     "model:live:compare": "node scripts/build-live-forecast-comparison.mjs",

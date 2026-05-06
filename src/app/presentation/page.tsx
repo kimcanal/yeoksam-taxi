@@ -6,22 +6,25 @@ import {
   BarChart3,
   Database,
   FileJson,
-  MapPin,
   ShieldCheck,
   Timer,
+  Users,
 } from "lucide-react";
 import dataSummaryJson from "../../../public/data-summary.json";
+import demandGuardrailJson from "../../../public/demand-guardrail-summary.json";
 import forecastJson from "../../../public/forecast/latest.json";
 import liveForecastComparisonJson from "../../../public/live-forecast-comparison.json";
+import modelObservabilityJson from "../../../public/model-observability.json";
 import modelSummaryJson from "../../../public/model-summary.json";
 import poiFeaturesJson from "../../../public/poi-features.json";
 import poiForecastComparisonJson from "../../../public/poi-forecast-comparison.json";
+import populationPressureJson from "../../../public/population-pressure-summary.json";
 import publicPressureBaselineJson from "../../../public/public-pressure-baseline-comparison.json";
 import trafficForecastJson from "../../../public/traffic-forecast/latest.json";
 import trafficForecastComparisonJson from "../../../public/traffic-forecast-comparison.json";
 
 export const metadata: Metadata = {
-  title: "발표 브리핑 | 역삼권 교통 운영",
+  title: "예측 상태 점검 | 역삼권 교통 운영",
 };
 
 type ModelInfo = {
@@ -110,6 +113,126 @@ type PoiFeatures = {
   live_poi_count: number;
   supplemental_poi_count: number;
   direct_citydata_rows: PoiFeatureRow[];
+};
+
+type PopulationDong = {
+  dong_name: string;
+  poi_count: number;
+  target_datetime: string | null;
+  current_population_mid_sum: number | null;
+  forecast_population_mid_sum: number | null;
+  forecast_population_delta: number | null;
+  avg_forecast_congestion_score: number | null;
+  avg_poi_pressure_score: number | null;
+  top_poi?: {
+    poi_name: string | null;
+    current_population_mid: number | null;
+    forecast_population_mid: number | null;
+    poi_pressure_score: number | null;
+  } | null;
+};
+
+type PopulationPressureSummary = {
+  generated_at: string | null;
+  target_datetime: string | null;
+  coverage: {
+    live_poi_count: number;
+    covered_dong_count: number;
+    supplemental_poi_count: number;
+  };
+  validation: {
+    completed_count: number;
+    waiting_count: number;
+    latest_kind: string | null;
+    population_mae: number | null;
+    congestion_level_accuracy_pct: number | null;
+    status: string;
+  };
+  overall: {
+    current_population_mid_sum: number | null;
+    forecast_population_mid_sum: number | null;
+    avg_current_congestion_score: number | null;
+    avg_forecast_congestion_score: number | null;
+    avg_poi_pressure_score: number | null;
+  };
+  dongs: PopulationDong[];
+};
+
+type GuardrailDong = {
+  dong_name: string;
+  composite_pressure_score: number | null;
+  confidence_score: number | null;
+  monitoring_priority_score: number | null;
+  confidence_level: string;
+  recommended_use: string;
+  demand: {
+    score: number | null;
+    rank: number | null;
+  };
+  traffic: {
+    predicted_congestion_score: number | null;
+    rank: number | null;
+  };
+  population: {
+    avg_poi_pressure_score: number | null;
+    rank: number | null;
+    live_poi_count: number;
+  };
+  guardrails: {
+    risk_flags: string[];
+  };
+};
+
+type DemandGuardrail = {
+  generated_at: string | null;
+  target_datetime: string | null;
+  forecast_strategy: string | null;
+  global_baseline_readiness: {
+    model_vs_persistence_mae_improvement_pct: number | null;
+    model_vs_pattern_mae_improvement_pct: number | null;
+    baseline_strength_score: number | null;
+  };
+  coverage: {
+    dong_count: number;
+    population_covered_dong_count: number;
+    live_poi_count: number;
+    traffic_dong_count: number;
+  };
+  top_monitoring_dongs: GuardrailDong[];
+  dongs: GuardrailDong[];
+};
+
+type BaselineReadiness = {
+  verdict: string;
+  decision: string;
+  supervised_2025_holdout: {
+    live_model_r2: number | null;
+    live_model_mae: number | null;
+    persistence_mae: number | null;
+    pattern_mean_loo_mae: number | null;
+    pattern_mean_loo_mape_pct: number | null;
+    model_vs_persistence_mae_improvement_pct: number | null;
+    model_vs_pattern_mae_improvement_pct: number | null;
+  };
+  observed_2026_proxy_check: {
+    row_count: number | null;
+    spearman_r: number | null;
+    per_dong_spearman_mean: number | null;
+    strongest_dongs: Array<{
+      dong_name: string;
+      spearman_r: number | null;
+      row_count: number;
+    }>;
+    weakest_dongs: Array<{
+      dong_name: string;
+      spearman_r: number | null;
+      row_count: number;
+    }>;
+  };
+};
+
+type ModelObservability = {
+  baseline_readiness: BaselineReadiness;
 };
 
 type DataSummary = {
@@ -203,15 +326,19 @@ type PublicPressureOverall = {
 };
 
 const modelSummary = modelSummaryJson as ModelSummary;
+const modelObservability = modelObservabilityJson as ModelObservability;
+const demandGuardrail = demandGuardrailJson as DemandGuardrail;
 const forecast = forecastJson as DemandForecast;
 const trafficForecast = trafficForecastJson as TrafficForecast;
 const poiFeatures = poiFeaturesJson as PoiFeatures;
+const populationPressure = populationPressureJson as PopulationPressureSummary;
 const dataSummary = dataSummaryJson as DataSummary;
 const roadComparison = trafficForecastComparisonJson as Comparison<RoadOverall>;
 const demandComparison = liveForecastComparisonJson as Comparison<DemandOverall>;
 const poiComparison = poiForecastComparisonJson as Comparison<PoiOverall>;
 const publicPressureComparison =
   publicPressureBaselineJson as Comparison<PublicPressureOverall>;
+const baselineReadiness = modelObservability.baseline_readiness;
 
 const officialSources = [
   {
@@ -252,6 +379,8 @@ const artifactLinks = [
   { label: "동별 수요 전망", href: "/forecast/latest.json" },
   { label: "도로 전망", href: "/traffic-forecast/latest.json" },
   { label: "POI 스냅샷", href: "/poi-features.json" },
+  { label: "생활·유동인구 요약", href: "/population-pressure-summary.json" },
+  { label: "수요 confidence", href: "/demand-guardrail-summary.json" },
   { label: "POI 검증", href: "/poi-forecast-comparison.json" },
 ];
 
@@ -435,6 +564,94 @@ function BriefingList({
   );
 }
 
+function PopulationDongList({ rows }: { rows: PopulationDong[] }) {
+  return (
+    <div className="space-y-2">
+      {rows.map((row, index) => (
+        <div
+          key={`population-${row.dong_name}`}
+          className="grid grid-cols-[36px_1fr_auto] items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+        >
+          <span className="text-sm font-black tabular-nums text-slate-400">
+            {index + 1}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-950">
+              {row.dong_name}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-slate-500">
+              {row.poi_count}개 POI · {trendLabel(row.forecast_population_delta)}
+              {row.top_poi?.poi_name ? ` · ${row.top_poi.poi_name}` : ""}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-black tabular-nums text-slate-950">
+              {formatNumber(row.forecast_population_mid_sum)}명
+            </p>
+            <span
+              className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-xs font-black tabular-nums ${pressureTone(
+                row.avg_poi_pressure_score,
+              )}`}
+            >
+              {formatScore(row.avg_poi_pressure_score)}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function riskLabel(flags: string[]) {
+  if (!flags.length) return "risk 없음";
+  const labels: Record<string, string> = {
+    pattern_fallback_used: "패턴",
+    signals_disagree: "신호 불일치",
+    weak_2026_proxy_validation: "검증 약함",
+    no_live_population_poi_coverage: "인구 미커버",
+    thin_current_traffic_links: "도로 표본 적음",
+  };
+  return flags.map((flag) => labels[flag] ?? flag).join(" · ");
+}
+
+function GuardrailList({ rows }: { rows: GuardrailDong[] }) {
+  return (
+    <div className="space-y-2">
+      {rows.map((row, index) => (
+        <div
+          key={`guardrail-${row.dong_name}`}
+          className="grid grid-cols-[36px_1fr_auto] items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+        >
+          <span className="text-sm font-black tabular-nums text-slate-400">
+            {index + 1}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-950">
+              {row.dong_name}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-slate-500">
+              pressure {formatScore(row.composite_pressure_score)} ·{" "}
+              {riskLabel(row.guardrails.risk_flags)}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-black tabular-nums text-slate-950">
+              {formatScore(row.monitoring_priority_score)}
+            </p>
+            <span
+              className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-xs font-black tabular-nums ${pressureTone(
+                row.confidence_score,
+              )}`}
+            >
+              {row.confidence_level}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const liveModel = modelSummary.models.find((model) => model.live_usable) ??
   modelSummary.models[0];
 const offlineModel = modelSummary.models.find((model) => !model.live_usable);
@@ -463,6 +680,8 @@ const topPoiRows = [...poiFeatures.direct_citydata_rows]
   .filter((poi) => poi.source_status === "citydata_live")
   .sort((a, b) => (b.poi_pressure_score ?? 0) - (a.poi_pressure_score ?? 0))
   .slice(0, 5);
+const topPopulationDongs = [...populationPressure.dongs].slice(0, 5);
+const topGuardrailDongs = [...demandGuardrail.top_monitoring_dongs].slice(0, 5);
 
 export default function PresentationPage() {
   const topPopulation = dataSummary.citydata?.top_population;
@@ -485,9 +704,9 @@ export default function PresentationPage() {
           </Link>
           <div className="text-center">
             <p className="text-xs font-black tracking-normal text-slate-500">
-              공개 데이터 브리핑
+              공개 데이터 기반 예측
             </p>
-            <p className="text-sm font-black text-slate-950">발표 브리핑</p>
+            <p className="text-sm font-black text-slate-950">모델 상태 점검</p>
           </div>
           <Link
             className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-300 hover:bg-white"
@@ -504,26 +723,26 @@ export default function PresentationPage() {
                 역삼권 9개 동
               </span>
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800">
-                택시 호출 데이터 아님
+                직접 택시콜 아님
               </span>
               <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800">
-                1시간 전망
+                다음 1시간 전망
               </span>
             </div>
             <h1 className="mt-4 max-w-4xl break-keep text-2xl font-black leading-tight tracking-normal text-slate-950 sm:text-4xl">
-              공개 데이터로 보는 역삼권 이동수요와 도로 압박
+              공개 신호로 계산한 역삼권 수요 압박 상태
             </h1>
             <p className="mt-4 max-w-4xl break-keep text-base leading-7 text-slate-600">
-              이 화면은 발표용 한 장 요약입니다. 서울 citydata, TOPIS, KMA,
-              대중교통 OD, OSM을 결합해 다음 1시간의 이동수요 대리 지표와
-              도로 상태를 보여줍니다. 실제 택시 호출량이나 공급량을 맞혔다고
-              말하지 않고, 공개 데이터로 관측 가능한 신호만 분리해 보여줍니다.
+              서울 citydata, TOPIS, KMA, 대중교통 OD, OSM을 결합해 다음
+              1시간의 이동수요 proxy와 도로 압박을 계산합니다. 이 값은
+              실제 택시 호출량이나 기사 공급량이 아니라, 공개 데이터로
+              관측 가능한 신호를 모은 우선 관찰 지표입니다.
             </p>
           </section>
 
           <aside className="rounded-lg border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
             <p className="text-xs font-black tracking-normal text-slate-400">
-              현재 실행
+              최근 갱신
             </p>
             <div className="mt-4 space-y-3">
               <MiniStat
@@ -547,51 +766,63 @@ export default function PresentationPage() {
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            detail={`${modelSummary.feature_table.period.start.slice(0, 10)}~${modelSummary.feature_table.period.end.slice(0, 10)} hourly`}
+            detail={`${modelSummary.feature_table.period.start.slice(0, 10)}~${modelSummary.feature_table.period.end.slice(0, 10)} hourly 공개 feature`}
             icon={<Database className="h-4 w-4" />}
             label="학습 데이터"
             value={`${formatNumber(modelSummary.feature_table.rows)} rows`}
           />
           <MetricCard
-            detail={`실시간 입력 ${liveModel?.feature_count ?? "-"}개`}
+            detail={`패턴 대비 MAE ${formatPercent(
+              demandGuardrail.global_baseline_readiness
+                .model_vs_pattern_mae_improvement_pct,
+              1,
+            )} 개선`}
             icon={<BarChart3 className="h-4 w-4" />}
-            label="라이브 모델"
-            value={`R2 ${formatScore(liveModel?.metrics.r2, 3)}`}
+            label="수요 confidence"
+            value={formatScore(
+              demandGuardrail.global_baseline_readiness
+                .baseline_strength_score,
+              3,
+            )}
           />
           <MetricCard
             detail={`도로 검증 ${roadComparison.completed_count}건 완료`}
             icon={<Activity className="h-4 w-4" />}
-            label="도로 MAE"
+            label="도로 예측 오차"
             value={formatScore(latestRoad?.overall.congestion_mae, 3)}
           />
           <MetricCard
-            detail={`POI 검증 ${poiComparison.completed_count}건, 대기 ${poiComparison.waiting_count}건`}
-            icon={<MapPin className="h-4 w-4" />}
-            label="POI 인구 MAE"
-            value={formatNumber(latestPoi?.overall.population_mae)}
+            detail={`${populationPressure.coverage.covered_dong_count}개 동, ${populationPressure.coverage.live_poi_count}개 live POI 집계`}
+            icon={<Users className="h-4 w-4" />}
+            label="생활·유동인구 proxy"
+            value={`${formatNumber(populationPressure.overall.forecast_population_mid_sum)}명`}
           />
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-3">
-          <Section eyebrow="수요 전망" title="동별 이동수요 전망">
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <Section eyebrow="수요 전망" title="다음 1시간 수요 proxy">
             <BriefingList rows={topDemandRegions} type="demand" />
           </Section>
-          <Section eyebrow="도로 전망" title="도로 혼잡 전망">
+          <Section eyebrow="도로 전망" title="다음 1시간 도로 압박">
             <BriefingList rows={topTrafficRegions} type="traffic" />
           </Section>
-          <Section eyebrow="장소 현황" title="장소별 현장 압박">
+          <Section eyebrow="생활·유동인구" title="POI 인구 1시간 예측">
+            <PopulationDongList rows={topPopulationDongs} />
+          </Section>
+          <Section eyebrow="장소 현황" title="POI 현재 압박">
             <BriefingList rows={topPoiRows} type="poi" />
           </Section>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <Section eyebrow="발표 흐름" title="발표 때 이 순서로 말하면 됩니다">
+          <Section eyebrow="동작 흐름" title="지금 실제로 돌아가는 계산">
             <ol className="space-y-3 text-sm leading-7 text-slate-700">
               {[
-                "택시 호출 원자료가 없어서, 공개 데이터로 관측 가능한 이동수요 proxy를 만들었습니다.",
-                "3년치 대중교통·생활인구·도로·날씨 데이터를 동-시간 단위 feature table로 묶었습니다.",
-                "지도는 지금 시점에 쓸 수 있는 feature만 사용해 다음 1시간의 동별 수요와 도로 압박을 보여줍니다.",
-                "검증은 택시 콜 정확도가 아니라, 이후 citydata/TOPIS 관측 신호와의 방향성·오차 점검입니다.",
+                "실시간 citydata, KMA 날씨, 도로 링크 상태를 수집해 현재 feature를 갱신합니다.",
+                "택시 호출 원자료가 없기 때문에 대중교통·생활인구·도로·날씨 기반 이동수요 proxy를 예측합니다.",
+                "citydata POI의 1시간 인구 예측을 행정동 coverage로 묶어 생활·유동인구 pressure를 계산합니다.",
+                "수요 proxy와 도로 혼잡 예측을 결합해 동별 pressure ranking을 계산합니다.",
+                "검증은 택시 콜 정확도가 아니라 이후 공개 관측 신호와의 방향성·오차 점검입니다.",
               ].map((item, index) => (
                 <li
                   key={item}
@@ -606,8 +837,21 @@ export default function PresentationPage() {
             </ol>
           </Section>
 
-          <Section eyebrow="검증" title="예측과 관측의 차이">
+          <Section eyebrow="검증" title="예측 후 점검되는 값">
             <div className="grid gap-3 sm:grid-cols-2">
+              <MiniStat
+                detail={`${topGuardrailDongs[0]?.confidence_level ?? "-"} confidence`}
+                label="우선 관찰 1순위"
+                value={topGuardrailDongs[0]?.dong_name ?? "-"}
+              />
+              <MiniStat
+                detail={`confidence 가중 pressure`}
+                label="guardrail 점수"
+                value={formatScore(
+                  topGuardrailDongs[0]?.monitoring_priority_score,
+                  3,
+                )}
+              />
               <MiniStat
                 detail={`Top ${latestRoad?.overall.top_predicted_congestion_dong ?? "-"} / 관측 ${latestRoad?.overall.top_actual_congestion_dong ?? "-"}`}
                 label="도로 혼잡 MAE"
@@ -620,8 +864,27 @@ export default function PresentationPage() {
               />
               <MiniStat
                 detail={`관측 기준은 도로 혼잡, 택시 콜 아님`}
-                label="수요 proxy Spearman"
+                label="수요 방향성"
                 value={formatScore(latestDemand?.overall.spearman_r, 3)}
+              />
+              <MiniStat
+                detail={`패턴 baseline 대비 MAE 개선`}
+                label="모델 vs 패턴"
+                value={formatPercent(
+                  baselineReadiness.supervised_2025_holdout
+                    .model_vs_pattern_mae_improvement_pct,
+                  1,
+                )}
+              />
+              <MiniStat
+                detail={`2026 proxy ${formatNumber(
+                  baselineReadiness.observed_2026_proxy_check.row_count,
+                )} rows`}
+                label="사후 순위검증"
+                value={formatScore(
+                  baselineReadiness.observed_2026_proxy_check.spearman_r,
+                  3,
+                )}
               />
               <MiniStat
                 detail={`혼잡도 단계 일치율`}
@@ -631,8 +894,17 @@ export default function PresentationPage() {
                 )}
               />
               <MiniStat
+                detail={`완료 ${populationPressure.validation.completed_count}건 / 대기 ${populationPressure.validation.waiting_count}건`}
+                label="생활·유동 검증"
+                value={
+                  populationPressure.validation.latest_kind === "completed"
+                    ? formatNumber(populationPressure.validation.population_mae)
+                    : "대기"
+                }
+              />
+              <MiniStat
                 detail={`공개 pressure 기준값 row ${latestPublicPressure?.overall.row_count ?? "-"}`}
-                label="pressure 정책 점검"
+                label="pressure 방향성"
                 value={formatScore(
                   latestPublicPressure?.overall
                     .priority_vs_public_pressure_spearman,
@@ -647,8 +919,11 @@ export default function PresentationPage() {
                 }
               />
             </div>
+            <div className="mt-4">
+              <GuardrailList rows={topGuardrailDongs.slice(0, 3)} />
+            </div>
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-950">
-              pressure는 수요, 도로 혼잡, 속도, 접근성을 합산한 정책 점수입니다.
+              pressure 점수는 수요, 도로 혼잡, 속도, 접근성을 합산한 보조 지표입니다.
               도로 혼잡 하나만으로 정답 라벨을 만들 수 없으므로 Spearman은 보조
               신호로만 해석합니다.
             </p>
@@ -656,22 +931,22 @@ export default function PresentationPage() {
         </section>
 
         <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-          <Section eyebrow="표현 경계" title="모델을 과장하지 않는 표현">
+          <Section eyebrow="해석 범위" title="현재 가능한 해석과 아닌 것">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
                 <div className="flex items-center gap-2 text-sm font-black text-emerald-900">
                   <ShieldCheck className="h-4 w-4" />
-                  말해도 되는 것
+                  현재 되는 것
                 </div>
                 <p className="mt-2 text-sm leading-6 text-emerald-950">
-                  공개 데이터 기반 이동수요 대리 지표, 도로 혼잡 전망, POI
-                  혼잡도 검증, 배차 pressure 정책 점검.
+                  공개 데이터 기반 이동수요 대리 지표, 도로 혼잡 전망,
+                  생활·유동인구 pressure proxy, 우선 관찰 지역 ranking.
                 </p>
               </div>
               <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
                 <div className="flex items-center gap-2 text-sm font-black text-rose-900">
                   <Timer className="h-4 w-4" />
-                  피해야 하는 것
+                  아직 아닌 것
                 </div>
                 <p className="mt-2 text-sm leading-6 text-rose-950">
                   카카오T 실콜 예측, 실제 기사 공급량 최적화, 운영 배차 지시,
@@ -693,7 +968,7 @@ export default function PresentationPage() {
             </div>
           </Section>
 
-          <Section eyebrow="산출물" title="발표자가 열어볼 수 있는 산출물">
+          <Section eyebrow="결과 파일" title="현재 앱이 읽는 산출물">
             <div className="grid gap-2 sm:grid-cols-2">
               {artifactLinks.map((item) => (
                 <a
@@ -710,7 +985,7 @@ export default function PresentationPage() {
               className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800"
               href="/a-eye-presentation/index.html"
             >
-              기존 발표 이미지 열기
+              분석 이미지 열기
             </a>
           </Section>
         </section>

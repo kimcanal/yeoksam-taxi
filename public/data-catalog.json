@@ -10,6 +10,9 @@
       "feature-set evaluation CSV",
       "latest forecast JSON",
       "latest traffic forecast JSON",
+      "population pressure summary JSON",
+      "demand guardrail summary JSON",
+      "model observability JSON",
       "forecast-observation comparison JSON"
     ]
   },
@@ -109,6 +112,27 @@
       "size": "1KB",
       "hosted": true,
       "purpose": "Compare predicted road congestion/speed with later citydata observations"
+    },
+    {
+      "name": "Population pressure summary",
+      "path": "public/population-pressure-summary.json",
+      "size": "8KB",
+      "hosted": true,
+      "purpose": "Aggregate Seoul citydata POI population forecasts into dong-level living/floating population pressure proxy"
+    },
+    {
+      "name": "Demand guardrail summary",
+      "path": "public/demand-guardrail-summary.json",
+      "size": "14KB",
+      "hosted": true,
+      "purpose": "Rank dong-level monitoring priority with confidence guardrails from demand, traffic, population and validation signals"
+    },
+    {
+      "name": "Model observability",
+      "path": "public/model-observability.json",
+      "size": "8KB",
+      "hosted": true,
+      "purpose": "Summarize feature importance, live validation logs, 2026 proxy validation and baseline readiness"
     }
   ]
 }

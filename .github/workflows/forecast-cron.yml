@@ -100,13 +100,28 @@ jobs:
             public/live-forecast-comparison.json \
             public/traffic-forecast/latest.json \
             public/traffic-forecast-comparison.json \
+            public/taxi-pressure/latest.json \
+            public/taxi-pressure-comparison.json \
+            public/public-pressure-baseline-comparison.json \
+            public/poi-features.json \
+            public/poi-forecast-comparison.json \
+            public/population-pressure-summary.json \
+            public/demand-guardrail-summary.json \
             public/model-observability.json \
+            public/overnight-status.json \
+            docs/overnight-model-qa-status.md \
             data/processed/features/latest.json \
             data/processed/live_validation/latest.json \
             data/processed/live_validation/live_forecast_log.jsonl \
             data/processed/live_validation/live_forecast_comparison.json \
             data/processed/live_validation/traffic_forecast_log.jsonl \
             data/processed/live_validation/traffic_forecast_comparison.json \
+            data/processed/live_validation/taxi_pressure_log.jsonl \
+            data/processed/live_validation/taxi_pressure_comparison.json \
+            data/processed/live_validation/public_pressure_baseline_comparison.json \
+            data/processed/live_validation/poi_forecast_comparison.json \
+            data/processed/live_validation/population_pressure_summary.json \
+            data/processed/live_validation/demand_guardrail_summary.json \
             data/processed/traffic/citydata_dong_traffic_latest.json
           if git diff --cached --quiet; then
             echo "No generated forecast changes to persist."

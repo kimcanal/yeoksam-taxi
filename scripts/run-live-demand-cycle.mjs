@@ -262,6 +262,7 @@ await runStep("traffic-comparison", "node", ["scripts/build-traffic-forecast-com
 await runStep("taxi-pressure-comparison", "node", ["scripts/build-taxi-pressure-comparison.mjs"]);
 await runStep("public-pressure-baseline", "node", ["scripts/build-public-pressure-baseline.mjs"]);
 await runStep("poi-forecast-comparison", "node", ["scripts/build-poi-forecast-comparison.mjs"]);
+await runStep("population-pressure-summary", "node", ["scripts/build-population-pressure-summary.mjs"]);
 await runStep("dispatch", "node", ["module4_dispatch/run_dispatch_policy.mjs"]);
 await runStep("data-summary", "node", ["scripts/build-data-summary.mjs"]);
 
@@ -310,6 +311,7 @@ await writeFile(latestPath, `${JSON.stringify(logEntry, null, 2)}\n`);
 await appendFile(logPath, `${JSON.stringify(logEntry)}\n`);
 await runStep("live-comparison", "node", ["scripts/build-live-forecast-comparison.mjs"]);
 await runStep("model-observability", "node", ["scripts/build-model-observability.mjs"]);
+await runStep("demand-guardrail-summary", "node", ["scripts/build-demand-guardrail-summary.mjs"]);
 await runStep("overnight-status", "node", ["scripts/build-overnight-status.mjs"]);
 
 console.log(`\nWrote ${path.relative(projectRoot, latestPath)}`);

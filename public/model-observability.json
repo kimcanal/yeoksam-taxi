@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-06T07:11:46.258Z",
+  "generated_at": "2026-05-06T05:59:27.431Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,30 +79,21 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 25,
-    "latest_generated_at": "2026-05-06T16:11:46+09:00",
-    "latest_target_datetime": "2026-05-06T17:00:00+09:00",
+    "log_count": 24,
+    "latest_generated_at": "2026-05-06T14:22:51+09:00",
+    "latest_target_datetime": "2026-05-06T15:00:00+09:00",
     "latest_strategy": "pattern",
-    "latest_top_region": "논현1동",
-    "latest_dispatch_region": "논현1동",
+    "latest_top_region": "대치4동",
+    "latest_dispatch_region": "대치4동",
     "latest_dispatch_action": "수요 집중 매우 높음",
     "recent": [
       {
-        "generated_at": "2026-05-06T16:11:46+09:00",
-        "target_datetime": "2026-05-06T17:00:00+09:00",
+        "generated_at": "2026-05-06T14:22:51+09:00",
+        "target_datetime": "2026-05-06T15:00:00+09:00",
         "strategy": "pattern",
-        "top_region": "논현1동",
+        "top_region": "대치4동",
         "top_score": 1,
-        "dispatch_region": "논현1동",
-        "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-06T16:03:03+09:00",
-        "target_datetime": "2026-05-06T17:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "논현1동",
-        "top_score": 1,
-        "dispatch_region": "논현1동",
+        "dispatch_region": "대치4동",
         "dispatch_action": "수요 집중 매우 높음"
       },
       {
@@ -126,6 +117,15 @@
       {
         "generated_at": "2026-05-06T11:02:00+09:00",
         "target_datetime": "2026-05-06T12:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "대치4동",
+        "top_score": 1,
+        "dispatch_region": "대치4동",
+        "dispatch_action": "수요 집중 매우 높음"
+      },
+      {
+        "generated_at": "2026-05-06T10:53:01+09:00",
+        "target_datetime": "2026-05-06T11:00:00+09:00",
         "strategy": "pattern",
         "top_region": "대치4동",
         "top_score": 1,
@@ -229,5 +229,85 @@
         "normalized_mape_pct": 500.3838540291767
       }
     ]
-  }
+  },
+  "baseline_readiness": {
+    "verdict": "usable_for_public_proxy_ranking_not_direct_taxi_demand",
+    "decision": "Use the demand model as a dong-level monitoring/ranking signal. Do not use it as an absolute taxi-call forecast until direct taxi labels or a stronger observed proxy backtest are added.",
+    "supervised_2025_holdout": {
+      "live_model_r2": 0.9585498103947521,
+      "live_model_mae": 4.367225884992877,
+      "persistence_mae": 8.69418652293374,
+      "pattern_mean_loo_mae": 4.669515061173907,
+      "pattern_mean_loo_mape_pct": 21.160313540742294,
+      "model_vs_persistence_mae_improvement_pct": 49.8,
+      "model_vs_pattern_mae_improvement_pct": 6.5,
+      "caveat": "The supervised target is a public movement-demand proxy. Pattern baseline remains strong on percentage error, so model confidence should be reduced when it disagrees with time-pattern and live citydata pressure."
+    },
+    "observed_2026_proxy_check": {
+      "row_count": 12960,
+      "spearman_r": 0.41321410055588725,
+      "per_dong_spearman_mean": 0.4354131290430654,
+      "strongest_dongs": [
+        {
+          "dong_name": "역삼2동",
+          "spearman_r": 0.6547708828963735,
+          "row_count": 1440
+        },
+        {
+          "dong_name": "삼성2동",
+          "spearman_r": 0.6221987322011661,
+          "row_count": 1440
+        },
+        {
+          "dong_name": "청담동",
+          "spearman_r": 0.5379373548885993,
+          "row_count": 1440
+        }
+      ],
+      "weakest_dongs": [
+        {
+          "dong_name": "삼성1동",
+          "spearman_r": 0.182861384616005,
+          "row_count": 1440
+        },
+        {
+          "dong_name": "논현2동",
+          "spearman_r": 0.27663710685924375,
+          "row_count": 1440
+        },
+        {
+          "dong_name": "대치4동",
+          "spearman_r": 0.3476284829837087,
+          "row_count": 1440
+        }
+      ],
+      "caveat": "2026 validation compares normalized transit boardings against the model proxy, not taxi-call labels. It supports directional monitoring more than exact magnitude prediction."
+    },
+    "recommended_next_steps": [
+      "Keep same-hour pattern baseline as a guardrail and expose model-vs-pattern disagreement as confidence.",
+      "Use Seoul citydata POI population forecast and TOPIS congestion as live nowcast corrections.",
+      "Accumulate at least several days of hourly live snapshots before claiming live accuracy.",
+      "Add direct taxi-call or taxi stand pickup labels if they become available."
+    ]
+  },
+  "reproducibility_artifacts": [
+    {
+      "path": "data/processed/features/dong_hour_features_v2_2023-01_2025-12.csv",
+      "exists": false,
+      "size_bytes": null,
+      "usable": false
+    },
+    {
+      "path": "data/processed/model_live_compatible/dong_demand_proxy_live_predictions_2025.csv",
+      "exists": false,
+      "size_bytes": null,
+      "usable": false
+    },
+    {
+      "path": "data/processed/model_live_compatible/pattern_cache.json",
+      "exists": true,
+      "size_bytes": 2999350,
+      "usable": true
+    }
+  ]
 }

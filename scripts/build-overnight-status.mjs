@@ -36,7 +36,10 @@ async function readJsonl(relativePath) {
 
 function formatKst(value) {
   if (!value) return "-";
-  const date = new Date(value);
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(String(value))
+    ? `${String(value).slice(0, 16).replace(" ", "T")}:00+09:00`
+    : value;
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
@@ -78,6 +81,33 @@ function markdownTable(rows) {
   ].join("\n");
 }
 
+function guardrailRows(rows, limit = 5) {
+  return [...(rows ?? [])].slice(0, limit).map((row, index) => ({
+    rank: index + 1,
+    dong_name: oneLine(row.dong_name),
+    priority: row.monitoring_priority_score ?? null,
+    pressure: row.composite_pressure_score ?? null,
+    confidence: row.confidence_score ?? null,
+    level: oneLine(row.confidence_level),
+    risks: (row.guardrails?.risk_flags ?? []).map(oneLine).join(", ") || "-",
+  }));
+}
+
+function guardrailTable(rows) {
+  if (!rows.length) return "_No rows._";
+  return [
+    "| Rank | Dong | Priority | Pressure | Confidence | Level | Risk flags |",
+    "| ---: | --- | ---: | ---: | ---: | --- | --- |",
+    ...rows.map((row) => (
+      `| ${row.rank} | ${row.dong_name ?? "-"} | ${
+        row.priority == null ? "-" : Number(row.priority).toFixed(4)
+      } | ${row.pressure == null ? "-" : Number(row.pressure).toFixed(4)} | ${
+        row.confidence == null ? "-" : Number(row.confidence).toFixed(4)
+      } | ${row.level ?? "-"} | ${row.risks ?? "-"} |`
+    )),
+  ].join("\n");
+}
+
 const dataSummary = await readJson("public/data-summary.json", {});
 const featureSnapshot = await readJson("public/feature-snapshot.json", {});
 const forecast = await readJson("public/forecast/latest.json", {});
@@ -86,6 +116,8 @@ const taxiPressure = await readJson("public/taxi-pressure/latest.json", {});
 const dispatchPlan = await readJson("public/dispatch-plan.json", {});
 const taxiPressureComparison = await readJson("public/taxi-pressure-comparison.json", {});
 const poiForecastComparison = await readJson("public/poi-forecast-comparison.json", {});
+const populationPressure = await readJson("public/population-pressure-summary.json", {});
+const demandGuardrail = await readJson("public/demand-guardrail-summary.json", {});
 const liveLogs = await readJsonl("data/processed/live_validation/live_forecast_log.jsonl");
 const taxiPressureLogs = await readJsonl("data/processed/live_validation/taxi_pressure_log.jsonl");
 
@@ -93,6 +125,7 @@ const latestWeather = featureSnapshot.kma_nowcast ?? {};
 const latestPressureRows = topRows(taxiPressure.regions, "dispatch_priority_score");
 const latestDemandRows = topRows(forecast.regions, "score", 3);
 const latestTrafficRows = topRows(trafficForecast.regions, "predicted_congestion_score", 3);
+const latestGuardrailRows = guardrailRows(demandGuardrail.top_monitoring_dongs, 5);
 const latestComparison = taxiPressureComparison.latest ?? null;
 
 const status = {
@@ -123,6 +156,30 @@ const status = {
     taxi_pressure: latestPressureRows,
     demand_proxy: latestDemandRows,
     traffic_congestion: latestTrafficRows,
+    demand_guardrail: latestGuardrailRows,
+  },
+  population_pressure: {
+    target_datetime: populationPressure.target_datetime ?? null,
+    live_poi_count: populationPressure.coverage?.live_poi_count ?? 0,
+    covered_dong_count: populationPressure.coverage?.covered_dong_count ?? 0,
+    forecast_population_mid_sum:
+      populationPressure.overall?.forecast_population_mid_sum ?? null,
+    top_dongs: (populationPressure.dongs ?? []).slice(0, 5).map((row, index) => ({
+      rank: index + 1,
+      dong_name: oneLine(row.dong_name),
+      forecast_population_mid_sum: row.forecast_population_mid_sum ?? null,
+      avg_poi_pressure_score: row.avg_poi_pressure_score ?? null,
+    })),
+  },
+  guardrail: {
+    target_datetime: demandGuardrail.target_datetime ?? null,
+    forecast_strategy: demandGuardrail.forecast_strategy ?? null,
+    baseline_strength_score:
+      demandGuardrail.global_baseline_readiness?.baseline_strength_score ?? null,
+    model_vs_pattern_mae_improvement_pct:
+      demandGuardrail.global_baseline_readiness
+        ?.model_vs_pattern_mae_improvement_pct ?? null,
+    top_monitoring_dong: latestGuardrailRows[0] ?? null,
   },
   validation: {
     taxi_pressure_status: taxiPressureComparison.status ?? null,
@@ -195,6 +252,22 @@ ${markdownTable(status.top_predictions.demand_proxy)}
 ## Traffic Congestion Top Regions
 
 ${markdownTable(status.top_predictions.traffic_congestion)}
+
+## Guardrail Monitoring Priority
+
+${guardrailTable(status.top_predictions.demand_guardrail)}
+
+- Guardrail target: ${formatKst(status.guardrail.target_datetime)}
+- Forecast strategy: ${status.guardrail.forecast_strategy ?? "-"}
+- Baseline strength score: ${status.guardrail.baseline_strength_score ?? "-"}
+- Model vs pattern MAE improvement: ${status.guardrail.model_vs_pattern_mae_improvement_pct ?? "-"}%
+
+## Population Pressure Proxy
+
+- Target: ${formatKst(status.population_pressure.target_datetime)}
+- Live POIs: ${status.population_pressure.live_poi_count}
+- Covered dongs: ${status.population_pressure.covered_dong_count}
+- Forecast population midpoint sum: ${status.population_pressure.forecast_population_mid_sum ?? "-"}
 
 ## Validation
 

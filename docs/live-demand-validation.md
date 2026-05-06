@@ -59,6 +59,10 @@ Forecast cron artifact inputs:
   the full 77MB feature table for pattern fallback inference.
 - `LIVE_HOLIDAYS_URL`: optional signed/public URL for
   `data/processed/calendar/korean_public_holidays_2023_2026.csv`
+- `TRAFFIC_MODEL_URL`: signed/public URL for
+  `data/processed/model_traffic_forecast/traffic_forecast_model.joblib`
+- `TRAFFIC_PATTERN_CACHE_URL`: signed/public URL for
+  `data/processed/model_traffic_forecast/traffic_pattern_cache.json`
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
@@ -79,9 +83,13 @@ extract dong-level road congestion
 write public/feature-snapshot.json
 predict next-hour dong demand proxy
 write public/forecast/latest.json
+write public/traffic-forecast/latest.json
+write public/population-pressure-summary.json
+write public/demand-guardrail-summary.json
 write public/dispatch-plan.json
 write public/data-summary.json
 write public/model-observability.json
+write public/overnight-status.json
 append validation log
 ```
 
@@ -122,12 +130,31 @@ npm run model:build-pattern-cache
   - latest live public-signal feature snapshot for inspection
 - `public/traffic-snapshot.json`
   - latest filtered citydata road-link snapshot
+- `public/traffic-forecast/latest.json`
+  - next-hour dong-level traffic/congestion forecast
+- `public/population-pressure-summary.json`
+  - citydata POI 1-hour population forecast aggregated into dong-level
+    living/floating-population pressure proxy
+- `public/demand-guardrail-summary.json`
+  - monitoring priority and confidence guardrails combining demand, traffic,
+    population and validation signals
+- `public/model-observability.json`
+  - feature importance, live validation logs, 2026 proxy validation and baseline
+    readiness
+- `public/overnight-status.json`
+  - compact status payload for hourly Action results
+- `docs/overnight-model-qa-status.md`
+  - Markdown summary of the latest Action/live-cycle output
 - `data/processed/traffic/citydata_dong_traffic_latest.json`
   - latest dong-level live congestion summary
 - `data/processed/live_validation/latest.json`
   - latest combined validation record
 - `data/processed/live_validation/live_forecast_log.jsonl`
   - append-only live forecast log
+- `data/processed/live_validation/demand_guardrail_summary.json`
+  - processed copy of the public guardrail summary
+- `data/processed/live_validation/population_pressure_summary.json`
+  - processed copy of the public population pressure summary
 
 ## Holiday Handling
 

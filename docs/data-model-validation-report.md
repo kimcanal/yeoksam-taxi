@@ -251,6 +251,55 @@ Colab 기준 결과:
 건물 높이, 호텔 수, 동 면적 같은 도시 구조 feature가 동별 기본 수요 차이를 보완했습니다.
 ```
 
+## 10-1. 현재 baseline 활용 판정
+
+2026-05-06 현재 운영 판단은 다음과 같습니다.
+
+```text
+활용 가능: 행정동별 공개 데이터 기반 수요 pressure ranking
+아직 불가: 실제 택시 호출량 절대 예측, 기사 공급 최적화, 배차 지시
+```
+
+근거:
+
+- live-compatible 모델은 2025 holdout에서 persistence baseline 대비 MAE를 약 49.8% 낮췄습니다.
+- 같은 동·월·시간·평일/주말 패턴 평균 baseline과 비교하면 MAE 개선폭은 약 6.5%입니다.
+- 반대로 MAPE는 패턴 baseline이 더 강하게 나옵니다. 즉 시간대 반복 패턴 자체가 이미 강한 문제입니다.
+- 2026년 3~4월 대중교통 관측 proxy와의 사후 검증은 전체 Spearman `0.413`, 동별 평균 `0.435`입니다.
+
+해석:
+
+```text
+모델은 baseline보다 의미 있는 신호를 잡고 있지만, 단독 정답 모델로 보기에는 이릅니다.
+현재는 model score, 시간대 pattern baseline, citydata POI 인구/혼잡, TOPIS 도로 혼잡을 함께 보는 monitoring/ranking 모델로 쓰는 것이 안전합니다.
+```
+
+운영 기준:
+
+- 모델과 패턴 baseline이 같은 동을 높게 보면 confidence를 높입니다.
+- 모델은 높지만 citydata 인구/도로 혼잡이 약하면 관찰 등급으로 낮춥니다.
+- citydata 인구 또는 도로 혼잡이 급상승하면 모델 점수가 낮아도 nowcast 보정 후보로 둡니다.
+- 직접 택시콜 또는 승차장 픽업 라벨이 들어오기 전까지 “택시 수요량”이라는 표현은 쓰지 않습니다.
+
+구현 산출물:
+
+```text
+public/demand-guardrail-summary.json
+```
+
+이 파일은 다음 값을 동별로 함께 제공합니다.
+
+- `composite_pressure_score`: 수요 score, 도로 혼잡, citydata POI 인구 pressure를 합친 압박 점수
+- `confidence_score`: baseline 개선폭, 2026 사후 proxy 검증, 신호 간 rank agreement, live coverage를 합친 신뢰도
+- `monitoring_priority_score`: 압박 점수에 confidence를 곱해 정렬한 우선 관찰 점수
+- `risk_flags`: 패턴 fallback, 신호 불일치, 검증 약함, 인구 POI 미커버, 도로 링크 표본 부족 같은 주의 표시
+
+재현성 메모:
+
+- 대형 feature table과 2025 prediction CSV는 public bundle에 포함하지 않습니다.
+- 현재 세션에 업로드된 일부 대형 파일은 512KB에서 잘린 상태라 baseline 재평가 입력으로 사용할 수 없습니다.
+- 정상 feature table과 prediction CSV가 다시 들어오면 `npm run model:evaluate:demand-pattern-baseline`로 패턴 baseline 검증을 재실행해야 합니다.
+
 ## 11. 웹/지도 적용 범위
 
 현재 가능한 웹 기능:
