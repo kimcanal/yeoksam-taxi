@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-06
+
+### Changed
+- Reworked the map shell so `/` delegates the operator header/navigation to the map client, keeping the 3D scene layout simpler and avoiding duplicated overlays.
+- Added Seoul citydata partial-failure metadata to `/api/realtime`, including requested/returned/failed POI codes, normalized KST timestamps, and per-POI fetch failure reasons.
+- Surfaced live-data coverage and latency in the map sidebar so stale or partial citydata snapshots are visible instead of being presented as fully fresh data.
+- Added selectable citydata POI pressure points to the demand minimap; selecting a POI opens the detail panel and moves the 3D camera toward that field location.
+- Refined the 3D POI marker styling with clearer pressure labels, taller pins, and animated pressure pulses for better readability in the dense map scene.
+- Added a compact mobile map toolbar for focus mode, drive/overview switching, and demand-panel access.
+- Smoothed overview-camera transitions and tuned non-road/night-scene rendering so the map reads more clearly during presentation.
+
 ## 2026-04-11
 
 ### Changed
