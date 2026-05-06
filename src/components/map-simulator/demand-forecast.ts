@@ -19,7 +19,7 @@ export const DEMAND_FORECAST_SOURCE =
   "A-Eye Gangnam context-transfer relative demand, March 2026 sample";
 
 export const DEMAND_FORECAST_SAFE_CLAIM =
-  "정확한 카카오T 호출 수가 아니라, 공개 강남 지표와 시간대별 이동 패턴을 결합한 동 단위 상대 수요 강도입니다.";
+  "직접 호출 수가 아니라, 공개 강남 지표와 시간대별 이동 패턴을 결합한 동 단위 상대 수요 강도입니다.";
 
 export const DEMAND_FORECAST_SNAPSHOTS: DemandForecastSnapshot[] = [
   {

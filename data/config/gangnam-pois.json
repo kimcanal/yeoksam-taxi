@@ -50,12 +50,13 @@
     {
       "code": "POI041",
       "name": "양재역",
-      "coverage_dong": "대치4동",
+      "coverage_dong": null,
       "category": "adjacent_station",
       "lon": 127.034,
       "lat": 37.4844,
-      "collection_enabled": true,
-      "note": "Adjacent south-edge station signal; useful for spillover but not direct taxi-call ground truth."
+      "collection_enabled": false,
+      "actual_area_note": "서초구 서초/양재동 및 강남구 도곡동 경계권. 9개 target dong에 직접 귀속하지 않음.",
+      "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
     },
     {
       "code": "POI042",
@@ -80,12 +81,13 @@
     {
       "code": "POI071",
       "name": "압구정로데오거리",
-      "coverage_dong": "신사동",
+      "coverage_dong": null,
       "category": "commercial_street",
       "lon": 127.0405,
       "lat": 37.5275,
-      "collection_enabled": true,
-      "note": "North Gangnam commercial signal used as a spillover POI."
+      "collection_enabled": false,
+      "actual_area_note": "압구정/청담 경계 성격의 상권 POI. 신사동으로 단정 매핑하지 않음.",
+      "note": "Excluded from live target-dong aggregation until boundary mapping is made explicit."
     },
     {
       "code": "POI080",
@@ -100,12 +102,13 @@
     {
       "code": "POI018",
       "name": "교대역",
-      "coverage_dong": "대치4동",
+      "coverage_dong": null,
       "category": "adjacent_station",
       "lon": 127.0146,
       "lat": 37.4934,
-      "collection_enabled": true,
-      "note": "Adjacent west/south station signal for commute spillover; marked as indirect."
+      "collection_enabled": false,
+      "actual_area_note": "서초구 서초동 권역. 강남구 대치4동에 귀속하지 않음.",
+      "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
     }
   ],
   "supplemental_watchlist": [

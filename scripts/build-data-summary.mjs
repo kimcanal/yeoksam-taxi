@@ -15,6 +15,14 @@ async function readJsonIfExists(relativePath, fallback = null) {
   }
 }
 
+async function loadPoiMeta() {
+  const config = await readJsonIfExists("data/config/gangnam-pois.json", {});
+  const entries = Array.isArray(config?.citydata_collection)
+    ? config.citydata_collection
+    : [];
+  return new Map(entries.filter((poi) => poi?.code).map((poi) => [poi.code, poi]));
+}
+
 async function latestRawPath(...segments) {
   const rawRoot = path.join(projectRoot, ...segments);
   const kind = segments.includes("citydata")
@@ -104,19 +112,23 @@ function unwrapCitydata(response) {
   );
 }
 
-function summarizeCitydata(raw) {
+function summarizeCitydata(raw, poiByCode = new Map()) {
   const places = (raw?.results ?? [])
     .filter((result) => result.ok)
     .flatMap((result) => {
       const data = unwrapCitydata(result.data);
       if (!data) return [];
+      const code = data.AREA_CD ?? result.code;
+      const poiMeta = poiByCode.get(code) ?? poiByCode.get(result.code) ?? null;
+      if (poiMeta?.collection_enabled === false) return [];
+
       const pop = data.LIVE_PPLTN_STTS?.[0] ?? {};
       const traffic = Array.isArray(data.ROAD_TRAFFIC_STTS)
         ? data.ROAD_TRAFFIC_STTS[0] ?? {}
         : data.ROAD_TRAFFIC_STTS ?? {};
       const weather = data.WEATHER_STTS?.[0] ?? {};
       return [{
-        area_name: data.AREA_NM ?? result.code,
+        area_name: data.AREA_NM ?? poiMeta?.name ?? code,
         congestion_level: pop.AREA_CONGEST_LVL ?? data.AREA_CONGEST_LVL ?? "unknown",
         population_min: Number(pop.AREA_PPLTN_MIN ?? 0),
         population_max: Number(pop.AREA_PPLTN_MAX ?? 0),
@@ -165,6 +177,7 @@ const poiFeatures = await readJsonIfExists("public/poi-features.json");
 const poiForecastComparison = await readJsonIfExists("public/poi-forecast-comparison.json");
 const taxiPressure = await readJsonIfExists("public/taxi-pressure/latest.json");
 const taxiPressureComparison = await readJsonIfExists("public/taxi-pressure-comparison.json");
+const poiByCode = await loadPoiMeta();
 
 const summary = {
   generated_at: new Date().toISOString(),
@@ -183,7 +196,7 @@ const summary = {
   raw_citydata_attempt_meta: rawCitydataAttempt?.meta ?? null,
   raw_weather_attempt_meta: rawWeatherAttempt?.meta ?? null,
   citydata: rawCitydata
-    ? summarizeCitydata(rawCitydata)
+    ? summarizeCitydata(rawCitydata, poiByCode)
     : {
         collected_at: null,
         source: "Seoul citydata OA-21285",

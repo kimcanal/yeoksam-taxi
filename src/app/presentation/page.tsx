@@ -610,6 +610,7 @@ function riskLabel(flags: string[]) {
     weak_2026_proxy_validation: "검증 약함",
     no_live_population_poi_coverage: "인구 미커버",
     thin_current_traffic_links: "도로 표본 적음",
+    recent_rank_volatility: "최근 순위 급변",
   };
   return flags.map((flag) => labels[flag] ?? flag).join(" · ");
 }
@@ -946,11 +947,11 @@ export default function PresentationPage() {
               <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
                 <div className="flex items-center gap-2 text-sm font-black text-rose-900">
                   <Timer className="h-4 w-4" />
-                  아직 아닌 것
+                  현재 범위 밖
                 </div>
                 <p className="mt-2 text-sm leading-6 text-rose-950">
-                  카카오T 실콜 예측, 실제 기사 공급량 최적화, 운영 배차 지시,
-                  호출 정확도처럼 들리는 표현.
+                  직접 호출량, 실제 차량 공급량 최적화, 운영 배차 지시는
+                  현재 데이터와 모델 검증 범위에 포함하지 않습니다.
                 </p>
               </div>
             </div>

@@ -51,6 +51,15 @@ function rankMap(rows, valueFn) {
   );
 }
 
+function recentTopCountMap(recentRows) {
+  const counts = new Map();
+  for (const row of recentRows ?? []) {
+    if (!row?.top_region) continue;
+    counts.set(row.top_region, (counts.get(row.top_region) ?? 0) + 1);
+  }
+  return counts;
+}
+
 function validationStrength(spearman) {
   if (!Number.isFinite(spearman)) return 0.35;
   return clamp((spearman - 0.15) / 0.55, 0.15, 1);
@@ -101,7 +110,18 @@ function useCase(level) {
   return "needs_more_validation";
 }
 
-function riskFlags({ rankAgreementScore, validationScore, populationRow, trafficRow, forecast }) {
+function riskFlags({
+  rankAgreementScore,
+  validationScore,
+  populationRow,
+  trafficRow,
+  forecast,
+  recentTopCount,
+  demandRankValue,
+  totalCount,
+  latestTopRegion,
+  dongName,
+}) {
   const flags = [];
   if (forecast?.strategy === "pattern") {
     flags.push("pattern_fallback_used");
@@ -117,6 +137,17 @@ function riskFlags({ rankAgreementScore, validationScore, populationRow, traffic
   }
   if (!trafficRow || Number(trafficRow.current_link_count ?? 0) < 5) {
     flags.push("thin_current_traffic_links");
+  }
+  if (
+    recentTopCount >= 2
+    && Number.isFinite(demandRankValue)
+    && totalCount >= 3
+    && (
+      demandRankValue > Math.ceil(totalCount * 0.66)
+      || (latestTopRegion && latestTopRegion !== dongName && demandRankValue > 1)
+    )
+  ) {
+    flags.push("recent_rank_volatility");
   }
   return flags;
 }
@@ -140,6 +171,10 @@ const trafficRank = rankMap(trafficRows, (row) => scoreOrZero(row.predicted_cong
 const populationRank = rankMap(populationRows, (row) => scoreOrZero(row.avg_poi_pressure_score));
 const baselineScore = globalBaselineStrength(readiness);
 const totalCount = demandRows.length;
+const recentRows = observability?.live_validation?.recent ?? [];
+const recentTopCounts = recentTopCountMap(recentRows);
+const latestTopRegion =
+  observability?.live_validation?.latest_top_region ?? recentRows[0]?.top_region ?? null;
 
 const dongs = demandRows
   .map((row) => {
@@ -148,6 +183,8 @@ const dongs = demandRows
     const populationRow = populationByDong.get(dongName) ?? null;
     const validationRow = validationByDong.get(dongName) ?? null;
     const validationScore = validationStrength(validationRow?.spearman_r);
+    const demandRankValue = demandRank.get(dongName) ?? null;
+    const recentTopCount = recentTopCounts.get(dongName) ?? 0;
     const rankAgreementScore = rankAgreement(
       dongName,
       demandRank,
@@ -220,7 +257,14 @@ const dongs = demandRows
           populationRow,
           trafficRow,
           forecast: demand,
+          recentTopCount,
+          demandRankValue,
+          totalCount,
+          latestTopRegion,
+          dongName,
         }),
+        recent_top_count: recentTopCount,
+        latest_top_region: latestTopRegion,
       },
     };
   })

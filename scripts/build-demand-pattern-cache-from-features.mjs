@@ -252,7 +252,7 @@ const payload = {
   fallback_patterns: fallbackPatterns,
   note:
     "Pattern cache computed from historical dong-hour feature rows (2023-01..2025-12). "
-    + "Target is next-hour inbound_boardings_per_1k_pop (movement-demand proxy; not direct KakaoT call volume).",
+    + "Target is next-hour inbound_boardings_per_1k_pop (movement-demand proxy; not direct call volume).",
   provenance: sourceModelSummary
     ? {
         model_summary_generated_at: sourceModelSummary.generated_at ?? null,

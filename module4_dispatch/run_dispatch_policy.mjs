@@ -99,7 +99,7 @@ function summarizeEffect(decisions) {
   return {
     method: "proxy_counterfactual_v1",
     interpretation:
-      "Estimated pressure relief from monitoring units and incentive multipliers. This is a policy-planning proxy, not measured KakaoT dispatch impact.",
+      "Estimated pressure relief from monitoring units and incentive multipliers. This is a policy-planning proxy, not measured dispatch impact.",
     intervention_area_count: interventionRows.length,
     total_monitoring_units: interventionRows.reduce(
       (sum, row) => sum + row.coverage_units,

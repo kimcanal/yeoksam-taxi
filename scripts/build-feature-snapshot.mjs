@@ -229,6 +229,7 @@ function buildFeatureRow(result, temporal, nowcast, poiByCode) {
   if (!data) return null;
   const areaCode = data.AREA_CD ?? result.code;
   const poiMeta = poiByCode.get(areaCode) ?? poiByCode.get(result.code) ?? null;
+  if (poiMeta?.collection_enabled === false) return null;
 
   const pop = normalizeArray(data.LIVE_PPLTN_STTS)[0] ?? {};
   const traffic = normalizeArray(data.ROAD_TRAFFIC_STTS)[0] ?? {};

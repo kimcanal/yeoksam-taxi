@@ -110,6 +110,8 @@ function extractPoiObservation(result, poiByCode) {
   const pop = normalizeArray(data.LIVE_PPLTN_STTS)[0] ?? {};
   const code = data.AREA_CD ?? result.code;
   const poiMeta = poiByCode.get(code) ?? poiByCode.get(result.code) ?? null;
+  if (poiMeta?.collection_enabled === false) return null;
+
   const populationMin = numberOrNull(pop.AREA_PPLTN_MIN ?? pop.PPLTN_MIN);
   const populationMax = numberOrNull(pop.AREA_PPLTN_MAX ?? pop.PPLTN_MAX);
   const observedAt = parseTime(pop.PPLTN_TIME ?? data.PPLTN_TIME);

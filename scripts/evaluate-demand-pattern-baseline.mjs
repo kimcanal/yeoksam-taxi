@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,9 @@ const DEFAULT_INPUT =
 const DEFAULT_CACHE =
   "data/processed/model_live_compatible/demand_pattern_cache_2025.json";
 const DEFAULT_OUT_DIR = "data/processed/model_live_compatible";
+const PUBLIC_SUMMARY = "public/demand-pattern-summary.json";
+const LIVE_METRICS = "data/processed/model_live_compatible/dong_demand_proxy_live_metrics.json";
+const OBSERVED_VALIDATION = "data/processed/model_live_compatible/validation_2026_q1.json";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -111,8 +114,126 @@ function metricBundle(actual, predicted) {
   return { row_count: count, mae, rmse, mape_pct: mapePct };
 }
 
+async function readJsonIfExists(relativePath, fallback = null) {
+  try {
+    return JSON.parse(await readFile(path.join(projectRoot, relativePath), "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+async function artifactStatus(relativePath) {
+  try {
+    const info = await stat(path.join(projectRoot, relativePath));
+    return {
+      path: relativePath,
+      exists: true,
+      size_bytes: info.size,
+    };
+  } catch {
+    return {
+      path: relativePath,
+      exists: false,
+      size_bytes: null,
+    };
+  }
+}
+
+function hasTargetMean(cache) {
+  return (cache?.patterns ?? []).some((row) =>
+    row?.mean_target_inbound_boardings_per_1k_pop_t_plus_1h != null,
+  );
+}
+
+function cachedSummary({
+  options,
+  reason,
+  existingSummary,
+  liveMetrics,
+  observedValidation,
+  inputStatus,
+  cacheStatus,
+}) {
+  return {
+    generated_at: new Date().toISOString(),
+    evaluation_mode: "cached_summary_with_artifact_check",
+    input_predictions_csv: options.input,
+    pattern_cache: options.cache,
+    interpretation:
+      "Uses the last committed 2025 model-vs-pattern baseline metrics when the bulky reproducibility artifacts are not present locally. "
+      + "This keeps the command non-blocking while surfacing the missing artifact status.",
+    source_artifacts: {
+      input_predictions_csv: inputStatus,
+      pattern_cache: cacheStatus,
+      cached_summary_used: Boolean(existingSummary),
+      fallback_reason: reason,
+    },
+    model_prediction: existingSummary?.model_prediction ?? (
+      liveMetrics?.model
+        ? {
+            row_count: liveMetrics?.row_counts?.test ?? null,
+            mae: liveMetrics.model.mae ?? null,
+            rmse: liveMetrics.model.rmse ?? null,
+            mape_pct: liveMetrics.model.mape_pct ?? null,
+          }
+        : null
+    ),
+    pattern_mean_loo: existingSummary?.pattern_mean_loo ?? null,
+    observed_2026_proxy_check: observedValidation
+      ? {
+          row_count: observedValidation.row_count ?? null,
+          date_range: observedValidation.date_range ?? null,
+          spearman_r: observedValidation.overall?.spearman_r ?? null,
+          per_dong_spearman_mean:
+            observedValidation.overall?.per_dong_spearman_mean ?? null,
+        }
+      : null,
+    caveat:
+      "Pattern baseline metrics are useful as a sanity check, but this repository currently lacks the large 2025 prediction CSV and legacy target-mean pattern cache needed to recompute them from scratch.",
+  };
+}
+
+async function writeMetrics(metrics, outDir) {
+  const outDirAbs = path.join(projectRoot, outDir);
+  await mkdir(outDirAbs, { recursive: true });
+  const outPath = path.join(outDirAbs, "demand_pattern_baseline_metrics_2025.json");
+  await writeFile(outPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
+  const publicPath = path.join(projectRoot, PUBLIC_SUMMARY);
+  await writeFile(publicPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
+  console.log(`Wrote ${path.relative(projectRoot, outPath)}`);
+  console.log(`Wrote ${path.relative(projectRoot, publicPath)}`);
+}
+
 const options = parseArgs();
-const cache = JSON.parse(await readFile(path.join(projectRoot, options.cache), "utf8"));
+const inputStatus = await artifactStatus(options.input);
+const cacheStatus = await artifactStatus(options.cache);
+const existingSummary = await readJsonIfExists(PUBLIC_SUMMARY);
+const liveMetrics = await readJsonIfExists(LIVE_METRICS);
+const observedValidation = await readJsonIfExists(OBSERVED_VALIDATION);
+const cache = cacheStatus.exists
+  ? JSON.parse(await readFile(path.join(projectRoot, options.cache), "utf8"))
+  : null;
+
+if (!inputStatus.exists || !cacheStatus.exists || !hasTargetMean(cache)) {
+  const reason = !inputStatus.exists
+    ? "missing_input_predictions_csv"
+    : !cacheStatus.exists
+      ? "missing_pattern_cache"
+      : "pattern_cache_lacks_target_mean";
+  await writeMetrics(
+    cachedSummary({
+      options,
+      reason,
+      existingSummary,
+      liveMetrics,
+      observedValidation,
+      inputStatus,
+      cacheStatus,
+    }),
+    options.outDir,
+  );
+  process.exit(0);
+}
 
 const exactMap = new Map();
 for (const row of cache.patterns ?? []) {
@@ -190,11 +311,4 @@ const metrics = {
   pattern_mean_loo: metricBundle(actual, baselinePred),
 };
 
-const outDirAbs = path.join(projectRoot, options.outDir);
-await mkdir(outDirAbs, { recursive: true });
-const outPath = path.join(outDirAbs, "demand_pattern_baseline_metrics_2025.json");
-await writeFile(outPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
-const publicPath = path.join(projectRoot, "public", "demand-pattern-summary.json");
-await writeFile(publicPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
-console.log(`Wrote ${path.relative(projectRoot, outPath)}`);
-console.log(`Wrote ${path.relative(projectRoot, publicPath)}`);
+await writeMetrics(metrics, options.outDir);

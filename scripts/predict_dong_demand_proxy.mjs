@@ -352,7 +352,7 @@ const payload = {
   regions,
   note:
     "JS-only fallback forecast built from historical same-hour pattern means (public transit movement proxy). "
-    + "Not a direct KakaoT call-volume model.",
+    + "Not a direct call-volume model.",
 };
 
 const outputPath = resolveFromRoot(options.out);

@@ -993,7 +993,7 @@ export default function DataStatusPage() {
               <p className="font-black">데이터 경계</p>
             </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              KakaoT 호출 로그는 학습하지 않습니다. 이 화면의 “수요”는 대중교통 승차량 기반 이동수요 대리 지표(proxy)입니다.
+              비공개 호출 로그는 학습하지 않습니다. 이 화면의 “수요”는 대중교통 승차량 기반 이동수요 대리 지표(proxy)입니다.
             </p>
             <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div>
@@ -1067,17 +1067,17 @@ export default function DataStatusPage() {
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">이렇게 말하기</p>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">지표 의미</p>
                 <p className="mt-2 text-sm leading-6 text-emerald-950">
                   공개 대중교통 승차량과 공간·날씨·교통 입력값으로 만든 동별 이동수요 대리 지표(proxy)입니다.
                   실제 호출 데이터가 생기면 예측 대상만 바꿔 확장할 수 있습니다.
                 </p>
               </div>
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-rose-700">피해야 할 말</p>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-rose-700">현재 범위 밖</p>
                 <p className="mt-2 text-sm leading-6 text-rose-950">
-                  택시 호출량을 직접 예측했다거나, KakaoT 호출 로그/실시간 택시 데이터를 학습했다는
-                  표현은 쓰지 않습니다.
+                  직접 호출량, 개별 차량 위치, 실제 기사 공급량 같은 비공개 운영 데이터는
+                  현재 학습·검증 대상에 포함하지 않습니다.
                 </p>
               </div>
             </div>
@@ -1598,8 +1598,8 @@ export default function DataStatusPage() {
 
             <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
               해석 주의: 현재 “실제값”은 택시 호출 수가 아니라 공개 API로 다시 관측된 도로 혼잡/속도와
-              대중교통 기반 proxy입니다. 그래서 이 화면은 예측 방향을 점검하는 보조 자료이며,
-              카카오T 실콜 정확도 검증이라고 말하면 안 됩니다.
+              대중교통 기반 proxy입니다. 직접 호출량 라벨이 없기 때문에 이 화면은 공개 관측 신호와
+              예측 방향을 비교하는 보조 자료입니다.
             </p>
           </Panel>
         </section>
@@ -2166,7 +2166,7 @@ export default function DataStatusPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <div className="flex items-center gap-2 text-slate-900">
               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <h2 className="font-black">발표 때 이렇게 말하면 됩니다</h2>
+              <h2 className="font-black">발표 요약</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               “한 시간마다 현재 API 값을 수집해 1시간 뒤 동별 이동수요 proxy를 예측하고,

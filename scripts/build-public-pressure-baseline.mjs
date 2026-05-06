@@ -21,7 +21,7 @@ async function loadAreaToDong() {
       : [];
     return new Map(
       entries
-        .filter((poi) => poi?.code && poi?.coverage_dong)
+        .filter((poi) => poi?.collection_enabled !== false && poi?.code && poi?.coverage_dong)
         .map((poi) => [poi.code, poi.coverage_dong]),
     );
   } catch {

@@ -195,7 +195,7 @@ const status = {
   },
   dispatch_effect: dispatchPlan.policy_effect_summary ?? null,
   note:
-    "This status tracks public-data proxy forecasts, not direct KakaoT taxi-call predictions.",
+    "This status tracks public-data proxy forecasts, not direct call-volume predictions.",
 };
 
 const publicPath = path.join(projectRoot, "public", "overnight-status.json");
@@ -221,7 +221,7 @@ const md = `# Overnight Model QA Status
 Generated: ${status.generated_at_kst} KST
 
 This file is updated by the overnight model QA cycle. It tracks public-data
-proxy forecasts, not direct KakaoT taxi-call predictions.
+proxy forecasts, not direct call-volume predictions.
 
 ## API Collection
 
