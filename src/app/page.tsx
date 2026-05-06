@@ -2,7 +2,6 @@ import { execSync } from "node:child_process";
 import MapSimulatorClient from "@/components/MapSimulatorClient";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "강남 교통 운영 | 역삼권 수요 proxy",
@@ -89,47 +88,8 @@ export default function Home() {
   const buildVersion = resolveBuildVersion();
 
   return (
-    <main className="relative h-screen w-full overflow-hidden bg-black">
-      <div className="pointer-events-none absolute top-4 left-1/2 z-50 hidden -translate-x-1/2 items-center gap-4 md:flex">
-        <div className="pointer-events-auto flex items-center gap-5 rounded-lg border border-slate-200 bg-white/94 px-4 py-2 text-slate-900 shadow-lg shadow-black/10 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-              <div className="absolute -inset-1 animate-ping rounded-full bg-emerald-500/20"></div>
-            </div>
-            <span className="text-sm font-black text-slate-950">강남 교통 운영</span>
-          </div>
-
-          <div className="h-4 w-px bg-slate-200"></div>
-
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/presentation"
-              className="rounded-md px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-            >
-              발표
-            </Link>
-            <Link
-              href="/data"
-              className="rounded-md px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-            >
-              데이터
-            </Link>
-          </nav>
-        </div>
-      </div>
-
-      <div className="relative w-full h-full">
-        <MapSimulatorClient buildVersion={buildVersion} />
-
-        <div className="pointer-events-none absolute bottom-8 left-8 z-10 hidden md:block lg:hidden">
-          <div className="rounded-lg border border-slate-200 border-l-4 border-l-sky-500 bg-white/94 px-4 py-3 text-slate-900 shadow-lg shadow-black/10 backdrop-blur-xl">
-            <div className="mb-1 text-[10px] font-black text-slate-500">관제구역</div>
-            <div className="text-lg font-black text-slate-950">역삼동 주변 9개 동</div>
-            <div className="mt-1 text-[10px] text-slate-500">공개데이터 기반 수요 proxy · 실시간 스냅샷 반영</div>
-          </div>
-        </div>
-      </div>
+    <main className="h-screen w-full overflow-hidden bg-black">
+      <MapSimulatorClient buildVersion={buildVersion} />
     </main>
   );
 }

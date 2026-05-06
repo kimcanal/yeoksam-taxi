@@ -34,6 +34,15 @@ export interface LiveData {
   dataAgeMinutes: number;
   snapshotLabel: string; // "방금" / "N분 전" / "M시간 전" / "YYYY-MM-DD 수집" (stale)
   isStale: boolean;      // 3시간 이상 오래된 경우
+  meta: {
+    source: string;
+    fetchedAt: string;
+    expectedPlaceCount: number;
+    returnedPlaceCount: number;
+    returnedPlaceCodes: string[];
+    failedPlaceCodes: string[];
+    isPartial: boolean;
+  };
 }
 
 type FetchStatus = "idle" | "loading" | "ok" | "error";
@@ -113,6 +122,7 @@ async function fetchLiveData(): Promise<LiveData> {
   const cityWeather = places[0]?.weather as
     | Record<string, unknown>
     | undefined;
+  const meta = (realtimeJson?.meta ?? {}) as Record<string, unknown>;
   const precipitationType = String(cityWeather?.precipitation_type ?? "없음");
   const precipitation = String(cityWeather?.precipitation ?? "0");
   const precipMm = parseFloat(precipitation.replace(/[^\d.-]/g, "") || "0");
@@ -123,8 +133,20 @@ async function fetchLiveData(): Promise<LiveData> {
   );
 
   const fetchedAt = new Date().toISOString();
-  const rawFetchedAt = String(realtimeJson?.meta?.fetched_at ?? fetchedAt);
+  const rawFetchedAt = String(meta.fetched_at ?? fetchedAt);
   const ageInfo = snapshotLabel(rawFetchedAt);
+  const expectedPlaceCount = Number(meta.expected_count ?? places.length);
+  const returnedPlaceCount = Number(meta.returned_count ?? places.length);
+  const returnedPlaceCodes = Array.isArray(meta.returned_codes)
+    ? meta.returned_codes.map((value) => String(value))
+    : [];
+  const failedPlaceCodes = Array.isArray(meta.failed_codes)
+    ? meta.failed_codes.map((value) => String(value))
+    : [];
+  const isPartial =
+    Boolean(meta.partial_failure) ||
+    returnedPlaceCount < expectedPlaceCount ||
+    failedPlaceCodes.length > 0;
 
   return {
     weather: {
@@ -140,6 +162,15 @@ async function fetchLiveData(): Promise<LiveData> {
     dataAgeMinutes: minutesSince(rawFetchedAt),
     snapshotLabel: ageInfo.label,
     isStale: ageInfo.isStale,
+    meta: {
+      source: String(meta.source ?? "citydata"),
+      fetchedAt: rawFetchedAt,
+      expectedPlaceCount,
+      returnedPlaceCount,
+      returnedPlaceCodes,
+      failedPlaceCodes,
+      isPartial,
+    },
   };
 }
 

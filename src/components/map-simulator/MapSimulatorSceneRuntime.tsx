@@ -243,6 +243,13 @@ function poiMarkerColor(score: number | null | undefined) {
   return "#94a3b8";
 }
 
+function poiPressureLabel(score: number) {
+  if (score >= 0.72) return "긴급";
+  if (score >= 0.56) return "주의";
+  if (score >= 0.36) return "관찰";
+  return "안정";
+}
+
 function formatPoiPopulation(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return "-";
@@ -264,13 +271,13 @@ function poiMarkerElement(poi: MapPoiFeatureRow) {
 
   element.dataset.labelKind = "poi";
   element.style.display = "grid";
-  element.style.gap = "2px";
-  element.style.minWidth = "104px";
-  element.style.padding = "6px 8px";
-  element.style.borderRadius = "10px";
-  element.style.border = `1px solid ${accent}66`;
-  element.style.background = "rgba(5, 12, 23, 0.88)";
-  element.style.boxShadow = `0 8px 20px rgba(0,0,0,0.28), 0 0 20px ${accent}22`;
+  element.style.gap = "3px";
+  element.style.minWidth = "118px";
+  element.style.padding = "7px 9px 7px 10px";
+  element.style.borderRadius = "14px";
+  element.style.border = `1px solid ${accent}88`;
+  element.style.background = `linear-gradient(135deg, rgba(5, 12, 23, 0.96), rgba(8, 21, 34, 0.9)), radial-gradient(circle at top right, ${accent}26, transparent 58%)`;
+  element.style.boxShadow = `0 10px 24px rgba(0,0,0,0.34), 0 0 22px ${accent}2f`;
   element.style.color = "#e5f7ff";
   element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
   element.style.fontSize = "10px";
@@ -285,12 +292,24 @@ function poiMarkerElement(poi: MapPoiFeatureRow) {
   title.style.alignItems = "center";
   title.style.justifyContent = "space-between";
   title.style.gap = "8px";
+  const indicator = document.createElement("span");
+  indicator.style.width = "6px";
+  indicator.style.height = "6px";
+  indicator.style.borderRadius = "999px";
+  indicator.style.background = accent;
+  indicator.style.boxShadow = `0 0 12px ${accent}cc`;
   const name = document.createElement("span");
+  name.style.flex = "1";
+  name.style.minWidth = "0";
+  name.style.overflow = "hidden";
+  name.style.textOverflow = "ellipsis";
   name.textContent = poi.poi_name;
   const value = document.createElement("span");
-  value.textContent = String(Math.round(score * 100));
+  value.textContent = poiPressureLabel(score);
+  value.style.flex = "none";
   value.style.color = accent;
   value.style.fontWeight = "800";
+  title.appendChild(indicator);
   title.appendChild(name);
   title.appendChild(value);
   element.appendChild(title);
@@ -684,7 +703,7 @@ export default function MapSimulatorSceneRuntime({
       facility: new THREE.MeshBasicMaterial({
         color: 0x4f5358,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.12,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -692,9 +711,9 @@ export default function MapSimulatorSceneRuntime({
         polygonOffsetUnits: -2,
       }),
       green: new THREE.MeshBasicMaterial({
-        color: 0x465344,
+        color: 0x3d6645,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.28,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -704,7 +723,7 @@ export default function MapSimulatorSceneRuntime({
       pedestrian: new THREE.MeshBasicMaterial({
         color: 0x67645f,
         transparent: true,
-        opacity: 0.08,
+        opacity: 0.1,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -712,9 +731,9 @@ export default function MapSimulatorSceneRuntime({
         polygonOffsetUnits: -4,
       }),
       parking: new THREE.MeshBasicMaterial({
-        color: 0x6c655c,
+        color: 0x5d5751,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.13,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -722,9 +741,9 @@ export default function MapSimulatorSceneRuntime({
         polygonOffsetUnits: -5,
       }),
       water: new THREE.MeshBasicMaterial({
-        color: 0x485965,
+        color: 0x2a5f7d,
         transparent: true,
-        opacity: 0.14,
+        opacity: 0.28,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -2377,6 +2396,7 @@ export default function MapSimulatorSceneRuntime({
 
     const poiMarkerGroup = new THREE.Group();
     poiMarkerGroup.name = "citydata-poi-marker-layer";
+    const poiPulseMeshes: { mesh: THREE.Mesh; basePressure: number; phaseOffset: number }[] = [];
     const poiHitGeometry = new THREE.CylinderGeometry(1.65, 1.65, 2.8, 24);
     const poiHitMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -2443,6 +2463,21 @@ export default function MapSimulatorSceneRuntime({
       ring.position.y = 0.2;
       group.add(ring);
 
+      const stemHeight = 0.46 + Math.min(score, 1) * 0.26;
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.095, stemHeight, 12),
+        new THREE.MeshStandardMaterial({
+          color: accent,
+          emissive: accent,
+          emissiveIntensity: 0.22,
+          roughness: 0.44,
+          transparent: true,
+          opacity: 0.9,
+        }),
+      );
+      stem.position.y = 0.22 + stemHeight / 2;
+      group.add(stem);
+
       const pulse = new THREE.Mesh(
         new THREE.SphereGeometry(0.24 + Math.min(score, 1) * 0.12, 18, 18),
         new THREE.MeshStandardMaterial({
@@ -2452,7 +2487,8 @@ export default function MapSimulatorSceneRuntime({
           roughness: 0.36,
         }),
       );
-      pulse.position.y = 0.56;
+      pulse.position.y = 0.32 + stemHeight;
+      poiPulseMeshes.push({ mesh: pulse, basePressure: score, phaseOffset: index * 0.72 });
       group.add(pulse);
 
       const label = new CSS2DObject(poiMarkerElement(poi));
@@ -4608,6 +4644,17 @@ export default function MapSimulatorSceneRuntime({
       }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
+
+      // Animate POI pulse meshes (use latestSimulationSnapshot which is set each frame)
+      const elapsedSec = latestSimulationSnapshot?.clock?.elapsedTimeSeconds ?? (performance.now() / 1000);
+      poiPulseMeshes.forEach(({ mesh, basePressure, phaseOffset }) => {
+        const pulseMat = mesh.material as THREE.MeshStandardMaterial;
+        const wave = 0.5 + 0.5 * Math.sin(elapsedSec * 2.4 + phaseOffset);
+        const scale = 0.92 + wave * 0.18 * (0.4 + basePressure * 0.6);
+        mesh.scale.setScalar(scale);
+        pulseMat.emissiveIntensity = 0.28 + wave * 0.28 * basePressure;
+        pulseMat.needsUpdate = true;
+      });
       vehicleSimulationAccumulator = Math.min(
         vehicleSimulationAccumulator + delta,
         VEHICLE_SIMULATION_STEP * MAX_VEHICLE_SIMULATION_STEPS,
@@ -4759,11 +4806,12 @@ export default function MapSimulatorSceneRuntime({
         }
       } else if (currentMode === "overview") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        cameraRig.focus.copy(centerPoint);
-        cameraRig.focus.y = 0;
-        cameraRig.yaw = overviewYaw;
-        cameraRig.pitch = 0.7;
-        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
+        const overviewDistance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
+        const lerpAlpha = 1 - Math.exp(-delta * 3.8);
+        cameraRig.focus.lerp(new THREE.Vector3(centerPoint.x, 0, centerPoint.z), lerpAlpha);
+        cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 3.8, delta);
+        cameraRig.pitch = THREE.MathUtils.damp(cameraRig.pitch, 0.7, 3.8, delta);
+        cameraRig.distance = THREE.MathUtils.damp(cameraRig.distance, overviewDistance, 3.8, delta);
       } else if (currentMode === "follow") {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;

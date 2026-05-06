@@ -578,8 +578,14 @@ export function buildEnvironmentState(
     stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,
     stopLineEmissive: daylight < 0.2 ? 0x262d36 : 0x181c22,
     stopLineIntensity: daylight < 0.2 ? 0.08 : 0.03,
-    buildingEmissive: mixHexColor(0xffffff, 0x8fb9ff, nightBuildingFactor * 0.18),
-    buildingEmissiveIntensity: 0.02 + nightBuildingFactor * 0.035,
+    buildingEmissive: mixHexColor(
+      nightBuildingFactor > 0.5
+        ? 0xffd97a  // warm yellow window light at deep night
+        : 0xffffff,
+      0x8fb9ff,
+      nightBuildingFactor * 0.22
+    ),
+    buildingEmissiveIntensity: 0.018 + nightBuildingFactor * 0.06,
     precipitation:
       weatherMode === "heavy-rain"
         ? "rain"

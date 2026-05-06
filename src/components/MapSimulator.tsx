@@ -5,11 +5,12 @@ import {
   Gauge,
   Map as MapIcon,
   Maximize2,
+  Menu,
   Minimize2,
   Navigation,
-  PanelRightClose,
-  PanelRightOpen,
+  X,
 } from "lucide-react";
+import Link from "next/link";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
@@ -46,7 +47,6 @@ import {
   CameraMode,
   CircumstanceMode,
   DEFAULT_TAXI_COUNT,
-  DEFAULT_TRAFFIC_COUNT,
   FpsMode,
   FpsStats,
   PANEL_ACCENT_CARD_CLASS,
@@ -144,6 +144,19 @@ type DemandMiniMapLandmark = {
   textAnchor: "start" | "end";
 };
 
+type DemandMiniMapPoi = {
+  code: string;
+  name: string;
+  label: string;
+  x: number;
+  y: number;
+  labelX: number;
+  labelY: number;
+  score: number;
+  isSelected: boolean;
+  textAnchor: "start" | "end";
+};
+
 function isSubwayStationFeature(feature: SimulationData["transit"]["features"][number]) {
   return (
     feature.properties.category === "subway_station" &&
@@ -216,6 +229,11 @@ function demandLevelLabel(score: number) {
   return "매우 낮음";
 }
 
+function compactPoiLabel(name: string) {
+  const normalized = name.replace(/\s+/g, " ").trim();
+  return normalized.length > 8 ? normalized.slice(0, 8) : normalized;
+}
+
 function demandReasonsFor(dong: DemandForecastDong) {
   const reasons = [];
   if (dong.publicTransitSignal >= 0.5) {
@@ -255,34 +273,6 @@ function formatLivePopulation(area: LiveArea) {
     return `${area.populationMin.toLocaleString("ko-KR")}-${area.populationMax.toLocaleString("ko-KR")}`;
   }
   return area.populationMax.toLocaleString("ko-KR");
-}
-
-function formatLiveObservedAt(value: string) {
-  if (!value) {
-    return "관측 시간 미제공";
-  }
-  if (value.includes("T")) {
-    const parsed = new Date(value);
-    if (Number.isFinite(parsed.getTime())) {
-      const parts = new Intl.DateTimeFormat("ko-KR", {
-        timeZone: "Asia/Seoul",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).formatToParts(parsed);
-      const part = (type: Intl.DateTimeFormatPartTypes) =>
-        parts.find((item) => item.type === type)?.value ?? "";
-      return `${part("year")}.${part("month")}.${part("day")} ${part("hour")}:${part("minute")}`;
-    }
-  }
-  const normalized = value.replace("T", " ");
-  if (normalized.length >= 16) {
-    return normalized.slice(0, 16);
-  }
-  return normalized;
 }
 
 function formatLiveWeather(tempC: number, precipitationType: string) {
@@ -458,6 +448,16 @@ function liveAreaScore(area: LiveArea) {
   return area.populationMax + congestion * 5_000 + traffic * 2_000;
 }
 
+
+function calculateLatencyMinutes(observedAt: string | undefined) {
+  if (!observedAt) return null;
+  const observedTimestamp = new Date(observedAt).getTime();
+  if (!Number.isFinite(observedTimestamp)) {
+    return null;
+  }
+  return Math.max(0, Math.round((Date.now() - observedTimestamp) / 60000));
+}
+
 export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const simulationSource = useMemo(() => createLocalSimulationSource(), []);
@@ -502,10 +502,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     simulationHz: 0,
     vehicles: 0,
   });
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMapFocusMode, setIsMapFocusMode] = useState(false);
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
-  const appliedTrafficCount = DEFAULT_TRAFFIC_COUNT;
+  // Keep the map focused on taxi operations until backend traffic markers land.
+  const appliedTrafficCount = 0;
   const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
   const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
   const simulationDateRef = useSyncRef(simulationDate);
@@ -530,7 +531,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const cameraFocusTargetRef = useRef<CameraFocusTarget | null>(null);
   const [, setStats] = useState<Stats>({
     taxis: DEFAULT_TAXI_COUNT,
-    traffic: DEFAULT_TRAFFIC_COUNT,
+    traffic: 0,
     waiting: 0,
     signals: 0,
     activeTrips: 0,
@@ -968,6 +969,40 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           }
           return left.label.localeCompare(right.label, "ko");
         }),
+      pois: [...mapPoiFeatureRows]
+        .filter(
+          (poi) =>
+            poi.source_status === "citydata_live" &&
+            Number.isFinite(poi.lon) &&
+            Number.isFinite(poi.lat),
+        )
+        .sort(
+          (left, right) =>
+            (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0),
+        )
+        .slice(0, 8)
+        .map((poi, index) => {
+          const projected = projectPoint(
+            [poi.lon as number, poi.lat as number],
+            data.center,
+          );
+          const point = mapPoint(projected);
+          const x = THREE.MathUtils.clamp(point.x, 4, 96);
+          const y = THREE.MathUtils.clamp(point.y, 4, 96);
+          const labelOnLeft = x > 72;
+          return {
+            code: poi.poi_code,
+            name: poi.poi_name,
+            label: compactPoiLabel(poi.poi_name),
+            x,
+            y,
+            labelX: labelOnLeft ? x - 2.6 : x + 2.6,
+            labelY: y + (index % 2 === 0 ? -1.8 : 3),
+            score: poi.poi_pressure_score ?? 0,
+            isSelected: poi.poi_code === selectedPoiCode,
+            textAnchor: labelOnLeft ? "end" : "start",
+          } satisfies DemandMiniMapPoi;
+        }),
       focus,
       focusHeading,
       focusLabel: miniMapFocus?.label ?? "현재 지도 중심",
@@ -976,8 +1011,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     data,
     demandByDong,
     dispatchByDong,
+    mapPoiFeatureRows,
     miniMapFocus,
     scenarioMapCenter,
+    selectedPoiCode,
   ]);
   const mapEvidenceMetrics = useMemo(() => {
     if (!data) {
@@ -1027,10 +1064,30 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     sortedMapPoiRows[0] ??
     null;
   const handlePoiSelect = useCallback((poiCode: string) => {
+    const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
     setIsSidebarCollapsed(false);
     setIsMapFocusMode(false);
-  }, []);
+    if (
+      data &&
+      poi &&
+      Number.isFinite(poi.lon) &&
+      Number.isFinite(poi.lat)
+    ) {
+      const projected = projectPoint(
+        [poi.lon as number, poi.lat as number],
+        data.center,
+      );
+      cameraFocusTargetRef.current = {
+        x: projected.x,
+        z: projected.z,
+        distance: 78,
+        pitch: 0.68,
+        label: poi.poi_name,
+      };
+      setCameraMode("drive");
+    }
+  }, [data, mapPoiFeatureRows]);
   const topLiveAreas = useMemo(() => {
     if (!liveData?.areas.length) {
       return [];
@@ -1046,7 +1103,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       : primaryLiveArea && liveData && liveDataStatus !== "error"
         ? liveData.isStale
           ? "스냅샷"
-          : "실시간 연결"
+          : liveData.meta.isPartial
+            ? "부분 반영"
+            : "실시간 연결"
         : liveDataStatus === "loading"
           ? "연결 중"
           : liveDataStatus === "error"
@@ -1058,6 +1117,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     || liveData?.weather.observedAt
     || liveData?.fetchedAt
     || "";
+  const liveLatencyMinutes = calculateLatencyMinutes(liveObservedAt || undefined);
+  const liveCoverageLabel = liveData
+    ? `${liveData.meta.returnedPlaceCount}/${liveData.meta.expectedPlaceCount}개 반영`
+    : null;
+  const liveCoverageTitle = liveData?.meta.failedPlaceCodes.length
+    ? `누락 코드: ${liveData.meta.failedPlaceCodes.join(", ")}`
+    : undefined;
   const topDemandDong = rankedForecastDongs[0] ?? null;
   const topDemandScoreLabel = topDemandDong
     ? Math.round(topDemandDong.relativeScore * 100)
@@ -1083,8 +1149,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       if (next) {
         setIsSidebarCollapsed(true);
         setCameraMode("overview");
-      } else {
-        setIsSidebarCollapsed(false);
       }
       return next;
     });
@@ -1110,49 +1174,109 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }
 
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-[#060d16]">
-      <div
-        ref={containerRef}
-        className={mapCanvasClass}
-      />
-      <MapSimulatorSceneRuntime
-        containerRef={containerRef}
-        data={data}
-        poiFeatureRows={mapPoiFeatureRows}
-        onPoiSelect={handlePoiSelect}
-        simulationSource={simulationSource}
-        appliedTaxiCountRef={appliedTaxiCountRef}
-        appliedTrafficCountRef={appliedTrafficCountRef}
-        cameraModeRef={cameraModeRef}
-        followTaxiIdRef={followTaxiIdRef}
-        rideExitModeRef={rideExitModeRef}
-        showLabelsRef={showLabelsRef}
-        optionalLabelObjectsRef={optionalLabelObjectsRef}
-        showTransitRef={showTransitRef}
-        transitGroupRef={transitGroupRef}
-        hoverRefreshRequestRef={hoverRefreshRequestRef}
-        labelRefreshRequestRef={labelRefreshRequestRef}
-        showFpsRef={showFpsRef}
-        fpsModeRef={fpsModeRef}
-        showNonRoadRef={showNonRoadRef}
-        nonRoadGroupRef={nonRoadGroupRef}
-        showRoadNetworkRef={showRoadNetworkRef}
-        roadNetworkGroupRef={roadNetworkGroupRef}
-        cameraFocusTargetRef={cameraFocusTargetRef}
-        simulationDateRef={simulationDateRef}
-        simulationTimeRef={simulationTimeRef}
-        weatherModeRef={weatherModeRef}
-        congestionSpeedMultiplierRef={congestionSpeedMultiplierRef}
-        setStatus={setStatus}
-        setStatusDetail={setStatusDetail}
-        setLoadingProgress={setLoadingProgress}
-        setStats={setStats}
-        setFpsStats={setFpsStats}
-        setShowFps={setShowFps}
-        setFollowTaxiId={setFollowTaxiId}
-        setCameraMode={setCameraMode}
-        onCameraFocusChange={setMiniMapFocus}
-      />
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#060d16]">
+      <header
+        data-ui-panel="map-header"
+        className="flex-none border-b border-white/10 bg-slate-950/88 backdrop-blur-xl"
+      >
+        <div className="flex h-16 w-full items-center justify-between gap-3 px-3 sm:px-4 lg:px-6">
+          <div className="min-w-0 flex items-center gap-3">
+            <div className="relative shrink-0">
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              <div className="absolute -inset-1 rounded-full bg-emerald-400/30 blur-sm" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-black text-slate-50">
+                강남 교통 운영
+              </div>
+              <div className="hidden truncate text-[11px] text-slate-400 sm:block">
+                택시 운영 중심 지도 · 일반 차량 시각화 숨김
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <nav className="hidden items-center gap-1 md:flex">
+              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/12 px-3 py-1.5 text-xs font-semibold text-cyan-50">
+                지도
+              </span>
+              <Link
+                href="/presentation"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                발표
+              </Link>
+              <Link
+                href="/data"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                데이터
+              </Link>
+            </nav>
+            <button
+              type="button"
+              data-ui-control="header-sidebar-toggle"
+              aria-label={isSidebarVisible ? "수요 패널 닫기" : "수요 패널 열기"}
+              aria-expanded={isSidebarVisible}
+              onClick={toggleSidebar}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 text-sm font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1]"
+            >
+              {isSidebarVisible ? (
+                <X className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Menu className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">
+                {isSidebarVisible ? "패널 닫기" : "수요 패널"}
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="relative flex-1 overflow-hidden">
+        <div
+          ref={containerRef}
+          className={mapCanvasClass}
+        />
+        <MapSimulatorSceneRuntime
+          containerRef={containerRef}
+          data={data}
+          poiFeatureRows={mapPoiFeatureRows}
+          onPoiSelect={handlePoiSelect}
+          simulationSource={simulationSource}
+          appliedTaxiCountRef={appliedTaxiCountRef}
+          appliedTrafficCountRef={appliedTrafficCountRef}
+          cameraModeRef={cameraModeRef}
+          followTaxiIdRef={followTaxiIdRef}
+          rideExitModeRef={rideExitModeRef}
+          showLabelsRef={showLabelsRef}
+          optionalLabelObjectsRef={optionalLabelObjectsRef}
+          showTransitRef={showTransitRef}
+          transitGroupRef={transitGroupRef}
+          hoverRefreshRequestRef={hoverRefreshRequestRef}
+          labelRefreshRequestRef={labelRefreshRequestRef}
+          showFpsRef={showFpsRef}
+          fpsModeRef={fpsModeRef}
+          showNonRoadRef={showNonRoadRef}
+          nonRoadGroupRef={nonRoadGroupRef}
+          showRoadNetworkRef={showRoadNetworkRef}
+          roadNetworkGroupRef={roadNetworkGroupRef}
+          cameraFocusTargetRef={cameraFocusTargetRef}
+          simulationDateRef={simulationDateRef}
+          simulationTimeRef={simulationTimeRef}
+          weatherModeRef={weatherModeRef}
+          congestionSpeedMultiplierRef={congestionSpeedMultiplierRef}
+          setStatus={setStatus}
+          setStatusDetail={setStatusDetail}
+          setLoadingProgress={setLoadingProgress}
+          setStats={setStats}
+          setFpsStats={setFpsStats}
+          setShowFps={setShowFps}
+          setFollowTaxiId={setFollowTaxiId}
+          setCameraMode={setCameraMode}
+          onCameraFocusChange={setMiniMapFocus}
+        />
 
       {isSceneBusy ? (
         <div
@@ -1231,34 +1355,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         <button
           type="button"
           data-ui-control="camera-mode-toggle"
-          aria-label={cameraMode === "overview" ? "주행 카메라" : "조감 카메라"}
-          aria-pressed={cameraMode === "overview"}
-          title={cameraMode === "overview" ? "주행 카메라" : "조감 카메라"}
+          aria-label={cameraMode === "overview" ? "주행 모드로 전환" : "조감 모드로 전환"}
           onClick={toggleOverviewCamera}
           className={mapToolButtonClass(cameraMode === "overview")}
         >
           {cameraMode === "overview" ? (
-            <Navigation className="h-4 w-4" aria-hidden="true" />
-          ) : (
             <MapIcon className="h-4 w-4" aria-hidden="true" />
-          )}
-          <span>{cameraMode === "overview" ? "주행" : "조감"}</span>
-        </button>
-        <button
-          type="button"
-          data-ui-control="sidebar-toggle"
-          aria-label={isSidebarVisible ? "분석 패널 접기" : "분석 패널 열기"}
-          aria-pressed={!isSidebarVisible}
-          title={isSidebarVisible ? "분석 패널 접기" : "분석 패널 열기"}
-          onClick={toggleSidebar}
-          className={mapToolButtonClass(!isSidebarVisible)}
-        >
-          {isSidebarVisible ? (
-            <PanelRightClose className="h-4 w-4" aria-hidden="true" />
           ) : (
-            <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+            <Navigation className="h-4 w-4" aria-hidden="true" />
           )}
-          <span>{isSidebarVisible ? "접기" : "패널"}</span>
+          <span>{cameraMode === "overview" ? "조감 모드" : "주행 모드"}</span>
         </button>
         <button
           type="button"
@@ -1273,6 +1379,106 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <span>FPS</span>
         </button>
       </div>
+
+      {!isSidebarVisible ? (
+        <div
+          data-ui-panel="mobile-map-toolbar"
+          className="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/88 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden"
+        >
+          <button
+            type="button"
+            data-ui-control="mobile-map-focus-toggle"
+            aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
+            aria-pressed={isMapFocusMode}
+            onClick={toggleMapFocusMode}
+            className={`${mapToolButtonClass(isMapFocusMode)} flex-1 justify-center`}
+          >
+            {isMapFocusMode ? (
+              <Minimize2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{isMapFocusMode ? "해제" : "집중"}</span>
+          </button>
+          <button
+            type="button"
+            data-ui-control="mobile-camera-mode-toggle"
+            aria-label={cameraMode === "overview" ? "주행 모드로 전환" : "조감 모드로 전환"}
+            aria-pressed={cameraMode === "overview"}
+            onClick={toggleOverviewCamera}
+            className={`${mapToolButtonClass(cameraMode === "overview")} flex-1 justify-center`}
+          >
+            {cameraMode === "overview" ? (
+              <MapIcon className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Navigation className="h-4 w-4" aria-hidden="true" />
+            )}
+            <span>{cameraMode === "overview" ? "조감" : "주행"}</span>
+          </button>
+          <button
+            type="button"
+            data-ui-control="mobile-sidebar-toggle"
+            aria-label="수요 패널 열기"
+            onClick={toggleSidebar}
+            className={`${mapToolButtonClass(false)} flex-1 justify-center`}
+          >
+            <Menu className="h-4 w-4" aria-hidden="true" />
+            <span>수요</span>
+          </button>
+        </div>
+      ) : null}
+
+      {/* Compass Widget */}
+      {miniMapFocus && (() => {
+        const bearingRad = Math.atan2(miniMapFocus.headingX, miniMapFocus.headingZ);
+        const bearingDeg = bearingRad * (180 / Math.PI);
+        const cardinalDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        const cardinalIndex = Math.round(((bearingDeg % 360) + 360) % 360 / 45) % 8;
+        const cardinal = cardinalDirections[cardinalIndex];
+        return (
+          <div
+            data-ui-panel="compass"
+            className={`absolute bottom-16 z-20 hidden flex-col items-center gap-1 transition-[right] duration-300 lg:flex ${floatingControlOffsetClass}`}
+            aria-label="나침반"
+          >
+            <svg
+              width="44"
+              height="44"
+              viewBox="0 0 44 44"
+              className="drop-shadow-lg"
+              style={{ filter: "drop-shadow(0 0 4px rgba(0,0,0,0.5))" }}
+            >
+              {/* Outer ring */}
+              <circle cx="22" cy="22" r="20" fill="rgba(15,23,42,0.82)" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+              {/* Cardinal ticks */}
+              {[0, 90, 180, 270].map((angle) => (
+                <line
+                  key={angle}
+                  x1="22"
+                  y1="4"
+                  x2="22"
+                  y2="8"
+                  stroke="rgba(255,255,255,0.25)"
+                  strokeWidth="1.2"
+                  transform={`rotate(${angle},22,22)`}
+                />
+              ))}
+              {/* Needle group – rotates by negative bearing so N always points up */}
+              <g transform={`rotate(${-bearingDeg},22,22)`}>
+                {/* North tip – red */}
+                <polygon points="22,6 20,22 24,22" fill="#ef4444" opacity="0.9" />
+                {/* South tip – slate */}
+                <polygon points="22,38 20,22 24,22" fill="#64748b" opacity="0.7" />
+              </g>
+              {/* Center dot */}
+              <circle cx="22" cy="22" r="2.4" fill="#f8fafc" />
+            </svg>
+            <span className="rounded-full border border-white/10 bg-slate-950/82 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-300">
+              {cardinal}
+            </span>
+          </div>
+        );
+      })()}
 
       {showFps ? (
         <div
@@ -1320,19 +1526,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       ) : null}
 
-      <div className="absolute bottom-4 left-4 z-10 hidden rounded-2xl border border-white/10 bg-slate-950/78 px-4 py-3 text-xs text-slate-300 shadow-xl backdrop-blur-md lg:block">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-cyan-100">지도 범위</span>
-          <span className="text-slate-500">{MAP_SCOPE_LABEL}</span>
-          <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
-            OSM 기반
-          </span>
-        </div>
-      </div>
-
       <div
         data-ui-panel="desktop-simulation-clock"
-        className={`absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4 ${isMapFocusMode ? "lg:hidden" : ""}`}
+        className={`absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4 ${isMapFocusMode ? "hidden" : ""}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1447,9 +1643,18 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       </div>
 
       {isSidebarVisible ? (
+        <button
+          type="button"
+          aria-label="수요 패널 닫기"
+          onClick={toggleSidebar}
+          className="absolute inset-0 z-10 bg-slate-950/40 lg:hidden"
+        />
+      ) : null}
+
+      {isSidebarVisible ? (
         <div
           data-ui-panel="right-sidebar"
-          className="absolute bottom-0 left-0 right-0 z-10 max-h-[64vh] overflow-y-auto border-t border-white/10 bg-slate-950/92 p-4 text-white shadow-2xl backdrop-blur-md lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:border-l lg:border-t-0 lg:p-5"
+          className="absolute bottom-0 left-0 right-0 z-20 max-h-[min(68vh,calc(100vh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/10 bg-slate-950/94 p-4 text-white shadow-2xl backdrop-blur-md sm:max-h-[min(72vh,calc(100vh-4rem))] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:rounded-none lg:border-l lg:border-t-0 lg:p-5"
         >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -1496,7 +1701,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
             <span
               className={`rounded-full border px-2 py-0.5 text-[10px] ${
-                isLiveFresh
+                liveData?.meta.isPartial
+                  ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
+                  : isLiveFresh
                   ? "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
                   : liveDataStatus === "error"
                     ? "border-rose-400/25 bg-rose-400/[0.08] text-rose-300"
@@ -1543,9 +1750,36 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 ))}
               </div>
 
-              <div className="mt-2 text-[11px] leading-5 text-slate-500">
-                서울 열린데이터광장 citydata · {liveData.snapshotLabel} · 관측{" "}
-                {formatLiveObservedAt(liveObservedAt)}
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-5 text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  서울 citydata
+                </span>
+                <span>·</span>
+                <span>{liveData.snapshotLabel}</span>
+                {liveCoverageLabel ? (
+                  <>
+                    <span>·</span>
+                    <span
+                      title={liveCoverageTitle}
+                      className={`rounded-full border px-2 py-0.5 ${
+                        liveData.meta.isPartial
+                          ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
+                          : "border-emerald-400/25 bg-emerald-400/[0.08] text-emerald-300"
+                      }`}
+                    >
+                      실시간 반영 {liveCoverageLabel}
+                    </span>
+                  </>
+                ) : null}
+                {liveLatencyMinutes != null ? (
+                  <>
+                    <span>·</span>
+                    <span className="rounded-full border border-rose-400/20 bg-rose-400/10 px-2 py-0.5 text-rose-300">
+                      데이터 지연 {Math.floor(liveLatencyMinutes / 60)}시간 {liveLatencyMinutes % 60}분
+                    </span>
+                  </>
+                ) : null}
               </div>
             </>
           ) : (
@@ -1793,6 +2027,59 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     </g>
                   );
                 })}
+                {demandMiniMap.pois.map((poi) => (
+                  <g
+                    key={poi.code}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${poi.name} POI 선택`}
+                    className="cursor-pointer outline-none"
+                    onClick={() => handlePoiSelect(poi.code)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        handlePoiSelect(poi.code);
+                      }
+                    }}
+                  >
+                    <circle
+                      cx={poi.x}
+                      cy={poi.y}
+                      r={poi.isSelected ? "4.2" : "2.7"}
+                      fill="rgba(7, 17, 28, 0.68)"
+                      stroke={poi.isSelected ? "#f8fafc" : demandStrokeForScore(poi.score)}
+                      strokeWidth={poi.isSelected ? "0.7" : "0.46"}
+                    >
+                      <title>
+                        {poi.name} POI pressure {Math.round(poi.score * 100)}
+                      </title>
+                    </circle>
+                    <circle
+                      cx={poi.x}
+                      cy={poi.y}
+                      r={poi.isSelected ? "1.95" : "1.5"}
+                      fill={demandStrokeForScore(poi.score)}
+                      stroke="rgba(7, 17, 28, 0.82)"
+                      strokeWidth="0.35"
+                    />
+                    {poi.isSelected || poi.score >= 0.56 ? (
+                      <text
+                        x={poi.labelX}
+                        y={poi.labelY}
+                        textAnchor={poi.textAnchor}
+                        fill={poi.isSelected ? "#f8fafc" : "#cffafe"}
+                        fontSize={poi.isSelected ? "2.45" : "2.05"}
+                        fontWeight={poi.isSelected ? "800" : "650"}
+                        paintOrder="stroke"
+                        stroke="rgba(7, 17, 28, 0.92)"
+                        strokeWidth={poi.isSelected ? "0.66" : "0.5"}
+                        pointerEvents="none"
+                      >
+                        {poi.label}
+                      </text>
+                    ) : null}
+                  </g>
+                ))}
                 {demandMiniMap.landmarks.map((landmark) => (
                   <g
                     key={landmark.name}
@@ -1845,6 +2132,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 <span>{label}</span>
               </div>
             ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full border border-white/50 bg-cyan-300" />
+              POI 압력
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full border border-white bg-transparent" />
+              선택 지점
+            </span>
+            <span>점 선택 시 3D 카메라가 해당 현장으로 이동</span>
           </div>
         </div>
 
@@ -2033,6 +2331,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       ) : null}
 
-    </section>
+      </section>
+    </div>
   );
 }
