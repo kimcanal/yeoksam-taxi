@@ -7,9 +7,9 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
 const DEFAULT_PATTERN_CACHE =
-  "data/processed/model_live_compatible/demand_pattern_cache_2023_2025.json";
+  "data/processed/model_live_compatible/pattern_cache.json";
 const FALLBACK_PATTERN_CACHE =
-  "data/processed/model_live_compatible/demand_pattern_cache_2025.json";
+  "data/processed/model_live_compatible/demand_pattern_cache_2023_2025.json";
 const DEFAULT_HOLIDAYS = "data/processed/calendar/korean_public_holidays_2023_2026.csv";
 const DEFAULT_OUT = "public/forecast/latest.json";
 
@@ -166,6 +166,52 @@ function lookupPattern(exactLookup, fallbackLookup, { dongName, month, hour, pat
   );
 }
 
+function clippedRatio(value, denominator) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || denominator <= 0) return 0;
+  return Math.max(0, Math.min(number / denominator, 1));
+}
+
+function heuristicDemandProxy(patternRow, latestRow, weather) {
+  const row = { ...(latestRow ?? {}), ...(patternRow ?? {}) };
+  const transitScore =
+    clippedRatio(row.transit_importance_sum, 130) * 0.28 +
+    clippedRatio(row.subway_station_count, 16) * 0.18 +
+    clippedRatio(row.bus_stop_count, 35) * 0.08;
+  const densityScore =
+    clippedRatio(Math.log1p(Number(row.estimated_floor_area_m2 ?? 0)), Math.log1p(1_500_000)) * 0.18 +
+    clippedRatio(row.commercial_building_count, 30) * 0.08 +
+    clippedRatio(row.hotel_building_count, 5) * 0.04 +
+    clippedRatio(row.avg_building_height_m, 45) * 0.06;
+  const roadScore =
+    clippedRatio(row.arterial_road_length_m, 9000) * 0.04 +
+    clippedRatio(row.connector_road_length_m, 5000) * 0.02;
+  const weatherBoost =
+    weather.label === "rain" ? 0.04 :
+    weather.label === "snow" ? 0.06 :
+    0;
+  const pressure = Math.max(0, Math.min(transitScore + densityScore + roadScore + weatherBoost, 1));
+
+  return 8 + pressure * 62;
+}
+
+function demandValueFromPattern(patternRow, latestRow, weather) {
+  const targetMean = Number(patternRow?.mean_target_inbound_boardings_per_1k_pop_t_plus_1h);
+  if (Number.isFinite(targetMean)) {
+    return { value: targetMean, source: "target_pattern_mean" };
+  }
+
+  const modelMean = Number(patternRow?.mean_model_prediction);
+  if (Number.isFinite(modelMean)) {
+    return { value: modelMean, source: "model_prediction_pattern_mean" };
+  }
+
+  return {
+    value: heuristicDemandProxy(patternRow, latestRow, weather),
+    source: "feature_pattern_heuristic",
+  };
+}
+
 function defaultTargetHour() {
   const now = new Date();
   const kst = kstDate(now);
@@ -246,6 +292,7 @@ const featureHour = kstDate(featureUtc).getUTCHours();
 const patternType = patternTypeFor(featureUtc);
 
 const rawPredictions = [];
+const rawPredictionSources = new Set();
 const regionRows = TARGET_DONGS.map((dongName) => {
   const row = lookupPattern(exactLookup, fallbackLookup, {
     dongName,
@@ -253,9 +300,11 @@ const regionRows = TARGET_DONGS.map((dongName) => {
     hour: featureHour,
     patternType,
   });
-  const raw = row?.mean_target_inbound_boardings_per_1k_pop_t_plus_1h ?? null;
-  rawPredictions.push(Number(raw));
-  return { dong_name: dongName, raw_prediction: raw == null ? null : Number(raw) };
+  const latestRow = cache.latest_by_dong?.[dongName] ?? null;
+  const raw = demandValueFromPattern(row, latestRow, weather);
+  rawPredictionSources.add(raw.source);
+  rawPredictions.push(Number(raw.value));
+  return { dong_name: dongName, raw_prediction: raw.value, raw_prediction_source: raw.source };
 });
 
 const scores = normalizeScores(rawPredictions);
@@ -265,6 +314,7 @@ const regions = regionRows
     score: Number(scores[index].toFixed(4)),
     confidence: 0.55,
     raw_prediction: row.raw_prediction == null ? null : Number(row.raw_prediction.toFixed(6)),
+    raw_prediction_source: row.raw_prediction_source,
   }))
   .sort((left, right) => right.score - left.score);
 
@@ -296,6 +346,7 @@ const payload = {
   generated_at: nowKstIso(),
   model_target: "target_inbound_boardings_per_1k_pop_t_plus_1h",
   raw_prediction_unit: "inbound_boardings_per_1k_pop (t+1h)",
+  raw_prediction_sources: [...rawPredictionSources],
   proxy_source:
     "Seoul transit OD-derived movement demand proxy (normalized by living population).",
   regions,
