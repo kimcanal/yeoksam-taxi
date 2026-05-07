@@ -1,7 +1,7 @@
 {
   "source": "seoul_citydata_poi_population_forecast_proxy_v1",
-  "generated_at": "2026-05-07T21:33:57.540Z",
-  "input_generated_at": "2026-05-07T21:33:54.407Z",
+  "generated_at": "2026-05-07T22:36:57.021Z",
+  "input_generated_at": "2026-05-07T22:36:54.177Z",
   "target_datetime": null,
   "interpretation": "서울 실시간 도시데이터 POI의 현재 인구와 1시간 예측 인구를 행정동 coverage로 집계한 생활/유동인구 pressure proxy입니다. 행정동 전체 생활인구 확정값이나 택시 호출량 라벨은 아닙니다.",
   "coverage": {

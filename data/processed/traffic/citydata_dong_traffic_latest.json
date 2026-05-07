@@ -1,9 +1,9 @@
 {
   "meta": {
     "source": "citydata_road_traffic_dong_filtered",
-    "collected_at": "2026-05-07T21:28:48.504Z",
-    "extracted_at": "2026-05-07T21:33:54.366Z",
-    "citydata_path": "data/raw/citydata/2026-05-08/0628.json",
+    "collected_at": "2026-05-07T22:31:48.845Z",
+    "extracted_at": "2026-05-07T22:36:54.142Z",
+    "citydata_path": "data/raw/citydata/2026-05-08/0731.json",
     "total_links_scanned": 0,
     "dong_filtered_count": 0,
     "dong_summary_count": 9,
