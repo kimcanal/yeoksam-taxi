@@ -1,9 +1,9 @@
 {
   "meta": {
     "source": "citydata_road_traffic_dong_filtered",
-    "collected_at": "2026-05-07T01:07:01.323Z",
-    "extracted_at": "2026-05-07T01:07:06.154Z",
-    "citydata_path": "data/raw/citydata/2026-05-07/1007.json",
+    "collected_at": "2026-05-07T03:21:29.024Z",
+    "extracted_at": "2026-05-07T03:21:37.019Z",
+    "citydata_path": "data/raw/citydata/2026-05-07/1221.json",
     "total_links_scanned": 293,
     "dong_filtered_count": 264,
     "dong_summary_count": 9,
@@ -23,32 +23,32 @@
     {
       "dong_name": "논현1동",
       "link_count": 19,
-      "avg_speed_kmh": 17.6,
-      "congestion_score": 0.635,
-      "congested_link_count": 5,
+      "avg_speed_kmh": 16.1,
+      "congestion_score": 0.661,
+      "congested_link_count": 6,
       "slow_link_count": 10,
-      "clear_link_count": 4,
+      "clear_link_count": 3,
       "total_distance_m": 1855,
       "road_names": "강남대로|강남대로118길|강남대로122길|봉은사로|사평대로|신반포로|테헤란로1길|학동로"
     },
     {
       "dong_name": "논현2동",
       "link_count": 2,
-      "avg_speed_kmh": 23.4,
-      "congestion_score": 0.466,
-      "congested_link_count": 0,
+      "avg_speed_kmh": 15,
+      "congestion_score": 0.701,
+      "congested_link_count": 1,
       "slow_link_count": 1,
-      "clear_link_count": 1,
+      "clear_link_count": 0,
       "total_distance_m": 244,
       "road_names": "봉은사로|선릉로"
     },
     {
       "dong_name": "대치4동",
       "link_count": 18,
-      "avg_speed_kmh": 18.8,
-      "congestion_score": 0.599,
-      "congested_link_count": 9,
-      "slow_link_count": 5,
+      "avg_speed_kmh": 17.9,
+      "congestion_score": 0.607,
+      "congested_link_count": 10,
+      "slow_link_count": 4,
       "clear_link_count": 4,
       "total_distance_m": 2255,
       "road_names": "삼성로85길|선릉로|선릉로86길|선릉로89길|역삼로63길|테헤란로|테헤란로64길|테헤란로78길"
@@ -56,65 +56,65 @@
     {
       "dong_name": "삼성1동",
       "link_count": 12,
-      "avg_speed_kmh": 13.4,
-      "congestion_score": 0.718,
-      "congested_link_count": 6,
-      "slow_link_count": 4,
-      "clear_link_count": 2,
+      "avg_speed_kmh": 14.2,
+      "congestion_score": 0.752,
+      "congested_link_count": 8,
+      "slow_link_count": 1,
+      "clear_link_count": 3,
       "total_distance_m": 1620,
       "road_names": "봉은사로|영동대로|테헤란로"
     },
     {
       "dong_name": "삼성2동",
       "link_count": 23,
-      "avg_speed_kmh": 20.6,
-      "congestion_score": 0.58,
-      "congested_link_count": 6,
-      "slow_link_count": 11,
-      "clear_link_count": 6,
+      "avg_speed_kmh": 17.7,
+      "congestion_score": 0.662,
+      "congested_link_count": 9,
+      "slow_link_count": 10,
+      "clear_link_count": 4,
       "total_distance_m": 3149,
       "road_names": "봉은사로|봉은사로68길|삼성로95길|선릉로|선릉로100길|선릉로94길|테헤란로|테헤란로63길|테헤란로69길"
     },
     {
       "dong_name": "신사동",
       "link_count": 47,
-      "avg_speed_kmh": 29.4,
-      "congestion_score": 0.521,
+      "avg_speed_kmh": 32.8,
+      "congestion_score": 0.473,
       "congested_link_count": 16,
-      "slow_link_count": 21,
-      "clear_link_count": 10,
+      "slow_link_count": 19,
+      "clear_link_count": 12,
       "total_distance_m": 6065,
       "road_names": "강남대로|경부고속도로|논현로|논현로151길|도산대로|도산대로13길|선릉로|압구정로|압구정로12길|압구정로18길|압구정로20길"
     },
     {
       "dong_name": "역삼1동",
       "link_count": 91,
-      "avg_speed_kmh": 17.3,
-      "congestion_score": 0.668,
-      "congested_link_count": 42,
-      "slow_link_count": 38,
-      "clear_link_count": 11,
+      "avg_speed_kmh": 14.7,
+      "congestion_score": 0.738,
+      "congested_link_count": 58,
+      "slow_link_count": 25,
+      "clear_link_count": 8,
       "total_distance_m": 11503,
       "road_names": "강남대로|강남대로55길|강남대로61길|강남대로94길|논현로|논현로85길|논현로87길|논현로94길|도곡로7길|사임당로|서초대로|선릉로|선릉로93길|언주로93길|언주로94길|역삼로|역삼로3길|역삼로4길|테헤란로|테헤란로19길|테헤란로25길|테헤란로26길|테헤란로27길|테헤란로37길|테헤란로43길|테헤란로51길|테헤란로7길|테헤란로8길"
     },
     {
       "dong_name": "역삼2동",
       "link_count": 19,
-      "avg_speed_kmh": 18.9,
-      "congestion_score": 0.653,
-      "congested_link_count": 6,
-      "slow_link_count": 11,
-      "clear_link_count": 2,
+      "avg_speed_kmh": 18,
+      "congestion_score": 0.687,
+      "congested_link_count": 10,
+      "slow_link_count": 8,
+      "clear_link_count": 1,
       "total_distance_m": 2491,
       "road_names": "논현로|논현로86길|선릉로85길|언주로85길|언주로86길|테헤란로|테헤란로44길|테헤란로52길"
     },
     {
       "dong_name": "청담동",
       "link_count": 33,
-      "avg_speed_kmh": 20.7,
-      "congestion_score": 0.527,
-      "congested_link_count": 4,
-      "slow_link_count": 19,
+      "avg_speed_kmh": 19,
+      "congestion_score": 0.583,
+      "congested_link_count": 14,
+      "slow_link_count": 9,
       "clear_link_count": 10,
       "total_distance_m": 3367,
       "road_names": "도산대로|도산대로58길|도산대로81길|삼성로|선릉로|선릉로148길|선릉로152길|압구정로|압구정로60길|압구정로61길|압구정로79길"
@@ -132,7 +132,7 @@
       "start_node": "삼성동 111-8",
       "end_node": "삼성역사거리",
       "distance_m": 189,
-      "speed_kmh": 6,
+      "speed_kmh": 13,
       "congestion": "정체",
       "xylist": "127.0631917873569989_37.5089566792768281|127.0623503477867757_37.5105231713021467",
       "traffic_time": null
@@ -148,7 +148,7 @@
       "start_node": "코엑스앞교차로",
       "end_node": "아셈타워",
       "distance_m": 127,
-      "speed_kmh": 6,
+      "speed_kmh": 8,
       "congestion": "정체",
       "xylist": "127.0609175537963154_37.5131878914081796|127.0605231671833053_37.5138821201433714|127.0603272282434091_37.5142270211862794",
       "traffic_time": null
@@ -164,9 +164,41 @@
       "start_node": "코엑스앞교차로",
       "end_node": "봉은사역(서울9호선)",
       "distance_m": 64,
-      "speed_kmh": 5,
+      "speed_kmh": 4,
       "congestion": "정체",
       "xylist": "127.0598624891181174_37.5148335177271051|127.0601375029284839_37.5143038844831338",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220028002",
+      "primary_dong": "삼성1동",
+      "dong_names": [
+        "삼성1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "삼성동 172-66",
+      "end_node": "슈페리어사옥",
+      "distance_m": 231,
+      "speed_kmh": 9,
+      "congestion": "정체",
+      "xylist": "127.0619066150805594_37.5085594791171530|127.0594740418968343_37.5078073048774883",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220028003",
+      "primary_dong": "삼성1동",
+      "dong_names": [
+        "삼성1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "슈페리어사옥",
+      "end_node": "삼성역사거리",
+      "distance_m": 98,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0630651113215919_37.5089176743260495|127.0620331846530320_37.5085986138393324",
       "traffic_time": null
     },
     {
@@ -180,9 +212,25 @@
       "start_node": "삼성역사거리",
       "end_node": "서울강남경찰서교차로",
       "distance_m": 302,
-      "speed_kmh": 7,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0663791845268378_37.5099251428739393|127.0647076757638558_37.5094210528302128|127.0645797580656193_37.5093821330006207|127.0631917873569989_37.5089566792768281",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220030802",
+      "primary_dong": "삼성1동",
+      "dong_names": [
+        "삼성1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "봉은사로",
+      "start_node": "삼성동 111-86",
+      "end_node": "코엑스앞교차로",
+      "distance_m": 52,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0601375029284839_37.5143038844831338|127.0595673491428670_37.5141997365039970",
       "traffic_time": null
     },
     {
@@ -196,25 +244,9 @@
       "start_node": "코엑스앞교차로",
       "end_node": "삼성1동주민센터",
       "distance_m": 133,
-      "speed_kmh": 10,
+      "speed_kmh": 5,
       "congestion": "정체",
       "xylist": "127.0617426909060157_37.5145859851302461|127.0612478602413944_37.5144992006761413|127.0602718568028990_37.5143280204466052",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220031503",
-      "primary_dong": "삼성1동",
-      "dong_names": [
-        "삼성1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "봉은사로",
-      "start_node": "삼성동 172",
-      "end_node": "코엑스앞교차로",
-      "distance_m": 86,
-      "speed_kmh": 8,
-      "congestion": "정체",
-      "xylist": "127.0603272282434091_37.5142270211862794|127.0612770466940020_37.5143936087352401",
       "traffic_time": null
     },
     {
@@ -228,7 +260,7 @@
       "start_node": "서초동 1419",
       "end_node": "우성아파트앞사거리",
       "distance_m": 61,
-      "speed_kmh": 14.7,
+      "speed_kmh": 14,
       "congestion": "정체",
       "xylist": "127.0298809732350946_37.4930795966086521|127.0292323976334075_37.4928850031516703",
       "traffic_time": null
@@ -260,9 +292,25 @@
       "start_node": "강남역(신분당선)",
       "end_node": "강남역(신분당선)",
       "distance_m": 55,
-      "speed_kmh": 13.5,
+      "speed_kmh": 7.5,
       "congestion": "정체",
       "xylist": "127.0277803841059381_37.4960861092022952|127.0283572661165579_37.4962612914871656",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1210053901",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로55길",
+      "start_node": "강남역(신분당선)",
+      "end_node": "강남역(신분당선)",
+      "distance_m": 55,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0283100116079567_37.4963626493360778|127.0277320549546687_37.4961871406859260",
       "traffic_time": null
     },
     {
@@ -282,6 +330,22 @@
       "traffic_time": null
     },
     {
+      "link_id": "1220016203",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로",
+      "start_node": "중앙경제TV",
+      "end_node": "우성아파트앞사거리",
+      "distance_m": 164,
+      "speed_kmh": 14.5,
+      "congestion": "정체",
+      "xylist": "127.0299293519401402_37.4929785798404396|127.0305900356174362_37.4915934710394581",
+      "traffic_time": null
+    },
+    {
       "link_id": "1220016304",
       "primary_dong": "역삼1동",
       "dong_names": [
@@ -292,25 +356,25 @@
       "start_node": "우성아파트앞사거리",
       "end_node": "속성변화점",
       "distance_m": 164,
-      "speed_kmh": 12,
+      "speed_kmh": 6,
       "congestion": "정체",
       "xylist": "127.0307168759066059_37.4916318829225474|127.0300563841217496_37.4930165951748009",
       "traffic_time": null
     },
     {
-      "link_id": "1220019401",
+      "link_id": "1220017600",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "역삼로",
-      "start_node": "역삼동 858-14",
-      "end_node": "역삼초등학교",
-      "distance_m": 68,
+      "road_name": "도곡로7길",
+      "start_node": "역삼동 858-15",
+      "end_node": "역삼초교앞교차로",
+      "distance_m": 170,
       "speed_kmh": 13,
       "congestion": "정체",
-      "xylist": "127.0316663031210709_37.4936126134126368|127.0309432021188627_37.4933967723260864",
+      "xylist": "127.0333827720970277_37.4940232440208803|127.0336153677406941_37.4935384889359966|127.0337962432027297_37.4931615197673196|127.0340703991431752_37.4925901335485747",
       "traffic_time": null
     },
     {
@@ -324,7 +388,7 @@
       "start_node": "역삼초교앞교차로",
       "end_node": "역삼초등학교",
       "distance_m": 145,
-      "speed_kmh": 6,
+      "speed_kmh": 8,
       "congestion": "정체",
       "xylist": "127.0318512919482572_37.4935529160897403|127.0325941313863609_37.4937810503361462|127.0333827720970277_37.4940232440208803",
       "traffic_time": null
@@ -340,9 +404,25 @@
       "start_node": "우성아파트앞사거리",
       "end_node": "속성변화점",
       "distance_m": 182,
-      "speed_kmh": 12,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0291466107050695_37.4946068687934400|127.0298809732350946_37.4930795966086521",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220021002",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로",
+      "start_node": "속성변화점",
+      "end_node": "강남역(신분당선)",
+      "distance_m": 196,
+      "speed_kmh": 6,
+      "congestion": "정체",
+      "xylist": "127.0283572661165579_37.4962612914871656|127.0290981037409779_37.4947081584269171|127.0291466107050695_37.4946068687934400",
       "traffic_time": null
     },
     {
@@ -356,25 +436,9 @@
       "start_node": "강남역사거리",
       "end_node": "삼성화재서초사옥",
       "distance_m": 380,
-      "speed_kmh": 14.3,
+      "speed_kmh": 13.8,
       "congestion": "정체",
       "xylist": "127.0292249496761201_37.4947465691331274|127.0284841143001699_37.4962997029777512|127.0284375777275727_37.4963995211793275|127.0277297558715759_37.4979540832481035",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220021600",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로8길",
-      "start_node": "역삼동 858-13",
-      "end_node": "국기원입구교차로",
-      "distance_m": 192,
-      "speed_kmh": 14,
-      "congestion": "정체",
-      "xylist": "127.0309935926159000_37.4989426147382048|127.0314397690811461_37.4980334728711426|127.0316520402862892_37.4976009346478421|127.0317807377698927_37.4973349404078959",
       "traffic_time": null
     },
     {
@@ -388,9 +452,25 @@
       "start_node": "역삼동 858-13",
       "end_node": "역삼초교앞교차로",
       "distance_m": 37,
-      "speed_kmh": 13,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0334608974688280_37.4941627761416356|127.0333117491822463_37.4944710677349136",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220023302",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "강남역사거리",
+      "end_node": "국기원입구교차로",
+      "distance_m": 309,
+      "speed_kmh": 9.7,
+      "congestion": "정체",
+      "xylist": "127.0309460927545757_37.4990438974112124|127.0286612555960488_37.4983518916215388|127.0276822389256637_37.4980553605985918",
       "traffic_time": null
     },
     {
@@ -404,7 +484,7 @@
       "start_node": "강남역사거리",
       "end_node": "서초동 1373",
       "distance_m": 168,
-      "speed_kmh": 11,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0268712238501365_37.4994334710894108|127.0275555290794074_37.4980166525441376",
       "traffic_time": null
@@ -420,7 +500,7 @@
       "start_node": "역삼동 858",
       "end_node": "속성변화점",
       "distance_m": 98,
-      "speed_kmh": 13.5,
+      "speed_kmh": 12,
       "congestion": "정체",
       "xylist": "127.0269491384972866_37.4995732101292063|127.0265517996681552_37.5003958528345578",
       "traffic_time": null
@@ -436,41 +516,9 @@
       "start_node": "교보타워사거리",
       "end_node": "보건타임즈",
       "distance_m": 301,
-      "speed_kmh": 12,
+      "speed_kmh": 4,
       "congestion": "정체",
       "xylist": "127.0277136842342856_37.5055392843385320|127.0258610708307287_37.5049880469825112|127.0253288463886605_37.5048296789477078|127.0252017084722951_37.5047918474566870|127.0245260087286567_37.5045907813304069",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220027801",
-      "primary_dong": "논현1동",
-      "dong_names": [
-        "논현1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "강남대로",
-      "start_node": "교보타워사거리",
-      "end_node": "HM타워",
-      "distance_m": 143,
-      "speed_kmh": 8,
-      "congestion": "정체",
-      "xylist": "127.0238275183942562_37.5057614843330143|127.0241540090957244_37.5050708914382724|127.0243991052031305_37.5045524553287137",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220059100",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "역삼로3길",
-      "start_node": "역삼동 831-35",
-      "end_node": "삼성화재서초사옥",
-      "distance_m": 210,
-      "speed_kmh": 11,
-      "congestion": "정체",
-      "xylist": "127.0292733269647272_37.4946455507303256|127.0309286768451500_37.4951582359373319|127.0311409663314350_37.4947099662645797",
       "traffic_time": null
     },
     {
@@ -484,7 +532,7 @@
       "start_node": "역삼동 830-33",
       "end_node": "역삼초등학교",
       "distance_m": 100,
-      "speed_kmh": 13,
+      "speed_kmh": 6,
       "congestion": "정체",
       "xylist": "127.0317945815014866_37.4936513739525950|127.0317722804120706_37.4936831186651816|127.0313905671328598_37.4944891661354802",
       "traffic_time": null
@@ -500,9 +548,42 @@
       "start_node": "역삼동 800-60",
       "end_node": "과학기술회관",
       "distance_m": 56,
-      "speed_kmh": 11,
+      "speed_kmh": 4,
       "congestion": "정체",
       "xylist": "127.0305117723236350_37.5000150872202340|127.0307232034964642_37.4995423064647895",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220064300",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로94길",
+      "start_node": "역삼동 648-9",
+      "end_node": "과학기술회관",
+      "distance_m": 115,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0306386532190999_37.5000535101687191|127.0318547777729066_37.5004256036905161",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220064500",
+      "primary_dong": "논현1동",
+      "dong_names": [
+        "논현1동",
+        "역삼1동"
+      ],
+      "assignment_type": "polygon_multi",
+      "road_name": "테헤란로1길",
+      "start_node": "역삼동 858-6",
+      "end_node": "신논현역",
+      "distance_m": 67,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0252491957505185_37.5046905608852796|127.0255100549291853_37.5041277615367150",
       "traffic_time": null
     },
     {
@@ -522,19 +603,51 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220025903",
-      "primary_dong": "대치4동",
+      "link_id": "1220069500",
+      "primary_dong": "역삼2동",
       "dong_names": [
-        "대치4동"
+        "역삼2동"
       ],
       "assignment_type": "polygon",
-      "road_name": "선릉로",
-      "start_node": "대치동 1011-17",
-      "end_node": "진선여고",
-      "distance_m": 102,
+      "road_name": "테헤란로52길",
+      "start_node": "도시개발신문",
+      "end_node": "역삼동 804",
+      "distance_m": 81,
       "speed_kmh": 14,
       "congestion": "정체",
-      "xylist": "127.0497736298861042_37.5030358485243909|127.0496073469251996_37.5033942600096850|127.0494671565548828_37.5036964278532707|127.0494201015183222_37.5037978500803462|127.0493747245042755_37.5038956551044578",
+      "xylist": "127.0471670915627840_37.5038930671752482|127.0475102746900689_37.5032136202441109",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220026002",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "블랙베리박물관",
+      "end_node": "역삼동 804",
+      "distance_m": 261,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0471173294836689_37.5039936601345545|127.0443627780408065_37.5031471670482617",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220026004",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "르네상스호텔교차로",
+      "end_node": "블랙베리박물관",
+      "distance_m": 52,
+      "speed_kmh": 8,
+      "congestion": "정체",
+      "xylist": "127.0442359817900950_37.5031085999901350|127.0436867528111975_37.5029433037034892",
       "traffic_time": null
     },
     {
@@ -548,9 +661,26 @@
       "start_node": "르네상스호텔사거리",
       "end_node": "르네상스호텔교차로",
       "distance_m": 69,
-      "speed_kmh": 4,
+      "speed_kmh": 5,
       "congestion": "정체",
       "xylist": "127.0435597867368074_37.5029050914540534|127.0428318796063962_37.5026860140694112",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220026103",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동",
+        "대치4동"
+      ],
+      "assignment_type": "polygon_multi",
+      "road_name": "테헤란로",
+      "start_node": "선릉역사거리",
+      "end_node": "역삼동 804",
+      "distance_m": 159,
+      "speed_kmh": 9,
+      "congestion": "정체",
+      "xylist": "127.0472942790560325_37.5039308877385196|127.0489874547452303_37.5044185049200891",
       "traffic_time": null
     },
     {
@@ -564,7 +694,7 @@
       "start_node": "선릉역사거리",
       "end_node": "월간부동산경제",
       "distance_m": 157,
-      "speed_kmh": 14,
+      "speed_kmh": 8,
       "congestion": "정체",
       "xylist": "127.0507097058413279_37.5050961507753726|127.0490667656896164_37.5045587941768233",
       "traffic_time": null
@@ -580,7 +710,7 @@
       "start_node": "포스코사거리",
       "end_node": "포스코미술관",
       "distance_m": 135,
-      "speed_kmh": 11,
+      "speed_kmh": 4,
       "congestion": "정체",
       "xylist": "127.0551734722876205_37.5063604107458772|127.0566007053227366_37.5067999758815986",
       "traffic_time": null
@@ -596,7 +726,7 @@
       "start_node": "역삼동 802-31",
       "end_node": "선릉역(수인분당선)",
       "distance_m": 57,
-      "speed_kmh": 13,
+      "speed_kmh": 12,
       "congestion": "정체",
       "xylist": "127.0484330543986573_37.5055999334302470|127.0486078996825796_37.5052275287191392|127.0486586538320637_37.5051194262060719",
       "traffic_time": null
@@ -612,9 +742,41 @@
       "start_node": "삼성동 111-114",
       "end_node": "선릉공원",
       "distance_m": 337,
-      "speed_kmh": 14.3,
+      "speed_kmh": 5,
       "congestion": "정체",
       "xylist": "127.0469965891165742_37.5071602068898287|127.0457652914226543_37.5079213112726038|127.0457315935512526_37.5079411118796386|127.0453123945694074_37.5081874282568322|127.0450551787726425_37.5083692241713393|127.0448383445246918_37.5085748402795289|127.0446727771421109_37.5087520328191388|127.0446145508118008_37.5088143472007260|127.0444273773029806_37.5090709040483858|127.0443282632564745_37.5092606516299512",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220029003",
+      "primary_dong": "논현2동",
+      "dong_names": [
+        "논현2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "봉은사로",
+      "start_node": "논현동 279-165",
+      "end_node": "선정릉역사거리",
+      "distance_m": 82,
+      "speed_kmh": 7,
+      "congestion": "정체",
+      "xylist": "127.0437875852603753_37.5103204253317628|127.0432838786139769_37.5101681847940256|127.0429218607902868_37.5100587666423735",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220067100",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로44길",
+      "start_node": "역삼동 706-28",
+      "end_node": "블랙베리박물관",
+      "distance_m": 54,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0442936787205923_37.5030103853983761|127.0444068427994182_37.5028586561034274|127.0445594426699216_37.5025715799587829",
       "traffic_time": null
     },
     {
@@ -650,6 +812,38 @@
       "traffic_time": null
     },
     {
+      "link_id": "1220068500",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로52길",
+      "start_node": "도시개발신문",
+      "end_node": "진선여자중학교",
+      "distance_m": 15,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0477457167723543_37.5030232397223813|127.0476851392119499_37.5031531430107989",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220068600",
+      "primary_dong": "대치4동",
+      "dong_names": [
+        "대치4동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로86길",
+      "start_node": "대치동 1011-18",
+      "end_node": "진선여고",
+      "distance_m": 43,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0498209559993370_37.5029344252388057|127.0502748335649130_37.5030853689336396",
+      "traffic_time": null
+    },
+    {
       "link_id": "1220068700",
       "primary_dong": "대치4동",
       "dong_names": [
@@ -676,7 +870,7 @@
       "start_node": "국제섬유신문",
       "end_node": "속성변화점",
       "distance_m": 32,
-      "speed_kmh": 11,
+      "speed_kmh": 11.5,
       "congestion": "정체",
       "xylist": "127.0438833453921603_37.5038704428559555|127.0440100661521683_37.5035966744363876",
       "traffic_time": null
@@ -692,9 +886,25 @@
       "start_node": "블랙베리박물관",
       "end_node": "국제섬유신문",
       "distance_m": 46,
-      "speed_kmh": 7,
+      "speed_kmh": 11,
       "congestion": "정체",
       "xylist": "127.0440570321479470_37.5034952082934012|127.0442359817900950_37.5031085999901350",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220069301",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로43길",
+      "start_node": "국제섬유신문",
+      "end_node": "블랙베리박물관",
+      "distance_m": 46,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0443627780408065_37.5031471670482617|127.0441843649481370_37.5035326168648098",
       "traffic_time": null
     },
     {
@@ -708,7 +918,7 @@
       "start_node": "이환빌딩",
       "end_node": "국제섬유신문",
       "distance_m": 32,
-      "speed_kmh": 8,
+      "speed_kmh": 12.5,
       "congestion": "정체",
       "xylist": "127.0441373988766571_37.5036340831138304|127.0440106778918334_37.5039078512403847",
       "traffic_time": null
@@ -731,22 +941,6 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220069500",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로52길",
-      "start_node": "도시개발신문",
-      "end_node": "역삼동 804",
-      "distance_m": 81,
-      "speed_kmh": 14,
-      "congestion": "정체",
-      "xylist": "127.0471670915627840_37.5038930671752482|127.0475102746900689_37.5032136202441109",
-      "traffic_time": null
-    },
-    {
       "link_id": "1220069600",
       "primary_dong": "역삼2동",
       "dong_names": [
@@ -757,7 +951,7 @@
       "start_node": "역삼동 804",
       "end_node": "도시개발신문",
       "distance_m": 81,
-      "speed_kmh": 10.5,
+      "speed_kmh": 11.5,
       "congestion": "정체",
       "xylist": "127.0476361765401236_37.5032539819536694|127.0472942790560325_37.5039308877385196",
       "traffic_time": null
@@ -773,25 +967,9 @@
       "start_node": "대치동 896-8",
       "end_node": "대치동 1011-19",
       "distance_m": 32,
-      "speed_kmh": 12.5,
-      "congestion": "정체",
-      "xylist": "127.0516171337999509_37.5035169501664427|127.0516507264595560_37.5035213954269935|127.0519565654232679_37.5036215470825738",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220070100",
-      "primary_dong": "대치4동",
-      "dong_names": [
-        "대치4동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로64길",
-      "start_node": "대치동 890-49",
-      "end_node": "대치동 890-57",
-      "distance_m": 100,
       "speed_kmh": 12,
       "congestion": "정체",
-      "xylist": "127.0515680449655349_37.5036200563672182|127.0514128759260046_37.5039462849432255|127.0511666174652987_37.5044640143400940",
+      "xylist": "127.0516171337999509_37.5035169501664427|127.0516507264595560_37.5035213954269935|127.0519565654232679_37.5036215470825738",
       "traffic_time": null
     },
     {
@@ -805,9 +983,57 @@
       "start_node": "대치동 1011-11",
       "end_node": "월간부동산경제",
       "distance_m": 68,
-      "speed_kmh": 8,
+      "speed_kmh": 13.5,
       "congestion": "정체",
       "xylist": "127.0507602689269504_37.5049958100575296|127.0508397863444259_37.5048460080051811|127.0510397087366101_37.5044257017429885",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220070300",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로93길",
+      "start_node": "역삼동 702-31",
+      "end_node": "이환빌딩",
+      "distance_m": 120,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0440106778918334_37.5039078512403847|127.0446181406134656_37.5040968150351475|127.0452456907805328_37.5042920231553651|127.0452775257639217_37.5043015743408361",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220070400",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로93길",
+      "start_node": "역삼동 802-37",
+      "end_node": "우리빌딩",
+      "distance_m": 139,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0467047231793600_37.5048452859594335|127.0452296953085209_37.5044027582226391",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220070600",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "언주로94길",
+      "start_node": "역삼동 700-38",
+      "end_node": "이환빌딩",
+      "distance_m": 108,
+      "speed_kmh": 9,
+      "congestion": "정체",
+      "xylist": "127.0439620134067269_37.5040087840446006|127.0438566121118811_37.5042189961629546|127.0437440122160382_37.5043132731677531|127.0429923173944360_37.5044559753481082",
       "traffic_time": null
     },
     {
@@ -821,7 +1047,7 @@
       "start_node": "역삼동 804",
       "end_node": "우리빌딩",
       "distance_m": 89,
-      "speed_kmh": 13,
+      "speed_kmh": 11,
       "congestion": "정체",
       "xylist": "127.0467535949327811_37.5047444149913147|127.0468396453975544_37.5045668067024280|127.0471173294836689_37.5039936601345545",
       "traffic_time": null
@@ -853,9 +1079,105 @@
       "start_node": "이비스스타일앰배서더서울강남",
       "end_node": "롯데캐슬아파트",
       "distance_m": 137,
-      "speed_kmh": 11,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0559213381150556_37.5049190420530891|127.0573585733390729_37.5053724936751181",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220071200",
+      "primary_dong": "대치4동",
+      "dong_names": [
+        "대치4동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "삼성로85길",
+      "start_node": "롯데캐슬아파트",
+      "end_node": "이비스스타일앰배서더서울강남",
+      "distance_m": 136,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0573055376119243_37.5054720518562945|127.0558713656280361_37.5050195657570598",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220071300",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로93길",
+      "start_node": "선릉역(수인분당선)",
+      "end_node": "우리빌딩",
+      "distance_m": 169,
+      "speed_kmh": 2,
+      "congestion": "정체",
+      "xylist": "127.0468696615953377_37.5048051128072615|127.0472577382230241_37.5052092417498173|127.0475341574507979_37.5053011288221043|127.0479304710487156_37.5054328695665120|127.0484330543986573_37.5055999334302470",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220071400",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로93길",
+      "start_node": "역삼동 696-45",
+      "end_node": "선릉역(수인분당선)",
+      "distance_m": 48,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0483821896187351_37.5057001806225543|127.0478782088464129_37.5055326522576777",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220071500",
+      "primary_dong": "대치4동",
+      "dong_names": [
+        "대치4동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로78길",
+      "start_node": "대치동 1011-6",
+      "end_node": "포스코미술관",
+      "distance_m": 61,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0550468873825025_37.5063213325861398|127.0553089900937067_37.5058177697578614",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220071900",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로94길",
+      "start_node": "삼성동빌딩",
+      "end_node": "선릉역(수인분당선)",
+      "distance_m": 156,
+      "speed_kmh": 13.7,
+      "congestion": "정체",
+      "xylist": "127.0485587670993652_37.5056408010745486|127.0490621091166048_37.5058005461863644|127.0501931847878154_37.5061595041217970",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220072000",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로94길",
+      "start_node": "선릉역(수인분당선)",
+      "end_node": "삼성동빌딩",
+      "distance_m": 157,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0501601069988027_37.5062653907136010|127.0490118813641089_37.5059009903445002|127.0485078851592107_37.5057410376844658",
       "traffic_time": null
     },
     {
@@ -869,9 +1191,25 @@
       "start_node": "KTF타워",
       "end_node": "삼성동 172-89",
       "distance_m": 137,
-      "speed_kmh": 13,
+      "speed_kmh": 8,
       "congestion": "정체",
       "xylist": "127.0522708430014944_37.5069035359184255|127.0524230958238974_37.5066019737352079|127.0526102703543501_37.5062312396574242|127.0528495126162909_37.5057573699263784",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220072200",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로69길",
+      "start_node": "삼성동 172-99",
+      "end_node": "KTF타워",
+      "distance_m": 57,
+      "speed_kmh": 14.5,
+      "congestion": "정체",
+      "xylist": "127.0529760573716800_37.5057964677758875|127.0527361859108169_37.5062715853546678",
       "traffic_time": null
     },
     {
@@ -885,25 +1223,25 @@
       "start_node": "삼성동빌딩",
       "end_node": "정든빌딩",
       "distance_m": 52,
-      "speed_kmh": 10,
+      "speed_kmh": 14.5,
       "congestion": "정체",
       "xylist": "127.0501680356160392_37.5067325970078258|127.0501601069988027_37.5062653907136010",
       "traffic_time": null
     },
     {
-      "link_id": "1220073500",
+      "link_id": "1220072800",
       "primary_dong": "삼성2동",
       "dong_names": [
         "삼성2동"
       ],
       "assignment_type": "polygon",
-      "road_name": "선릉로100길",
-      "start_node": "삼성동 172-89",
-      "end_node": "정든빌딩",
-      "distance_m": 113,
-      "speed_kmh": 12,
+      "road_name": "테헤란로63길",
+      "start_node": "정든빌딩",
+      "end_node": "삼성동빌딩",
+      "distance_m": 51,
+      "speed_kmh": 14.3,
       "congestion": "정체",
-      "xylist": "127.0503036864279096_37.5067277996371189|127.0515841885179213_37.5067796298796594",
+      "xylist": "127.0502958135916458_37.5062639290552582|127.0503036864279096_37.5067277996371189",
       "traffic_time": null
     },
     {
@@ -917,7 +1255,7 @@
       "start_node": "삼성동 172-90",
       "end_node": "마루빌딩",
       "distance_m": 66,
-      "speed_kmh": 12,
+      "speed_kmh": 13,
       "congestion": "정체",
       "xylist": "127.0535960100787065_37.5074744096809738|127.0540234447238248_37.5076262489432253|127.0542714833571409_37.5077257788648311",
       "traffic_time": null
@@ -949,9 +1287,25 @@
       "start_node": "논현역앞교차로",
       "end_node": "원빌딩",
       "distance_m": 117,
-      "speed_kmh": 9,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0207750873245374_37.5121324472905613|127.0208603365410340_37.5119522896699067|127.0212424469134902_37.5111447623381054",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220030701",
+      "primary_dong": "논현1동",
+      "dong_names": [
+        "논현1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로",
+      "start_node": "논현동 280",
+      "end_node": "논현역앞교차로",
+      "distance_m": 96,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0213693851217158_37.5111830402280262|127.0209873423382589_37.5119904251618195",
       "traffic_time": null
     },
     {
@@ -965,7 +1319,7 @@
       "start_node": "논현동 280-21",
       "end_node": "청하빌딩",
       "distance_m": 85,
-      "speed_kmh": 12.5,
+      "speed_kmh": 12,
       "congestion": "정체",
       "xylist": "127.0233547305241473_37.5070551876010612|127.0239585511872207_37.5076461467828892",
       "traffic_time": null
@@ -982,25 +1336,9 @@
       "start_node": "역삼역앞교차로",
       "end_node": "역삼동 803-3",
       "distance_m": 159,
-      "speed_kmh": 13,
+      "speed_kmh": 11,
       "congestion": "정체",
       "xylist": "127.0376332097685577_37.4994490942840741|127.0370178297836929_37.5007934116919515",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220024102",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "강남파이낸스센터",
-      "end_node": "한국타이어빌딩",
-      "distance_m": 154,
-      "speed_kmh": 9,
-      "congestion": "정체",
-      "xylist": "127.0340278079028593_37.4998810786723951|127.0356493611653690_37.5003759986710961",
       "traffic_time": null
     },
     {
@@ -1014,7 +1352,7 @@
       "start_node": "역삼역앞교차로",
       "end_node": "강남파이낸스센터",
       "distance_m": 106,
-      "speed_kmh": 7,
+      "speed_kmh": 4,
       "congestion": "정체",
       "xylist": "127.0357762567149393_37.5004147276981854|127.0368909881553634_37.5007549406311398",
       "traffic_time": null
@@ -1030,25 +1368,25 @@
       "start_node": "역삼역앞교차로",
       "end_node": "역삼동 804",
       "distance_m": 126,
-      "speed_kmh": 6,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0383036450100747_37.5012965051190150|127.0369713701904999_37.5008950080904739",
       "traffic_time": null
     },
     {
-      "link_id": "1220025203",
+      "link_id": "1220025301",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
       "road_name": "테헤란로",
-      "start_node": "조선팰리스서울강남",
-      "end_node": "르네상스호텔사거리",
-      "distance_m": 141,
-      "speed_kmh": 14,
+      "start_node": "역삼동 804",
+      "end_node": "역삼역앞교차로",
+      "distance_m": 127,
+      "speed_kmh": 11,
       "congestion": "정체",
-      "xylist": "127.0427049356462277_37.5026477779311733|127.0412168948508196_37.5021992128127692",
+      "xylist": "127.0370178297836929_37.5007934116919515|127.0383619562775550_37.5011984810594541",
       "traffic_time": null
     },
     {
@@ -1062,7 +1400,7 @@
       "start_node": "르네상스호텔사거리",
       "end_node": "조선팰리스서울강남",
       "distance_m": 140,
-      "speed_kmh": 12,
+      "speed_kmh": 8,
       "congestion": "정체",
       "xylist": "127.0412749899103062_37.5021011235286110|127.0427524460124999_37.5025464977713199",
       "traffic_time": null
@@ -1078,9 +1416,25 @@
       "start_node": "역삼동 800-3",
       "end_node": "역삼동 800-3",
       "distance_m": 76,
-      "speed_kmh": 13,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0362865170511100_37.5020779389071848|127.0365795823227160_37.5014364664377027",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220026301",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로",
+      "start_node": "역삼동 800-3",
+      "end_node": "역삼역앞교차로",
+      "distance_m": 143,
+      "speed_kmh": 6,
+      "congestion": "정체",
+      "xylist": "127.0369713701904999_37.5008950080904739|127.0367071085393178_37.5014734470237059|127.0364185314605834_37.5021050987604525",
       "traffic_time": null
     },
     {
@@ -1094,7 +1448,7 @@
       "start_node": "선&석갤러리미술관",
       "end_node": "역삼동 800-3",
       "distance_m": 147,
-      "speed_kmh": 13,
+      "speed_kmh": 6,
       "congestion": "정체",
       "xylist": "127.0363710774077219_37.5022064868924119|127.0359496264084811_37.5030873726170029|127.0357793801420456_37.5034432024512014",
       "traffic_time": null
@@ -1110,9 +1464,25 @@
       "start_node": "역삼동 803-8",
       "end_node": "강남파이낸스센터",
       "distance_m": 108,
-      "speed_kmh": 14,
+      "speed_kmh": 13,
       "congestion": "정체",
       "xylist": "127.0359151742246411_37.4997297381888330|127.0361109699647528_37.4992910933509691|127.0366162770087186_37.4990461668587614|127.0366610795921929_37.4990582363199891",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220063000",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로85길",
+      "start_node": "강남파이낸스센터",
+      "end_node": "역삼동 803-3",
+      "distance_m": 172,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0375106660669928_37.4994012382100053|127.0366327519434861_37.4991647395749723|127.0362226810127737_37.4993635036514164|127.0360430367235125_37.4997659664220748",
       "traffic_time": null
     },
     {
@@ -1126,7 +1496,7 @@
       "start_node": "역삼동 736-60",
       "end_node": "한국타이어빌딩",
       "distance_m": 150,
-      "speed_kmh": 6,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0339011803060885_37.4998421534899293|127.0341720860163406_37.4992537810037732|127.0342451967198230_37.4992391968694818|127.0350245042144763_37.4994681153879341",
       "traffic_time": null
@@ -1142,9 +1512,25 @@
       "start_node": "한국타이어빌딩",
       "end_node": "강남파이낸스센터",
       "distance_m": 213,
-      "speed_kmh": 13.5,
+      "speed_kmh": 13,
       "congestion": "정체",
       "xylist": "127.0358713909474631_37.4998321123386660|127.0349775599276398_37.4995695607544732|127.0342673023357776_37.4993609254057532|127.0340278079028593_37.4998810786723951",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220063900",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로26길",
+      "start_node": "강남파이낸스센터",
+      "end_node": "강남파이낸스센터",
+      "distance_m": 63,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0356493611653690_37.5003759986710961|127.0358713909474631_37.4998321123386660",
       "traffic_time": null
     },
     {
@@ -1158,7 +1544,7 @@
       "start_node": "강남파이낸스센터",
       "end_node": "강남파이낸스센터",
       "distance_m": 64,
-      "speed_kmh": 11,
+      "speed_kmh": 9.5,
       "congestion": "정체",
       "xylist": "127.0360004440093178_37.4998655532656855|127.0357762567149393_37.5004147276981854",
       "traffic_time": null
@@ -1174,9 +1560,25 @@
       "start_node": "현대해상강남사옥",
       "end_node": "한국타이어빌딩",
       "distance_m": 72,
-      "speed_kmh": 14.5,
+      "speed_kmh": 10,
       "congestion": "정체",
       "xylist": "127.0339816634749042_37.4999827779347470|127.0337088654406443_37.5005926415755724",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220064700",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로25길",
+      "start_node": "역삼동 800-55",
+      "end_node": "강남파이낸스센터",
+      "distance_m": 54,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0357139041821881_37.5005114802401565|127.0355669976001991_37.5006583522082835|127.0354261517218362_37.5009351779329592",
       "traffic_time": null
     },
     {
@@ -1223,7 +1625,7 @@
       "start_node": "역삼동 804-5",
       "end_node": "역삼동 804-10",
       "distance_m": 169,
-      "speed_kmh": 14,
+      "speed_kmh": 11,
       "congestion": "정체",
       "xylist": "127.0432869693216986_37.5014089252733029|127.0427807466158896_37.5012612056344494|127.0423901287035022_37.5011472184706918|127.0423861586326097_37.5011468064563331|127.0418446575615121_37.5010906081298501|127.0417976313598416_37.5011078006535357|127.0416682032000608_37.5013733047190456",
       "traffic_time": null
@@ -1245,22 +1647,6 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220066500",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로94길",
-      "start_node": "역삼동 679-1",
-      "end_node": "역삼동 800-3",
-      "distance_m": 59,
-      "speed_kmh": 7,
-      "congestion": "정체",
-      "xylist": "127.0364185314605834_37.5021050987604525|127.0370346102444188_37.5023108598895689",
-      "traffic_time": null
-    },
-    {
       "link_id": "1220066600",
       "primary_dong": "역삼1동",
       "dong_names": [
@@ -1271,9 +1657,25 @@
       "start_node": "역삼동 801-43",
       "end_node": "주원빌딩",
       "distance_m": 46,
-      "speed_kmh": 12,
+      "speed_kmh": 11.5,
       "congestion": "정체",
       "xylist": "127.0376210865578486_37.5026239667892369|127.0371427012136962_37.5024641970630412",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220068100",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로37길",
+      "start_node": "역삼동 801-35",
+      "end_node": "조선팰리스서울강남",
+      "distance_m": 109,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0412168948508196_37.5021992128127692|127.0409307988315248_37.5027697610468564|127.0407642310578069_37.5031019352162929|127.0407611017780738_37.5031096751308723",
       "traffic_time": null
     },
     {
@@ -1287,7 +1689,7 @@
       "start_node": "역삼동 801-33",
       "end_node": "주원빌딩",
       "distance_m": 129,
-      "speed_kmh": 14,
+      "speed_kmh": 13,
       "congestion": "정체",
       "xylist": "127.0377844825094655_37.5025872091827566|127.0378060516913052_37.5026080587615880|127.0384306021221903_37.5028078796534032|127.0387682486888679_37.5029159056779875|127.0391274307591516_37.5030308203285614",
       "traffic_time": null
@@ -1303,9 +1705,58 @@
       "start_node": "역삼동 801-35",
       "end_node": "역삼동 676",
       "distance_m": 74,
-      "speed_kmh": 6,
+      "speed_kmh": 5,
       "congestion": "정체",
       "xylist": "127.0405990896133375_37.5035103913320995|127.0406893594651905_37.5035754025077637|127.0408653580880838_37.5036752510038980|127.0412405043126967_37.5038880792316647|127.0412737965731509_37.5038968162216406",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220109300",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동",
+        "역삼1동"
+      ],
+      "assignment_type": "polygon_multi",
+      "road_name": "논현로86길",
+      "start_node": "역삼동 803-3",
+      "end_node": "역삼동 804",
+      "distance_m": 269,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0383619562775550_37.5011984810594541|127.0384939225746734_37.5010126436947360|127.0385785669749765_37.5008379293449394|127.0387523426002332_37.5004792366435709|127.0389134461888858_37.5001466971603179|127.0385215492466671_37.4997329331422051|127.0377435658552514_37.4995043007809841|127.0376332097685577_37.4994490942840741",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220109400",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로25길",
+      "start_node": "강남파이낸스센터",
+      "end_node": "AC호텔서울강남",
+      "distance_m": 73,
+      "speed_kmh": 13.5,
+      "congestion": "정체",
+      "xylist": "127.0352188371493725_37.5010548317045789|127.0353003824151870_37.5008945602992867|127.0354486142979624_37.5006032191951775|127.0355809598226955_37.5004709050617890",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220109500",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로25길",
+      "start_node": "역삼동 800-46",
+      "end_node": "역삼동 800-3",
+      "distance_m": 111,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0362369327934431_37.5021833042211554|127.0361038904469950_37.5021750291069296|127.0357013303636364_37.5020526726668919|127.0354198369294210_37.5019671128703962|127.0352836579838822_37.5016803480284437",
       "traffic_time": null
     },
     {
@@ -1335,7 +1786,7 @@
       "start_node": "신사동 501-5",
       "end_node": "신사역(서울3호선)",
       "distance_m": 54,
-      "speed_kmh": 7,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0210978863052702_37.5168365517813100|127.0205588097228713_37.5166086099990750",
       "traffic_time": null
@@ -1351,57 +1802,9 @@
       "start_node": "강남을지병원사거리",
       "end_node": "포포인츠바이쉐라톤서울강남",
       "distance_m": 97,
-      "speed_kmh": 8,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0280734448643045_37.5206167208549601|127.0280371859392829_37.5197414933169782",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220034404",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로",
-      "start_node": "KT신사지사앞",
-      "end_node": "압구정고가차도(남측)",
-      "distance_m": 44,
-      "speed_kmh": 14,
-      "congestion": "정체",
-      "xylist": "127.0283395591130500_37.5250065536841362|127.0283248558345122_37.5246129191385620",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220034406",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로",
-      "start_node": "신사동668",
-      "end_node": "KT신사지사앞",
-      "distance_m": 74,
-      "speed_kmh": 7,
-      "congestion": "정체",
-      "xylist": "127.0283194174098185_37.5245048688214595|127.0282766583817988_37.5238348591677067",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220034407",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로",
-      "start_node": "신사동 668",
-      "end_node": "신사동668",
-      "distance_m": 85,
-      "speed_kmh": 10.5,
-      "congestion": "정체",
-      "xylist": "127.0282697656988802_37.5237268530348160|127.0282210639870328_37.5229636995892477",
       "traffic_time": null
     },
     {
@@ -1415,25 +1818,9 @@
       "start_node": "압구정역앞교차로",
       "end_node": "압구정고가차도(남측)",
       "distance_m": 244,
-      "speed_kmh": 7,
+      "speed_kmh": 6,
       "congestion": "정체",
       "xylist": "127.0284751971407360_37.5250022451099099|127.0285565062360433_37.5252144169059250|127.0286031556237134_37.5259566660534603|127.0286334403760122_37.5264218208668652|127.0286335312154051_37.5266594844593655|127.0285983577891358_37.5269107887466404|127.0285181437996727_37.5271826705537279",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220035103",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로",
-      "start_node": "신사동 667-35",
-      "end_node": "청작화랑",
-      "distance_m": 143,
-      "speed_kmh": 14,
-      "congestion": "정체",
-      "xylist": "127.0241083963904600_37.5249346230122711|127.0254725690620887_37.5256273769602657",
       "traffic_time": null
     },
     {
@@ -1447,7 +1834,7 @@
       "start_node": "신사동 667-35",
       "end_node": "갤러리가인로",
       "distance_m": 14,
-      "speed_kmh": 7,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0263447850509237_37.5260702905259507|127.0264768016643444_37.5261378314984313",
       "traffic_time": null
@@ -1469,6 +1856,54 @@
       "traffic_time": null
     },
     {
+      "link_id": "1220089200",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "도산대로13길",
+      "start_node": "신사동 667-13",
+      "end_node": "한교빌딩",
+      "distance_m": 14,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0230536690337004_37.5194604758461239|127.0230743650847813_37.5193351003487336",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220089800",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로151길",
+      "start_node": "신사동 540-17",
+      "end_node": "한교빌딩",
+      "distance_m": 116,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0231882543426423_37.5194745704341912|127.0244718919648932_37.5196135745143948|127.0244909423343387_37.5196152857974283",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220089900",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로151길",
+      "start_node": "신사동 667-21",
+      "end_node": "신사동 667-21",
+      "distance_m": 116,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0274070953705206_37.5204456743626125|127.0266396543750886_37.5201241789116082|127.0262498643968883_37.5199608855933420",
+      "traffic_time": null
+    },
+    {
       "link_id": "1220091000",
       "primary_dong": "신사동",
       "dong_names": [
@@ -1479,7 +1914,7 @@
       "start_node": "포포인츠바이쉐라톤서울강남",
       "end_node": "신사동 563-37",
       "distance_m": 49,
-      "speed_kmh": 9,
+      "speed_kmh": 5,
       "congestion": "정체",
       "xylist": "127.0275930492730652_37.5204031223416550|127.0280734448643045_37.5206167208549601",
       "traffic_time": null
@@ -1559,25 +1994,25 @@
       "start_node": "학동사거리",
       "end_node": "영동고교",
       "distance_m": 162,
-      "speed_kmh": 13,
+      "speed_kmh": 9,
       "congestion": "정체",
       "xylist": "127.0396699892043557_37.5217435123917369|127.0392475112795978_37.5229185559885323|127.0392236802746595_37.5231509477852043",
       "traffic_time": null
     },
     {
-      "link_id": "1220034204",
-      "primary_dong": "신사동",
+      "link_id": "1220034601",
+      "primary_dong": "청담동",
       "dong_names": [
-        "신사동"
+        "청담동"
       ],
       "assignment_type": "polygon",
       "road_name": "도산대로",
-      "start_node": "신사동 501-5",
-      "end_node": "학동사거리",
-      "distance_m": 78,
-      "speed_kmh": 14,
+      "start_node": "청담동 77",
+      "end_node": "청담동 77",
+      "distance_m": 116,
+      "speed_kmh": 9,
       "congestion": "정체",
-      "xylist": "127.0390861363866435_37.5232347757009777|127.0382594965785756_37.5229821213989680",
+      "xylist": "127.0413071564451570_37.5235176656433396|127.0405339348501172_37.5234221784106481|127.0400054812010779_37.5233569151823687",
       "traffic_time": null
     },
     {
@@ -1591,9 +2026,121 @@
       "start_node": "청담사거리",
       "end_node": "송담빌딩",
       "distance_m": 66,
-      "speed_kmh": 12,
+      "speed_kmh": 6,
       "congestion": "정체",
       "xylist": "127.0481486203532597_37.5243983508696317|127.0474175095661593_37.5242982591380851",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220035502",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로",
+      "start_node": "신한양빌딩",
+      "end_node": "키네마극장",
+      "distance_m": 54,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0394640495580632_37.5241167418134012|127.0396319308838002_37.5245839844116418",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220036205",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로",
+      "start_node": "압구정로데오역6번출구",
+      "end_node": "뉴스포유",
+      "distance_m": 65,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0384385465388561_37.5283499106960861|127.0391308114570563_37.5281543012393257",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220036206",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로",
+      "start_node": "신사동 667-35",
+      "end_node": "압구정로데오역6번출구",
+      "distance_m": 64,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0391308114570563_37.5281543012393257|127.0398194246827615_37.5279804016432124",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220094100",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로148길",
+      "start_node": "청담동 77-28",
+      "end_node": "청담동 77",
+      "distance_m": 217,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0445781402144121_37.5238287856286306|127.0447120599987159_37.5231471090591455|127.0443800312351357_37.5231044587397022|127.0439681977920259_37.5230515558498112|127.0435562545624606_37.5229986373450899|127.0431444223127073_37.5229457315852954",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220094400",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "도산대로58길",
+      "start_node": "청담동 77",
+      "end_node": "금구빌딩",
+      "distance_m": 77,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0415897599450830_37.5227459992821579|127.0414610013850591_37.5234275992135338",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220095300",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로152길",
+      "start_node": "청담동 139-1",
+      "end_node": "키네마극장",
+      "distance_m": 76,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0394238001620124_37.5240025656407425|127.0402782679631741_37.5241051716234963",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220095400",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로152길",
+      "start_node": "청담동 139-1",
+      "end_node": "청담동 77",
+      "distance_m": 176,
+      "speed_kmh": 12.5,
+      "congestion": "정체",
+      "xylist": "127.0414412487968434_37.5235345793648207|127.0413128808020531_37.5242458193041557|127.0412157654857310_37.5243077538981922|127.0411093794579500_37.5243143088269946|127.0402580301235815_37.5242120839654163",
       "traffic_time": null
     },
     {
@@ -1629,6 +2176,70 @@
       "traffic_time": null
     },
     {
+      "link_id": "1220096600",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로79길",
+      "start_node": "청담동 119-8",
+      "end_node": "갤러리미",
+      "distance_m": 67,
+      "speed_kmh": 12,
+      "congestion": "정체",
+      "xylist": "127.0470610783825549_37.5249488711662522|127.0478075108107561_37.5250369358867317",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220096700",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로79길",
+      "start_node": "갤러리미",
+      "end_node": "청담동 118-22",
+      "distance_m": 67,
+      "speed_kmh": 11,
+      "congestion": "정체",
+      "xylist": "127.0477536352439500_37.5251398799896023|127.0470030647285284_37.5250513268144701",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220097900",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로60길",
+      "start_node": "청담동 139-2",
+      "end_node": "압구정로데오역3번출구",
+      "distance_m": 72,
+      "speed_kmh": 13,
+      "congestion": "정체",
+      "xylist": "127.0422397642238650_37.5273658980511087|127.0420188424852199_37.5267405370192932",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220099700",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "도산대로81길",
+      "start_node": "청담동 117-11",
+      "end_node": "청담동 117-41",
+      "distance_m": 33,
+      "speed_kmh": 14,
+      "congestion": "정체",
+      "xylist": "127.0478919747894366_37.5251562571136645|127.0477493139133571_37.5254322932834725",
+      "traffic_time": null
+    },
+    {
       "link_id": "1220003303",
       "primary_dong": "삼성1동",
       "dong_names": [
@@ -1639,121 +2250,57 @@
       "start_node": "속성변화점",
       "end_node": "코엑스앞교차로",
       "distance_m": 141,
-      "speed_kmh": 18,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0601919456584454_37.5142029024356347|127.0603995070934218_37.5138375440934411|127.0607938946184277_37.5131433157650775|127.0608476713455985_37.5130456722428676",
       "traffic_time": null
     },
     {
-      "link_id": "1220028002",
-      "primary_dong": "삼성1동",
+      "link_id": "1210025402",
+      "primary_dong": "논현1동",
       "dong_names": [
-        "삼성1동"
+        "논현1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "삼성동 172-66",
-      "end_node": "슈페리어사옥",
-      "distance_m": 231,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0619066150805594_37.5085594791171530|127.0594740418968343_37.5078073048774883",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220028003",
-      "primary_dong": "삼성1동",
-      "dong_names": [
-        "삼성1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "슈페리어사옥",
-      "end_node": "삼성역사거리",
-      "distance_m": 98,
-      "speed_kmh": 20,
-      "congestion": "서행",
-      "xylist": "127.0630651113215919_37.5089176743260495|127.0620331846530320_37.5085986138393324",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220030802",
-      "primary_dong": "삼성1동",
-      "dong_names": [
-        "삼성1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "봉은사로",
-      "start_node": "삼성동 111-86",
-      "end_node": "코엑스앞교차로",
-      "distance_m": 52,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0601375029284839_37.5143038844831338|127.0595673491428670_37.5141997365039970",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1210022203",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "서초대로",
-      "start_node": "서초동 1377",
-      "end_node": "강남역사거리",
-      "distance_m": 105,
+      "road_name": "사평대로",
+      "start_node": "반포동 749-35",
+      "end_node": "교보타워사거리",
+      "distance_m": 74,
       "speed_kmh": 22,
       "congestion": "서행",
-      "xylist": "127.0275555290794074_37.4980166525441376|127.0264489335689433_37.4976757265136271",
+      "xylist": "127.0243991052031305_37.5045524553287137|127.0236141059144614_37.5043118599685954",
       "traffic_time": null
     },
     {
-      "link_id": "1210053901",
+      "link_id": "1220019401",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "강남대로55길",
-      "start_node": "강남역(신분당선)",
-      "end_node": "강남역(신분당선)",
-      "distance_m": 55,
-      "speed_kmh": 16.5,
+      "road_name": "역삼로",
+      "start_node": "역삼동 858-14",
+      "end_node": "역삼초등학교",
+      "distance_m": 68,
+      "speed_kmh": 15,
       "congestion": "서행",
-      "xylist": "127.0283100116079567_37.4963626493360778|127.0277320549546687_37.4961871406859260",
+      "xylist": "127.0316663031210709_37.4936126134126368|127.0309432021188627_37.4933967723260864",
       "traffic_time": null
     },
     {
-      "link_id": "1220016203",
+      "link_id": "1220019402",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "강남대로",
-      "start_node": "중앙경제TV",
-      "end_node": "우성아파트앞사거리",
-      "distance_m": 164,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0299293519401402_37.4929785798404396|127.0305900356174362_37.4915934710394581",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220017600",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도곡로7길",
-      "start_node": "역삼동 858-15",
+      "road_name": "역삼로",
+      "start_node": "역삼동 858-14",
       "end_node": "역삼초교앞교차로",
-      "distance_m": 170,
-      "speed_kmh": 18.7,
+      "distance_m": 75,
+      "speed_kmh": 18,
       "congestion": "서행",
-      "xylist": "127.0333827720970277_37.4940232440208803|127.0336153677406941_37.4935384889359966|127.0337962432027297_37.4931615197673196|127.0340703991431752_37.4925901335485747",
+      "xylist": "127.0333341389376045_37.4941241826241694|127.0325453290157043_37.4938819369312810",
       "traffic_time": null
     },
     {
@@ -1767,7 +2314,7 @@
       "start_node": "역삼동 858-14",
       "end_node": "우성아파트앞사거리",
       "distance_m": 88,
-      "speed_kmh": 21,
+      "speed_kmh": 24,
       "congestion": "서행",
       "xylist": "127.0300563841217496_37.4930165951748009|127.0309908064247821_37.4932955226971032",
       "traffic_time": null
@@ -1783,25 +2330,25 @@
       "start_node": "역삼동 858-14",
       "end_node": "역삼초교앞교차로",
       "distance_m": 31,
-      "speed_kmh": 18,
+      "speed_kmh": 20.5,
       "congestion": "서행",
       "xylist": "127.0335095296028811_37.4940618362868818|127.0338334350395542_37.4941595999640853",
       "traffic_time": null
     },
     {
-      "link_id": "1220021002",
+      "link_id": "1220021003",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
       "road_name": "강남대로",
-      "start_node": "속성변화점",
-      "end_node": "강남역(신분당선)",
-      "distance_m": 196,
+      "start_node": "강남역(신분당선)",
+      "end_node": "강남역사거리",
+      "distance_m": 183,
       "speed_kmh": 23,
       "congestion": "서행",
-      "xylist": "127.0283572661165579_37.4962612914871656|127.0290981037409779_37.4947081584269171|127.0291466107050695_37.4946068687934400",
+      "xylist": "127.0276030282322353_37.4979153641312806|127.0283100116079567_37.4963626493360778",
       "traffic_time": null
     },
     {
@@ -1815,25 +2362,25 @@
       "start_node": "삼성화재서초사옥",
       "end_node": "우성아파트앞사거리",
       "distance_m": 182,
-      "speed_kmh": 24.5,
+      "speed_kmh": 19.5,
       "congestion": "서행",
       "xylist": "127.0300080064880888_37.4931176139120410|127.0292733269647272_37.4946455507303256",
       "traffic_time": null
     },
     {
-      "link_id": "1220023302",
+      "link_id": "1220021600",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "강남역사거리",
+      "road_name": "테헤란로8길",
+      "start_node": "역삼동 858-13",
       "end_node": "국기원입구교차로",
-      "distance_m": 309,
-      "speed_kmh": 15,
+      "distance_m": 192,
+      "speed_kmh": 15.5,
       "congestion": "서행",
-      "xylist": "127.0309460927545757_37.4990438974112124|127.0286612555960488_37.4983518916215388|127.0276822389256637_37.4980553605985918",
+      "xylist": "127.0309935926159000_37.4989426147382048|127.0314397690811461_37.4980334728711426|127.0316520402862892_37.4976009346478421|127.0317807377698927_37.4973349404078959",
       "traffic_time": null
     },
     {
@@ -1847,7 +2394,7 @@
       "start_node": "역삼동 804",
       "end_node": "강남역사거리",
       "distance_m": 93,
-      "speed_kmh": 19,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0277297558715759_37.4979540832481035|127.0287094769204117_37.4982508275695068",
       "traffic_time": null
@@ -1863,9 +2410,26 @@
       "start_node": "한국타이어빌딩",
       "end_node": "국기원입구교차로",
       "distance_m": 264,
-      "speed_kmh": 24,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0311202675968190_37.4989814033435920|127.0339011803060885_37.4998421534899293",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220025003",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동",
+        "논현1동"
+      ],
+      "assignment_type": "polygon_multi",
+      "road_name": "강남대로",
+      "start_node": "서초동 1373",
+      "end_node": "교보타워사거리",
+      "distance_m": 221,
+      "speed_kmh": 21,
+      "congestion": "서행",
+      "xylist": "127.0244473968313343_37.5044514101080111|127.0247108420325048_37.5039060466009033|127.0253434781147917_37.5025963782215541",
       "traffic_time": null
     },
     {
@@ -1879,7 +2443,7 @@
       "start_node": "속성변화점",
       "end_node": "강남역사거리",
       "distance_m": 181,
-      "speed_kmh": 19,
+      "speed_kmh": 20,
       "congestion": "서행",
       "xylist": "127.0276822389256637_37.4980553605985918|127.0269978768356367_37.4994723018201697|127.0269491384972866_37.4995732101292063",
       "traffic_time": null
@@ -1895,7 +2459,7 @@
       "start_node": "신논현역",
       "end_node": "교보타워사거리",
       "distance_m": 64,
-      "speed_kmh": 19,
+      "speed_kmh": 22,
       "congestion": "서행",
       "xylist": "127.0245743023879044_37.5044897355058495|127.0252491957505185_37.5046905608852796",
       "traffic_time": null
@@ -1911,9 +2475,25 @@
       "start_node": "역삼동 800",
       "end_node": "신논현역",
       "distance_m": 50,
-      "speed_kmh": 19,
+      "speed_kmh": 15,
       "congestion": "서행",
       "xylist": "127.0253763334646919_37.5047283922381283|127.0259085572878206_37.5048867600619360",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220027801",
+      "primary_dong": "논현1동",
+      "dong_names": [
+        "논현1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로",
+      "start_node": "교보타워사거리",
+      "end_node": "HM타워",
+      "distance_m": 143,
+      "speed_kmh": 18,
+      "congestion": "서행",
+      "xylist": "127.0238275183942562_37.5057614843330143|127.0241540090957244_37.5050708914382724|127.0243991052031305_37.5045524553287137",
       "traffic_time": null
     },
     {
@@ -1927,7 +2507,7 @@
       "start_node": "논현동 280",
       "end_node": "교보타워사거리",
       "distance_m": 61,
-      "speed_kmh": 20,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0245260087286567_37.5045907813304069|127.0242810161496863_37.5051089999436158",
       "traffic_time": null
@@ -1943,9 +2523,25 @@
       "start_node": "라이브팜뉴스",
       "end_node": "역삼초등학교",
       "distance_m": 338,
-      "speed_kmh": 18,
+      "speed_kmh": 17,
       "congestion": "서행",
       "xylist": "127.0317244448772271_37.4935145090668769|127.0324852863543583_37.4919019849371793|127.0326810147735301_37.4914906014038465|127.0330755956318143_37.4906612534684598",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220059100",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "역삼로3길",
+      "start_node": "역삼동 831-35",
+      "end_node": "삼성화재서초사옥",
+      "distance_m": 210,
+      "speed_kmh": 19,
+      "congestion": "서행",
+      "xylist": "127.0292733269647272_37.4946455507303256|127.0309286768451500_37.4951582359373319|127.0311409663314350_37.4947099662645797",
       "traffic_time": null
     },
     {
@@ -1959,42 +2555,9 @@
       "start_node": "과학기술회관",
       "end_node": "국기원입구교차로",
       "distance_m": 114,
-      "speed_kmh": 16,
+      "speed_kmh": 21,
       "congestion": "서행",
       "xylist": "127.0310728003854166_37.4990827049839055|127.0308510382801757_37.4995785950317284|127.0306386532190999_37.5000535101687191",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220064300",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "강남대로94길",
-      "start_node": "역삼동 648-9",
-      "end_node": "과학기술회관",
-      "distance_m": 115,
-      "speed_kmh": 15,
-      "congestion": "서행",
-      "xylist": "127.0306386532190999_37.5000535101687191|127.0318547777729066_37.5004256036905161",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220064500",
-      "primary_dong": "논현1동",
-      "dong_names": [
-        "논현1동",
-        "역삼1동"
-      ],
-      "assignment_type": "polygon_multi",
-      "road_name": "테헤란로1길",
-      "start_node": "역삼동 858-6",
-      "end_node": "신논현역",
-      "distance_m": 67,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0252491957505185_37.5046905608852796|127.0255100549291853_37.5041277615367150",
       "traffic_time": null
     },
     {
@@ -2014,100 +2577,35 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220025804",
+      "link_id": "1220025803",
       "primary_dong": "대치4동",
       "dong_names": [
         "대치4동"
       ],
       "assignment_type": "polygon",
       "road_name": "선릉로",
-      "start_node": "선릉역(서울2호선)",
-      "end_node": "선릉역사거리",
-      "distance_m": 78,
-      "speed_kmh": 24,
-      "congestion": "서행",
-      "xylist": "127.0489874547452303_37.5044185049200891|127.0492474271719345_37.5038581699360591|127.0492928042660310_37.5037603648988949",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220026002",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "블랙베리박물관",
-      "end_node": "역삼동 804",
-      "distance_m": 261,
+      "start_node": "역삼동 802-31",
+      "end_node": "선릉역(서울2호선)",
+      "distance_m": 36,
       "speed_kmh": 15,
       "congestion": "서행",
-      "xylist": "127.0471173294836689_37.5039936601345545|127.0443627780408065_37.5031471670482617",
+      "xylist": "127.0493398594145731_37.5036589428028151|127.0494800504940969_37.5033567751413273",
       "traffic_time": null
     },
     {
-      "link_id": "1220026004",
-      "primary_dong": "역삼1동",
+      "link_id": "1220025903",
+      "primary_dong": "대치4동",
       "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "르네상스호텔교차로",
-      "end_node": "블랙베리박물관",
-      "distance_m": 52,
-      "speed_kmh": 15.5,
-      "congestion": "서행",
-      "xylist": "127.0442359817900950_37.5031085999901350|127.0436867528111975_37.5029433037034892",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220026102",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "역삼동 804",
-      "end_node": "블랙베리박물관",
-      "distance_m": 260,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0444223112660467_37.5030495771580661|127.0471670915627840_37.5038930671752482",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220026103",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동",
         "대치4동"
       ],
-      "assignment_type": "polygon_multi",
-      "road_name": "테헤란로",
-      "start_node": "선릉역사거리",
-      "end_node": "역삼동 804",
-      "distance_m": 159,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0472942790560325_37.5039308877385196|127.0489874547452303_37.5044185049200891",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220026802",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "월간부동산경제",
-      "end_node": "KTF타워",
-      "distance_m": 191,
-      "speed_kmh": 22,
+      "road_name": "선릉로",
+      "start_node": "대치동 1011-17",
+      "end_node": "진선여고",
+      "distance_m": 102,
+      "speed_kmh": 15,
       "congestion": "서행",
-      "xylist": "127.0528495126162909_37.5057573699263784|127.0508357905731600_37.5051361926111113",
+      "xylist": "127.0497736298861042_37.5030358485243909|127.0496073469251996_37.5033942600096850|127.0494671565548828_37.5036964278532707|127.0494201015183222_37.5037978500803462|127.0493747245042755_37.5038956551044578",
       "traffic_time": null
     },
     {
@@ -2124,6 +2622,22 @@
       "speed_kmh": 24,
       "congestion": "서행",
       "xylist": "127.0565476506724707_37.5068995560620664|127.0551245320578602_37.5064612571662650|127.0549977448848864_37.5064221165811134|127.0529760573716800_37.5057964677758875",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220030101",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "봉은사로",
+      "start_node": "삼성동 111-147",
+      "end_node": "선정릉역사거리",
+      "distance_m": 160,
+      "speed_kmh": 23,
+      "congestion": "서행",
+      "xylist": "127.0439536961437739_37.5102544648311351|127.0456546467774217_37.5107534974710006",
       "traffic_time": null
     },
     {
@@ -2153,7 +2667,7 @@
       "start_node": "진선여자중학교",
       "end_node": "역삼동 709-6",
       "distance_m": 244,
-      "speed_kmh": 23.5,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0449918128137057_37.5022563458516913|127.0450373398494150_37.5022704805788649|127.0460858483811535_37.5025342023920842|127.0461241747767502_37.5025440418957388|127.0465088357584165_37.5026427947566461|127.0471586361461931_37.5028096126219666|127.0475001726865116_37.5028972907328964|127.0476253937541600_37.5029148927015115",
       "traffic_time": null
@@ -2169,7 +2683,7 @@
       "start_node": "역삼동 707-12",
       "end_node": "진선여자중학교",
       "distance_m": 255,
-      "speed_kmh": 22,
+      "speed_kmh": 20,
       "congestion": "서행",
       "xylist": "127.0476018129394333_37.5030213687362988|127.0474674171433094_37.5030024773813935|127.0471170126434259_37.5029125227694990|127.0464672114241012_37.5027457047571673|127.0460825499488777_37.5026469518089058|127.0460446065235516_37.5026372106288548|127.0449922237995821_37.5023725132399832|127.0448489661988987_37.5023280363648013",
       "traffic_time": null
@@ -2185,9 +2699,25 @@
       "start_node": "진선여자고등학교",
       "end_node": "진선여자중학교",
       "distance_m": 83,
-      "speed_kmh": 18.5,
+      "speed_kmh": 20.5,
       "congestion": "서행",
       "xylist": "127.0477058613497690_37.5029198869641291|127.0482637055277451_37.5027833474549865|127.0485650684316852_37.5027095837196143|127.0485994425350498_37.5026948948454901",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220067800",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로52길",
+      "start_node": "역삼동 708-33",
+      "end_node": "진선여자고등학교",
+      "distance_m": 45,
+      "speed_kmh": 16.5,
+      "congestion": "서행",
+      "xylist": "127.0487756743473824_37.5027422782434172|127.0486175648109253_37.5028098431502173|127.0483035617519079_37.5028867005181183",
       "traffic_time": null
     },
     {
@@ -2202,7 +2732,7 @@
       "start_node": "진선여자고등학교",
       "end_node": "진선여고",
       "distance_m": 83,
-      "speed_kmh": 20.5,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0496481972099332_37.5029943484915336|127.0488838028640259_37.5027428534322240|127.0487756743473824_37.5027422782434172",
       "traffic_time": null
@@ -2218,57 +2748,9 @@
       "start_node": "진선여자중학교",
       "end_node": "도시개발신문",
       "distance_m": 11,
-      "speed_kmh": 23,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0475579221615732_37.5031154893994980|127.0476018129394333_37.5030213687362988",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220068500",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로52길",
-      "start_node": "도시개발신문",
-      "end_node": "진선여자중학교",
-      "distance_m": 15,
-      "speed_kmh": 17.5,
-      "congestion": "서행",
-      "xylist": "127.0477457167723543_37.5030232397223813|127.0476851392119499_37.5031531430107989",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220068600",
-      "primary_dong": "대치4동",
-      "dong_names": [
-        "대치4동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로86길",
-      "start_node": "대치동 1011-18",
-      "end_node": "진선여고",
-      "distance_m": 43,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0498209559993370_37.5029344252388057|127.0502748335649130_37.5030853689336396",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220069301",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로43길",
-      "start_node": "국제섬유신문",
-      "end_node": "블랙베리박물관",
-      "distance_m": 46,
-      "speed_kmh": 15,
-      "congestion": "서행",
-      "xylist": "127.0443627780408065_37.5031471670482617|127.0441843649481370_37.5035326168648098",
       "traffic_time": null
     },
     {
@@ -2288,38 +2770,6 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220070300",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로93길",
-      "start_node": "역삼동 702-31",
-      "end_node": "이환빌딩",
-      "distance_m": 120,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0440106778918334_37.5039078512403847|127.0446181406134656_37.5040968150351475|127.0452456907805328_37.5042920231553651|127.0452775257639217_37.5043015743408361",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220070400",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로93길",
-      "start_node": "역삼동 802-37",
-      "end_node": "우리빌딩",
-      "distance_m": 139,
-      "speed_kmh": 17.5,
-      "congestion": "서행",
-      "xylist": "127.0467047231793600_37.5048452859594335|127.0452296953085209_37.5044027582226391",
-      "traffic_time": null
-    },
-    {
       "link_id": "1220070500",
       "primary_dong": "역삼1동",
       "dong_names": [
@@ -2330,89 +2780,25 @@
       "start_node": "속성변화점",
       "end_node": "센터필드EAST",
       "distance_m": 184,
-      "speed_kmh": 21,
+      "speed_kmh": 17,
       "congestion": "서행",
       "xylist": "127.0421318287953625_37.5041808866634341|127.0426856690897637_37.5043235110338884|127.0428279173818282_37.5043501211974117|127.0429646936048016_37.5043500715293163|127.0436734217523451_37.5042155266854564|127.0437402751845042_37.5041595513156381|127.0438359819385852_37.5039686758785251|127.0438833453921603_37.5038704428559555",
       "traffic_time": null
     },
     {
-      "link_id": "1220070600",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "언주로94길",
-      "start_node": "역삼동 700-38",
-      "end_node": "이환빌딩",
-      "distance_m": 108,
-      "speed_kmh": 22,
-      "congestion": "서행",
-      "xylist": "127.0439620134067269_37.5040087840446006|127.0438566121118811_37.5042189961629546|127.0437440122160382_37.5043132731677531|127.0429923173944360_37.5044559753481082",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220071200",
-      "primary_dong": "대치4동",
-      "dong_names": [
-        "대치4동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "삼성로85길",
-      "start_node": "롯데캐슬아파트",
-      "end_node": "이비스스타일앰배서더서울강남",
-      "distance_m": 136,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0573055376119243_37.5054720518562945|127.0558713656280361_37.5050195657570598",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220071300",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로93길",
-      "start_node": "선릉역(수인분당선)",
-      "end_node": "우리빌딩",
-      "distance_m": 169,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0468696615953377_37.5048051128072615|127.0472577382230241_37.5052092417498173|127.0475341574507979_37.5053011288221043|127.0479304710487156_37.5054328695665120|127.0484330543986573_37.5055999334302470",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220071400",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로93길",
-      "start_node": "역삼동 696-45",
-      "end_node": "선릉역(수인분당선)",
-      "distance_m": 48,
-      "speed_kmh": 20,
-      "congestion": "서행",
-      "xylist": "127.0483821896187351_37.5057001806225543|127.0478782088464129_37.5055326522576777",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220071500",
+      "link_id": "1220071600",
       "primary_dong": "대치4동",
       "dong_names": [
         "대치4동"
       ],
       "assignment_type": "polygon",
       "road_name": "테헤란로78길",
-      "start_node": "대치동 1011-6",
-      "end_node": "포스코미술관",
-      "distance_m": 61,
-      "speed_kmh": 16,
+      "start_node": "포스코미술관",
+      "end_node": "롯데캐슬아파트",
+      "distance_m": 161,
+      "speed_kmh": 22,
       "congestion": "서행",
-      "xylist": "127.0550468873825025_37.5063213325861398|127.0553089900937067_37.5058177697578614",
+      "xylist": "127.0558713656280361_37.5050195657570598|127.0556616943434847_37.5054224074410030|127.0554343582095669_37.5058591832844215|127.0551734722876205_37.5063604107458772",
       "traffic_time": null
     },
     {
@@ -2426,7 +2812,7 @@
       "start_node": "삼성동 172-98",
       "end_node": "삼성동빌딩",
       "distance_m": 49,
-      "speed_kmh": 17,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0501931847878154_37.5061595041217970|127.0502410686189307_37.5060786113238365|127.0503997460840679_37.5057459597834253",
       "traffic_time": null
@@ -2442,73 +2828,25 @@
       "start_node": "삼성동 142-5",
       "end_node": "월간부동산경제",
       "distance_m": 77,
-      "speed_kmh": 22,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0508357905731600_37.5051361926111113|127.0505266121239316_37.5057843667848871",
       "traffic_time": null
     },
     {
-      "link_id": "1220071900",
+      "link_id": "1220073500",
       "primary_dong": "삼성2동",
       "dong_names": [
         "삼성2동"
       ],
       "assignment_type": "polygon",
-      "road_name": "선릉로94길",
-      "start_node": "삼성동빌딩",
-      "end_node": "선릉역(수인분당선)",
-      "distance_m": 156,
-      "speed_kmh": 16,
+      "road_name": "선릉로100길",
+      "start_node": "삼성동 172-89",
+      "end_node": "정든빌딩",
+      "distance_m": 113,
+      "speed_kmh": 19,
       "congestion": "서행",
-      "xylist": "127.0485587670993652_37.5056408010745486|127.0490621091166048_37.5058005461863644|127.0501931847878154_37.5061595041217970",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220072000",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로94길",
-      "start_node": "선릉역(수인분당선)",
-      "end_node": "삼성동빌딩",
-      "distance_m": 157,
-      "speed_kmh": 21,
-      "congestion": "서행",
-      "xylist": "127.0501601069988027_37.5062653907136010|127.0490118813641089_37.5059009903445002|127.0485078851592107_37.5057410376844658",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220072200",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로69길",
-      "start_node": "삼성동 172-99",
-      "end_node": "KTF타워",
-      "distance_m": 57,
-      "speed_kmh": 15.5,
-      "congestion": "서행",
-      "xylist": "127.0529760573716800_37.5057964677758875|127.0527361859108169_37.5062715853546678",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220072800",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로63길",
-      "start_node": "정든빌딩",
-      "end_node": "삼성동빌딩",
-      "distance_m": 51,
-      "speed_kmh": 15,
-      "congestion": "서행",
-      "xylist": "127.0502958135916458_37.5062639290552582|127.0503036864279096_37.5067277996371189",
+      "xylist": "127.0503036864279096_37.5067277996371189|127.0515841885179213_37.5067796298796594",
       "traffic_time": null
     },
     {
@@ -2522,9 +2860,41 @@
       "start_node": "정든빌딩",
       "end_node": "삼성동 172-89",
       "distance_m": 171,
-      "speed_kmh": 23,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0522091422740658_37.5069998373663793|127.0520785711498206_37.5069467447646474|127.0518857869076896_37.5069000953744691|127.0515773025849029_37.5068876111003817|127.0502967986549976_37.5068357808075135",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220073700",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로100길",
+      "start_node": "삼성동 172-88",
+      "end_node": "선릉공원",
+      "distance_m": 163,
+      "speed_kmh": 21,
+      "congestion": "서행",
+      "xylist": "127.0471720593799319_37.5070534520707710|127.0474044325196132_37.5070552676544722|127.0489998316540294_37.5068690014972219",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220073800",
+      "primary_dong": "삼성2동",
+      "dong_names": [
+        "삼성2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "선릉로100길",
+      "start_node": "선릉공원",
+      "end_node": "정든빌딩",
+      "distance_m": 285,
+      "speed_kmh": 20,
+      "congestion": "서행",
+      "xylist": "127.0501877186652990_37.5068395748828394|127.0490195130558817_37.5069759794436237|127.0474136620712926_37.5071634656356494|127.0469965891165742_37.5071602068898287",
       "traffic_time": null
     },
     {
@@ -2538,7 +2908,7 @@
       "start_node": "마루빌딩",
       "end_node": "삼성동 172-89",
       "distance_m": 107,
-      "speed_kmh": 24,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0523915908889165_37.5069541192693592|127.0534532547879820_37.5074151103447733",
       "traffic_time": null
@@ -2554,9 +2924,25 @@
       "start_node": "삼성동 172-73",
       "end_node": "마루빌딩",
       "distance_m": 126,
-      "speed_kmh": 23.5,
+      "speed_kmh": 21,
       "congestion": "서행",
       "xylist": "127.0536095457558048_37.5075976007268892|127.0536270441107263_37.5077568563279229|127.0536175999609867_37.5078783512049867|127.0536010378548042_37.5079533619661234|127.0532756349020502_37.5083408529318518|127.0530933339902475_37.5085844180251726|127.0530668262036471_37.5086067783565937",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1210027602",
+      "primary_dong": "논현1동",
+      "dong_names": [
+        "논현1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "신반포로",
+      "start_node": "잠원동 99",
+      "end_node": "논현역앞교차로",
+      "distance_m": 81,
+      "speed_kmh": 19,
+      "congestion": "서행",
+      "xylist": "127.0212424469134902_37.5111447623381054|127.0203821705510308_37.5108839074530920",
       "traffic_time": null
     },
     {
@@ -2570,7 +2956,7 @@
       "start_node": "반포동 749-18",
       "end_node": "논현역앞교차로",
       "distance_m": 54,
-      "speed_kmh": 17,
+      "speed_kmh": 19,
       "congestion": "서행",
       "xylist": "127.0212906706428271_37.5110436959506757|127.0215110784695867_37.5105855711166996",
       "traffic_time": null
@@ -2586,41 +2972,9 @@
       "start_node": "논현동 280",
       "end_node": "청하빌딩",
       "distance_m": 176,
-      "speed_kmh": 18.5,
-      "congestion": "서행",
-      "xylist": "127.0232987766696908_37.5071716970898308|127.0230474222821186_37.5076941986452752|127.0225878609492725_37.5086494889239788",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220030507",
-      "primary_dong": "논현1동",
-      "dong_names": [
-        "논현1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "학동로",
-      "start_node": "주한부탄왕국명예총영사관",
-      "end_node": "논현역(서울7호선)",
-      "distance_m": 50,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0228796600953984_37.5115204088512186|127.0234136233973601_37.5116805263399442",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220030701",
-      "primary_dong": "논현1동",
-      "dong_names": [
-        "논현1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "강남대로",
-      "start_node": "논현동 280",
-      "end_node": "논현역앞교차로",
-      "distance_m": 96,
       "speed_kmh": 18,
       "congestion": "서행",
-      "xylist": "127.0213693851217158_37.5111830402280262|127.0209873423382589_37.5119904251618195",
+      "xylist": "127.0232987766696908_37.5071716970898308|127.0230474222821186_37.5076941986452752|127.0225878609492725_37.5086494889239788",
       "traffic_time": null
     },
     {
@@ -2634,7 +2988,7 @@
       "start_node": "논현동 280-21",
       "end_node": "HM타워",
       "distance_m": 82,
-      "speed_kmh": 15,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0239545262593310_37.5057995931114334|127.0241796229151134_37.5059761899912516|127.0245724546161910_37.5063437576129388",
       "traffic_time": null
@@ -2650,9 +3004,25 @@
       "start_node": "논현동 280-22",
       "end_node": "동진빌라",
       "distance_m": 92,
-      "speed_kmh": 19,
+      "speed_kmh": 17.5,
       "congestion": "서행",
       "xylist": "127.0270270582617940_37.5074525861540309|127.0267446316322122_37.5073663616738386|127.0260578684266903_37.5071566901156643",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220068200",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로37길",
+      "start_node": "역삼동 677-32",
+      "end_node": "역삼동 801-35",
+      "distance_m": 45,
+      "speed_kmh": 15.5,
+      "congestion": "서행",
+      "xylist": "127.0404774749732866_37.5034585349666685|127.0406319239594382_37.5030765261350822",
       "traffic_time": null
     },
     {
@@ -2666,7 +3036,7 @@
       "start_node": "역삼동 803-3",
       "end_node": "역삼동 803-3",
       "distance_m": 117,
-      "speed_kmh": 19,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0375577638543518_37.4992997915635939|127.0380228090820651_37.4983127742013025",
       "traffic_time": null
@@ -2682,9 +3052,25 @@
       "start_node": "역삼동 803-3",
       "end_node": "역삼역앞교차로",
       "distance_m": 160,
-      "speed_kmh": 20.3,
+      "speed_kmh": 21.5,
       "congestion": "서행",
       "xylist": "127.0368909881553634_37.5007549406311398|127.0375106660669928_37.4994012382100053",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220024102",
+      "primary_dong": "역삼1동",
+      "dong_names": [
+        "역삼1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "강남파이낸스센터",
+      "end_node": "한국타이어빌딩",
+      "distance_m": 154,
+      "speed_kmh": 20,
+      "congestion": "서행",
+      "xylist": "127.0340278079028593_37.4998810786723951|127.0356493611653690_37.5003759986710961",
       "traffic_time": null
     },
     {
@@ -2698,25 +3084,9 @@
       "start_node": "역삼동 804",
       "end_node": "조선팰리스서울강남",
       "distance_m": 252,
-      "speed_kmh": 15,
+      "speed_kmh": 22,
       "congestion": "서행",
       "xylist": "127.0410901902141632_37.5021604542974885|127.0384303599731339_37.5013352470725749",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220025301",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로",
-      "start_node": "역삼동 804",
-      "end_node": "역삼역앞교차로",
-      "distance_m": 127,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0370178297836929_37.5007934116919515|127.0383619562775550_37.5011984810594541",
       "traffic_time": null
     },
     {
@@ -2730,25 +3100,9 @@
       "start_node": "조선팰리스서울강남",
       "end_node": "역삼동 804",
       "distance_m": 252,
-      "speed_kmh": 20,
+      "speed_kmh": 15,
       "congestion": "서행",
       "xylist": "127.0384900125446848_37.5012377243034365|127.0411472370855819_37.5020621235551701",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220063000",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로85길",
-      "start_node": "강남파이낸스센터",
-      "end_node": "역삼동 803-3",
-      "distance_m": 172,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0375106660669928_37.4994012382100053|127.0366327519434861_37.4991647395749723|127.0362226810127737_37.4993635036514164|127.0360430367235125_37.4997659664220748",
       "traffic_time": null
     },
     {
@@ -2762,41 +3116,25 @@
       "start_node": "역삼동 804-14",
       "end_node": "역삼동 803-3",
       "distance_m": 87,
-      "speed_kmh": 16,
+      "speed_kmh": 16.5,
       "congestion": "서행",
       "xylist": "127.0376812090304384_37.4993454389484810|127.0378037738192631_37.4994067530186683|127.0385858837944539_37.4996365979730086",
       "traffic_time": null
     },
     {
-      "link_id": "1220063900",
+      "link_id": "1220066100",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로26길",
-      "start_node": "강남파이낸스센터",
-      "end_node": "강남파이낸스센터",
-      "distance_m": 63,
-      "speed_kmh": 18,
+      "road_name": "테헤란로27길",
+      "start_node": "역삼동 804",
+      "end_node": "주원빌딩",
+      "distance_m": 147,
+      "speed_kmh": 15,
       "congestion": "서행",
-      "xylist": "127.0356493611653690_37.5003759986710961|127.0358713909474631_37.4998321123386660",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220064700",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로25길",
-      "start_node": "역삼동 800-55",
-      "end_node": "강남파이낸스센터",
-      "distance_m": 54,
-      "speed_kmh": 16.5,
-      "congestion": "서행",
-      "xylist": "127.0357139041821881_37.5005114802401565|127.0355669976001991_37.5006583522082835|127.0354261517218362_37.5009351779329592",
+      "xylist": "127.0376735538589088_37.5025242529355367|127.0377125497796129_37.5024717782014534|127.0378031339130587_37.5022916726038176|127.0379628362755966_37.5019741391064088|127.0381171969712426_37.5016672235797017|127.0383036450100747_37.5012965051190150",
       "traffic_time": null
     },
     {
@@ -2810,106 +3148,57 @@
       "start_node": "역삼동 801-43",
       "end_node": "역삼동 804",
       "distance_m": 45,
-      "speed_kmh": 18,
+      "speed_kmh": 17,
       "congestion": "서행",
       "xylist": "127.0384303599731339_37.5013352470725749|127.0382431714843676_37.5017074385952114",
       "traffic_time": null
     },
     {
-      "link_id": "1220068100",
+      "link_id": "1220066500",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로37길",
-      "start_node": "역삼동 801-35",
-      "end_node": "조선팰리스서울강남",
-      "distance_m": 109,
-      "speed_kmh": 16.5,
-      "congestion": "서행",
-      "xylist": "127.0412168948508196_37.5021992128127692|127.0409307988315248_37.5027697610468564|127.0407642310578069_37.5031019352162929|127.0407611017780738_37.5031096751308723",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220068200",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로37길",
-      "start_node": "역삼동 677-32",
-      "end_node": "역삼동 801-35",
-      "distance_m": 45,
-      "speed_kmh": 19,
-      "congestion": "서행",
-      "xylist": "127.0404774749732866_37.5034585349666685|127.0406319239594382_37.5030765261350822",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220109300",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동",
-        "역삼1동"
-      ],
-      "assignment_type": "polygon_multi",
-      "road_name": "논현로86길",
-      "start_node": "역삼동 803-3",
-      "end_node": "역삼동 804",
-      "distance_m": 269,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0383619562775550_37.5011984810594541|127.0384939225746734_37.5010126436947360|127.0385785669749765_37.5008379293449394|127.0387523426002332_37.5004792366435709|127.0389134461888858_37.5001466971603179|127.0385215492466671_37.4997329331422051|127.0377435658552514_37.4995043007809841|127.0376332097685577_37.4994490942840741",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220109400",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로25길",
-      "start_node": "강남파이낸스센터",
-      "end_node": "AC호텔서울강남",
-      "distance_m": 73,
+      "road_name": "논현로94길",
+      "start_node": "역삼동 679-1",
+      "end_node": "역삼동 800-3",
+      "distance_m": 59,
       "speed_kmh": 15.5,
       "congestion": "서행",
-      "xylist": "127.0352188371493725_37.5010548317045789|127.0353003824151870_37.5008945602992867|127.0354486142979624_37.5006032191951775|127.0355809598226955_37.5004709050617890",
+      "xylist": "127.0364185314605834_37.5021050987604525|127.0370346102444188_37.5023108598895689",
       "traffic_time": null
     },
     {
-      "link_id": "1220109500",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로25길",
-      "start_node": "역삼동 800-46",
-      "end_node": "역삼동 800-3",
-      "distance_m": 111,
-      "speed_kmh": 19,
-      "congestion": "서행",
-      "xylist": "127.0362369327934431_37.5021833042211554|127.0361038904469950_37.5021750291069296|127.0357013303636364_37.5020526726668919|127.0354198369294210_37.5019671128703962|127.0352836579838822_37.5016803480284437",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220032706",
+      "link_id": "1220032603",
       "primary_dong": "신사동",
       "dong_names": [
         "신사동"
       ],
       "assignment_type": "polygon",
       "road_name": "도산대로",
-      "start_node": "논현동 279",
-      "end_node": "신사역사거리",
-      "distance_m": 98,
-      "speed_kmh": 21,
+      "start_node": "신사동 501-5",
+      "end_node": "신사동 501-5",
+      "distance_m": 70,
+      "speed_kmh": 16,
       "congestion": "서행",
-      "xylist": "127.0196397311538306_37.5160975693515226|127.0206224542618116_37.5165131107482495",
+      "xylist": "127.0233702123766051_37.5177885099050883|127.0227971066371566_37.5175496217451894|127.0226731476215747_37.5174979512342688",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220032605",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "도산대로",
+      "start_node": "신사동 501-5",
+      "end_node": "강남을지병원사거리",
+      "distance_m": 87,
+      "speed_kmh": 19,
+      "congestion": "서행",
+      "xylist": "127.0280371859392829_37.5197414933169782|127.0271621006632188_37.5193785848759092",
       "traffic_time": null
     },
     {
@@ -2929,6 +3218,22 @@
       "traffic_time": null
     },
     {
+      "link_id": "1220034404",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로",
+      "start_node": "KT신사지사앞",
+      "end_node": "압구정고가차도(남측)",
+      "distance_m": 44,
+      "speed_kmh": 24,
+      "congestion": "서행",
+      "xylist": "127.0283395591130500_37.5250065536841362|127.0283248558345122_37.5246129191385620",
+      "traffic_time": null
+    },
+    {
       "link_id": "1220034405",
       "primary_dong": "신사동",
       "dong_names": [
@@ -2939,9 +3244,41 @@
       "start_node": "압구정고가차도(남측)",
       "end_node": "압구정역앞교차로",
       "distance_m": 229,
-      "speed_kmh": 24,
+      "speed_kmh": 20,
       "congestion": "서행",
       "xylist": "127.0282759409679016_37.5270582615837682|127.0283303202405847_37.5268739474045816|127.0283620150373025_37.5266475017756704|127.0283619317290800_37.5264274554737582|127.0283319991274453_37.5259676695780868|127.0282853399793055_37.5252252266081712|127.0283395591130500_37.5250065536841362",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220034406",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로",
+      "start_node": "신사동668",
+      "end_node": "KT신사지사앞",
+      "distance_m": 74,
+      "speed_kmh": 20.5,
+      "congestion": "서행",
+      "xylist": "127.0283194174098185_37.5245048688214595|127.0282766583817988_37.5238348591677067",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220034407",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로",
+      "start_node": "신사동 668",
+      "end_node": "신사동668",
+      "distance_m": 85,
+      "speed_kmh": 21,
+      "congestion": "서행",
+      "xylist": "127.0282697656988802_37.5237268530348160|127.0282210639870328_37.5229636995892477",
       "traffic_time": null
     },
     {
@@ -2955,7 +3292,7 @@
       "start_node": "신사동 667-35",
       "end_node": "한남IC",
       "distance_m": 121,
-      "speed_kmh": 22,
+      "speed_kmh": 18.5,
       "congestion": "서행",
       "xylist": "127.0196414563682623_37.5226786197747799|127.0198045751835991_37.5227606189946599|127.0208024983061250_37.5232622623860976",
       "traffic_time": null
@@ -2971,41 +3308,25 @@
       "start_node": "신사동 667-35",
       "end_node": "현대고",
       "distance_m": 67,
-      "speed_kmh": 15,
+      "speed_kmh": 20,
       "congestion": "서행",
       "xylist": "127.0224876254120829_37.5241095444315249|127.0231244458356485_37.5244338308142105",
       "traffic_time": null
     },
     {
-      "link_id": "1220035600",
+      "link_id": "1220035103",
       "primary_dong": "신사동",
       "dong_names": [
         "신사동"
       ],
       "assignment_type": "polygon",
-      "road_name": "논현로",
-      "start_node": "압구정고가차도(남측)",
-      "end_node": "압구정고가차도(북측)",
-      "distance_m": 456,
-      "speed_kmh": 15,
+      "road_name": "압구정로",
+      "start_node": "신사동 667-35",
+      "end_node": "청작화랑",
+      "distance_m": 143,
+      "speed_kmh": 16,
       "congestion": "서행",
-      "xylist": "127.0268388941667439_37.5286867952204233|127.0276229048477035_37.5280429604157248|127.0278165005547066_37.5278840115926755|127.0279731715236551_37.5277036660985672|127.0281672333874639_37.5274318336580421|127.0283131192877590_37.5271685854789965|127.0283973296032798_37.5268831584729128|127.0284298940737244_37.5266504975051163|127.0284298088944297_37.5264260462047829|127.0283997882590228_37.5259649187552995|127.0283395591130500_37.5250065536841362",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220089200",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도산대로13길",
-      "start_node": "신사동 667-13",
-      "end_node": "한교빌딩",
-      "distance_m": 14,
-      "speed_kmh": 15,
-      "congestion": "서행",
-      "xylist": "127.0230536690337004_37.5194604758461239|127.0230743650847813_37.5193351003487336",
+      "xylist": "127.0241083963904600_37.5249346230122711|127.0254725690620887_37.5256273769602657",
       "traffic_time": null
     },
     {
@@ -3019,41 +3340,9 @@
       "start_node": "신사동 667-13",
       "end_node": "신사동 501-5",
       "distance_m": 64,
-      "speed_kmh": 21,
-      "congestion": "서행",
-      "xylist": "127.0234959990522157_37.5178412759112945|127.0233652346300346_37.5184041868742781",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220089800",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로151길",
-      "start_node": "신사동 540-17",
-      "end_node": "한교빌딩",
-      "distance_m": 116,
-      "speed_kmh": 15.5,
-      "congestion": "서행",
-      "xylist": "127.0231882543426423_37.5194745704341912|127.0244718919648932_37.5196135745143948|127.0244909423343387_37.5196152857974283",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220089900",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "논현로151길",
-      "start_node": "신사동 667-21",
-      "end_node": "신사동 667-21",
-      "distance_m": 116,
       "speed_kmh": 15,
       "congestion": "서행",
-      "xylist": "127.0274070953705206_37.5204456743626125|127.0266396543750886_37.5201241789116082|127.0262498643968883_37.5199608855933420",
+      "xylist": "127.0234959990522157_37.5178412759112945|127.0233652346300346_37.5184041868742781",
       "traffic_time": null
     },
     {
@@ -3067,7 +3356,7 @@
       "start_node": "신사동 667-13",
       "end_node": "현대고",
       "distance_m": 61,
-      "speed_kmh": 21.7,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0223574913892861_37.5240439075491210|127.0223782425358934_37.5238158829208359|127.0224302352055901_37.5234937392832748",
       "traffic_time": null
@@ -3099,7 +3388,7 @@
       "start_node": "한남IC",
       "end_node": "한남IC",
       "distance_m": 124,
-      "speed_kmh": 20,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0184647515422967_37.5220740214540527|127.0196414563682623_37.5226786197747799",
       "traffic_time": null
@@ -3115,25 +3404,9 @@
       "start_node": "신사동 667-30",
       "end_node": "청작화랑",
       "distance_m": 85,
-      "speed_kmh": 16,
+      "speed_kmh": 17,
       "congestion": "서행",
       "xylist": "127.0239993271606807_37.5248792090952108|127.0241907646657893_37.5248235301143254|127.0248768749337529_37.5246912303723548|127.0249300313320617_37.5246883867516772",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220342100",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "강남대로",
-      "start_node": "한남IC",
-      "end_node": "한남IC",
-      "distance_m": 219,
-      "speed_kmh": 23,
-      "congestion": "서행",
-      "xylist": "127.0184647515422967_37.5220740214540527|127.0187361940851076_37.5221219841313172|127.0188799124806849_37.5221225694219385|127.0189701046267459_37.5220657007965528|127.0190338533853947_37.5219300247544041|127.0187948665284097_37.5213781528593202|127.0186786484771915_37.5212918254898256|127.0184900646496544_37.5212839020109570|127.0183010678575073_37.5213403675630133|127.0179230663021883_37.5215654212540883",
       "traffic_time": null
     },
     {
@@ -3148,13 +3421,29 @@
       "start_node": "영동고교",
       "end_node": "학동사거리",
       "distance_m": 162,
-      "speed_kmh": 17,
+      "speed_kmh": 19,
       "congestion": "서행",
       "xylist": "127.0390906173216194_37.5231203381365219|127.0391133064020863_37.5228990829912732|127.0395406419754778_37.5217105374167943",
       "traffic_time": null
     },
     {
-      "link_id": "1220034601",
+      "link_id": "1220034204",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "도산대로",
+      "start_node": "신사동 501-5",
+      "end_node": "학동사거리",
+      "distance_m": 78,
+      "speed_kmh": 17,
+      "congestion": "서행",
+      "xylist": "127.0390861363866435_37.5232347757009777|127.0382594965785756_37.5229821213989680",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220034703",
       "primary_dong": "청담동",
       "dong_names": [
         "청담동"
@@ -3163,26 +3452,10 @@
       "road_name": "도산대로",
       "start_node": "청담동 77",
       "end_node": "청담동 77",
-      "distance_m": 116,
+      "distance_m": 79,
       "speed_kmh": 18,
       "congestion": "서행",
-      "xylist": "127.0413071564451570_37.5235176656433396|127.0405339348501172_37.5234221784106481|127.0400054812010779_37.5233569151823687",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220034901",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도산대로",
-      "start_node": "청담동 77",
-      "end_node": "청담사거리",
-      "distance_m": 127,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0474721597987724_37.5241960352978836|127.0481716169773563_37.5242917934341591|127.0483069155655187_37.5243095041464656|127.0487065910878215_37.5243579088313268|127.0488945152498417_37.5243806678289928",
+      "xylist": "127.0447121822128764_37.5238458928924103|127.0452441209281318_37.5239132131085995|127.0455919377749296_37.5239572301738278",
       "traffic_time": null
     },
     {
@@ -3196,7 +3469,7 @@
       "start_node": "학동사거리",
       "end_node": "신한양빌딩",
       "distance_m": 158,
-      "speed_kmh": 19,
+      "speed_kmh": 15,
       "congestion": "서행",
       "xylist": "127.0395014174557389_37.5246137310738916|127.0393335370945920_37.5241464881978999|127.0392926724511966_37.5240305434553036|127.0391660322892449_37.5236540272358496|127.0391045399377816_37.5234487055447730|127.0390861363866435_37.5232347757009777",
       "traffic_time": null
@@ -3212,41 +3485,41 @@
       "start_node": "신사동 668-5",
       "end_node": "한양아파트앞교차로",
       "distance_m": 94,
-      "speed_kmh": 18.5,
+      "speed_kmh": 18,
       "congestion": "서행",
       "xylist": "127.0406204313811145_37.5277781125819700|127.0403965205514112_37.5271541960037496|127.0403281994726257_37.5269638204885396",
       "traffic_time": null
     },
     {
-      "link_id": "1220035502",
+      "link_id": "1220035501",
       "primary_dong": "청담동",
       "dong_names": [
         "청담동"
       ],
       "assignment_type": "polygon",
       "road_name": "선릉로",
-      "start_node": "신한양빌딩",
-      "end_node": "키네마극장",
-      "distance_m": 54,
-      "speed_kmh": 21,
+      "start_node": "키네마극장",
+      "end_node": "학동사거리",
+      "distance_m": 84,
+      "speed_kmh": 16,
       "congestion": "서행",
-      "xylist": "127.0394640495580632_37.5241167418134012|127.0396319308838002_37.5245839844116418",
+      "xylist": "127.0392244122724463_37.5232604498081272|127.0392392010293747_37.5234323545396080|127.0392976430606637_37.5236274895412407|127.0394238001620124_37.5240025656407425",
       "traffic_time": null
     },
     {
-      "link_id": "1220035802",
+      "link_id": "1220035803",
       "primary_dong": "청담동",
       "dong_names": [
         "청담동"
       ],
       "assignment_type": "polygon",
       "road_name": "압구정로",
-      "start_node": "청담동 145",
-      "end_node": "갤러리아주유소",
-      "distance_m": 69,
-      "speed_kmh": 21,
+      "start_node": "갤러리아주유소",
+      "end_node": "압구정로데오역3번출구",
+      "distance_m": 121,
+      "speed_kmh": 17,
       "congestion": "서행",
-      "xylist": "127.0438011178044917_37.5269658372789365|127.0445468381688698_37.5267788078608433",
+      "xylist": "127.0423691118125902_37.5273328330233085|127.0431965413789044_37.5271205625181921|127.0436709090198946_37.5269988640954608",
       "traffic_time": null
     },
     {
@@ -3260,57 +3533,25 @@
       "start_node": "압구정로데오역3번출구",
       "end_node": "한양아파트앞교차로",
       "distance_m": 138,
-      "speed_kmh": 22,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0407498452267987_37.5277452900861377|127.0422397642238650_37.5273658980511087",
       "traffic_time": null
     },
     {
-      "link_id": "1220036205",
-      "primary_dong": "신사동",
+      "link_id": "1220035901",
+      "primary_dong": "청담동",
       "dong_names": [
-        "신사동"
+        "청담동"
       ],
       "assignment_type": "polygon",
       "road_name": "압구정로",
-      "start_node": "압구정로데오역6번출구",
-      "end_node": "뉴스포유",
-      "distance_m": 65,
-      "speed_kmh": 16,
+      "start_node": "갤러리미",
+      "end_node": "청담사거리",
+      "distance_m": 79,
+      "speed_kmh": 18,
       "congestion": "서행",
-      "xylist": "127.0384385465388561_37.5283499106960861|127.0391308114570563_37.5281543012393257",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220036206",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로",
-      "start_node": "신사동 667-35",
-      "end_node": "압구정로데오역6번출구",
-      "distance_m": 64,
-      "speed_kmh": 15.3,
-      "congestion": "서행",
-      "xylist": "127.0391308114570563_37.5281543012393257|127.0398194246827615_37.5279804016432124",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220036305",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로",
-      "start_node": "뉴스포유",
-      "end_node": "압구정로데오역6번출구",
-      "distance_m": 65,
-      "speed_kmh": 21,
-      "congestion": "서행",
-      "xylist": "127.0391740239717961_37.5282567812238455|127.0384839451984220_37.5284518029265755",
+      "xylist": "127.0474175095661593_37.5242982591380851|127.0470610783825549_37.5249488711662522",
       "traffic_time": null
     },
     {
@@ -3324,41 +3565,9 @@
       "start_node": "압구정로데오역6번출구",
       "end_node": "한양아파트앞교차로",
       "distance_m": 138,
-      "speed_kmh": 17,
+      "speed_kmh": 23,
       "congestion": "서행",
       "xylist": "127.0406568798343869_37.5278823322351158|127.0398604514468985_37.5280834481610981|127.0391740239717961_37.5282567812238455",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220094100",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로148길",
-      "start_node": "청담동 77-28",
-      "end_node": "청담동 77",
-      "distance_m": 217,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0445781402144121_37.5238287856286306|127.0447120599987159_37.5231471090591455|127.0443800312351357_37.5231044587397022|127.0439681977920259_37.5230515558498112|127.0435562545624606_37.5229986373450899|127.0431444223127073_37.5229457315852954",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220094400",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도산대로58길",
-      "start_node": "청담동 77",
-      "end_node": "금구빌딩",
-      "distance_m": 77,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0415897599450830_37.5227459992821579|127.0414610013850591_37.5234275992135338",
       "traffic_time": null
     },
     {
@@ -3372,73 +3581,9 @@
       "start_node": "금구빌딩",
       "end_node": "청담동 77",
       "distance_m": 76,
-      "speed_kmh": 16,
-      "congestion": "서행",
-      "xylist": "127.0413269166477477_37.5234106937366789|127.0414555227100522_37.5227299126895915",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220095300",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로152길",
-      "start_node": "청담동 139-1",
-      "end_node": "키네마극장",
-      "distance_m": 76,
-      "speed_kmh": 18,
-      "congestion": "서행",
-      "xylist": "127.0394238001620124_37.5240025656407425|127.0402782679631741_37.5241051716234963",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220095400",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로152길",
-      "start_node": "청담동 139-1",
-      "end_node": "청담동 77",
-      "distance_m": 176,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0414412487968434_37.5235345793648207|127.0413128808020531_37.5242458193041557|127.0412157654857310_37.5243077538981922|127.0411093794579500_37.5243143088269946|127.0402580301235815_37.5242120839654163",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220096600",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로79길",
-      "start_node": "청담동 119-8",
-      "end_node": "갤러리미",
-      "distance_m": 67,
       "speed_kmh": 16.5,
       "congestion": "서행",
-      "xylist": "127.0470610783825549_37.5249488711662522|127.0478075108107561_37.5250369358867317",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220096700",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로79길",
-      "start_node": "갤러리미",
-      "end_node": "청담동 118-22",
-      "distance_m": 67,
-      "speed_kmh": 15,
-      "congestion": "서행",
-      "xylist": "127.0477536352439500_37.5251398799896023|127.0470030647285284_37.5250513268144701",
+      "xylist": "127.0413269166477477_37.5234106937366789|127.0414555227100522_37.5227299126895915",
       "traffic_time": null
     },
     {
@@ -3452,25 +3597,9 @@
       "start_node": "청담동 139-20",
       "end_node": "청담동 139-19",
       "distance_m": 94,
-      "speed_kmh": 15,
+      "speed_kmh": 20,
       "congestion": "서행",
       "xylist": "127.0479462450272479_37.5250533970465483|127.0481650432785301_37.5250794452541570|127.0490025359680004_37.5251791459004878",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220097900",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로60길",
-      "start_node": "청담동 139-2",
-      "end_node": "압구정로데오역3번출구",
-      "distance_m": 72,
-      "speed_kmh": 17,
-      "congestion": "서행",
-      "xylist": "127.0422397642238650_37.5273658980511087|127.0420188424852199_37.5267405370192932",
       "traffic_time": null
     },
     {
@@ -3484,25 +3613,9 @@
       "start_node": "청담동 139-12",
       "end_node": "청담고등학교",
       "distance_m": 147,
-      "speed_kmh": 17.5,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0440869789984362_37.5276617362854026|127.0455677470908142_37.5272771508824405|127.0456724149564565_37.5272523241087086",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220099700",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도산대로81길",
-      "start_node": "청담동 117-11",
-      "end_node": "청담동 117-41",
-      "distance_m": 33,
-      "speed_kmh": 20,
-      "congestion": "서행",
-      "xylist": "127.0478919747894366_37.5251562571136645|127.0477493139133571_37.5254322932834725",
       "traffic_time": null
     },
     {
@@ -3516,41 +3629,9 @@
       "start_node": "청담고등학교",
       "end_node": "갤러리아주유소",
       "distance_m": 69,
-      "speed_kmh": 18.5,
+      "speed_kmh": 16,
       "congestion": "서행",
       "xylist": "127.0438418944384722_37.5270689653471052|127.0440869789984362_37.5276617362854026",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220102200",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로61길",
-      "start_node": "청담동146",
-      "end_node": "청담고등학교",
-      "distance_m": 204,
-      "speed_kmh": 19.5,
-      "congestion": "서행",
-      "xylist": "127.0441233321837302_37.5277660190179034|127.0441454282712925_37.5278450321291004|127.0447136572623634_37.5293809991963343|127.0447847882395820_37.5295286080348589",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220102300",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로61길",
-      "start_node": "청담고등학교",
-      "end_node": "청담동146",
-      "distance_m": 206,
-      "speed_kmh": 22.5,
-      "congestion": "서행",
-      "xylist": "127.0446578851777844_37.5295670242574815|127.0445849654173713_37.5294157030726865|127.0440139116746536_37.5278720932492433|127.0439908212839555_37.5277895232034879",
       "traffic_time": null
     },
     {
@@ -3564,7 +3645,7 @@
       "start_node": "봉은사역(서울9호선)",
       "end_node": "코엑스앞교차로",
       "distance_m": 66,
-      "speed_kmh": 35,
+      "speed_kmh": 33,
       "congestion": "원활",
       "xylist": "127.0602718568028990_37.5143280204466052|127.0599879180035288_37.5148748429464263",
       "traffic_time": null
@@ -3586,51 +3667,35 @@
       "traffic_time": null
     },
     {
-      "link_id": "1210025402",
-      "primary_dong": "논현1동",
+      "link_id": "1220031503",
+      "primary_dong": "삼성1동",
       "dong_names": [
-        "논현1동"
+        "삼성1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "사평대로",
-      "start_node": "반포동 749-35",
-      "end_node": "교보타워사거리",
-      "distance_m": 74,
-      "speed_kmh": 32,
-      "congestion": "원활",
-      "xylist": "127.0243991052031305_37.5045524553287137|127.0236141059144614_37.5043118599685954",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220019402",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "역삼로",
-      "start_node": "역삼동 858-14",
-      "end_node": "역삼초교앞교차로",
-      "distance_m": 75,
+      "road_name": "봉은사로",
+      "start_node": "삼성동 172",
+      "end_node": "코엑스앞교차로",
+      "distance_m": 86,
       "speed_kmh": 25,
       "congestion": "원활",
-      "xylist": "127.0333341389376045_37.4941241826241694|127.0325453290157043_37.4938819369312810",
+      "xylist": "127.0603272282434091_37.5142270211862794|127.0612770466940020_37.5143936087352401",
       "traffic_time": null
     },
     {
-      "link_id": "1220021003",
+      "link_id": "1210022203",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "강남대로",
-      "start_node": "강남역(신분당선)",
+      "road_name": "서초대로",
+      "start_node": "서초동 1377",
       "end_node": "강남역사거리",
-      "distance_m": 183,
-      "speed_kmh": 30.5,
+      "distance_m": 105,
+      "speed_kmh": 28,
       "congestion": "원활",
-      "xylist": "127.0276030282322353_37.4979153641312806|127.0283100116079567_37.4963626493360778",
+      "xylist": "127.0275555290794074_37.4980166525441376|127.0264489335689433_37.4976757265136271",
       "traffic_time": null
     },
     {
@@ -3644,42 +3709,41 @@
       "start_node": "국기원입구교차로",
       "end_node": "한국타이어빌딩",
       "distance_m": 264,
-      "speed_kmh": 30,
+      "speed_kmh": 27,
       "congestion": "원활",
       "xylist": "127.0338550060461245_37.4999438554121411|127.0310728003854166_37.4990827049839055",
       "traffic_time": null
     },
     {
-      "link_id": "1220025003",
-      "primary_dong": "역삼1동",
+      "link_id": "1220026802",
+      "primary_dong": "삼성2동",
       "dong_names": [
-        "역삼1동",
-        "논현1동"
+        "삼성2동"
       ],
-      "assignment_type": "polygon_multi",
-      "road_name": "강남대로",
-      "start_node": "서초동 1373",
-      "end_node": "교보타워사거리",
-      "distance_m": 221,
-      "speed_kmh": 32,
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "월간부동산경제",
+      "end_node": "KTF타워",
+      "distance_m": 191,
+      "speed_kmh": 25,
       "congestion": "원활",
-      "xylist": "127.0244473968313343_37.5044514101080111|127.0247108420325048_37.5039060466009033|127.0253434781147917_37.5025963782215541",
+      "xylist": "127.0528495126162909_37.5057573699263784|127.0508357905731600_37.5051361926111113",
       "traffic_time": null
     },
     {
-      "link_id": "1220025803",
+      "link_id": "1220025804",
       "primary_dong": "대치4동",
       "dong_names": [
         "대치4동"
       ],
       "assignment_type": "polygon",
       "road_name": "선릉로",
-      "start_node": "역삼동 802-31",
-      "end_node": "선릉역(서울2호선)",
-      "distance_m": 36,
-      "speed_kmh": 27,
+      "start_node": "선릉역(서울2호선)",
+      "end_node": "선릉역사거리",
+      "distance_m": 78,
+      "speed_kmh": 25,
       "congestion": "원활",
-      "xylist": "127.0493398594145731_37.5036589428028151|127.0494800504940969_37.5033567751413273",
+      "xylist": "127.0489874547452303_37.5044185049200891|127.0492474271719345_37.5038581699360591|127.0492928042660310_37.5037603648988949",
       "traffic_time": null
     },
     {
@@ -3693,9 +3757,25 @@
       "start_node": "역삼동 804",
       "end_node": "선릉역사거리",
       "distance_m": 159,
-      "speed_kmh": 31,
+      "speed_kmh": 26,
       "congestion": "원활",
       "xylist": "127.0489401518829737_37.5045198504901336|127.0472444652040593_37.5040315100491171",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220026102",
+      "primary_dong": "역삼2동",
+      "dong_names": [
+        "역삼2동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "테헤란로",
+      "start_node": "역삼동 804",
+      "end_node": "블랙베리박물관",
+      "distance_m": 260,
+      "speed_kmh": 38,
+      "congestion": "원활",
+      "xylist": "127.0444223112660467_37.5030495771580661|127.0471670915627840_37.5038930671752482",
       "traffic_time": null
     },
     {
@@ -3709,7 +3789,7 @@
       "start_node": "월간부동산경제",
       "end_node": "선릉역사거리",
       "distance_m": 157,
-      "speed_kmh": 39,
+      "speed_kmh": 41,
       "congestion": "원활",
       "xylist": "127.0491140994473085_37.5044573976487072|127.0507602689269504_37.5049958100575296",
       "traffic_time": null
@@ -3725,7 +3805,7 @@
       "start_node": "포스코미술관",
       "end_node": "월간부동산경제",
       "distance_m": 395,
-      "speed_kmh": 28,
+      "speed_kmh": 25,
       "congestion": "원활",
       "xylist": "127.0508863665850328_37.5050358511375421|127.0528985165621947_37.5056565437127531|127.0530252017615993_37.5056956853289023|127.0550468873825025_37.5063213325861398",
       "traffic_time": null
@@ -3741,7 +3821,7 @@
       "start_node": "역삼동 802-21",
       "end_node": "선릉공원",
       "distance_m": 20,
-      "speed_kmh": 27,
+      "speed_kmh": 31,
       "congestion": "원활",
       "xylist": "127.0470897828734138_37.5069674641184108|127.0472703648739241_37.5068578058261082",
       "traffic_time": null
@@ -3757,7 +3837,7 @@
       "start_node": "역삼동 802-3",
       "end_node": "선정릉역사거리",
       "distance_m": 73,
-      "speed_kmh": 26.3,
+      "speed_kmh": 25,
       "congestion": "원활",
       "xylist": "127.0438262673777103_37.5102164759167138|127.0440604841689805_37.5095866488481064",
       "traffic_time": null
@@ -3773,7 +3853,7 @@
       "start_node": "삼성동 111-114",
       "end_node": "선릉역사거리",
       "distance_m": 84,
-      "speed_kmh": 28.7,
+      "speed_kmh": 26,
       "congestion": "원활",
       "xylist": "127.0490667656896164_37.5045587941768233|127.0487857693820217_37.5051573038117922|127.0487350154241852_37.5052654063889435",
       "traffic_time": null
@@ -3789,41 +3869,9 @@
       "start_node": "삼성동 111-114",
       "end_node": "선릉역(수인분당선)",
       "distance_m": 33,
-      "speed_kmh": 37,
+      "speed_kmh": 38,
       "congestion": "원활",
       "xylist": "127.0485078851592107_37.5057410376844658|127.0483605484462402_37.5060104032975730",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220029003",
-      "primary_dong": "논현2동",
-      "dong_names": [
-        "논현2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "봉은사로",
-      "start_node": "논현동 279-165",
-      "end_node": "선정릉역사거리",
-      "distance_m": 82,
-      "speed_kmh": 36,
-      "congestion": "원활",
-      "xylist": "127.0437875852603753_37.5103204253317628|127.0432838786139769_37.5101681847940256|127.0429218607902868_37.5100587666423735",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220030101",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "봉은사로",
-      "start_node": "삼성동 111-147",
-      "end_node": "선정릉역사거리",
-      "distance_m": 160,
-      "speed_kmh": 26,
-      "congestion": "원활",
-      "xylist": "127.0439536961437739_37.5102544648311351|127.0456546467774217_37.5107534974710006",
       "traffic_time": null
     },
     {
@@ -3843,99 +3891,19 @@
       "traffic_time": null
     },
     {
-      "link_id": "1220067100",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로44길",
-      "start_node": "역삼동 706-28",
-      "end_node": "블랙베리박물관",
-      "distance_m": 54,
-      "speed_kmh": 33,
-      "congestion": "원활",
-      "xylist": "127.0442936787205923_37.5030103853983761|127.0444068427994182_37.5028586561034274|127.0445594426699216_37.5025715799587829",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220067800",
-      "primary_dong": "역삼2동",
-      "dong_names": [
-        "역삼2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로52길",
-      "start_node": "역삼동 708-33",
-      "end_node": "진선여자고등학교",
-      "distance_m": 45,
-      "speed_kmh": 26,
-      "congestion": "원활",
-      "xylist": "127.0487756743473824_37.5027422782434172|127.0486175648109253_37.5028098431502173|127.0483035617519079_37.5028867005181183",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220071600",
+      "link_id": "1220070100",
       "primary_dong": "대치4동",
       "dong_names": [
         "대치4동"
       ],
       "assignment_type": "polygon",
-      "road_name": "테헤란로78길",
-      "start_node": "포스코미술관",
-      "end_node": "롯데캐슬아파트",
-      "distance_m": 161,
-      "speed_kmh": 26,
+      "road_name": "테헤란로64길",
+      "start_node": "대치동 890-49",
+      "end_node": "대치동 890-57",
+      "distance_m": 100,
+      "speed_kmh": 27,
       "congestion": "원활",
-      "xylist": "127.0558713656280361_37.5050195657570598|127.0556616943434847_37.5054224074410030|127.0554343582095669_37.5058591832844215|127.0551734722876205_37.5063604107458772",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220073700",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로100길",
-      "start_node": "삼성동 172-88",
-      "end_node": "선릉공원",
-      "distance_m": 163,
-      "speed_kmh": 25,
-      "congestion": "원활",
-      "xylist": "127.0471720593799319_37.5070534520707710|127.0474044325196132_37.5070552676544722|127.0489998316540294_37.5068690014972219",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220073800",
-      "primary_dong": "삼성2동",
-      "dong_names": [
-        "삼성2동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로100길",
-      "start_node": "선릉공원",
-      "end_node": "정든빌딩",
-      "distance_m": 285,
-      "speed_kmh": 25,
-      "congestion": "원활",
-      "xylist": "127.0501877186652990_37.5068395748828394|127.0490195130558817_37.5069759794436237|127.0474136620712926_37.5071634656356494|127.0469965891165742_37.5071602068898287",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1210027602",
-      "primary_dong": "논현1동",
-      "dong_names": [
-        "논현1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "신반포로",
-      "start_node": "잠원동 99",
-      "end_node": "논현역앞교차로",
-      "distance_m": 81,
-      "speed_kmh": 26,
-      "congestion": "원활",
-      "xylist": "127.0212424469134902_37.5111447623381054|127.0203821705510308_37.5108839074530920",
+      "xylist": "127.0515680449655349_37.5036200563672182|127.0514128759260046_37.5039462849432255|127.0511666174652987_37.5044640143400940",
       "traffic_time": null
     },
     {
@@ -3949,7 +3917,7 @@
       "start_node": "청하빌딩",
       "end_node": "HM타워",
       "distance_m": 136,
-      "speed_kmh": 34,
+      "speed_kmh": 31,
       "congestion": "원활",
       "xylist": "127.0239019098950024_37.5059100608685441|127.0233547305241473_37.5070551876010612",
       "traffic_time": null
@@ -3965,9 +3933,25 @@
       "start_node": "논현동 279-67",
       "end_node": "논현역앞교차로",
       "distance_m": 72,
-      "speed_kmh": 30,
+      "speed_kmh": 28.5,
       "congestion": "원활",
       "xylist": "127.0214176087622775_37.5110819738494570|127.0221789489386168_37.5113102848538986",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220030507",
+      "primary_dong": "논현1동",
+      "dong_names": [
+        "논현1동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "학동로",
+      "start_node": "주한부탄왕국명예총영사관",
+      "end_node": "논현역(서울7호선)",
+      "distance_m": 50,
+      "speed_kmh": 34,
+      "congestion": "원활",
+      "xylist": "127.0228796600953984_37.5115204088512186|127.0234136233973601_37.5116805263399442",
       "traffic_time": null
     },
     {
@@ -3981,7 +3965,7 @@
       "start_node": "한국타이어빌딩",
       "end_node": "강남파이낸스센터",
       "distance_m": 151,
-      "speed_kmh": 39,
+      "speed_kmh": 35,
       "congestion": "원활",
       "xylist": "127.0355809598226955_37.5004709050617890|127.0339816634749042_37.4999827779347470",
       "traffic_time": null
@@ -3997,41 +3981,25 @@
       "start_node": "강남파이낸스센터",
       "end_node": "역삼역앞교차로",
       "distance_m": 107,
-      "speed_kmh": 36,
+      "speed_kmh": 28.7,
       "congestion": "원활",
       "xylist": "127.0368445237788109_37.5008565423281937|127.0357139041821881_37.5005114802401565",
       "traffic_time": null
     },
     {
-      "link_id": "1220026301",
+      "link_id": "1220025203",
       "primary_dong": "역삼1동",
       "dong_names": [
         "역삼1동"
       ],
       "assignment_type": "polygon",
-      "road_name": "논현로",
-      "start_node": "역삼동 800-3",
-      "end_node": "역삼역앞교차로",
-      "distance_m": 143,
-      "speed_kmh": 29,
+      "road_name": "테헤란로",
+      "start_node": "조선팰리스서울강남",
+      "end_node": "르네상스호텔사거리",
+      "distance_m": 141,
+      "speed_kmh": 28,
       "congestion": "원활",
-      "xylist": "127.0369713701904999_37.5008950080904739|127.0367071085393178_37.5014734470237059|127.0364185314605834_37.5021050987604525",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220066100",
-      "primary_dong": "역삼1동",
-      "dong_names": [
-        "역삼1동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "테헤란로27길",
-      "start_node": "역삼동 804",
-      "end_node": "주원빌딩",
-      "distance_m": 147,
-      "speed_kmh": 29,
-      "congestion": "원활",
-      "xylist": "127.0376735538589088_37.5025242529355367|127.0377125497796129_37.5024717782014534|127.0378031339130587_37.5022916726038176|127.0379628362755966_37.5019741391064088|127.0381171969712426_37.5016672235797017|127.0383036450100747_37.5012965051190150",
+      "xylist": "127.0427049356462277_37.5026477779311733|127.0412168948508196_37.5021992128127692",
       "traffic_time": null
     },
     {
@@ -4045,7 +4013,7 @@
       "start_node": "한남IC",
       "end_node": "한남IC",
       "distance_m": 561,
-      "speed_kmh": 57.5,
+      "speed_kmh": 59,
       "congestion": "원활",
       "xylist": "127.0163581235578505_37.5170442405948918|127.0165343138516363_37.5173858495530155|127.0167723392642358_37.5178670968809271|127.0170761911662964_37.5184149453652935|127.0172780896881903_37.5186691448905876|127.0175392423539904_37.5189538108083624|127.0178552351912344_37.5192549372941286|127.0180991379812383_37.5194738142039839|127.0182190961692754_37.5196134278193227|127.0182996365167583_37.5197270444739175|127.0183619528752246_37.5198563810036632|127.0184053893967047_37.5199980614801021|127.0184358162196929_37.5201630123718175|127.0184386910793393_37.5202890784637049|127.0184285996865725_37.5204319196483027|127.0184009492116246_37.5205590924208536|127.0183243377286288_37.5208205916057693|127.0179230663021883_37.5215654212540883",
       "traffic_time": null
@@ -4061,7 +4029,7 @@
       "start_node": "잠원고가차도",
       "end_node": "한남IC",
       "distance_m": 84,
-      "speed_kmh": 46,
+      "speed_kmh": 52,
       "congestion": "원활",
       "xylist": "127.0179230663021883_37.5215654212540883|127.0178330428322369_37.5217757145184265|127.0176826012822175_37.5220826339949767|127.0175844575561968_37.5222683840522109",
       "traffic_time": null
@@ -4093,25 +4061,9 @@
       "start_node": "한남IC",
       "end_node": "한남IC",
       "distance_m": 435,
-      "speed_kmh": 68,
+      "speed_kmh": 69,
       "congestion": "원활",
       "xylist": "127.0191320703633693_37.5177627579261355|127.0189310303031931_37.5184211218205093|127.0187293953687515_37.5190814217743309|127.0186579516555696_37.5193153777495993|127.0183961813083613_37.5201679848804446|127.0181460666752287_37.5209458080791194|127.0180078207468881_37.5213674346140280|127.0179230663021883_37.5215654212540883",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220032603",
-      "primary_dong": "신사동",
-      "dong_names": [
-        "신사동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "도산대로",
-      "start_node": "신사동 501-5",
-      "end_node": "신사동 501-5",
-      "distance_m": 70,
-      "speed_kmh": 27,
-      "congestion": "원활",
-      "xylist": "127.0233702123766051_37.5177885099050883|127.0227971066371566_37.5175496217451894|127.0226731476215747_37.5174979512342688",
       "traffic_time": null
     },
     {
@@ -4125,25 +4077,41 @@
       "start_node": "신사동 501-5",
       "end_node": "파키스탄대사관",
       "distance_m": 90,
-      "speed_kmh": 37,
+      "speed_kmh": 30,
       "congestion": "원활",
       "xylist": "127.0261635430802301_37.5189640959520858|127.0252630090018755_37.5185850545470387",
       "traffic_time": null
     },
     {
-      "link_id": "1220032605",
+      "link_id": "1220032706",
       "primary_dong": "신사동",
       "dong_names": [
         "신사동"
       ],
       "assignment_type": "polygon",
       "road_name": "도산대로",
-      "start_node": "신사동 501-5",
-      "end_node": "강남을지병원사거리",
-      "distance_m": 87,
-      "speed_kmh": 28,
+      "start_node": "논현동 279",
+      "end_node": "신사역사거리",
+      "distance_m": 98,
+      "speed_kmh": 32,
       "congestion": "원활",
-      "xylist": "127.0280371859392829_37.5197414933169782|127.0271621006632188_37.5193785848759092",
+      "xylist": "127.0196397311538306_37.5160975693515226|127.0206224542618116_37.5165131107482495",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220035600",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "논현로",
+      "start_node": "압구정고가차도(남측)",
+      "end_node": "압구정고가차도(북측)",
+      "distance_m": 456,
+      "speed_kmh": 55,
+      "congestion": "원활",
+      "xylist": "127.0268388941667439_37.5286867952204233|127.0276229048477035_37.5280429604157248|127.0278165005547066_37.5278840115926755|127.0279731715236551_37.5277036660985672|127.0281672333874639_37.5274318336580421|127.0283131192877590_37.5271685854789965|127.0283973296032798_37.5268831584729128|127.0284298940737244_37.5266504975051163|127.0284298088944297_37.5264260462047829|127.0283997882590228_37.5259649187552995|127.0283395591130500_37.5250065536841362",
       "traffic_time": null
     },
     {
@@ -4157,7 +4125,7 @@
       "start_node": "압구정고가차도(북측)",
       "end_node": "압구정고가차도(남측)",
       "distance_m": 466,
-      "speed_kmh": 61,
+      "speed_kmh": 61.3,
       "congestion": "원활",
       "xylist": "127.0284751971407360_37.5250022451099099|127.0285353676384261_37.5259594169927198|127.0285655632184074_37.5264232302528455|127.0285656521627686_37.5266564888469674|127.0285313483773990_37.5269015786934403|127.0284480650293517_37.5271838619750469|127.0282888742812872_37.5274801946933394|127.0280882251533114_37.5277612569592449|127.0279217590682350_37.5279528773542097|127.0269363512986587_37.5287620679434681",
       "traffic_time": null
@@ -4173,7 +4141,7 @@
       "start_node": "한남IC",
       "end_node": "서초구-강남구",
       "distance_m": 70,
-      "speed_kmh": 33,
+      "speed_kmh": 36,
       "congestion": "원활",
       "xylist": "127.0177990144592144_37.5217285520426174|127.0184647515422967_37.5220740214540527",
       "traffic_time": null
@@ -4189,9 +4157,25 @@
       "start_node": "최소노드배치점",
       "end_node": "한남IC",
       "distance_m": 286,
-      "speed_kmh": 39.5,
+      "speed_kmh": 40,
       "congestion": "원활",
       "xylist": "127.0191320703633693_37.5177627579261355|127.0190749075924401_37.5184495173263812|127.0185850281335433_37.5201347966023420|127.0185739660145998_37.5202897635519861",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220342100",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "강남대로",
+      "start_node": "한남IC",
+      "end_node": "한남IC",
+      "distance_m": 219,
+      "speed_kmh": 29,
+      "congestion": "원활",
+      "xylist": "127.0184647515422967_37.5220740214540527|127.0187361940851076_37.5221219841313172|127.0188799124806849_37.5221225694219385|127.0189701046267459_37.5220657007965528|127.0190338533853947_37.5219300247544041|127.0187948665284097_37.5213781528593202|127.0186786484771915_37.5212918254898256|127.0184900646496544_37.5212839020109570|127.0183010678575073_37.5213403675630133|127.0179230663021883_37.5215654212540883",
       "traffic_time": null
     },
     {
@@ -4205,7 +4189,7 @@
       "start_node": "청담동 77-102",
       "end_node": "청담사거리",
       "distance_m": 88,
-      "speed_kmh": 27,
+      "speed_kmh": 26.5,
       "congestion": "원활",
       "xylist": "127.0473345858686827_37.5241777503070679|127.0477207009805198_37.5234442307542722",
       "traffic_time": null
@@ -4221,7 +4205,7 @@
       "start_node": "청담동 77",
       "end_node": "청담동 77",
       "distance_m": 93,
-      "speed_kmh": 26,
+      "speed_kmh": 29,
       "congestion": "원활",
       "xylist": "127.0445564869975641_37.5239355211408920|127.0435213934482874_37.5238023106680032",
       "traffic_time": null
@@ -4237,7 +4221,7 @@
       "start_node": "청담동 77",
       "end_node": "청담사거리",
       "distance_m": 85,
-      "speed_kmh": 40,
+      "speed_kmh": 36,
       "congestion": "원활",
       "xylist": "127.0472792767386068_37.5242802278421408|127.0469562705251434_37.5242393555858413|127.0463338208116113_37.5241605900114052",
       "traffic_time": null
@@ -4253,7 +4237,7 @@
       "start_node": "청담동 77",
       "end_node": "학동사거리",
       "distance_m": 72,
-      "speed_kmh": 40,
+      "speed_kmh": 35,
       "congestion": "원활",
       "xylist": "127.0392236802746595_37.5231509477852043|127.0400262819293147_37.5232500722957383",
       "traffic_time": null
@@ -4269,13 +4253,13 @@
       "start_node": "청담동 77",
       "end_node": "청담동 77",
       "distance_m": 142,
-      "speed_kmh": 34,
+      "speed_kmh": 30,
       "congestion": "원활",
       "xylist": "127.0414610013850591_37.5234275992135338|127.0430425640729339_37.5236311625569741",
       "traffic_time": null
     },
     {
-      "link_id": "1220034703",
+      "link_id": "1220034901",
       "primary_dong": "청담동",
       "dong_names": [
         "청담동"
@@ -4283,59 +4267,27 @@
       "assignment_type": "polygon",
       "road_name": "도산대로",
       "start_node": "청담동 77",
-      "end_node": "청담동 77",
-      "distance_m": 79,
-      "speed_kmh": 25,
-      "congestion": "원활",
-      "xylist": "127.0447121822128764_37.5238458928924103|127.0452441209281318_37.5239132131085995|127.0455919377749296_37.5239572301738278",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220035501",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "선릉로",
-      "start_node": "키네마극장",
-      "end_node": "학동사거리",
-      "distance_m": 84,
-      "speed_kmh": 25,
-      "congestion": "원활",
-      "xylist": "127.0392244122724463_37.5232604498081272|127.0392392010293747_37.5234323545396080|127.0392976430606637_37.5236274895412407|127.0394238001620124_37.5240025656407425",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220035803",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로",
-      "start_node": "갤러리아주유소",
-      "end_node": "압구정로데오역3번출구",
-      "distance_m": 121,
-      "speed_kmh": 34,
-      "congestion": "원활",
-      "xylist": "127.0423691118125902_37.5273328330233085|127.0431965413789044_37.5271205625181921|127.0436709090198946_37.5269988640954608",
-      "traffic_time": null
-    },
-    {
-      "link_id": "1220035901",
-      "primary_dong": "청담동",
-      "dong_names": [
-        "청담동"
-      ],
-      "assignment_type": "polygon",
-      "road_name": "압구정로",
-      "start_node": "갤러리미",
       "end_node": "청담사거리",
-      "distance_m": 79,
-      "speed_kmh": 25,
+      "distance_m": 127,
+      "speed_kmh": 30,
       "congestion": "원활",
-      "xylist": "127.0474175095661593_37.5242982591380851|127.0470610783825549_37.5249488711662522",
+      "xylist": "127.0474721597987724_37.5241960352978836|127.0481716169773563_37.5242917934341591|127.0483069155655187_37.5243095041464656|127.0487065910878215_37.5243579088313268|127.0488945152498417_37.5243806678289928",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220035802",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로",
+      "start_node": "청담동 145",
+      "end_node": "갤러리아주유소",
+      "distance_m": 69,
+      "speed_kmh": 26,
+      "congestion": "원활",
+      "xylist": "127.0438011178044917_37.5269658372789365|127.0445468381688698_37.5267788078608433",
       "traffic_time": null
     },
     {
@@ -4352,6 +4304,54 @@
       "speed_kmh": 25,
       "congestion": "원활",
       "xylist": "127.0470030647285284_37.5250513268144701|127.0467277844240357_37.5255109620662850",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220036305",
+      "primary_dong": "신사동",
+      "dong_names": [
+        "신사동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로",
+      "start_node": "뉴스포유",
+      "end_node": "압구정로데오역6번출구",
+      "distance_m": 65,
+      "speed_kmh": 25,
+      "congestion": "원활",
+      "xylist": "127.0391740239717961_37.5282567812238455|127.0384839451984220_37.5284518029265755",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220102200",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로61길",
+      "start_node": "청담동146",
+      "end_node": "청담고등학교",
+      "distance_m": 204,
+      "speed_kmh": 27,
+      "congestion": "원활",
+      "xylist": "127.0441233321837302_37.5277660190179034|127.0441454282712925_37.5278450321291004|127.0447136572623634_37.5293809991963343|127.0447847882395820_37.5295286080348589",
+      "traffic_time": null
+    },
+    {
+      "link_id": "1220102300",
+      "primary_dong": "청담동",
+      "dong_names": [
+        "청담동"
+      ],
+      "assignment_type": "polygon",
+      "road_name": "압구정로61길",
+      "start_node": "청담고등학교",
+      "end_node": "청담동146",
+      "distance_m": 206,
+      "speed_kmh": 27,
+      "congestion": "원활",
+      "xylist": "127.0446578851777844_37.5295670242574815|127.0445849654173713_37.5294157030726865|127.0440139116746536_37.5278720932492433|127.0439908212839555_37.5277895232034879",
       "traffic_time": null
     }
   ]
