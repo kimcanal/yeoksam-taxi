@@ -1,7 +1,7 @@
 {
   "source": "model",
-  "target_datetime": "2026-05-08T01:00:00+09:00",
-  "feature_datetime": "2026-05-08T00:00:00+09:00",
+  "target_datetime": "2026-05-08T02:00:00+09:00",
+  "feature_datetime": "2026-05-08T01:00:00+09:00",
   "strategy": "pattern",
   "pattern_cache_used": true,
   "feature_set": "live_compatible_calendar_weather_static",
@@ -14,7 +14,7 @@
     "holiday_names": ""
   },
   "weather": "clear",
-  "generated_at": "2026-05-08T00:55:45+0900",
+  "generated_at": "2026-05-08T01:43:43+0900",
   "model_target": "target_inbound_boardings_per_1k_pop_t_plus_1h",
   "regions": [
     {
