@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-06T23:26:22.461Z",
+  "generated_at": "2026-05-07T01:07:09.979Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,14 +79,23 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 41,
-    "latest_generated_at": "2026-05-07T08:26:22+09:00",
-    "latest_target_datetime": "2026-05-07T09:00:00+09:00",
+    "log_count": 42,
+    "latest_generated_at": "2026-05-07T10:07:09+09:00",
+    "latest_target_datetime": "2026-05-07T11:00:00+09:00",
     "latest_strategy": "pattern",
     "latest_top_region": "대치4동",
     "latest_dispatch_region": "대치4동",
     "latest_dispatch_action": "수요 집중 매우 높음",
     "recent": [
+      {
+        "generated_at": "2026-05-07T10:07:09+09:00",
+        "target_datetime": "2026-05-07T11:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "대치4동",
+        "top_score": 1,
+        "dispatch_region": "대치4동",
+        "dispatch_action": "수요 집중 매우 높음"
+      },
       {
         "generated_at": "2026-05-07T08:26:22+09:00",
         "target_datetime": "2026-05-07T09:00:00+09:00",
@@ -122,15 +131,6 @@
         "top_score": 1,
         "dispatch_region": "대치4동",
         "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-07T04:41:45+09:00",
-        "target_datetime": "2026-05-07T05:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "삼성1동",
-        "top_score": 1,
-        "dispatch_region": "삼성1동",
-        "dispatch_action": "수요 집중 높음"
       }
     ]
   },
