@@ -1,8 +1,8 @@
 {
   "source": "traffic_forecast_model",
-  "generated_at": "2026-05-09T03:43:42+09:00",
-  "feature_datetime": "2026-05-09T03:00:00+09:00",
-  "target_datetime": "2026-05-09T04:00:00+09:00",
+  "generated_at": "2026-05-09T04:39:31+09:00",
+  "feature_datetime": "2026-05-09T04:00:00+09:00",
+  "target_datetime": "2026-05-09T05:00:00+09:00",
   "horizon_hours": 1,
   "model_target": "target_traffic_volume_proxy_t_plus_1h",
   "forecast_fields": [
@@ -13,9 +13,9 @@
   ],
   "current_traffic_meta": {
     "source": "citydata_road_traffic_dong_filtered",
-    "collected_at": "2026-05-08T18:43:33.617Z",
-    "extracted_at": "2026-05-08T18:43:39.611Z",
-    "citydata_path": "data/raw/citydata/2026-05-09/0343.json",
+    "collected_at": "2026-05-08T19:39:22.483Z",
+    "extracted_at": "2026-05-08T19:39:29.153Z",
+    "citydata_path": "data/raw/citydata/2026-05-09/0439.json",
     "total_links_scanned": 293,
     "dong_filtered_count": 264,
     "dong_summary_count": 9,
@@ -35,102 +35,102 @@
   "regions": [
     {
       "dong_name": "논현1동",
-      "predicted_traffic_volume_proxy": 5660.422,
+      "predicted_traffic_volume_proxy": 9007.458,
       "predicted_traffic_volume_score": 1.0,
-      "predicted_congestion_score": 0.8336,
-      "predicted_avg_speed_kmh": 19.1,
-      "current_congestion_score": 0.562,
-      "current_avg_speed_kmh": 21.3,
+      "predicted_congestion_score": 0.7853,
+      "predicted_avg_speed_kmh": 21.3,
+      "current_congestion_score": 0.435,
+      "current_avg_speed_kmh": 24.6,
       "current_link_count": 19,
-      "live_calibration_multiplier": 1.0648
+      "live_calibration_multiplier": 0.96
     },
     {
       "dong_name": "청담동",
-      "predicted_traffic_volume_proxy": 2616.585,
-      "predicted_traffic_volume_score": 0.4213,
-      "predicted_congestion_score": 0.4466,
-      "predicted_avg_speed_kmh": 26.1,
-      "current_congestion_score": 0.488,
-      "current_avg_speed_kmh": 25.7,
+      "predicted_traffic_volume_proxy": 4733.788,
+      "predicted_traffic_volume_score": 0.4929,
+      "predicted_congestion_score": 0.4872,
+      "predicted_avg_speed_kmh": 24.7,
+      "current_congestion_score": 0.478,
+      "current_avg_speed_kmh": 24.8,
       "current_link_count": 33,
-      "live_calibration_multiplier": 0.9728
+      "live_calibration_multiplier": 0.979
     },
     {
       "dong_name": "신사동",
-      "predicted_traffic_volume_proxy": 2305.345,
-      "predicted_traffic_volume_score": 0.3621,
-      "predicted_congestion_score": 0.3548,
-      "predicted_avg_speed_kmh": 40.8,
-      "current_congestion_score": 0.343,
-      "current_avg_speed_kmh": 41.0,
+      "predicted_traffic_volume_proxy": 3482.41,
+      "predicted_traffic_volume_score": 0.3444,
+      "predicted_congestion_score": 0.3617,
+      "predicted_avg_speed_kmh": 40.9,
+      "current_congestion_score": 0.39,
+      "current_avg_speed_kmh": 40.5,
       "current_link_count": 47,
-      "live_calibration_multiplier": 0.8015
+      "live_calibration_multiplier": 0.825
     },
     {
       "dong_name": "삼성1동",
-      "predicted_traffic_volume_proxy": 1217.657,
-      "predicted_traffic_volume_score": 0.1553,
-      "predicted_congestion_score": 0.2764,
-      "predicted_avg_speed_kmh": 29.0,
-      "current_congestion_score": 0.474,
-      "current_avg_speed_kmh": 27.0,
+      "predicted_traffic_volume_proxy": 2005.101,
+      "predicted_traffic_volume_score": 0.1691,
+      "predicted_congestion_score": 0.2492,
+      "predicted_avg_speed_kmh": 29.9,
+      "current_congestion_score": 0.38,
+      "current_avg_speed_kmh": 28.5,
       "current_link_count": 12,
-      "live_calibration_multiplier": 0.9495
+      "live_calibration_multiplier": 0.8837
     },
     {
       "dong_name": "대치4동",
-      "predicted_traffic_volume_proxy": 504.059,
-      "predicted_traffic_volume_score": 0.0196,
-      "predicted_congestion_score": 0.2227,
-      "predicted_avg_speed_kmh": 23.4,
-      "current_congestion_score": 0.554,
-      "current_avg_speed_kmh": 20.8,
+      "predicted_traffic_volume_proxy": 747.624,
+      "predicted_traffic_volume_score": 0.0199,
+      "predicted_congestion_score": 0.232,
+      "predicted_avg_speed_kmh": 22.1,
+      "current_congestion_score": 0.578,
+      "current_avg_speed_kmh": 19.5,
       "current_link_count": 18,
-      "live_calibration_multiplier": 1.067
-    },
-    {
-      "dong_name": "삼성2동",
-      "predicted_traffic_volume_proxy": 504.059,
-      "predicted_traffic_volume_score": 0.0196,
-      "predicted_congestion_score": 0.217,
-      "predicted_avg_speed_kmh": 26.5,
-      "current_congestion_score": 0.539,
-      "current_avg_speed_kmh": 23.6,
-      "current_link_count": 23,
-      "live_calibration_multiplier": 1.0245
+      "live_calibration_multiplier": 1.0952
     },
     {
       "dong_name": "역삼1동",
-      "predicted_traffic_volume_proxy": 593.692,
-      "predicted_traffic_volume_score": 0.0367,
-      "predicted_congestion_score": 0.2169,
-      "predicted_avg_speed_kmh": 25.7,
-      "current_congestion_score": 0.511,
-      "current_avg_speed_kmh": 23.1,
+      "predicted_traffic_volume_proxy": 753.293,
+      "predicted_traffic_volume_score": 0.0206,
+      "predicted_congestion_score": 0.2103,
+      "predicted_avg_speed_kmh": 26.4,
+      "current_congestion_score": 0.52,
+      "current_avg_speed_kmh": 23.6,
       "current_link_count": 91,
-      "live_calibration_multiplier": 1.0168
-    },
-    {
-      "dong_name": "역삼2동",
-      "predicted_traffic_volume_proxy": 400.757,
-      "predicted_traffic_volume_score": 0.0,
-      "predicted_congestion_score": 0.187,
-      "predicted_avg_speed_kmh": 27.0,
-      "current_congestion_score": 0.492,
-      "current_avg_speed_kmh": 24.2,
-      "current_link_count": 19,
-      "live_calibration_multiplier": 0.9935
+      "live_calibration_multiplier": 1.015
     },
     {
       "dong_name": "논현2동",
-      "predicted_traffic_volume_proxy": 1102.974,
-      "predicted_traffic_volume_score": 0.1335,
-      "predicted_congestion_score": 0.1588,
-      "predicted_avg_speed_kmh": 40.0,
-      "current_congestion_score": 0.2,
-      "current_avg_speed_kmh": 39.4,
+      "predicted_traffic_volume_proxy": 1509.712,
+      "predicted_traffic_volume_score": 0.1103,
+      "predicted_congestion_score": 0.1953,
+      "predicted_avg_speed_kmh": 24.8,
+      "current_congestion_score": 0.334,
+      "current_avg_speed_kmh": 23.6,
       "current_link_count": 2,
-      "live_calibration_multiplier": 0.75
+      "live_calibration_multiplier": 0.922
+    },
+    {
+      "dong_name": "삼성2동",
+      "predicted_traffic_volume_proxy": 700.136,
+      "predicted_traffic_volume_score": 0.0142,
+      "predicted_congestion_score": 0.1924,
+      "predicted_avg_speed_kmh": 28.6,
+      "current_congestion_score": 0.483,
+      "current_avg_speed_kmh": 25.8,
+      "current_link_count": 23,
+      "live_calibration_multiplier": 0.969
+    },
+    {
+      "dong_name": "역삼2동",
+      "predicted_traffic_volume_proxy": 580.054,
+      "predicted_traffic_volume_score": 0.0,
+      "predicted_congestion_score": 0.1832,
+      "predicted_avg_speed_kmh": 28.6,
+      "current_congestion_score": 0.482,
+      "current_avg_speed_kmh": 25.7,
+      "current_link_count": 19,
+      "live_calibration_multiplier": 0.9698
     }
   ]
 }
