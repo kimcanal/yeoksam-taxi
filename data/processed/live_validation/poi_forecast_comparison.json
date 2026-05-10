@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-10T07:08:14.547Z",
+  "generated_at": "2026-05-10T08:47:07.854Z",
   "description": "Seoul citydata POI 1-hour forecast validation against later citydata observations. No taxi-call labels used.",
   "comparison_type": "citydata_poi_1h_forecast_vs_observed_citydata",
   "source_dir": "data/raw/citydata",
@@ -10,9 +10,9 @@
   "waiting_count": 1,
   "latest": {
     "kind": "waiting",
-    "source_observed_at": "2026-05-10T06:40:00.000Z",
-    "source_snapshot_path": "data/raw/citydata/2026-05-10/1608.json",
-    "target_datetime": "2026-05-10T08:00:00.000Z",
+    "source_observed_at": "2026-05-10T08:15:00.000Z",
+    "source_snapshot_path": "data/raw/citydata/2026-05-10/1746.json",
+    "target_datetime": "2026-05-10T09:00:00.000Z",
     "forecast_row_count": 7,
     "matched_row_count": 0,
     "status": "waiting_for_future_citydata_observation"
@@ -21,9 +21,9 @@
   "waiting": [
     {
       "kind": "waiting",
-      "source_observed_at": "2026-05-10T06:40:00.000Z",
-      "source_snapshot_path": "data/raw/citydata/2026-05-10/1608.json",
-      "target_datetime": "2026-05-10T08:00:00.000Z",
+      "source_observed_at": "2026-05-10T08:15:00.000Z",
+      "source_snapshot_path": "data/raw/citydata/2026-05-10/1746.json",
+      "target_datetime": "2026-05-10T09:00:00.000Z",
       "forecast_row_count": 7,
       "matched_row_count": 0,
       "status": "waiting_for_future_citydata_observation"
