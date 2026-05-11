@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-11T18:49:57.391Z",
+  "generated_at": "2026-05-11T19:41:41.432Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,14 +79,23 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 133,
-    "latest_generated_at": "2026-05-12T03:49:57+09:00",
-    "latest_target_datetime": "2026-05-12T04:00:00+09:00",
+    "log_count": 134,
+    "latest_generated_at": "2026-05-12T04:41:41+09:00",
+    "latest_target_datetime": "2026-05-12T05:00:00+09:00",
     "latest_strategy": "pattern",
     "latest_top_region": "삼성1동",
     "latest_dispatch_region": "삼성1동",
-    "latest_dispatch_action": "수요 집중 높음",
+    "latest_dispatch_action": "수요 집중 매우 높음",
     "recent": [
+      {
+        "generated_at": "2026-05-12T04:41:41+09:00",
+        "target_datetime": "2026-05-12T05:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "삼성1동",
+        "top_score": 1,
+        "dispatch_region": "삼성1동",
+        "dispatch_action": "수요 집중 매우 높음"
+      },
       {
         "generated_at": "2026-05-12T03:49:57+09:00",
         "target_datetime": "2026-05-12T04:00:00+09:00",
@@ -121,15 +130,6 @@
         "top_region": "역삼1동",
         "top_score": 1,
         "dispatch_region": "역삼1동",
-        "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-11T22:17:59+09:00",
-        "target_datetime": "2026-05-11T23:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "논현1동",
-        "top_score": 1,
-        "dispatch_region": "논현1동",
         "dispatch_action": "수요 집중 매우 높음"
       }
     ]
