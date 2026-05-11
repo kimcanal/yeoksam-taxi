@@ -1,31 +1,23 @@
 {
-  "generated_at": "2026-05-11T05:31:01.608Z",
+  "generated_at": "2026-05-11T07:32:03.691Z",
   "source_log_path": "data/processed/live_validation/traffic_forecast_log.jsonl",
   "traffic_source_dir": "data/raw/traffic",
   "status": "waiting_for_observation",
   "match_window_minutes": 90,
-  "log_count": 125,
+  "log_count": 126,
   "completed_count": 0,
-  "waiting_count": 125,
+  "waiting_count": 126,
   "latest": {
     "kind": "waiting",
-    "generated_at": "2026-05-11T14:31:01+09:00",
-    "target_datetime": "2026-05-11T15:00:00+09:00",
-    "feature_datetime": "2026-05-11T14:00:00+09:00",
+    "generated_at": "2026-05-11T16:32:03+09:00",
+    "target_datetime": "2026-05-11T17:00:00+09:00",
+    "feature_datetime": "2026-05-11T16:00:00+09:00",
     "top_predicted_congestion_dong": "논현1동",
-    "top_predicted_congestion_score": 0.8792,
+    "top_predicted_congestion_score": 0.889,
     "status": "waiting_for_target_time"
   },
   "completed": [],
   "waiting": [
-    {
-      "generated_at": "2026-05-10T16:08:14+09:00",
-      "target_datetime": "2026-05-10T17:00:00+09:00",
-      "feature_datetime": "2026-05-10T16:00:00+09:00",
-      "top_predicted_congestion_dong": "논현1동",
-      "top_predicted_congestion_score": 0.8602,
-      "status": "waiting_for_observed_snapshot"
-    },
     {
       "generated_at": "2026-05-10T17:47:07+09:00",
       "target_datetime": "2026-05-10T18:00:00+09:00",
@@ -176,6 +168,14 @@
       "feature_datetime": "2026-05-11T14:00:00+09:00",
       "top_predicted_congestion_dong": "논현1동",
       "top_predicted_congestion_score": 0.8792,
+      "status": "waiting_for_observed_snapshot"
+    },
+    {
+      "generated_at": "2026-05-11T16:32:03+09:00",
+      "target_datetime": "2026-05-11T17:00:00+09:00",
+      "feature_datetime": "2026-05-11T16:00:00+09:00",
+      "top_predicted_congestion_dong": "논현1동",
+      "top_predicted_congestion_score": 0.889,
       "status": "waiting_for_target_time"
     }
   ]

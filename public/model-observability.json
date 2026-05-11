@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-11T05:31:02.000Z",
+  "generated_at": "2026-05-11T07:32:04.063Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,14 +79,23 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 125,
-    "latest_generated_at": "2026-05-11T14:31:01+09:00",
-    "latest_target_datetime": "2026-05-11T15:00:00+09:00",
+    "log_count": 126,
+    "latest_generated_at": "2026-05-11T16:32:03+09:00",
+    "latest_target_datetime": "2026-05-11T17:00:00+09:00",
     "latest_strategy": "pattern",
-    "latest_top_region": "대치4동",
-    "latest_dispatch_region": "대치4동",
+    "latest_top_region": "논현1동",
+    "latest_dispatch_region": "논현1동",
     "latest_dispatch_action": "수요 집중 매우 높음",
     "recent": [
+      {
+        "generated_at": "2026-05-11T16:32:03+09:00",
+        "target_datetime": "2026-05-11T17:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "논현1동",
+        "top_score": 1,
+        "dispatch_region": "논현1동",
+        "dispatch_action": "수요 집중 매우 높음"
+      },
       {
         "generated_at": "2026-05-11T14:31:01+09:00",
         "target_datetime": "2026-05-11T15:00:00+09:00",
@@ -117,15 +126,6 @@
       {
         "generated_at": "2026-05-11T08:26:16+09:00",
         "target_datetime": "2026-05-11T09:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "대치4동",
-        "top_score": 1,
-        "dispatch_region": "대치4동",
-        "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-11T07:24:46+09:00",
-        "target_datetime": "2026-05-11T08:00:00+09:00",
         "strategy": "pattern",
         "top_region": "대치4동",
         "top_score": 1,

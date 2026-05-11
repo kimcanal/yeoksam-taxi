@@ -1,31 +1,23 @@
 {
-  "generated_at": "2026-05-11T05:31:01.656Z",
+  "generated_at": "2026-05-11T07:32:03.735Z",
   "source_log_path": "data/processed/live_validation/taxi_pressure_log.jsonl",
   "traffic_source_dir": "data/raw/traffic",
   "status": "waiting_for_observation",
   "match_window_minutes": 90,
-  "log_count": 93,
+  "log_count": 94,
   "completed_count": 0,
-  "waiting_count": 93,
+  "waiting_count": 94,
   "latest": {
     "kind": "waiting",
-    "generated_at": "2026-05-11T05:31:01.564Z",
-    "target_datetime": "2026-05-11T15:00:00+09:00",
-    "feature_datetime": "2026-05-11T14:00:00+09:00",
+    "generated_at": "2026-05-11T07:32:03.649Z",
+    "target_datetime": "2026-05-11T17:00:00+09:00",
+    "feature_datetime": "2026-05-11T16:00:00+09:00",
     "top_predicted_priority_dong": "논현1동",
-    "top_predicted_priority_score": 0.8282,
+    "top_predicted_priority_score": 0.9084,
     "status": "waiting_for_target_time"
   },
   "completed": [],
   "waiting": [
-    {
-      "generated_at": "2026-05-10T07:08:14.343Z",
-      "target_datetime": "2026-05-10T17:00:00+09:00",
-      "feature_datetime": "2026-05-10T16:00:00+09:00",
-      "top_predicted_priority_dong": "논현1동",
-      "top_predicted_priority_score": 0.8881,
-      "status": "waiting_for_observed_snapshot"
-    },
     {
       "generated_at": "2026-05-10T08:47:07.664Z",
       "target_datetime": "2026-05-10T18:00:00+09:00",
@@ -176,6 +168,14 @@
       "feature_datetime": "2026-05-11T14:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
       "top_predicted_priority_score": 0.8282,
+      "status": "waiting_for_observed_snapshot"
+    },
+    {
+      "generated_at": "2026-05-11T07:32:03.649Z",
+      "target_datetime": "2026-05-11T17:00:00+09:00",
+      "feature_datetime": "2026-05-11T16:00:00+09:00",
+      "top_predicted_priority_dong": "논현1동",
+      "top_predicted_priority_score": 0.9084,
       "status": "waiting_for_target_time"
     }
   ]
