@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-05-12T11:50:34.476Z",
+  "generated_at": "2026-05-12T13:02:53.244Z",
   "description": "Comparison of predicted taxi pressure vs observed public-pressure baseline (population + road congestion + speed). No taxi-call labels used.",
   "comparison_type": "predicted_pressure_vs_observed_public_pressure_baseline",
   "source_log_path": "data/processed/live_validation/taxi_pressure_log.jsonl",
   "traffic_source_dir": "data/raw/traffic",
   "citydata_source_dir": "data/raw/citydata",
   "match_window_minutes": 90,
-  "log_count": 113,
+  "log_count": 114,
   "completed_count": 0,
-  "waiting_count": 113,
+  "waiting_count": 114,
   "latest": {
     "kind": "waiting",
-    "generated_at": "2026-05-12T11:50:34.334Z",
-    "target_datetime": "2026-05-12T21:00:00+09:00",
-    "feature_datetime": "2026-05-12T20:00:00+09:00",
+    "generated_at": "2026-05-12T13:02:53.106Z",
+    "target_datetime": "2026-05-12T22:00:00+09:00",
+    "feature_datetime": "2026-05-12T21:00:00+09:00",
     "top_predicted_priority_dong": "논현1동",
     "top_predicted_priority_score": 0.953,
     "matched_traffic_snapshot_path": null,
     "matched_citydata_snapshot_path": null,
-    "status": "waiting_for_target_time"
+    "status": "waiting_for_observed_public_pressure_snapshot"
   },
   "completed": [],
   "waiting": [
@@ -1250,7 +1250,7 @@
       "feature_datetime": "2026-05-12T19:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
       "top_predicted_priority_score": 0.8792,
-      "matched_traffic_snapshot_path": "data/raw/traffic/2026-05-12/2045.json",
+      "matched_traffic_snapshot_path": null,
       "matched_citydata_snapshot_path": null,
       "status": "waiting_for_observed_public_pressure_snapshot"
     },
@@ -1261,9 +1261,20 @@
       "feature_datetime": "2026-05-12T20:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
       "top_predicted_priority_score": 0.953,
+      "matched_traffic_snapshot_path": "data/raw/traffic/2026-05-12/2157.json",
+      "matched_citydata_snapshot_path": null,
+      "status": "waiting_for_observed_public_pressure_snapshot"
+    },
+    {
+      "kind": "waiting",
+      "generated_at": "2026-05-12T13:02:53.106Z",
+      "target_datetime": "2026-05-12T22:00:00+09:00",
+      "feature_datetime": "2026-05-12T21:00:00+09:00",
+      "top_predicted_priority_dong": "논현1동",
+      "top_predicted_priority_score": 0.953,
       "matched_traffic_snapshot_path": null,
       "matched_citydata_snapshot_path": null,
-      "status": "waiting_for_target_time"
+      "status": "waiting_for_observed_public_pressure_snapshot"
     }
   ]
 }

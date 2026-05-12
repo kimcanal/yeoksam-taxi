@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-12T11:50:34.513Z",
+  "generated_at": "2026-05-12T13:02:53.281Z",
   "description": "Seoul citydata POI 1-hour forecast validation against later citydata observations. No taxi-call labels used.",
   "comparison_type": "citydata_poi_1h_forecast_vs_observed_citydata",
   "source_dir": "data/raw/citydata",
