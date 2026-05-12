@@ -1,20 +1,20 @@
 {
   "source": "seoul_citydata_poi_population_forecast_proxy_v1",
-  "generated_at": "2026-05-11T23:33:21.510Z",
-  "input_generated_at": "2026-05-11T23:33:18.594Z",
-  "target_datetime": null,
+  "generated_at": "2026-05-12T01:06:26.961Z",
+  "input_generated_at": "2026-05-12T01:06:23.378Z",
+  "target_datetime": "2026-05-12 11:00",
   "interpretation": "서울 실시간 도시데이터 POI의 현재 인구와 1시간 예측 인구를 행정동 coverage로 집계한 생활/유동인구 pressure proxy입니다. 행정동 전체 생활인구 확정값이나 택시 호출량 라벨은 아닙니다.",
   "coverage": {
-    "live_poi_count": 0,
-    "covered_dong_count": 0,
+    "live_poi_count": 7,
+    "covered_dong_count": 6,
     "supplemental_poi_count": 6
   },
   "validation": {
     "comparison_type": "citydata_poi_1h_forecast_vs_observed_citydata",
     "completed_count": 0,
-    "waiting_count": 0,
-    "latest_kind": null,
-    "latest_target_datetime": null,
+    "waiting_count": 1,
+    "latest_kind": "waiting",
+    "latest_target_datetime": "2026-05-12T02:00:00.000Z",
     "population_mae": null,
     "population_mape_pct": null,
     "congestion_level_accuracy_pct": null,
@@ -25,12 +25,189 @@
     "status": "waiting_for_future_citydata_observation"
   },
   "overall": {
-    "current_population_mid_sum": null,
-    "forecast_population_mid_sum": null,
-    "avg_current_congestion_score": null,
-    "avg_forecast_congestion_score": null,
-    "avg_poi_pressure_score": null
+    "current_population_mid_sum": 234250,
+    "forecast_population_mid_sum": 261250,
+    "avg_current_congestion_score": 0.5143,
+    "avg_forecast_congestion_score": 0.7571,
+    "avg_poi_pressure_score": 0.5777
   },
-  "dongs": [],
-  "top_population_pois": []
+  "dongs": [
+    {
+      "dong_name": "삼성2동",
+      "poi_count": 1,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 59000,
+      "forecast_population_mid_sum": 63000,
+      "forecast_population_delta": 4000,
+      "forecast_population_delta_pct": 0.0678,
+      "avg_current_congestion_score": 0.9,
+      "avg_forecast_congestion_score": 0.9,
+      "avg_poi_pressure_score": 0.754,
+      "avg_demand_proxy_score": 0.691,
+      "top_poi": {
+        "poi_code": "POI034",
+        "poi_name": "선릉역",
+        "current_population_mid": 59000,
+        "forecast_population_mid": 63000,
+        "poi_pressure_score": 0.754
+      }
+    },
+    {
+      "dong_name": "역삼1동",
+      "poi_count": 2,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 112000,
+      "forecast_population_mid_sum": 126000,
+      "forecast_population_delta": 14000,
+      "forecast_population_delta_pct": 0.125,
+      "avg_current_congestion_score": 0.575,
+      "avg_forecast_congestion_score": 0.8,
+      "avg_poi_pressure_score": 0.6795,
+      "avg_demand_proxy_score": 0.6275,
+      "top_poi": {
+        "poi_code": "POI042",
+        "poi_name": "역삼역",
+        "current_population_mid": 41000,
+        "forecast_population_mid": 47000,
+        "poi_pressure_score": 0.728
+      }
+    },
+    {
+      "dong_name": "신사동",
+      "poi_count": 1,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 25000,
+      "forecast_population_mid_sum": 29000,
+      "forecast_population_delta": 4000,
+      "forecast_population_delta_pct": 0.16,
+      "avg_current_congestion_score": 0.45,
+      "avg_forecast_congestion_score": 0.7,
+      "avg_poi_pressure_score": 0.582,
+      "avg_demand_proxy_score": 0.531,
+      "top_poi": {
+        "poi_code": "POI059",
+        "poi_name": "가로수길",
+        "current_population_mid": 25000,
+        "forecast_population_mid": 29000,
+        "poi_pressure_score": 0.582
+      }
+    },
+    {
+      "dong_name": "삼성1동",
+      "poi_count": 1,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 19000,
+      "forecast_population_mid_sum": 23000,
+      "forecast_population_delta": 4000,
+      "forecast_population_delta_pct": 0.2105,
+      "avg_current_congestion_score": 0.45,
+      "avg_forecast_congestion_score": 0.7,
+      "avg_poi_pressure_score": 0.521,
+      "avg_demand_proxy_score": 0.445,
+      "top_poi": {
+        "poi_code": "POI001",
+        "poi_name": "강남 MICE 관광특구",
+        "current_population_mid": 19000,
+        "forecast_population_mid": 23000,
+        "poi_pressure_score": 0.521
+      }
+    },
+    {
+      "dong_name": "논현1동",
+      "poi_count": 1,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 13000,
+      "forecast_population_mid_sum": 13000,
+      "forecast_population_delta": 0,
+      "forecast_population_delta_pct": 0,
+      "avg_current_congestion_score": 0.45,
+      "avg_forecast_congestion_score": 0.7,
+      "avg_poi_pressure_score": 0.464,
+      "avg_demand_proxy_score": 0.363,
+      "top_poi": {
+        "poi_code": "POI037",
+        "poi_name": "신논현역·논현역",
+        "current_population_mid": 13000,
+        "forecast_population_mid": 13000,
+        "poi_pressure_score": 0.464
+      }
+    },
+    {
+      "dong_name": "청담동",
+      "poi_count": 1,
+      "target_datetime": "2026-05-12 11:00",
+      "current_population_mid_sum": 6250,
+      "forecast_population_mid_sum": 7250,
+      "forecast_population_delta": 1000,
+      "forecast_population_delta_pct": 0.16,
+      "avg_current_congestion_score": 0.2,
+      "avg_forecast_congestion_score": 0.7,
+      "avg_poi_pressure_score": 0.364,
+      "avg_demand_proxy_score": 0.22,
+      "top_poi": {
+        "poi_code": "POI080",
+        "poi_name": "청담동 명품거리",
+        "current_population_mid": 6250,
+        "forecast_population_mid": 7250,
+        "poi_pressure_score": 0.364
+      }
+    }
+  ],
+  "top_population_pois": [
+    {
+      "poi_code": "POI014",
+      "poi_name": "강남역",
+      "coverage_dong": "역삼1동",
+      "current_population_mid": 71000,
+      "forecast_population_mid": 79000,
+      "forecast_population_delta": 8000,
+      "current_congestion_level": "보통",
+      "forecast_congestion_level": "약간 붐빔",
+      "poi_pressure_score": 0.631
+    },
+    {
+      "poi_code": "POI034",
+      "poi_name": "선릉역",
+      "coverage_dong": "삼성2동",
+      "current_population_mid": 59000,
+      "forecast_population_mid": 63000,
+      "forecast_population_delta": 4000,
+      "current_congestion_level": "붐빔",
+      "forecast_congestion_level": "붐빔",
+      "poi_pressure_score": 0.754
+    },
+    {
+      "poi_code": "POI042",
+      "poi_name": "역삼역",
+      "coverage_dong": "역삼1동",
+      "current_population_mid": 41000,
+      "forecast_population_mid": 47000,
+      "forecast_population_delta": 6000,
+      "current_congestion_level": "약간 붐빔",
+      "forecast_congestion_level": "붐빔",
+      "poi_pressure_score": 0.728
+    },
+    {
+      "poi_code": "POI059",
+      "poi_name": "가로수길",
+      "coverage_dong": "신사동",
+      "current_population_mid": 25000,
+      "forecast_population_mid": 29000,
+      "forecast_population_delta": 4000,
+      "current_congestion_level": "보통",
+      "forecast_congestion_level": "약간 붐빔",
+      "poi_pressure_score": 0.582
+    },
+    {
+      "poi_code": "POI001",
+      "poi_name": "강남 MICE 관광특구",
+      "coverage_dong": "삼성1동",
+      "current_population_mid": 19000,
+      "forecast_population_mid": 23000,
+      "forecast_population_delta": 4000,
+      "current_congestion_level": "보통",
+      "forecast_congestion_level": "약간 붐빔",
+      "poi_pressure_score": 0.521
+    }
+  ]
 }

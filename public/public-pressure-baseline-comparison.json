@@ -1,26 +1,174 @@
 {
-  "generated_at": "2026-05-11T23:33:21.448Z",
+  "generated_at": "2026-05-12T01:06:26.873Z",
   "description": "Comparison of predicted taxi pressure vs observed public-pressure baseline (population + road congestion + speed). No taxi-call labels used.",
   "comparison_type": "predicted_pressure_vs_observed_public_pressure_baseline",
   "source_log_path": "data/processed/live_validation/taxi_pressure_log.jsonl",
   "traffic_source_dir": "data/raw/traffic",
   "citydata_source_dir": "data/raw/citydata",
   "match_window_minutes": 90,
-  "log_count": 106,
-  "completed_count": 0,
+  "log_count": 107,
+  "completed_count": 1,
   "waiting_count": 106,
   "latest": {
-    "kind": "waiting",
+    "kind": "completed",
     "generated_at": "2026-05-11T23:33:21.323Z",
     "target_datetime": "2026-05-12T09:00:00+09:00",
     "feature_datetime": "2026-05-12T08:00:00+09:00",
-    "top_predicted_priority_dong": "논현1동",
-    "top_predicted_priority_score": 0.7718,
-    "matched_traffic_snapshot_path": null,
-    "matched_citydata_snapshot_path": null,
-    "status": "waiting_for_target_time"
+    "actual_traffic_observed_at": "2026-05-12T01:06:16.270Z",
+    "actual_citydata_observed_at": "2026-05-12T01:06:16.270Z",
+    "traffic_snapshot_path": "data/raw/traffic/2026-05-12/1006.json",
+    "citydata_snapshot_path": "data/raw/citydata/2026-05-12/1006.json",
+    "overall": {
+      "priority_vs_public_pressure_spearman": -0.6571,
+      "top_predicted_priority_dong": "논현1동",
+      "top_observed_public_pressure_dong": "역삼1동",
+      "same_top_dong": false,
+      "row_count": 6
+    },
+    "rows": [
+      {
+        "dong_name": "논현1동",
+        "predicted_dispatch_priority_score": 0.7718,
+        "observed_population_score": 0.05,
+        "observed_congestion_score": 0.708,
+        "observed_speed_score": 0.72,
+        "observed_public_pressure": 0.4143,
+        "predicted_priority_rank": 1,
+        "observed_pressure_rank": 4
+      },
+      {
+        "dong_name": "청담동",
+        "predicted_dispatch_priority_score": 0.2959,
+        "observed_population_score": 0,
+        "observed_congestion_score": 0.561,
+        "observed_speed_score": 0.6417,
+        "observed_public_pressure": 0.3247,
+        "predicted_priority_rank": 2,
+        "observed_pressure_rank": 6
+      },
+      {
+        "dong_name": "삼성1동",
+        "predicted_dispatch_priority_score": 0.2544,
+        "observed_population_score": 0.15,
+        "observed_congestion_score": 0.735,
+        "observed_speed_score": 0.7617,
+        "observed_public_pressure": 0.4771,
+        "predicted_priority_rank": 3,
+        "observed_pressure_rank": 3
+      },
+      {
+        "dong_name": "신사동",
+        "predicted_dispatch_priority_score": 0.2176,
+        "observed_population_score": 0.25,
+        "observed_congestion_score": 0.537,
+        "observed_speed_score": 0.51,
+        "observed_public_pressure": 0.4024,
+        "predicted_priority_rank": 4,
+        "observed_pressure_rank": 5
+      },
+      {
+        "dong_name": "역삼1동",
+        "predicted_dispatch_priority_score": 0.209,
+        "observed_population_score": 1,
+        "observed_congestion_score": 0.697,
+        "observed_speed_score": 0.7267,
+        "observed_public_pressure": 0.8393,
+        "predicted_priority_rank": 5,
+        "observed_pressure_rank": 1
+      },
+      {
+        "dong_name": "삼성2동",
+        "predicted_dispatch_priority_score": 0.12,
+        "observed_population_score": 0.8167,
+        "observed_congestion_score": 0.608,
+        "observed_speed_score": 0.6617,
+        "observed_public_pressure": 0.7126,
+        "predicted_priority_rank": 6,
+        "observed_pressure_rank": 2
+      }
+    ]
   },
-  "completed": [],
+  "completed": [
+    {
+      "kind": "completed",
+      "generated_at": "2026-05-11T23:33:21.323Z",
+      "target_datetime": "2026-05-12T09:00:00+09:00",
+      "feature_datetime": "2026-05-12T08:00:00+09:00",
+      "actual_traffic_observed_at": "2026-05-12T01:06:16.270Z",
+      "actual_citydata_observed_at": "2026-05-12T01:06:16.270Z",
+      "traffic_snapshot_path": "data/raw/traffic/2026-05-12/1006.json",
+      "citydata_snapshot_path": "data/raw/citydata/2026-05-12/1006.json",
+      "overall": {
+        "priority_vs_public_pressure_spearman": -0.6571,
+        "top_predicted_priority_dong": "논현1동",
+        "top_observed_public_pressure_dong": "역삼1동",
+        "same_top_dong": false,
+        "row_count": 6
+      },
+      "rows": [
+        {
+          "dong_name": "논현1동",
+          "predicted_dispatch_priority_score": 0.7718,
+          "observed_population_score": 0.05,
+          "observed_congestion_score": 0.708,
+          "observed_speed_score": 0.72,
+          "observed_public_pressure": 0.4143,
+          "predicted_priority_rank": 1,
+          "observed_pressure_rank": 4
+        },
+        {
+          "dong_name": "청담동",
+          "predicted_dispatch_priority_score": 0.2959,
+          "observed_population_score": 0,
+          "observed_congestion_score": 0.561,
+          "observed_speed_score": 0.6417,
+          "observed_public_pressure": 0.3247,
+          "predicted_priority_rank": 2,
+          "observed_pressure_rank": 6
+        },
+        {
+          "dong_name": "삼성1동",
+          "predicted_dispatch_priority_score": 0.2544,
+          "observed_population_score": 0.15,
+          "observed_congestion_score": 0.735,
+          "observed_speed_score": 0.7617,
+          "observed_public_pressure": 0.4771,
+          "predicted_priority_rank": 3,
+          "observed_pressure_rank": 3
+        },
+        {
+          "dong_name": "신사동",
+          "predicted_dispatch_priority_score": 0.2176,
+          "observed_population_score": 0.25,
+          "observed_congestion_score": 0.537,
+          "observed_speed_score": 0.51,
+          "observed_public_pressure": 0.4024,
+          "predicted_priority_rank": 4,
+          "observed_pressure_rank": 5
+        },
+        {
+          "dong_name": "역삼1동",
+          "predicted_dispatch_priority_score": 0.209,
+          "observed_population_score": 1,
+          "observed_congestion_score": 0.697,
+          "observed_speed_score": 0.7267,
+          "observed_public_pressure": 0.8393,
+          "predicted_priority_rank": 5,
+          "observed_pressure_rank": 1
+        },
+        {
+          "dong_name": "삼성2동",
+          "predicted_dispatch_priority_score": 0.12,
+          "observed_population_score": 0.8167,
+          "observed_congestion_score": 0.608,
+          "observed_speed_score": 0.6617,
+          "observed_public_pressure": 0.7126,
+          "predicted_priority_rank": 6,
+          "observed_pressure_rank": 2
+        }
+      ]
+    }
+  ],
   "waiting": [
     {
       "kind": "waiting",
@@ -1162,7 +1310,7 @@
       "feature_datetime": "2026-05-12T06:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
       "top_predicted_priority_score": 0.6514,
-      "matched_traffic_snapshot_path": "data/raw/traffic/2026-05-12/0828.json",
+      "matched_traffic_snapshot_path": null,
       "matched_citydata_snapshot_path": null,
       "status": "waiting_for_observed_public_pressure_snapshot"
     },
@@ -1173,17 +1321,17 @@
       "feature_datetime": "2026-05-12T07:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
       "top_predicted_priority_score": 0.7372,
-      "matched_traffic_snapshot_path": "data/raw/traffic/2026-05-12/0828.json",
+      "matched_traffic_snapshot_path": null,
       "matched_citydata_snapshot_path": null,
       "status": "waiting_for_observed_public_pressure_snapshot"
     },
     {
       "kind": "waiting",
-      "generated_at": "2026-05-11T23:33:21.323Z",
-      "target_datetime": "2026-05-12T09:00:00+09:00",
-      "feature_datetime": "2026-05-12T08:00:00+09:00",
+      "generated_at": "2026-05-12T01:06:26.721Z",
+      "target_datetime": "2026-05-12T11:00:00+09:00",
+      "feature_datetime": "2026-05-12T10:00:00+09:00",
       "top_predicted_priority_dong": "논현1동",
-      "top_predicted_priority_score": 0.7718,
+      "top_predicted_priority_score": 0.775,
       "matched_traffic_snapshot_path": null,
       "matched_citydata_snapshot_path": null,
       "status": "waiting_for_target_time"
