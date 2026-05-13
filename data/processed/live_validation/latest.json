@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-05-14T01:59:04+09:00",
+  "generated_at": "2026-05-14T02:50:17+09:00",
   "validation_status": "forecast_logged_waiting_for_future_proxy",
   "forecast_path": "public/forecast/latest.json",
   "dispatch_path": "public/dispatch-plan.json",
   "model_path": "data/processed/model_live_compatible/dong_demand_proxy_model.joblib",
   "traffic_snapshot_path": "data/processed/traffic/citydata_dong_traffic_latest.json",
-  "weather_snapshot_path": "data/raw/weather/2026-05-14/0158.json",
-  "target_datetime": "2026-05-14T02:00:00+09:00",
-  "feature_datetime": "2026-05-14T01:00:00+09:00",
+  "weather_snapshot_path": "data/raw/weather/2026-05-14/0250.json",
+  "target_datetime": "2026-05-14T03:00:00+09:00",
+  "feature_datetime": "2026-05-14T02:00:00+09:00",
   "strategy": "pattern",
   "calendar": {
     "weekday": "목",
@@ -22,9 +22,9 @@
       "ok": true,
       "status": 200,
       "error": null,
-      "collected_at": "2026-05-13T16:58:58.286Z",
+      "collected_at": "2026-05-13T17:50:07.149Z",
       "base_date": "20260514",
-      "base_time": "0100",
+      "base_time": "0200",
       "grid": {
         "nx": 61,
         "ny": 125
@@ -32,19 +32,19 @@
       "credential_source": "DATA_GO_KR_API_KEY"
     },
     "observed": {
-      "temperature_c": "16",
+      "temperature_c": "15.6",
       "precipitation_mm": "0",
       "precipitation_type": "0",
-      "humidity_pct": "81",
-      "wind_speed_ms": "0.7"
+      "humidity_pct": "83",
+      "wind_speed_ms": "0.5"
     }
   },
   "current_traffic": {
     "meta": {
       "source": "citydata_road_traffic_dong_filtered",
-      "collected_at": "2026-05-13T16:58:54.964Z",
-      "extracted_at": "2026-05-13T16:59:01.449Z",
-      "citydata_path": "data/raw/citydata/2026-05-14/0158.json",
+      "collected_at": "2026-05-13T17:50:03.810Z",
+      "extracted_at": "2026-05-13T17:50:12.888Z",
+      "citydata_path": "data/raw/citydata/2026-05-14/0250.json",
       "total_links_scanned": 293,
       "dong_filtered_count": 264,
       "dong_summary_count": 9,
@@ -63,188 +63,188 @@
     "aggregate": {
       "dong_count": 9,
       "total_distance_m": 32549,
-      "avg_speed_kmh": 24.3,
-      "congestion_score": 0.524,
+      "avg_speed_kmh": 26.6,
+      "congestion_score": 0.476,
       "top_congested_dongs": [
         {
           "dong_name": "대치4동",
-          "congestion_score": 0.608,
-          "avg_speed_kmh": 18.1,
-          "congested_link_count": 10,
-          "slow_link_count": 3
+          "congestion_score": 0.612,
+          "avg_speed_kmh": 19.7,
+          "congested_link_count": 11,
+          "slow_link_count": 2
         },
         {
           "dong_name": "역삼1동",
-          "congestion_score": 0.592,
-          "avg_speed_kmh": 20,
-          "congested_link_count": 31,
-          "slow_link_count": 40
+          "congestion_score": 0.535,
+          "avg_speed_kmh": 21.8,
+          "congested_link_count": 32,
+          "slow_link_count": 28
         },
         {
           "dong_name": "삼성1동",
-          "congestion_score": 0.591,
-          "avg_speed_kmh": 20.8,
-          "congested_link_count": 3,
-          "slow_link_count": 5
-        },
-        {
-          "dong_name": "논현1동",
-          "congestion_score": 0.565,
-          "avg_speed_kmh": 22.3,
+          "congestion_score": 0.519,
+          "avg_speed_kmh": 21.6,
           "congested_link_count": 4,
-          "slow_link_count": 9
+          "slow_link_count": 2
         },
         {
-          "dong_name": "삼성2동",
-          "congestion_score": 0.503,
-          "avg_speed_kmh": 23.4,
+          "dong_name": "청담동",
+          "congestion_score": 0.478,
+          "avg_speed_kmh": 27.4,
           "congested_link_count": 9,
-          "slow_link_count": 6
+          "slow_link_count": 7
+        },
+        {
+          "dong_name": "논현2동",
+          "congestion_score": 0.466,
+          "avg_speed_kmh": 29.1,
+          "congested_link_count": 0,
+          "slow_link_count": 1
         }
       ]
     }
   },
   "forecast_top_regions": [
     {
-      "dong_name": "역삼1동",
+      "dong_name": "논현1동",
       "score": 1,
       "confidence": 0.58,
-      "raw_prediction": 4.890456
-    },
-    {
-      "dong_name": "논현1동",
-      "score": 0.3353,
-      "confidence": 0.58,
-      "raw_prediction": 2.010706
+      "raw_prediction": 2.029153
     },
     {
       "dong_name": "대치4동",
-      "score": 0.3015,
+      "score": 0.9243,
       "confidence": 0.58,
-      "raw_prediction": 1.864449
+      "raw_prediction": 1.917357
     },
     {
       "dong_name": "삼성1동",
-      "score": 0.2877,
+      "score": 0.8665,
       "confidence": 0.58,
-      "raw_prediction": 1.804675
+      "raw_prediction": 1.831898
+    },
+    {
+      "dong_name": "역삼1동",
+      "score": 0.8424,
+      "confidence": 0.58,
+      "raw_prediction": 1.796192
     },
     {
       "dong_name": "청담동",
-      "score": 0.1757,
+      "score": 0.5316,
       "confidence": 0.58,
-      "raw_prediction": 1.319287
+      "raw_prediction": 1.336915
     }
   ],
   "dispatch_top_decisions": [
     {
-      "dong_name": "역삼1동",
-      "predicted_demand_score": 1,
+      "dong_name": "대치4동",
+      "predicted_demand_score": 0.924,
       "confidence": 0.58,
-      "supply_proxy_score": 0.457,
+      "supply_proxy_score": 0.44,
       "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.592,
-      "avg_speed_kmh": 20,
-      "link_count": 91,
-      "congested_link_count": 31,
-      "slow_link_count": 40,
-      "imbalance_score": 0.543,
+      "congestion_score": 0.612,
+      "avg_speed_kmh": 19.7,
+      "link_count": 18,
+      "congested_link_count": 11,
+      "slow_link_count": 2,
+      "imbalance_score": 0.484,
       "action": "수요 집중 매우 높음",
       "action_level": "high",
       "coverage_units": 3,
       "incentive_multiplier": 1.2,
       "policy_effect_estimate": {
         "method": "proxy_counterfactual_v1",
-        "before_positive_imbalance_score": 0.543,
+        "before_positive_imbalance_score": 0.484,
         "estimated_relief_score": 0.31,
-        "after_policy_imbalance_score": 0.233,
-        "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
-      }
-    },
-    {
-      "dong_name": "대치4동",
-      "predicted_demand_score": 0.301,
-      "confidence": 0.58,
-      "supply_proxy_score": 0.43,
-      "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.608,
-      "avg_speed_kmh": 18.1,
-      "link_count": 18,
-      "congested_link_count": 10,
-      "slow_link_count": 3,
-      "imbalance_score": -0.129,
-      "action": "안정",
-      "action_level": "low",
-      "coverage_units": 0,
-      "incentive_multiplier": 1,
-      "policy_effect_estimate": {
-        "method": "proxy_counterfactual_v1",
-        "before_positive_imbalance_score": 0,
-        "estimated_relief_score": 0,
-        "after_policy_imbalance_score": 0,
-        "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
-      }
-    },
-    {
-      "dong_name": "논현1동",
-      "predicted_demand_score": 0.335,
-      "confidence": 0.58,
-      "supply_proxy_score": 0.496,
-      "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.565,
-      "avg_speed_kmh": 22.3,
-      "link_count": 19,
-      "congested_link_count": 4,
-      "slow_link_count": 9,
-      "imbalance_score": -0.161,
-      "action": "안정",
-      "action_level": "low",
-      "coverage_units": 0,
-      "incentive_multiplier": 1,
-      "policy_effect_estimate": {
-        "method": "proxy_counterfactual_v1",
-        "before_positive_imbalance_score": 0,
-        "estimated_relief_score": 0,
-        "after_policy_imbalance_score": 0,
+        "after_policy_imbalance_score": 0.174,
         "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
       }
     },
     {
       "dong_name": "삼성1동",
-      "predicted_demand_score": 0.288,
+      "predicted_demand_score": 0.867,
       "confidence": 0.58,
-      "supply_proxy_score": 0.465,
+      "supply_proxy_score": 0.522,
       "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.591,
-      "avg_speed_kmh": 20.8,
+      "congestion_score": 0.519,
+      "avg_speed_kmh": 21.6,
       "link_count": 12,
-      "congested_link_count": 3,
-      "slow_link_count": 5,
-      "imbalance_score": -0.177,
-      "action": "안정",
-      "action_level": "low",
-      "coverage_units": 0,
-      "incentive_multiplier": 1,
+      "congested_link_count": 4,
+      "slow_link_count": 2,
+      "imbalance_score": 0.345,
+      "action": "수요 집중 높음",
+      "action_level": "medium",
+      "coverage_units": 2,
+      "incentive_multiplier": 1.1,
       "policy_effect_estimate": {
         "method": "proxy_counterfactual_v1",
-        "before_positive_imbalance_score": 0,
-        "estimated_relief_score": 0,
-        "after_policy_imbalance_score": 0,
+        "before_positive_imbalance_score": 0.345,
+        "estimated_relief_score": 0.195,
+        "after_policy_imbalance_score": 0.15,
+        "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
+      }
+    },
+    {
+      "dong_name": "논현1동",
+      "predicted_demand_score": 1,
+      "confidence": 0.58,
+      "supply_proxy_score": 0.666,
+      "supply_source": "citydata_congestion_and_speed",
+      "congestion_score": 0.362,
+      "avg_speed_kmh": 25.6,
+      "link_count": 19,
+      "congested_link_count": 3,
+      "slow_link_count": 4,
+      "imbalance_score": 0.334,
+      "action": "수요 집중 높음",
+      "action_level": "medium",
+      "coverage_units": 2,
+      "incentive_multiplier": 1.1,
+      "policy_effect_estimate": {
+        "method": "proxy_counterfactual_v1",
+        "before_positive_imbalance_score": 0.334,
+        "estimated_relief_score": 0.195,
+        "after_policy_imbalance_score": 0.139,
+        "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
+      }
+    },
+    {
+      "dong_name": "역삼1동",
+      "predicted_demand_score": 0.842,
+      "confidence": 0.58,
+      "supply_proxy_score": 0.512,
+      "supply_source": "citydata_congestion_and_speed",
+      "congestion_score": 0.535,
+      "avg_speed_kmh": 21.8,
+      "link_count": 91,
+      "congested_link_count": 32,
+      "slow_link_count": 28,
+      "imbalance_score": 0.33,
+      "action": "수요 집중 높음",
+      "action_level": "medium",
+      "coverage_units": 2,
+      "incentive_multiplier": 1.1,
+      "policy_effect_estimate": {
+        "method": "proxy_counterfactual_v1",
+        "before_positive_imbalance_score": 0.33,
+        "estimated_relief_score": 0.195,
+        "after_policy_imbalance_score": 0.135,
         "note": "Proxy relief estimate only; not observed taxi-call or taxi-supply impact."
       }
     },
     {
       "dong_name": "청담동",
-      "predicted_demand_score": 0.176,
+      "predicted_demand_score": 0.532,
       "confidence": 0.58,
-      "supply_proxy_score": 0.573,
+      "supply_proxy_score": 0.6,
       "supply_source": "citydata_congestion_and_speed",
-      "congestion_score": 0.487,
-      "avg_speed_kmh": 24.9,
+      "congestion_score": 0.478,
+      "avg_speed_kmh": 27.4,
       "link_count": 33,
-      "congested_link_count": 8,
-      "slow_link_count": 10,
-      "imbalance_score": -0.397,
+      "congested_link_count": 9,
+      "slow_link_count": 7,
+      "imbalance_score": -0.068,
       "action": "안정",
       "action_level": "low",
       "coverage_units": 0,
