@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T17:50:17.122Z",
+  "generated_at": "2026-05-13T18:51:06.701Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,14 +79,23 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 168,
-    "latest_generated_at": "2026-05-14T02:50:17+09:00",
-    "latest_target_datetime": "2026-05-14T03:00:00+09:00",
+    "log_count": 169,
+    "latest_generated_at": "2026-05-14T03:51:06+09:00",
+    "latest_target_datetime": "2026-05-14T04:00:00+09:00",
     "latest_strategy": "pattern",
-    "latest_top_region": "논현1동",
-    "latest_dispatch_region": "대치4동",
-    "latest_dispatch_action": "수요 집중 매우 높음",
+    "latest_top_region": "삼성1동",
+    "latest_dispatch_region": "삼성1동",
+    "latest_dispatch_action": "수요 집중 높음",
     "recent": [
+      {
+        "generated_at": "2026-05-14T03:51:06+09:00",
+        "target_datetime": "2026-05-14T04:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "삼성1동",
+        "top_score": 1,
+        "dispatch_region": "삼성1동",
+        "dispatch_action": "수요 집중 높음"
+      },
       {
         "generated_at": "2026-05-14T02:50:17+09:00",
         "target_datetime": "2026-05-14T03:00:00+09:00",
@@ -116,15 +125,6 @@
       },
       {
         "generated_at": "2026-05-13T22:52:42+09:00",
-        "target_datetime": "2026-05-13T23:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "논현1동",
-        "top_score": 1,
-        "dispatch_region": "논현1동",
-        "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-13T22:00:26+09:00",
         "target_datetime": "2026-05-13T23:00:00+09:00",
         "strategy": "pattern",
         "top_region": "논현1동",
