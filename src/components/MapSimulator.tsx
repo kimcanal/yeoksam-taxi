@@ -347,6 +347,25 @@ function formatKstFullDateTime(value: string | null | undefined) {
   ].join("-") + ` ${partMap.get("hour")}:${partMap.get("minute")}`;
 }
 
+function parseDateTime(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+}
+
+function hoursSince(value: string | null | undefined) {
+  const parsed = parseDateTime(value);
+  if (!parsed) {
+    return null;
+  }
+  return (Date.now() - parsed.getTime()) / (1000 * 60 * 60);
+}
+
 function forecastStrategyLabel(strategy: string | null | undefined) {
   if (strategy === "pattern") return "패턴 추정";
   if (strategy === "exact") return "관측 feature";
@@ -778,10 +797,18 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [forecastResult]);
   const isForecastLowConfidence =
     forecastAverageConfidence != null && forecastAverageConfidence < 0.6;
+  const forecastTargetAgeHours = useMemo(
+    () => hoursSince(forecastResult?.target_datetime),
+    [forecastResult?.target_datetime],
+  );
+  const isForecastSnapshotStale =
+    forecastSource === "model" &&
+    forecastTargetAgeHours != null &&
+    forecastTargetAgeHours > 2;
   const forecastBadgeText =
     forecastSource === "model"
       ? [
-        forecastResultLabel,
+        isForecastSnapshotStale ? "저장 스냅샷" : forecastResultLabel,
         forecastStrategyText,
         isForecastLowConfidence ? "신뢰도 낮음" : null,
       ].filter(Boolean).join(" · ")
@@ -801,9 +828,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const forecastSourceTokenText = (() => {
     if (!(forecastSource === "model" && forecastResult)) return "기준 시나리오";
     const targetLabel = formatKstFullDateTime(forecastResult.target_datetime);
-    const strategy = String(forecastResult.strategy ?? "");
-    const strategyLabel = strategy === "pattern" ? "패턴 기준" : "모델";
-    return `수요 전망 · ${strategyLabel} · ${targetLabel}`;
+    const tokenPrefix = isForecastSnapshotStale ? "저장 스냅샷" : "수요 전망";
+    return `${tokenPrefix} · ${forecastStrategyText} · ${targetLabel}`;
   })();
   const sortedDispatchDecisions = useMemo(
     () =>
@@ -1124,6 +1150,26 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const liveCoverageTitle = liveData?.meta.failedPlaceCodes.length
     ? `누락 코드: ${liveData.meta.failedPlaceCodes.join(", ")}`
     : undefined;
+  const liveSourceTokenClass = liveData
+    ? liveData.isStale
+      ? `${PANEL_TOKEN_CLASS} border-amber-300/25 bg-amber-300/[0.08] text-amber-200`
+      : liveData.meta.isPartial
+        ? `${PANEL_TOKEN_CLASS} border-amber-300/25 bg-amber-300/[0.08] text-amber-200`
+        : `${PANEL_TOKEN_CLASS} border-cyan-300/25 bg-cyan-300/[0.08] text-cyan-100`
+    : forecastSourceTokenClass;
+  const liveSourceTokenText = (() => {
+    if (!liveData) {
+      return forecastSourceTokenText;
+    }
+    const statusLabel = liveData.isStale
+      ? "서울 citydata 스냅샷"
+      : liveData.meta.isPartial
+        ? "서울 citydata 부분 반영"
+        : "서울 citydata 실시간 반영";
+    const observedLabel = formatKstFullDateTime(liveObservedAt || liveData.fetchedAt);
+    const coverageLabel = liveCoverageLabel ?? "반영 수 확인 중";
+    return [statusLabel, coverageLabel, observedLabel].filter(Boolean).join(" · ");
+  })();
   const topDemandDong = rankedForecastDongs[0] ?? null;
   const topDemandScoreLabel = topDemandDong
     ? Math.round(topDemandDong.relativeScore * 100)
@@ -1549,8 +1595,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
 
         <div className="mt-3 flex items-center">
-          <span className={`${forecastSourceTokenClass} text-[11px] font-medium`}>
-            {forecastSourceTokenText}
+          <span
+            className={`${liveSourceTokenClass} text-[11px] font-medium`}
+            title={liveCoverageTitle}
+          >
+            {liveSourceTokenText}
           </span>
         </div>
 
@@ -1626,11 +1675,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           {forecastSource === "model" ? (
             <>
               <span className={forecastResultTextClass}>
-                {forecastResultLabel}
+                {isForecastSnapshotStale ? "저장 스냅샷" : forecastResultLabel}
               </span> ·{" "}
               {forecastStrategyText} ·{" "}
-              {formatKstClock(forecastResult?.target_datetime)} 기준 ·{" "}
+              예측 시각 {formatKstClock(forecastResult?.target_datetime)} ·{" "}
               {forecastResult?.weather}
+              {isForecastSnapshotStale ? " · 오래된 JSON 스냅샷" : ""}
               {isForecastLowConfidence ? " · 신뢰도 낮음" : ""}
             </>
           ) : (
@@ -1679,9 +1729,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         {forecastSource === "model" && forecastResult && (
           <div className="mt-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] px-3 py-2 text-[11px] leading-5 text-slate-400">
-            <span className={forecastResultTextClass}>대상</span>{" "}
+            <span className={forecastResultTextClass}>
+              {isForecastSnapshotStale ? "저장 스냅샷" : "대상"}
+            </span>{" "}
             {formatKstDateTime(forecastResult.target_datetime)} ·{" "}
             {forecastStrategyText} · {forecastResult.weather}
+            {isForecastSnapshotStale ? " · 현재 기준 예측 아님" : ""}
             {forecastAverageConfidence != null ? (
               <> · 평균 신뢰도 {Math.round(forecastAverageConfidence * 100)}%</>
             ) : null}{" "}
