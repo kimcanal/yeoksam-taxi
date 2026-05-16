@@ -16,7 +16,7 @@ product rather than the experimentation pipeline.
 ## What Stays In Repo
 
 - `src/`: Next.js app, map UI, realtime API routes, and Three.js scene
-- `public/`: OSM geometry, forecast snapshots, observability JSON, taxi stands
+- `public/`: OSM geometry, small runtime snapshots, taxi stands
 - `scripts/osm/`: regenerate local OSM-derived geometry
 - `module4_dispatch/`: optional local dispatch-plan generator for the demo
 - `data/config/`: small committed config such as Gangnam POI targets
@@ -103,7 +103,6 @@ npm run dispatch:plan
 
 ## Notes
 
-- The main map lives at `/` and `/map`.
-- Supporting operator/report pages still read committed JSON from `public/`.
-- `public/taxi-stands.geojson` is part of the runtime scene now and should stay
+- The map app lives at `/` and `/map`.
+- `public/taxi-stands.geojson` is part of the runtime scene and should stay
   committed.

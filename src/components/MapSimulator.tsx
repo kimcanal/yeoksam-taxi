@@ -12,7 +12,6 @@ import {
   Navigation,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
@@ -1395,23 +1394,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <nav className="hidden items-center gap-1 md:flex">
-              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/12 px-3 py-1.5 text-xs font-semibold text-cyan-50">
-                지도
-              </span>
-              <Link
-                href="/presentation"
-                className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-              >
-                발표
-              </Link>
-              <Link
-                href="/data"
-                className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
-              >
-                데이터
-              </Link>
-            </nav>
+            <span className="hidden rounded-full border border-cyan-300/30 bg-cyan-300/12 px-3 py-1.5 text-xs font-semibold text-cyan-50 md:inline-flex">
+              지도
+            </span>
             <button
               type="button"
               data-ui-control="header-sidebar-toggle"
