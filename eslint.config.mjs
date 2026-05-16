@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local-only directories that should not affect app linting.
+    ".venv/**",
+    "tmp/**",
+    "papers/**",
+    "notebooks/**",
+    "data/raw/**",
+    "data/processed/**",
     // Sandbox temp dirs may become unreadable (e.g. ensurepip temp ACLs).
     "data/tmp/**",
   ]),

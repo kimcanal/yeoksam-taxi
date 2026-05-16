@@ -439,6 +439,7 @@ export default function MapSimulatorSceneRuntime({
     const dongRegions = data.dongRegions;
     const roadSegments = data.projectedRoadSegments;
     const transitLandmarks = data.transitLandmarks;
+    const taxiStandLandmarks = data.taxiStandLandmarks;
     const dongBoundarySegments = data.dongBoundarySegments;
     const dongBoundaryWallHeight = THREE.MathUtils.clamp(
       (buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
@@ -2393,6 +2394,75 @@ export default function MapSimulatorSceneRuntime({
           transitGroup.add(label);
         }
       });
+
+    const taxiStandBaseMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      emissive: 0x6b4b00,
+      emissiveIntensity: 0.16,
+      roughness: 0.5,
+      metalness: 0.04,
+    });
+    const taxiStandPoleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111827,
+      roughness: 0.58,
+      metalness: 0.18,
+    });
+    const taxiStandSignMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfee440,
+      emissive: 0x7c4d00,
+      emissiveIntensity: 0.2,
+      roughness: 0.42,
+    });
+    taxiStandLandmarks.forEach((stand, index) => {
+      const group = new THREE.Group();
+      group.name = `taxi-stand-${stand.standId || index}`;
+      group.position.copy(stand.position);
+      group.rotation.y = stand.yaw;
+
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.52, 0.14, 20),
+        taxiStandBaseMaterial,
+      );
+      base.position.y = 0.07;
+      group.add(base);
+
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.055, stand.isShelter ? 1.18 : 0.9, 10),
+        taxiStandPoleMaterial,
+      );
+      pole.position.y = stand.isShelter ? 0.73 : 0.6;
+      group.add(pole);
+
+      const sign = new THREE.Mesh(
+        new THREE.BoxGeometry(stand.isShelter ? 1.05 : 0.82, 0.38, 0.12),
+        taxiStandSignMaterial,
+      );
+      sign.position.set(0.15 * stand.sideSign, stand.isShelter ? 1.32 : 1.05, 0);
+      group.add(sign);
+
+      const curbHalo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.68, 0.035, 8, 28),
+        new THREE.MeshBasicMaterial({
+          color: 0xfacc15,
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+        }),
+      );
+      curbHalo.rotation.x = Math.PI / 2;
+      curbHalo.position.y = 0.05;
+      group.add(curbHalo);
+
+      const label = new CSS2DObject(labelElement("택시승차대", "service"));
+      label.position.set(0, stand.isShelter ? 1.78 : 1.48, 0);
+      label.visible = showLabelsRef.current;
+      labelObjects.push(label);
+      optionalLabelObjects.push(label);
+      registerSceneLabel(label, "transit", 1, stand.name);
+      group.add(label);
+
+      transitGroup.add(group);
+    });
 
     const poiMarkerGroup = new THREE.Group();
     poiMarkerGroup.name = "citydata-poi-marker-layer";
@@ -5186,6 +5256,8 @@ export default function MapSimulatorSceneRuntime({
       if (transitGroupRef.current === transitGroup) {
         transitGroupRef.current = null;
       }
+      transitGroup.removeFromParent();
+      disposeObject3DResources(transitGroup);
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-05T23:55:57.949053+09:00",
+  "generated_at": "2026-05-07T08:02:51.418848+00:00",
   "target": "target_traffic_volume_proxy_t_plus_1h",
   "model": "HistGradientBoostingRegressor",
   "horizon_hours": 1,

@@ -171,6 +171,23 @@ export type TransitProperties = {
   importance: number;
 };
 
+export type TaxiStandProperties = {
+  stand_id: string;
+  old_id: string;
+  jcd_id: string;
+  stand_type: string;
+  facility_type: string;
+  installed_at: string;
+  powered: string;
+  district: string;
+  dong_name: string;
+  lot_address: string;
+  road_address: string;
+  adjacent_road: string;
+  location_name: string;
+  is_target_dong: boolean;
+};
+
 export type TrafficSignalProperties = {
   name: string | null;
   signalType: string | null;
@@ -209,6 +226,10 @@ export type DongFeatureCollection = FeatureCollection<
   DongProperties
 >;
 export type TransitFeatureCollection = FeatureCollection<Point, TransitProperties>;
+export type TaxiStandFeatureCollection = FeatureCollection<
+  Point,
+  TaxiStandProperties
+>;
 export type SerializedRoadNetworkNode = {
   key: string;
   x: number;
@@ -263,6 +284,7 @@ export type SimulationMeta = {
     buildings: AssetMeta;
     dongs: AssetMeta;
     transit: AssetMeta;
+    taxiStands: AssetMeta | null;
     trafficSignals: AssetMeta | null;
     roadNetwork: AssetMeta | null;
   };
@@ -483,6 +505,8 @@ export type SimulationData = {
   dongBoundarySegments: DongBoundarySegment[];
   transit: TransitFeatureCollection;
   transitLandmarks: TransitLandmark[];
+  taxiStands: TaxiStandFeatureCollection;
+  taxiStandLandmarks: TaxiStandLandmark[];
   trafficSignals: TrafficSignalFeatureCollection;
   roadNetwork: SerializedRoadNetwork | null;
   graph: RoadGraph;
@@ -502,6 +526,11 @@ export const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
 
 export const EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION: TrafficSignalFeatureCollection =
 {
+  type: "FeatureCollection",
+  features: [],
+};
+
+export const EMPTY_TAXI_STAND_FEATURE_COLLECTION: TaxiStandFeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
@@ -528,6 +557,7 @@ export const SIMULATION_ASSET_LABELS: Array<{
   { key: "roads", label: "도로" },
   { key: "buildings", label: "건물" },
   { key: "transit", label: "대중교통" },
+  { key: "taxiStands", label: "택시승차대" },
   { key: "trafficSignals", label: "신호등" },
   { key: "roadNetwork", label: "도로 그래프" },
 ];
@@ -820,6 +850,19 @@ export type TransitLandmark = {
   importance: number;
   roadClass: RoadProperties["roadClass"] | null;
   isMajor: boolean;
+};
+
+export type TaxiStandLandmark = {
+  id: string;
+  standId: string;
+  name: string;
+  dongName: string;
+  roadAddress: string;
+  position: THREE.Vector3;
+  heading: THREE.Vector3;
+  sideSign: 1 | -1;
+  yaw: number;
+  isShelter: boolean;
 };
 
 export type CameraFocusTarget = {
@@ -3095,6 +3138,64 @@ export function buildTransitLandmarks(
   return [...subwayStations, ...busStops];
 }
 
+export function buildTaxiStandLandmarks(
+  taxiStands: TaxiStandFeatureCollection,
+  center: { lat: number; lon: number },
+  roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex,
+) {
+  const landmarks = taxiStands.features
+    .map((feature, index) => {
+      if (feature.geometry.type !== "Point" || !feature.properties.is_target_dong) {
+        return null;
+      }
+
+      const originalPoint = projectPoint(feature.geometry.coordinates, center);
+      const nearestRoad = nearestRoadContext(
+        originalPoint,
+        roadSegments,
+        roadSegmentSpatialIndex,
+        28,
+      );
+      if (!nearestRoad || nearestRoad.distance > 28) {
+        return null;
+      }
+
+      const right = new THREE.Vector3(
+        nearestRoad.heading.z,
+        0,
+        -nearestRoad.heading.x,
+      ).normalize();
+      const sideSign =
+        right.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0 ? 1 : -1;
+      const name =
+        feature.properties.location_name ||
+        feature.properties.road_address ||
+        "택시승차대";
+
+      return {
+        id: `taxi-stand-${index}`,
+        standId: feature.properties.stand_id,
+        name,
+        dongName: feature.properties.dong_name,
+        roadAddress: feature.properties.road_address,
+        position: nearestRoad.closest
+          .clone()
+          .addScaledVector(right, sideSign * (nearestRoad.width * 0.58 + 1.55))
+          .setY(0.14),
+        heading: nearestRoad.heading.clone(),
+        sideSign,
+        yaw: Math.atan2(nearestRoad.heading.x, nearestRoad.heading.z),
+        isShelter: /쉘터/.test(feature.properties.stand_type),
+      } satisfies TaxiStandLandmark;
+    })
+    .filter(Boolean) as TaxiStandLandmark[];
+
+  return landmarks
+    .sort((left, right) => left.name.localeCompare(right.name, "ko"))
+    .slice(0, 24);
+}
+
 export function roadRank(roadClass: RoadProperties["roadClass"]) {
   switch (roadClass) {
     case "arterial":
@@ -4831,6 +4932,64 @@ export function buildTaxiHotspots(
       } satisfies Hotspot;
     });
   });
+}
+
+export function buildTaxiStandHotspots(
+  taxiStandLandmarks: TaxiStandLandmark[],
+  routes: RouteTemplate[],
+) {
+  const usedNodeKeys = new Set<string>();
+
+  return taxiStandLandmarks
+    .map((stand, standIndex) => {
+      let best:
+        | {
+          route: RouteTemplate;
+          nodeIndex: number;
+          distanceSq: number;
+          reusesNode: boolean;
+        }
+        | null = null;
+
+      for (const route of routes) {
+        for (const [nodeIndex, node] of route.nodes.entries()) {
+          const reusesNode = usedNodeKeys.has(node.key);
+          const distanceSq = node.point.distanceToSquared(stand.position);
+          const score = distanceSq + (reusesNode ? 1600 : 0);
+          const bestScore = best
+            ? best.distanceSq + (best.reusesNode ? 1600 : 0)
+            : Number.POSITIVE_INFINITY;
+
+          if (score < bestScore) {
+            best = {
+              route,
+              nodeIndex,
+              distanceSq,
+              reusesNode,
+            };
+          }
+        }
+      }
+
+      if (!best) {
+        return null;
+      }
+
+      const node = best.route.nodes[best.nodeIndex]!;
+      usedNodeKeys.add(node.key);
+
+      return {
+        id: `taxi-stand-hotspot-${stand.standId || standIndex}`,
+        nodeKey: node.key,
+        routeId: best.route.id,
+        distance: best.route.cumulative[best.nodeIndex] ?? 0,
+        position: stand.position.clone(),
+        point: stand.position.clone(),
+        label: stand.name || "택시승차대",
+        roadName: stand.roadAddress || best.route.name,
+      } satisfies Hotspot;
+    })
+    .filter(Boolean) as Hotspot[];
 }
 
 export const SIGNAL_FLOW_NS_GREEN: SignalFlow = {

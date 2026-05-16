@@ -35,9 +35,13 @@ yarn-error.log*
 /.codex
 /tmp-playwright-*.png
 /.tmp/
+ /tmp/
 /.claude/
 /.venv/
 dev-server.*.log
+ /papers/
+ /notebooks/
+ /scripts/__pycache__/
 
 # python cache
 __pycache__/
@@ -52,18 +56,6 @@ __pycache__/
 !/data/raw/.gitkeep
 /data/processed/*
 !/data/processed/.gitkeep
-!/data/processed/model_live_compatible/
-/data/processed/model_live_compatible/*
-!/data/processed/model_live_compatible/dong_demand_proxy_model.joblib
-!/data/processed/model_live_compatible/pattern_cache.json
-!/data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json
-!/data/processed/model_live_compatible/dong_demand_proxy_live_metrics.json
-!/data/processed/model_live_compatible/validation_2026_q1.json
-!/data/processed/model_traffic_forecast/
-/data/processed/model_traffic_forecast/*
-!/data/processed/model_traffic_forecast/traffic_forecast_model.joblib
-!/data/processed/model_traffic_forecast/traffic_pattern_cache.json
-!/data/processed/model_traffic_forecast/traffic_forecast_metrics.json
 /data/tmp/
 
 # env files (can opt-in for committing if needed)

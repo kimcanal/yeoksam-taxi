@@ -1,85 +1,37 @@
 # yeoksam-taxi
 
-`yeoksam-taxi` is a presentation-first OSM + Three.js 3D digital-twin companion for the `A-Eye` capstone.
+`yeoksam-taxi` is a map-first Next.js + Three.js Gangnam taxi operations demo.
 
-It takes the same Gangnam Station micro-area story used by the simplified `Yeoksam 3x3 SUMO baseline`, but expresses it through `9 real dongs + OSM roads + road-level motion`.
+This repository is now intentionally slimmed down for the deployable map app:
 
-What this repo is for:
+- the runnable app in `src/`
+- checked-in map assets in `public/`
+- small runtime config in `data/config/` and `data/samples/`
+- OSM refresh scripts in `scripts/osm/`
 
-- showing `A-Eye Module 1` as a believable 3D spatial layer
-- validating roads, signals, curbside pickup/dropoff, and taxi flow on top of real OSM geometry
-- replaying a few stable local-only scenarios for demos, screenshots, and presentation
+Large training tables, archive collectors, retraining scripts, and notebook
+work have been removed from this repo so the remote stays focused on the map
+product rather than the experimentation pipeline.
 
-What this repo is not:
+## What Stays In Repo
 
-- not the main dispatch-evaluation baseline
-- not a full Gangnam or full Seoul traffic replica
-- not a legal-grade operational road source
+- `src/`: Next.js app, map UI, realtime API routes, and Three.js scene
+- `public/`: OSM geometry, forecast snapshots, observability JSON, taxi stands
+- `scripts/osm/`: regenerate local OSM-derived geometry
+- `module4_dispatch/`: optional local dispatch-plan generator for the demo
+- `data/config/`: small committed config such as Gangnam POI targets
+- `data/samples/`: tiny demo inputs used by the dispatch script
 
-This project does not use Google Maps Platform for map rendering. The only Google-related import in the app is `next/font/google`, which is used for fonts.
+## What Stays Out Of Repo
 
-## Stack
+- raw archive downloads
+- processed training tables
+- model joblib artifacts
+- live-validation logs
+- notebooks, papers, and scratch experiment folders
 
-- `Next.js` for the app shell
-- `Three.js` for 3D rendering
-- `OpenStreetMap + Overpass API` for roads and buildings
-- `osmtogeojson` for converting OSM data into GeoJSON
-
-## Capstone Module Layout
-
-The runnable dashboard remains in `src/`, but the repository now exposes the
-assignment modules explicitly:
-
-- `module1_simulation/`: how the Next.js + Three.js digital twin maps to Module 1.
-- `module2_preprocessing/`: public-data collection and feature-engineering plan.
-- `module3_prediction/`: demand forecast handoff contract and evaluation notes.
-- `module4_dispatch/`: imbalance and incentive policy script.
-- `data/`: raw/processed/sample data layout.
-- `notebooks/`: placeholder for EDA and model-evaluation notebooks.
-- `docs/`: report notes, source reliability, spec alignment, forecast contract, and dispatch interpretation.
-
-## Specification Alignment
-
-The original assignment describes a compact taxi-dispatch simulation with a
-minimum `3x3` block world, short-horizon taxi-call forecasting, and dynamic
-dispatch logic. This repository keeps that story, but presents it as a richer
-web prototype:
-
-- `3x3 abstract cells` -> `9 real Gangnam dongs + OSM road geometry`
-- `local simulator baseline` -> `Next.js + Three.js browser digital twin`
-- `taxi-call forecast` -> `public-transit-boardings demand proxy`
-- `5-minute horizons over 30 minutes` -> `1-hour dong-level proxy forecast`
-- `real taxi supply` -> `sample/simulated idle-taxi supply proxy`
-
-See `docs/spec-alignment.md` for the detailed module-by-module mapping and
-the exact presentation wording to use.
-
-## Scripts
-
-```bash
-npm run launch
-npm run asset:update
-npm run screenshot:install
-npm run screenshot:scenarios
-npm run dev
-npm run build
-npm run lint
-npm run fetch:buildings
-npm run fetch:non-road
-npm run fetch:roads
-npm run fetch:road-network
-npm run fetch:map
-npm run data:collect:citydata
-npm run data:collect:citydata-history
-npm run data:collect:weather
-npm run data:features
-npm run data:collect:live
-npm run model:build-pattern-cache
-npm run model:taxi-pressure
-npm run model:taxi-pressure:compare
-npm run data:summary
-npm run dispatch:plan
-```
+Those should live in shared storage or local ignored directories, not in the
+deployable map repository.
 
 ## Local Development
 
@@ -88,271 +40,70 @@ npm install
 npm run launch
 ```
 
-If you want the interactive menu:
-
-- `npm run launch` explains the main `npm run` options and then lets you choose:
-  - `dev` for HMR-driven local work
-  - `start` for a production server
-  - `build`, `lint`, or `asset:update` for non-server tasks
-- When you choose `dev` or `start`, the launcher then asks whether to:
-  - open immediately on the default `3000`
-  - open on a custom port such as `8000` for VDI
-- The launcher binds Next.js to `0.0.0.0` by default so `localhost` still works on the current machine.
-- It also prints a detected external access URL when the host has a routable IP, which is useful on this VDI when port `8000` is exposed.
-- After you pick the port, the launcher prints both the local and external access URLs before handing off to Next.js.
-
-If you already know what you want, you can still run the direct commands:
+You can also run the app directly:
 
 ```bash
 npm run dev
-npm run dev -- --hostname 0.0.0.0 --port 8000
-npm run start -- --hostname 0.0.0.0 --port 8000
+npm run build
+npm run start
 ```
 
-Open `http://localhost:3000`.
+`npm run launch` binds to `0.0.0.0` by default and prints both local and LAN
+URLs, which is useful on VDI or remote desktop environments.
 
-## FPS Modes
+## Map Asset Refresh
 
-- `Auto` snaps the measured `requestAnimationFrame` cadence to a common display-refresh band.
-- Below `100Hz`, `Auto` targets full refresh such as `60`, `72`, `75`, or `90 FPS`.
-- On `100Hz+` displays, `Auto` targets half-refresh such as `60` on `120Hz`, `72` on `144Hz`, and `83` on `165Hz`.
-- `60 FPS` forces a visible 60 FPS target.
-- `Unlimited` removes the visible render cap.
+The map reads committed local snapshots instead of streaming a full live city
+model at runtime.
 
-## Road Network Layer
-
-- The simulator now stores a separate prebuilt road graph in `public/road-network.json` for shortest-path style routing and road-network inspection.
-- You can now toggle a separate road-network overlay that shows graph edges as thin lines and graph nodes as points on top of the rendered streets.
-- This layer is meant for inspection and future routing work, similar to a lightweight road-network debug view rather than a replacement for the main road rendering.
-- `npm run fetch:roads` regenerates both `public/roads.geojson` and the lighter `public/road-network.json` asset.
-
-## Simulation Density
-
-- The sidebar now includes live density sliders for both taxis and general traffic.
-- Changing either slider rebuilds only the vehicle layer with the new counts, so taxi targets, follow view, and aggregate stats stay aligned without resetting the full map scene.
-- Density changes are deferred slightly while dragging to avoid thrashing the vehicle layer on every intermediate slider tick.
-
-## Local Scenario Presets
-
-- The main sidebar now includes four local-only scenario presets for quick `A-Eye Module 1` demos:
-  - `기본 시연`
-  - `강남역 퇴근 피크`
-  - `우천 혼잡`
-  - `심야 순환`
-- Each preset applies a bundled combination of time, weather, taxi count, traffic count, and a nearby subway-hub camera focus.
-- This keeps the viewer easy to present and compare even when no external demand or weather feed is connected.
-- A small `Local Check` panel also shows scene-internal proxy metrics such as waiting share, trip close share, street load, and a coarse flow-state label.
-- These are intentionally lightweight validation cues, not operational KPIs.
-
-## Scenario Screenshots
-
-- `npm run screenshot:install` downloads the Playwright Chromium bundle used for local captures.
-- `npm run screenshot:scenarios` builds the app, starts a local production server on `127.0.0.1:3200` or the next free port, applies each local scenario preset, and saves PNG files under `docs/screenshots/local-scenarios/`.
-- The capture script switches to an overview camera, hides the heavy control panels, and adds a compact scenario title card so the saved PNGs read like gallery shots instead of raw operator screens.
-- Current output filenames are:
-  - `scenario-baseline-demo.png`
-  - `scenario-gangnam-station-peak.png`
-  - `scenario-rainy-evening.png`
-  - `scenario-late-night-loop.png`
-- You can skip the build step on repeat captures with:
-
-```bash
-npm run screenshot:scenarios -- --skip-build
-```
-
-## Project Docs
-
-- `CHANGELOG.md`: dated update history
-- `docs/added-taxi-call-review.md`: historical comparison notes from the early OSM expansion branch
-- `docs/spec-alignment.md`: how the current implementation differs from the original capstone specification
-- `docs/dispatch-road-network-review.md`: current OSM road graph suitability for dispatch and pickup/dropoff routing
-- `docs/a-eye-module1-alignment.md`: how this 9-dong OSM viewer maps back to the active `A-Eye` scope
-- `docs/forecast-contract.md`: exact JSON handoff expected from the demand model
-- `docs/dispatch-interpretation.md`: how to explain demand heatmap scores as dispatch decisions
-
-## Data
-
-The simulator uses:
-
-- `public/dongs.geojson`
-- `public/buildings.geojson`
-- `public/non-road.geojson`
-- `public/roads.geojson`
-- `public/transit.geojson`
-- `public/road-network.json`
-
-These files can be regenerated from OpenStreetMap with:
+To regenerate the OSM-based map layers:
 
 ```bash
 npm run asset:update
 ```
 
-- `npm run asset:update` is the recommended asset refresh command.
-- `npm run fetch:map` remains as a compatibility alias to the same updater.
-- Asset refresh can take a few minutes because Overpass mirrors may rate-limit and retry.
+That refreshes:
 
-For the data pipeline:
+- `public/dongs.geojson`
+- `public/buildings.geojson`
+- `public/non-road.geojson`
+- `public/roads.geojson`
+- `public/road-network.json`
+- `public/traffic-signals.geojson`
+- `public/transit.geojson`
+
+## Runtime Data Policy
+
+The site keeps small public JSON snapshots checked in because some upstream
+data sources are not reliable enough to rebuild from GitHub Actions alone.
+
+The app can still call live endpoints at runtime where appropriate, but the
+remote repository itself only keeps the small artifacts required to render the
+map and its current side panels.
+
+## Available Scripts
 
 ```bash
-npm run data:collect:citydata
-npm run data:collect:weather
-npm run data:features
-npm run data:summary
+npm run launch
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run asset:update
+npm run fetch:map
 npm run dispatch:plan
 ```
 
-- `data:collect:citydata` writes raw local Seoul citydata snapshots under
-  `data/raw/citydata/`; this path is intentionally git-ignored.
-- `data:collect:citydata-history` writes timestamped history snapshots under
-  `data/raw/citydata_history/` for later live validation.
-- `data:collect:weather` writes raw KMA nowcast snapshots under
-  `data/raw/weather/`; this path is also git-ignored.
-- `data:features` converts the latest public signals into
-  `public/feature-snapshot.json` for model-handoff checks.
-- `data:collect:live` runs citydata collection, weather collection, feature
-  generation, and summary generation together.
-- `data:summary` writes `public/data-summary.json` for a lightweight data-status page.
-- `dispatch:plan` reads `public/forecast/latest.json` and
-  `data/samples/supply-proxy.json`, then writes `public/dispatch-plan.json`.
+## Deploy / Verify
 
-## How The Map Is Built
-
-This project does not stream a live 3D city map from a map provider at runtime.
-
-Instead, it uses a small offline pipeline:
-
-1. `scripts/osm/fetch-dongs.mjs` fetches the 9 target administrative dongs from OpenStreetMap administrative relations through Overpass.
-2. `scripts/osm/fetch-buildings.mjs`, `scripts/osm/fetch-non-road.mjs`, `scripts/osm/fetch-roads.mjs`, and `scripts/osm/fetch-transit.mjs` query Overpass again, but only for geometry that falls inside those dong boundaries.
-3. The raw OSM responses are converted into simplified GeoJSON with `osmtogeojson`.
-4. `scripts/osm/fetch-non-road.mjs` stores OSM polygon areas such as parks, plazas, parking lots, water, and campus-like surfaces in `public/non-road.geojson`.
-5. `scripts/osm/fetch-roads.mjs` also derives a separate `public/road-network.json` graph asset from the road geometry.
-6. The processed results are saved into `public/*.geojson` plus `public/road-network.json`.
-7. At app runtime, the browser loads those local assets and Three.js turns them into roads, non-road surfaces, buildings, transit landmarks, and the simulation scene while the routing layer reads the lighter graph asset directly.
-
-```mermaid
-flowchart LR
-  A["OpenStreetMap data"] --> B["Overpass API queries"]
-  B --> C["fetch-*.mjs scripts"]
-  C --> D["GeoJSON in public/"]
-  D --> E["Next.js app"]
-  E --> F["Three.js 3D scene"]
-```
-
-## Real-Time vs Snapshot
-
-- The 3D geometry is `not` fetched live every time from OpenStreetMap while the scene is running.
-- What the viewer actually reads is the local snapshot in:
-  - `public/dongs.geojson`
-  - `public/buildings.geojson`
-  - `public/non-road.geojson`
-  - `public/roads.geojson`
-  - `public/transit.geojson`
-- For routing and graph inspection, it also reads:
-  - `public/road-network.json`
-- If OSM data changes, you need to run `npm run asset:update` again to regenerate the local assets.
-- Weather, taxi movement, routing, signal behavior, and pickup/dropoff events are app-side simulation layers on top of that saved OSM geometry.
-
-## Live Data And Forecast Inputs
-
-The dashboard separates three kinds of data so the demo remains explainable:
-
-1. `OSM snapshot geometry`
-   - roads, buildings, dongs, transit landmarks, and the derived road graph
-   - saved under `public/*.geojson` and `public/road-network.json`
-2. `current situation`
-   - `/api/realtime` reads Seoul citydata (`OA-21285`) with `SEOUL_OPEN_API_KEY`
-   - currently used for nearby live population, crowding, traffic status, and observed weather
-3. `future demand`
-   - `/forecast/latest.json` is the contract file produced by the demand model
-   - when this file exists, the heatmap switches from sample mode to model mode
-
-Example model handoff:
-
-```json
-{
-  "source": "model",
-  "target_datetime": "2026-05-02T21:00:00+09:00",
-  "weather": "clear",
-  "generated_at": "2026-05-02T20:45:00+09:00",
-  "regions": [
-    { "dong_name": "역삼1동", "score": 0.94, "confidence": 0.81 },
-    { "dong_name": "논현1동", "score": 0.71, "confidence": 0.74 }
-  ]
-}
-```
-
-- Use `"source": "demo"` for placeholder output before the external model is
-  ready. The UI labels this as `데모 예측`.
-- Use `"source": "model"` or omit `source` for the final model handoff. The UI
-  labels this as `모델 예측`.
-- Demo scenario files are kept under `public/forecast/examples/`; copy one to
-  `public/forecast/latest.json` to rehearse a presentation scenario.
-
-Weather is split the same way:
-
-- `/api/realtime` exposes the observed citydata weather bundled with each Seoul POI.
-- `/api/weather` is prepared for KMA ultra-short nowcast via `KMA_API_KEY`
-  or the compatible `DATA_GO_KR_API` / `DATA_GO_KR_API_KEY` aliases.
-- Future forecast weather should be joined into the model pipeline before writing `public/forecast/latest.json`.
-- 서울교통공사 역별 일별 시간대별 승하차 CSV can be processed with
-  `npm run data:process:metro-station-hourly -- data/raw/metro` to create a
-  station-area pressure layer mapped back to the 9 dongs.
+- `npm run lint`
+- `npm run build`
+- `npm run preview`
+- `npm run deploy`
 
 ## Notes
 
-- In `A-Eye`, the current active baseline is still the simplified `Yeoksam 3x3 SUMO` path for before/after dispatch validation.
-- This repo complements that baseline by giving the project a richer `Module 1` spatial layer built from real OSM geometry across the Gangnam Station micro-area.
-- The current prototype uses 9 administrative dongs in Gangnam-gu: `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`.
-- The 9-dong choice is intentional: it keeps the project inside the same Gangnam Station micro-area story while making the map explainable in terms of real administrative geography instead of abstract 3x3 cells.
-- Dong boundaries are fetched from OpenStreetMap administrative relations through Overpass, but boundary rendering is currently disabled while a clearer visualization approach is being redesigned.
-- Roads, buildings, and transit landmarks come from OSM geometry, but some visual properties are simplified for readability.
-- Building heights are partially inferred from `height`, `building:levels`, or fallback heuristics when OSM is incomplete.
-- OSM is used here as the geometry backbone for roads, curbside context, signal anchors, and pickup/dropoff reasoning. It is the right prototype dataset for this scope, but it is not a dispatch-grade legal road-operations source by itself.
-- Taxi demand, signals, pedestrians, routing behavior, and vehicle logic are simulated inside the app on top of OSM-derived geometry.
-- The current branch also includes weather/time presets, taxi roof-sign states, pickup/dropoff emphasis, and click-to-enter `Taxi View`.
-- This is reliable enough for a spatial prototype and demo, but not a substitute for official real-time transport or cadastral data.
-
-## A-Eye Alignment
-
-- `A-Eye` currently evaluates dispatch on a simplified `Yeoksam 3x3` SUMO baseline.
-- `yeoksam-taxi` keeps the same Gangnam Station micro-area intent, but expresses it through `9 real dongs + OSM roads`.
-- The practical interpretation is:
-  - use the `3x3` layer for compact dispatch comparison when needed
-  - use the `9-dong OSM` layer for digital-twin presentation, road/signal realism, and future dong-level data overlays
-- This repo should therefore be described as a `Module 1 spatial companion` to the active `A-Eye` baseline, not as a competing second baseline.
-
-## Current Viewer Snapshot
-
-- 9-dong OSM scene coverage across the Gangnam Station micro-area
-- road-level taxi and traffic movement on a separate prebuilt road graph
-- OSM-based signal anchors plus coordinated signal phases
-- right-side demand heatmap that can read `public/forecast/latest.json`
-- live Seoul citydata card for nearby population, crowding, traffic status, and weather context
-- automated Playwright screenshot capture for those presets
-
-## Automated Scenario Gallery
-
-### 기본 시연
-
-![기본 시연](docs/screenshots/local-scenarios/scenario-baseline-demo.png)
-
-### 강남역 퇴근 피크
-
-![강남역 퇴근 피크](docs/screenshots/local-scenarios/scenario-gangnam-station-peak.png)
-
-### 우천 혼잡
-
-![우천 혼잡](docs/screenshots/local-scenarios/scenario-rainy-evening.png)
-
-### 심야 순환
-
-![심야 순환](docs/screenshots/local-scenarios/scenario-late-night-loop.png)
-
-## Short Roadmap
-
-- Replace placeholder-looking signal visuals and implement more realistic signal logic.
-- Reduce or resolve deadlock behavior at busy intersections.
-- Make density changes hot-swappable without rebuilding the full scene.
-- Revisit district visualization with a road-aligned ground overlay instead of the current disabled boundary view.
-- Add hourly CSV-based weather, taxi-demand, and traffic data for the 9 selected dongs before attempting real-time ingestion.
-- Define a merged dong-level time-series format for later forecasting/model experiments.
+- The main map lives at `/` and `/map`.
+- Supporting operator/report pages still read committed JSON from `public/`.
+- `public/taxi-stands.geojson` is part of the runtime scene now and should stay
+  committed.

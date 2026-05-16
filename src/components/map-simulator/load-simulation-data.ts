@@ -5,6 +5,7 @@ import {
   DEFAULT_MAP_CENTER,
   DEFAULT_TAXI_COUNT,
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
+  EMPTY_TAXI_STAND_FEATURE_COLLECTION,
   EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
   MAX_TAXI_COUNT,
   MAX_TRAFFIC_COUNT,
@@ -17,6 +18,8 @@ import {
   buildRoadSegmentSpatialIndex,
   buildSignals,
   buildTaxiHotspots,
+  buildTaxiStandHotspots,
+  buildTaxiStandLandmarks,
   buildTrafficRoutes,
   buildTransitLandmarks,
   deserializeRoadGraph,
@@ -30,6 +33,7 @@ import {
   type NonRoadFeatureCollection,
   type RoadFeatureCollection,
   type SimulationData,
+  type TaxiStandFeatureCollection,
   type TrafficForecastStatus,
   type TrafficSignalFeatureCollection,
   type TransitFeatureCollection,
@@ -56,7 +60,7 @@ export async function loadSimulationData({
   onStageChange,
 }: LoadSimulationDataOptions = {}): Promise<SimulationData> {
   let assetsLoaded = 0;
-  const totalAssets = 8;
+  const totalAssets = 9;
   const trackAsset = async <T,>(promise: Promise<T>) => {
     const result = await promise;
     assetsLoaded += 1;
@@ -70,6 +74,7 @@ export async function loadSimulationData({
     buildingsAsset,
     dongsAsset,
     transitAsset,
+    taxiStandsAsset,
     trafficSignalsAsset,
     roadNetworkAsset,
     trafficForecastAsset,
@@ -84,6 +89,12 @@ export async function loadSimulationData({
     trackAsset(fetchGeoJsonAsset<BuildingFeatureCollection>("/buildings.geojson")),
     trackAsset(fetchGeoJsonAsset<DongFeatureCollection>("/dongs.geojson")),
     trackAsset(fetchGeoJsonAsset<TransitFeatureCollection>("/transit.geojson")),
+    trackAsset(
+      fetchOptionalGeoJsonAsset<TaxiStandFeatureCollection>(
+        "/taxi-stands.geojson",
+        "taxi-stands",
+      ),
+    ),
     trackAsset(
       fetchOptionalGeoJsonAsset<TrafficSignalFeatureCollection>(
         "/traffic-signals.geojson",
@@ -101,6 +112,8 @@ export async function loadSimulationData({
   const buildings = buildingsAsset.data;
   const dongs = dongsAsset.data;
   const transit = transitAsset.data;
+  const taxiStands =
+    taxiStandsAsset?.data ?? EMPTY_TAXI_STAND_FEATURE_COLLECTION;
   const trafficSignals =
     trafficSignalsAsset?.data ?? EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION;
   const roadNetwork = roadNetworkAsset?.data ?? null;
@@ -112,6 +125,7 @@ export async function loadSimulationData({
     buildingsAsset.meta.lastModified,
     dongsAsset.meta.lastModified,
     transitAsset.meta.lastModified,
+    taxiStandsAsset?.meta.lastModified ?? null,
     trafficSignalsAsset?.meta.lastModified ?? null,
     roadNetworkAsset?.meta.lastModified ?? null,
   ]
@@ -130,6 +144,12 @@ export async function loadSimulationData({
     : [];
   const transitLandmarks = buildTransitLandmarks(
     transit,
+    center,
+    projectedRoadSegments,
+    roadSegmentSpatialIndex,
+  );
+  const taxiStandLandmarks = buildTaxiStandLandmarks(
+    taxiStands,
     center,
     projectedRoadSegments,
     roadSegmentSpatialIndex,
@@ -161,14 +181,21 @@ export async function loadSimulationData({
     throw new Error("No drivable routes available for vehicle simulation");
   }
 
-  onStageChange?.("주행 경로와 수요 포인트 준비 중", 65);
+  onStageChange?.("주행 경로와 택시승차대 수요 포인트 준비 중", 65);
 
-  const hotspotPool = buildTaxiHotspots(
+  const fallbackHotspotPool = buildTaxiHotspots(
     taxiRoutePool,
     buildingMasses,
     graph,
     signalByKey,
   );
+  const taxiStandHotspotPool = buildTaxiStandHotspots(
+    taxiStandLandmarks,
+    taxiRoutePool,
+  );
+  const hotspotPool = taxiStandHotspotPool.length
+    ? taxiStandHotspotPool
+    : fallbackHotspotPool;
   if (!hotspotPool.length) {
     throw new Error("No dispatch hotspots available for taxi simulation");
   }
@@ -186,6 +213,8 @@ export async function loadSimulationData({
     dongBoundarySegments,
     transit,
     transitLandmarks,
+    taxiStands,
+    taxiStandLandmarks,
     trafficSignals,
     roadNetwork,
     graph,
@@ -208,6 +237,7 @@ export async function loadSimulationData({
         buildings: buildingsAsset.meta,
         dongs: dongsAsset.meta,
         transit: transitAsset.meta,
+        taxiStands: taxiStandsAsset?.meta ?? null,
         trafficSignals: trafficSignalsAsset?.meta ?? null,
         roadNetwork: roadNetworkAsset?.meta ?? null,
       },

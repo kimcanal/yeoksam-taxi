@@ -69,7 +69,17 @@ The base spatial unit is the 9 Gangnam administrative dongs in `public/dongs.geo
 - Rows: 229,176
 - Complete months: 30 / 36
 - Partial source months: 2023-06, 2025-01, 2025-02, 2025-06, 2025-07, 2025-09
-- Caveat: source is public-transit OD, not taxi calls. Use it as historical directional movement demand.
+- Caveat: source is hourly public-transit OD total, not taxi calls and not bus/subway split. Use it as historical directional movement demand.
+
+### Seoul Mode-Specific Public-Transit OD
+
+- Source: 서울시 행정동 단위 대중교통 수단 출발지/도착지 승객수 정보
+- Site: https://data.seoul.go.kr/dataList/OA-21227/F/1/datasetView.do
+- Script: `npm run data:collect:transit:mode-od -- 2023-01:2025-12`
+- Combined output: `data/processed/transit_mode_od/seoul_transit_mode_od_dong_daily_2023-01_2025-12.csv`
+- Grain: target dong x date
+- Fields: source total, subway, and bus passenger counts kept separately
+- Caveat: this is daily, so it is not a drop-in replacement for the hourly OD target. Use it for mode analysis and QA.
 
 ### Seoul Living Population
 

@@ -27,6 +27,7 @@ These sources already contain administrative-dong identifiers in the raw data.
 | Seoul dong-level subway boardings | `data/processed/transit/` | latest rolling window | hourly subway boardings by dong |
 | Seoul dong-level bus boardings | `data/processed/transit/` | latest rolling window | hourly bus boardings by dong |
 | Seoul public-transit OD | `data/processed/transit_od/` | 2023-01 ~ 2025-12 | hourly origin/destination movement by dong |
+| Seoul mode-specific public-transit OD | `data/processed/transit_mode_od/` | collected separately when available | daily origin/destination movement by dong, with total/subway/bus columns preserved |
 | Seoul living population | `data/processed/living_population/` | 2023-01 ~ 2025-12 | hourly local population by dong |
 
 These are the cleanest sources for movement demand proxy modeling.
@@ -63,6 +64,22 @@ It combines:
 
 The table is suitable for a dong-hour movement-demand model. It is not a direct
 taxi-call label table.
+
+## Transit Mode Handling
+
+Do not describe bus and subway as arbitrarily merged. The current source layers
+are:
+
+- recent dong boarding OpenAPIs: `total`, `subway`, and `bus` are collected as
+  separate service rows.
+- OA-21226 historical OD: hourly combined public-transit OD, used as the current
+  1-hour target base because it has the needed hourly grain.
+- OA-21227 mode-specific OD: daily source with `total`, `subway`, and `bus`
+  passenger columns, kept separately for mode analysis and QA.
+
+Only processed analysis tables are filtered to the 9 target dongs. Raw source
+archives should remain unfiltered with source URL, collection status, and file
+metadata sidecars.
 
 ## Presentation-Safe Wording
 
