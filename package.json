@@ -32,7 +32,8 @@
     "osmtogeojson": "^3.0.0-beta.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

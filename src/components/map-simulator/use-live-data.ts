@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { WeatherMode } from "./simulation-environment";
+import {
+  realtimeResponseSchema,
+  type RealtimeResponse,
+} from "./realtime-schema";
+import { useEventSourceQuery, type QueryStatus } from "./query-cache";
 
 export interface LiveArea {
   areaCode: string;
@@ -32,8 +36,8 @@ export interface LiveData {
   areas: LiveArea[];
   fetchedAt: string;
   dataAgeMinutes: number;
-  snapshotLabel: string; // "방금" / "N분 전" / "M시간 전" / "YYYY-MM-DD 수집" (stale)
-  isStale: boolean;      // 3시간 이상 오래된 경우
+  snapshotLabel: string;
+  isStale: boolean;
   meta: {
     source: string;
     fetchedAt: string;
@@ -45,14 +49,11 @@ export interface LiveData {
   };
 }
 
-type FetchStatus = "idle" | "loading" | "ok" | "error";
-
 interface UseLiveDataResult {
   liveData: LiveData | null;
-  status: FetchStatus;
+  status: QueryStatus;
 }
 
-// Precipitation type string (from citydata) → WeatherMode
 function precipTypeToWeatherMode(type: string): WeatherMode {
   if (type.includes("눈")) return "heavy-snow";
   if (type.includes("비")) return "heavy-rain";
@@ -76,144 +77,89 @@ function snapshotLabel(isoString: string): { label: string; isStale: boolean } {
     if (minutes < 180) {
       return { label: `${Math.round(minutes / 60)}시간 전`, isStale: false };
     }
-    // 3시간 이상: 날짜만 표시
-    const d = new Date(isoString);
-    const label = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} 스냅샷`;
+
+    const date = new Date(isoString);
+    const label = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")} 스냅샷`;
     return { label, isStale: true };
   } catch {
     return { label: "알 수 없음", isStale: true };
   }
 }
 
-async function fetchLiveData(): Promise<LiveData> {
-  const realtimeRes = await fetch("/api/realtime", { cache: "no-store" });
-  if (!realtimeRes.ok) {
-    throw new Error(`Realtime API failed: ${realtimeRes.status}`);
-  }
-  const realtimeJson = await realtimeRes.json();
-  const places = Array.isArray(realtimeJson.places) ? realtimeJson.places : [];
+function parseLiveData(payload: unknown): LiveData {
+  const realtimeJson: RealtimeResponse = realtimeResponseSchema.parse(payload);
+  const places = realtimeJson.places;
   if (!places.length) {
-    throw new Error("Realtime API returned no places");
+    throw new Error("Realtime stream returned no places");
   }
 
-  // Parse areas from citydata
-  const areas: LiveArea[] = places.map(
-    (place: Record<string, unknown>) => {
-      const pop = place.live_population as Record<string, unknown> ?? {};
-      const traffic = place.road_traffic as Record<string, unknown> ?? {};
-      const poiMeta = place.poi_meta as Record<string, unknown> ?? {};
-      return {
-        areaCode: String(place.area_code ?? ""),
-        areaName: String(place.area_name ?? ""),
-        coverageDong: poiMeta.coverage_dong == null ? null : String(poiMeta.coverage_dong),
-        category: poiMeta.category == null ? null : String(poiMeta.category),
-        lon: poiMeta.lon == null ? null : Number(poiMeta.lon),
-        lat: poiMeta.lat == null ? null : Number(poiMeta.lat),
-        congestionLevel: String(pop.congestion_level ?? "여유"),
-        speedKmh: Number(traffic.speed_kmh ?? 0),
-        trafficIndex: String(traffic.index ?? "원활"),
-        populationMin: Number(pop.population_min ?? 0),
-        populationMax: Number(pop.population_max ?? 0),
-        observedAt: String(traffic.observed_at ?? pop.observed_at ?? ""),
-      };
-    },
-  );
+  const areas: LiveArea[] = places.map((place) => ({
+    areaCode: place.area_code,
+    areaName: place.area_name,
+    coverageDong: place.poi_meta.coverage_dong,
+    category: place.poi_meta.category,
+    lon: place.poi_meta.lon,
+    lat: place.poi_meta.lat,
+    congestionLevel: place.live_population.congestion_level,
+    speedKmh: place.road_traffic.speed_kmh,
+    trafficIndex: place.road_traffic.index,
+    populationMin: place.live_population.population_min,
+    populationMax: place.live_population.population_max,
+    observedAt: place.road_traffic.observed_at || place.live_population.observed_at,
+  }));
 
-  const cityWeather = places[0]?.weather as
-    | Record<string, unknown>
-    | undefined;
-  const meta = (realtimeJson?.meta ?? {}) as Record<string, unknown>;
-  const precipitationType = String(cityWeather?.precipitation_type ?? "없음");
-  const precipitation = String(cityWeather?.precipitation ?? "0");
-  const precipMm = parseFloat(precipitation.replace(/[^\d.-]/g, "") || "0");
-  const weatherMode = precipTypeToWeatherMode(precipitationType);
-  const tempC = Number(cityWeather?.temp_c ?? 0);
-  const observedAt = String(
-    cityWeather?.observed_at ?? realtimeJson?.meta?.fetched_at ?? "",
+  const cityWeather = places[0]?.weather;
+  const precipitationType = cityWeather?.precipitation_type ?? "없음";
+  const precipMm = parseFloat(
+    cityWeather?.precipitation.replace(/[^\d.-]/g, "") || "0",
   );
-
-  const fetchedAt = new Date().toISOString();
-  const rawFetchedAt = String(meta.fetched_at ?? fetchedAt);
+  const observedAt =
+    cityWeather?.observed_at || realtimeJson.meta.fetched_at || "";
+  const rawFetchedAt = realtimeJson.meta.fetched_at;
   const ageInfo = snapshotLabel(rawFetchedAt);
-  const expectedPlaceCount = Number(meta.expected_count ?? places.length);
-  const returnedPlaceCount = Number(meta.returned_count ?? places.length);
-  const returnedPlaceCodes = Array.isArray(meta.returned_codes)
-    ? meta.returned_codes.map((value) => String(value))
-    : [];
-  const failedPlaceCodes = Array.isArray(meta.failed_codes)
-    ? meta.failed_codes.map((value) => String(value))
-    : [];
-  const isPartial =
-    Boolean(meta.partial_failure) ||
-    returnedPlaceCount < expectedPlaceCount ||
-    failedPlaceCodes.length > 0;
 
   return {
     weather: {
-      tempC,
+      tempC: cityWeather?.temp_c ?? 0,
       humidity: 0,
       precipitationMm: precipMm,
       precipitationType,
-      weatherMode,
+      weatherMode: precipTypeToWeatherMode(precipitationType),
       observedAt,
     },
     areas,
-    fetchedAt,
+    fetchedAt: new Date().toISOString(),
     dataAgeMinutes: minutesSince(rawFetchedAt),
     snapshotLabel: ageInfo.label,
     isStale: ageInfo.isStale,
     meta: {
-      source: String(meta.source ?? "citydata"),
+      source: realtimeJson.meta.source,
       fetchedAt: rawFetchedAt,
-      expectedPlaceCount,
-      returnedPlaceCount,
-      returnedPlaceCodes,
-      failedPlaceCodes,
-      isPartial,
+      expectedPlaceCount: realtimeJson.meta.expected_count,
+      returnedPlaceCount: realtimeJson.meta.returned_count,
+      returnedPlaceCodes: realtimeJson.meta.returned_codes,
+      failedPlaceCodes: realtimeJson.meta.failed_codes,
+      isPartial:
+        realtimeJson.meta.partial_failure ||
+        realtimeJson.meta.returned_count < realtimeJson.meta.expected_count ||
+        realtimeJson.meta.failed_codes.length > 0,
     },
   };
 }
 
-const POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-
 export function useLiveData(): UseLiveDataResult {
-  const [liveData, setLiveData] = useState<LiveData | null>(null);
-  const [status, setStatus] = useState<FetchStatus>("idle");
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const snapshot = useEventSourceQuery<LiveData>(
+    "realtime-stream",
+    "/api/realtime/stream",
+    {
+      parse: parseLiveData,
+      retryDelayMs: 1_500,
+      maxRetryDelayMs: 15_000,
+    },
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setStatus("loading");
-      try {
-        const data = await fetchLiveData();
-        if (!cancelled) {
-          setLiveData(data);
-          setStatus("ok");
-        }
-      } catch {
-        if (!cancelled) {
-          setStatus("error");
-        }
-      }
-    };
-
-    load();
-
-    intervalRef.current = setInterval(() => {
-      if (!cancelled) {
-        load();
-      }
-    }, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  return { liveData, status };
+  return {
+    liveData: snapshot.data,
+    status: snapshot.status,
+  };
 }

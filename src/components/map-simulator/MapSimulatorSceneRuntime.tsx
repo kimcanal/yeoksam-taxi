@@ -20,6 +20,13 @@ import {
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
 import {
+  analysisStore,
+} from "@/components/map-simulator/simulator-stores";
+import {
+  createVehicleTrailLayer,
+  type VehicleTrailPoint,
+} from "@/components/map-simulator/vehicle-trail-renderer";
+import {
   CAMERA_BASE_MOVE_SCALE,
   CAMERA_BASE_TURN_SCALE,
   CAMERA_DRAG_SENSITIVITY,
@@ -50,8 +57,8 @@ import {
   LABEL_VISIBILITY_REFRESH_INTERVAL,
   MAX_VEHICLE_SIMULATION_STEPS,
   NON_ROAD_LAYER_Y,
-  PEDESTRIAN_SPAN,
   ROAD_LAYER_Y,
+  PEDESTRIAN_SPAN,
   SERVICE_STOP_DURATION,
   SIGNAL_CYCLE,
   SIGNAL_RADIUS_SQ,
@@ -122,8 +129,8 @@ import {
   createVehicleSimulationSample,
   curbsideLaneOffset,
   dampAngle,
-  disposeObject3DResources,
   distanceXZ,
+  disposeObject3DResources,
   dominantAxisForHeading,
   dongShapeFromRing,
   formatHotspotTaxiBadge,
@@ -170,11 +177,13 @@ import type {
   VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
+import type { VehicleTelemetryFrame } from "@/components/map-simulator/vehicle-telemetry-contract";
 
 type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
   data: SimulationData | null;
-  poiFeatureRows: MapPoiFeatureRow[];
+  poiFeatureRowsRef: RefObject<MapPoiFeatureRow[]>;
+  telemetryFrameRef: RefObject<VehicleTelemetryFrame | null>;
   onPoiSelect?: (poiCode: string) => void;
   simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
@@ -253,19 +262,23 @@ function poiMarkerColor(score: number | null | undefined) {
 }
 
 function poiPressureLabel(score: number) {
-  if (score >= 0.72) return "긴급";
-  if (score >= 0.56) return "주의";
-  if (score >= 0.36) return "관찰";
-  return "안정";
+  if (score >= 0.72) return "혼잡 높음";
+  if (score >= 0.56) return "혼잡 보통";
+  if (score >= 0.36) return "원활";
+  return "여유";
 }
 
 function formatPoiPopulation(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return "-";
   }
-  return value >= 10_000
-    ? `${Math.round(value / 1_000).toLocaleString("ko-KR")}k`
-    : value.toLocaleString("ko-KR");
+  if (value >= 10_000) {
+    const man = Math.floor(value / 10_000);
+    const chun = Math.floor((value % 10_000) / 1_000);
+    if (chun === 0) return `${man}만`;
+    return `${man}만 ${chun}천`;
+  }
+  return value.toLocaleString("ko-KR");
 }
 
 function poiMarkerElement(poi: MapPoiFeatureRow) {
@@ -336,7 +349,8 @@ function poiMarkerElement(poi: MapPoiFeatureRow) {
 export default function MapSimulatorSceneRuntime({
   containerRef,
   data,
-  poiFeatureRows,
+  poiFeatureRowsRef,
+  telemetryFrameRef,
   onPoiSelect,
   simulationSource,
   appliedTaxiCountRef,
@@ -666,7 +680,8 @@ export default function MapSimulatorSceneRuntime({
     scene.add(ground);
 
     const dongFloorGroup = new THREE.Group();
-    const dongFloorMaterials: THREE.MeshBasicMaterial[] = [];
+    const dongMaterialsByName = new Map<string, THREE.MeshBasicMaterial>();
+
     dongRegions.forEach((dong) => {
       dong.rings.forEach((ring) => {
         const shape = dongShapeFromRing(ring);
@@ -681,7 +696,8 @@ export default function MapSimulatorSceneRuntime({
           depthWrite: false,
           side: THREE.DoubleSide,
         });
-        dongFloorMaterials.push(fillMaterial);
+        dongMaterialsByName.set(dong.name, fillMaterial);
+
         const fill = new THREE.Mesh(
           new THREE.ShapeGeometry(shape),
           fillMaterial,
@@ -1517,6 +1533,7 @@ export default function MapSimulatorSceneRuntime({
       hotspotDemandMapsDirty = false;
       hotspotActivityAccumulator = 0;
       vehicleSimulationAccumulator = 0;
+      simulationTrailLayer.clear();
       completedTrips = 0;
       completedPickups = 0;
       totalPickupWaitSeconds = 0;
@@ -1603,6 +1620,118 @@ export default function MapSimulatorSceneRuntime({
       });
 
       syncSelectedTaxi();
+    };
+
+    const syncSimulationTrails = (nowMs: number) => {
+      simulationTrailPoints.length = 0;
+
+      for (let index = 0; index < taxiVehicles.length; index += 1) {
+        const vehicle = taxiVehicles[index]!;
+        simulationTrailPoints.push({
+          id: vehicle.id,
+          position: vehicle.renderMotion.lanePosition,
+          color: taxiTrailColorFor(vehicle),
+        });
+      }
+
+      if (simulationTrailPoints.length) {
+        simulationTrailLayer.sync(simulationTrailPoints, nowMs);
+      }
+      simulationTrailLayer.fade(nowMs);
+    };
+
+    const syncTelemetryTrails = (nowMs: number) => {
+      const telemetryFrame = telemetryFrameRef.current;
+      if (
+        telemetryFrame &&
+        telemetryFrame.vehicles.length > 0 &&
+        telemetryFrame.snapshot_at !== lastTelemetrySnapshotAt
+      ) {
+        const snapshotTimestamp = Date.parse(telemetryFrame.snapshot_at);
+        const snapshotMs = Number.isFinite(snapshotTimestamp)
+          ? snapshotTimestamp
+          : nowMs;
+        let minLon = Infinity;
+        let maxLon = -Infinity;
+        let minLat = Infinity;
+        let maxLat = -Infinity;
+        let minProjectedX = Infinity;
+        let maxProjectedX = -Infinity;
+        let minProjectedZ = Infinity;
+        let maxProjectedZ = -Infinity;
+
+        for (let index = 0; index < telemetryFrame.vehicles.length; index += 1) {
+          const vehicle = telemetryFrame.vehicles[index]!;
+          const projected = projectPoint(
+            [vehicle.lon, vehicle.lat],
+            simulationData.center,
+          );
+          minLon = Math.min(minLon, vehicle.lon);
+          maxLon = Math.max(maxLon, vehicle.lon);
+          minLat = Math.min(minLat, vehicle.lat);
+          maxLat = Math.max(maxLat, vehicle.lat);
+          minProjectedX = Math.min(minProjectedX, projected.x);
+          maxProjectedX = Math.max(maxProjectedX, projected.x);
+          minProjectedZ = Math.min(minProjectedZ, projected.z);
+          maxProjectedZ = Math.max(maxProjectedZ, projected.z);
+        }
+
+        const projectedCenterX = (minProjectedX + maxProjectedX) * 0.5;
+        const projectedCenterZ = (minProjectedZ + maxProjectedZ) * 0.5;
+        const projectedWidth = maxProjectedX - minProjectedX;
+        const projectedDepth = maxProjectedZ - minProjectedZ;
+        const maxSceneSpan = Math.max(size.x, size.z);
+        const requiresNormalization =
+          !Number.isFinite(projectedCenterX) ||
+          !Number.isFinite(projectedCenterZ) ||
+          !Number.isFinite(projectedWidth) ||
+          !Number.isFinite(projectedDepth) ||
+          Math.hypot(
+            projectedCenterX - centerPoint.x,
+            projectedCenterZ - centerPoint.z,
+          ) >
+            maxSceneSpan * 4 ||
+          projectedWidth > size.x * 4 ||
+          projectedDepth > size.z * 4;
+
+        const lonSpan = Math.max(maxLon - minLon, 0.00015);
+        const latSpan = Math.max(maxLat - minLat, 0.00015);
+        const lonMid = (minLon + maxLon) * 0.5;
+        const latMid = (minLat + maxLat) * 0.5;
+        const overlayHalfWidth = Math.max(72, Math.min(size.x * 0.22, 180));
+        const overlayHalfDepth = Math.max(72, Math.min(size.z * 0.22, 160));
+
+        streamTrailPoints.length = 0;
+        for (let index = 0; index < telemetryFrame.vehicles.length; index += 1) {
+          const vehicle = telemetryFrame.vehicles[index]!;
+          if (requiresNormalization) {
+            telemetryProjectedPoint.set(
+              centerPoint.x +
+                ((vehicle.lon - lonMid) / lonSpan) * overlayHalfWidth * 2,
+              0,
+              centerPoint.z -
+                ((vehicle.lat - latMid) / latSpan) * overlayHalfDepth * 2,
+            );
+          } else {
+            telemetryProjectedPoint.copy(
+              projectPoint([vehicle.lon, vehicle.lat], simulationData.center),
+            );
+          }
+
+          streamTrailPoints.push({
+            id: `stream:${vehicle.id}`,
+            position: telemetryProjectedPoint.clone(),
+            color: telemetryTrailColorFor(vehicle.occupancy),
+          });
+        }
+
+        if (streamTrailPoints.length) {
+          streamTrailLayer.sync(streamTrailPoints, snapshotMs);
+        }
+        lastTelemetrySnapshotAt = telemetryFrame.snapshot_at;
+      }
+
+      streamTrailLayer.fade(nowMs);
     };
 
     const commitSourceStats = (snapshotStats: Stats) => {
@@ -1902,6 +2031,13 @@ export default function MapSimulatorSceneRuntime({
       }),
     };
 
+    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf3e9cf,
+      emissive: 0x4c412d,
+      emissiveIntensity: 0.06,
+      roughness: 0.82,
+    });
+    const staticRoadGroup = new THREE.Group();
     const roadGeometries = {
       arterial: [] as typeof roadSegments,
       connector: [] as typeof roadSegments,
@@ -1940,7 +2076,7 @@ export default function MapSimulatorSceneRuntime({
       mesh.instanceMatrix.needsUpdate = true;
       mesh.renderOrder =
         roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
-      scene.add(mesh);
+      staticRoadGroup.add(mesh);
     });
 
     const laneMarkers = roadSegments.flatMap((segment) => {
@@ -1974,13 +2110,6 @@ export default function MapSimulatorSceneRuntime({
         };
       });
     });
-
-    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3e9cf,
-      emissive: 0x4c412d,
-      emissiveIntensity: 0.06,
-      roughness: 0.82,
-    });
     const laneMarkerMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.16, 0.03, 1),
       laneMarkerMaterial,
@@ -1995,7 +2124,8 @@ export default function MapSimulatorSceneRuntime({
       laneMarkerMesh.setMatrixAt(index, dummy.matrix);
     });
     laneMarkerMesh.instanceMatrix.needsUpdate = true;
-    scene.add(laneMarkerMesh);
+    staticRoadGroup.add(laneMarkerMesh);
+    scene.add(staticRoadGroup);
 
     const buildingMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.98,
@@ -2026,6 +2156,28 @@ export default function MapSimulatorSceneRuntime({
       buildingMesh.instanceColor.needsUpdate = true;
     }
     scene.add(buildingMesh);
+    const simulationTrailLayer = createVehicleTrailLayer({
+      yOffset: 0.24,
+      maxPoints: 34,
+      minSampleDistance: 1.2,
+      minSampleIntervalMs: 90,
+      tailDurationMs: 4_400,
+      staleAfterMs: 1_500,
+      opacity: 0.72,
+      headScale: 0.5,
+    });
+    scene.add(simulationTrailLayer.group);
+    const streamTrailLayer = createVehicleTrailLayer({
+      yOffset: 0.34,
+      maxPoints: 44,
+      minSampleDistance: 0.9,
+      minSampleIntervalMs: 70,
+      tailDurationMs: 5_800,
+      staleAfterMs: 2_000,
+      opacity: 0.84,
+      headScale: 0.42,
+    });
+    scene.add(streamTrailLayer.group);
 
     const labelObjects: CSS2DObject[] = [];
     const optionalLabelObjects: CSS2DObject[] = [];
@@ -2067,7 +2219,7 @@ export default function MapSimulatorSceneRuntime({
 
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === "overview";
-      dongFloorMaterials.forEach((material) => {
+      dongMaterialsByName.forEach((material) => {
         material.opacity = isOverview ? 0.05 : 0.024;
       });
       dongBoundaryGlowMaterial.opacity = isOverview ? 0.2 : 0.13;
@@ -2307,7 +2459,7 @@ export default function MapSimulatorSceneRuntime({
     syncCamera();
 
     const livePoiByDong = new globalThis.Map<string, MapPoiFeatureRow[]>();
-    poiFeatureRows.forEach((poi) => {
+    (poiFeatureRowsRef.current ?? []).forEach((poi) => {
       if (!poi.coverage_dong) {
         return;
       }
@@ -2488,7 +2640,7 @@ export default function MapSimulatorSceneRuntime({
       depthWrite: false,
     });
     poiHitMaterial.colorWrite = false;
-    const poiRowsForMap = [...poiFeatureRows]
+    const poiRowsForMap = [...(poiFeatureRowsRef.current ?? [])]
       .filter(
         (poi) =>
           poi.source_status === "citydata_live" &&
@@ -2619,7 +2771,7 @@ export default function MapSimulatorSceneRuntime({
         color: 0x8d98a6,
         roughness: 0.62,
       });
-      const signalHeadGeometry = new THREE.BoxGeometry(0.58, 1.24, 0.42);
+      const signalHeadGeometry = new THREE.BoxGeometry(1.48, 0.42, 0.42);
       const signalHeadMaterial = new THREE.MeshStandardMaterial({
         color: 0x10161f,
         roughness: 0.5,
@@ -2650,37 +2802,39 @@ export default function MapSimulatorSceneRuntime({
         const pedestrianLamps: SignalLampVisual[] = [];
 
         const mastDistance = signal.approaches.length >= 4 ? 4.2 : 3.6;
+        const lateral = 2.8;
         const mastLayout = signal.approaches.map((direction) => {
           const yaw = signal.approachYaws[direction] ?? 0;
           switch (direction) {
             case "north":
               return {
                 axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, -mastDistance),
+                offset: new THREE.Vector3(lateral, 0, -mastDistance),
                 yaw: yaw,
               };
             case "south":
               return {
                 axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, mastDistance),
+                offset: new THREE.Vector3(-lateral, 0, mastDistance),
                 yaw: yaw,
               };
             case "east":
               return {
                 axis: "ew" as const,
-                offset: new THREE.Vector3(mastDistance, 0, 0),
+                offset: new THREE.Vector3(mastDistance, 0, lateral),
                 yaw: yaw,
               };
             default:
               return {
                 axis: "ew" as const,
-                offset: new THREE.Vector3(-mastDistance, 0, 0),
+                offset: new THREE.Vector3(-mastDistance, 0, -lateral),
                 yaw: yaw,
               };
           }
         });
 
         mastLayout.forEach(({ axis, offset, yaw }) => {
+          // Pole at the curb
           dummy.position.copy(signal.visualPoint).add(offset);
           dummy.position.y = 1.675;
           dummy.rotation.set(0, yaw, 0);
@@ -2688,6 +2842,11 @@ export default function MapSimulatorSceneRuntime({
           dummy.updateMatrix();
           signalPoleMesh.setMatrixAt(mastIndex, dummy.matrix);
 
+          // Head suspended over the road
+          const headLocalOffset = new THREE.Vector3(-1.8, 0, 0); // Shift left into the road
+          const headWorldOffset = headLocalOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          
+          dummy.position.add(headWorldOffset);
           dummy.position.y = 2.62;
           dummy.updateMatrix();
           signalHeadMesh.setMatrixAt(mastIndex, dummy.matrix);
@@ -2695,7 +2854,7 @@ export default function MapSimulatorSceneRuntime({
           mastIndex += 1;
 
           const mast = new THREE.Group();
-          mast.position.copy(offset);
+          mast.position.copy(offset).add(headWorldOffset);
           mast.rotation.y = yaw;
           // Note: Pole and Head are now handled by InstancedMesh
 
@@ -2706,7 +2865,7 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x230709,
             }),
           );
-          red.position.set(0.02, 2.92, 0.24);
+          red.position.set(-0.48, 2.62, 0.24);
           mast.add(red);
           reds.push({ mesh: red, axis });
 
@@ -2717,9 +2876,21 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x2a1806,
             }),
           );
-          yellow.position.set(0.02, 2.67, 0.24);
+          yellow.position.set(-0.16, 2.62, 0.24);
           mast.add(yellow);
           yellows.push({ mesh: yellow, axis });
+
+          const leftArrow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x0f2218,
+              emissive: 0x07120b,
+            }),
+          );
+          leftArrow.position.set(0.16, 2.62, 0.24);
+          leftArrow.visible = signal.hasProtectedLeft;
+          mast.add(leftArrow);
+          leftArrows.push({ mesh: leftArrow, axis });
 
           const green = new THREE.Mesh(
             new THREE.SphereGeometry(0.11, 12, 12),
@@ -2728,21 +2899,9 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x081a0f,
             }),
           );
-          green.position.set(0.02, 2.42, 0.24);
+          green.position.set(0.48, 2.62, 0.24);
           mast.add(green);
           greens.push({ mesh: green, axis });
-
-          const leftArrow = new THREE.Mesh(
-            new THREE.BoxGeometry(0.24, 0.24, 0.14),
-            new THREE.MeshStandardMaterial({
-              color: 0x0f2218,
-              emissive: 0x07120b,
-            }),
-          );
-          leftArrow.position.set(0.36, 2.66, 0.18);
-          leftArrow.visible = signal.hasProtectedLeft;
-          mast.add(leftArrow);
-          leftArrows.push({ mesh: leftArrow, axis });
 
           const pedestrianLamp = new THREE.Mesh(
             new THREE.BoxGeometry(0.24, 0.24, 0.14),
@@ -3297,6 +3456,21 @@ export default function MapSimulatorSceneRuntime({
     let overlayCpuSampleMs = 0;
     let renderCpuSampleMs = 0;
     let simulationStepSampleCount = 0;
+    let lastTelemetrySnapshotAt = "";
+    const telemetryProjectedPoint = new THREE.Vector3();
+    const simulationTrailPoints: VehicleTrailPoint[] = [];
+    const streamTrailPoints: VehicleTrailPoint[] = [];
+
+    const taxiTrailColorFor = (vehicle: Vehicle) =>
+      vehicle.isOccupied ? 0xfb7185 : 0x22d3ee;
+    const telemetryTrailColorFor = (
+      occupancy: "occupied" | "vacant" | "unknown",
+    ) =>
+      occupancy === "occupied"
+        ? 0xf97316
+        : occupancy === "vacant"
+          ? 0x38bdf8
+          : 0xa78bfa;
 
     function applyEnvironment(
       dateIso: string,
@@ -3331,6 +3505,7 @@ export default function MapSimulatorSceneRuntime({
       hemisphereLight.color.setHex(environment.hemiSkyColor);
       hemisphereLight.groundColor.setHex(environment.hemiGroundColor);
       hemisphereLight.intensity = environment.hemiIntensity;
+      renderer.toneMappingExposure = environment.exposure;
 
       sun.color.setHex(environment.sunColor);
       sun.intensity = environment.sunIntensity;
@@ -4561,6 +4736,20 @@ export default function MapSimulatorSceneRuntime({
       if (!isInteractiveTarget(event.target)) {
         event.preventDefault();
       }
+      if (
+        cameraModeRef.current === "overview" &&
+        (event.code === "KeyW" ||
+          event.code === "KeyA" ||
+          event.code === "KeyS" ||
+          event.code === "KeyD" ||
+          event.code === "ArrowUp" ||
+          event.code === "ArrowDown" ||
+          event.code === "ArrowLeft" ||
+          event.code === "ArrowRight")
+      ) {
+        cameraModeRef.current = "drive";
+        setCameraMode("drive");
+      }
       pressedKeys.add(event.code);
     };
 
@@ -4773,6 +4962,8 @@ export default function MapSimulatorSceneRuntime({
         simulationSnapshot.vehicles,
         vehicleInterpolationAlpha,
       );
+      syncSimulationTrails(frameTimestamp);
+      syncTelemetryTrails(frameTimestamp);
       simulationStepSampleCount += vehicleSimulationSteps;
       vehicleCpuSampleMs += performance.now() - vehicleCpuStart;
       const signalCpuStart = performance.now();
@@ -5208,7 +5399,33 @@ export default function MapSimulatorSceneRuntime({
     );
     animate();
 
+    // --- Analysis Layer Sync (Subtle) ---
+    const unsubscribeAnalysis = analysisStore.subscribe(() => {
+      const { demandImbalanceMap } = analysisStore.getState();
+      
+      dongMaterialsByName.forEach((material, dongName) => {
+        const score = demandImbalanceMap[dongName] || 0;
+        const currentMode = cameraModeRef.current;
+        const baseOpacity = currentMode === "overview" ? 0.05 : 0.024;
+        
+        // 과하지 않게 opacity를 기본값 ~ 최대 0.18 사이로 조절
+        const targetOpacity = baseOpacity + Math.min(Math.abs(score), 1) * 0.13;
+        material.opacity = targetOpacity;
+        
+        // 색상은 아주 옅은 힌트만 주도록 설정
+        if (score > 0) {
+          material.color.setHex(0xffaa99); // 아주 연한 붉은 톤
+        } else if (score < 0) {
+          material.color.setHex(0x99aaff); // 아주 연한 푸른 톤
+        } else {
+          material.color.setHex(0x333333); // 기본 색상
+        }
+      });
+    });
+
+
     return () => {
+      unsubscribeAnalysis();
       sceneDisposed = true;
       cancelTaxiAssetLoadSchedule();
       cancelTrafficAssetLoadSchedule();
@@ -5272,6 +5489,14 @@ export default function MapSimulatorSceneRuntime({
       }
       transitGroup.removeFromParent();
       disposeObject3DResources(transitGroup);
+      simulationTrailLayer.clear();
+      simulationTrailLayer.group.removeFromParent();
+      streamTrailLayer.clear();
+      streamTrailLayer.group.removeFromParent();
+      staticRoadGroup.removeFromParent();
+      disposeObject3DResources(staticRoadGroup);
+      buildingMesh.removeFromParent();
+      disposeObject3DResources(buildingMesh);
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
@@ -5289,8 +5514,9 @@ export default function MapSimulatorSceneRuntime({
     data,
     fpsModeRef,
     followTaxiIdRef,
-    poiFeatureRows,
+    poiFeatureRowsRef,
     simulationSource,
+    telemetryFrameRef,
     showFpsRef,
     showLabelsRef,
     showNonRoadRef,

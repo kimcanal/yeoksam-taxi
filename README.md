@@ -1,104 +1,57 @@
-# yeoksam-taxi
+# yeoksam-taxi: 3D Mobility Digital Twin
 
-`yeoksam-taxi` is a map-first Next.js + Three.js Gangnam taxi operations demo.
+`yeoksam-taxi` is a modern, map-first **Mobility Digital Twin** for the Gangnam/Yeoksam area, built with Next.js and Three.js.
 
-This repository is now intentionally slimmed down for the deployable map app:
+This project was originally born out of a capstone specification for dynamic taxi dispatching and demand forecasting. However, to maximize its value as a presentation-ready product, the heavy backend ML and data processing pipelines have been decoupled. This repository focuses entirely on the **Frontend 3D Visualization and API Integration**—transforming raw data into a stunning, interactive 3D digital twin.
 
-- the runnable app in `src/`
-- checked-in map assets in `public/`
-- small runtime config in `data/config/` and `data/samples/`
-- OSM refresh scripts in `scripts/osm/`
+## 🚀 Key Features
 
-Large training tables, archive collectors, retraining scripts, and notebook
-work have been removed from this repo so the remote stays focused on the map
-product rather than the experimentation pipeline.
+- **3D Urban Environment**: Real-world OpenStreetMap (OSM) geometry of Gangnam/Yeoksam rendered in rich 3D with realistic roads, buildings, and horizontally-aligned Korean traffic signals.
+- **Dynamic Demand Visualization**: Real-time visualization of POI (Points of Interest) pressure, taxi hotspots, and demand heatmaps overlaying the 3D map.
+- **API-Driven Architecture**: The frontend is completely decoupled from model training, acting as a lightweight client that pulls aggregated data via API for fluid rendering.
+- **Professional UX/UI**: Clean, modern overlays and natural Korean standard terminology for an intuitive user experience reminiscent of professional mapping services.
 
-## What Stays In Repo
+## 📂 Project Structure
 
-- `src/`: Next.js app, map UI, realtime API routes, and Three.js scene
-- `public/`: OSM geometry, a small fallback forecast snapshot, taxi stands
-- `scripts/osm/`: regenerate local OSM-derived geometry
-- `module4_dispatch/`: optional local dispatch-plan generator for the demo
-- `data/config/`: small committed config such as Gangnam POI targets
-- `data/samples/`: tiny demo inputs used by the dispatch script
+- `src/`: The Next.js application, React components, and Three.js (`MapSimulatorSceneRuntime.tsx`) scene rendering.
+- `public/`: Pre-processed OSM geometry, geojson layers, and fallback data snapshots for offline fallback.
+- `scripts/osm/`: Utilities to regenerate local OSM-derived geometry.
+- `data/config/`: Configuration files and targeted POI mappings.
 
-## What Stays Out Of Repo
+*(Note: Documentation of past ML experiments, archive collectors, and backend algorithms have been removed from this repository to maintain focus on the frontend digital twin product.)*
 
-- raw archive downloads
-- processed training tables
-- model joblib artifacts
-- live-validation logs
-- notebooks, papers, and scratch experiment folders
-
-Those should live in shared storage or local ignored directories, not in the
-deployable map repository.
-
-## Local Development
+## 🛠 Local Development
 
 ```bash
+# Install dependencies
 npm install
-npm run launch
-```
 
-You can also run the app directly:
-
-```bash
+# Start the Next.js development server
 npm run dev
-npm run build
-npm run start
 ```
 
-`npm run launch` binds to `0.0.0.0` by default and prints both local and LAN
-URLs, which is useful on VDI or remote desktop environments.
+The application will be available at `http://localhost:3000`.
 
-## Map Asset Refresh
+## 🔮 Offline Forecast Pipeline
 
-The map reads committed local snapshots instead of streaming a full live city
-model at runtime.
+The frontend reads `public/forecast/latest.json` when a model snapshot is
+available. The repo now includes an offline training + batch inference flow for
+the `strict_calendar_weather_static` feature set under `scripts/forecast/`.
 
-To regenerate the OSM-based map layers:
+See `scripts/forecast/README.md` for:
+
+- training CSV contract
+- LightGBM/XGBoost-preferred training entrypoint
+- one-shot inference command
+- batch job that rewrites `public/forecast/latest.json`
+
+## 🗺 Map Asset Refresh
+
+The application reads pre-processed OSM snapshot files to ensure high-performance rendering without streaming full live city models at runtime.
+To regenerate the base map layers from OSM:
 
 ```bash
 npm run asset:update
 ```
 
-That refreshes:
-
-- `public/dongs.geojson`
-- `public/buildings.geojson`
-- `public/non-road.geojson`
-- `public/roads.geojson`
-- `public/road-network.json`
-- `public/traffic-signals.geojson`
-- `public/transit.geojson`
-
-## Runtime Data Policy
-
-The app primarily calls live endpoints at runtime. Only a very small fallback
-JSON snapshot is kept for cases where a backend forecast feed is not available.
-
-## Available Scripts
-
-```bash
-npm run launch
-npm run dev
-npm run build
-npm run start
-npm run lint
-npm run asset:update
-npm run fetch:map
-npm run dispatch:plan
-```
-
-## Deploy / Verify
-
-- `npm run lint`
-- `npm run build`
-- `npm run preview`
-- `npm run deploy`
-
-## Notes
-
-- The map app lives at `/` and `/map`.
-- `public/taxi-stands.geojson` is part of the runtime scene and should stay
-  committed.
+This will refresh multiple layers in `public/` including `buildings.geojson`, `roads.geojson`, and `traffic-signals.geojson`.

@@ -1,45 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { z } from "zod";
 import type { ForecastResult } from "./forecast-contract";
+import { useJsonQuery } from "./query-cache";
 
-const POLL_INTERVAL_MS = 60_000;
+const forecastResultSchema = z.object({
+  source: z.string().optional(),
+  strategy: z.string().optional(),
+  feature_set: z.string().nullable().optional(),
+  model_feature_set: z.string().nullable().optional(),
+  pattern_cache_source: z.string().nullable().optional(),
+  raw_prediction_unit: z.string().nullable().optional(),
+  proxy_source: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+  calendar: z.object({
+    weekday: z.string().nullable().optional(),
+    day_type: z.string().nullable().optional(),
+    is_holiday: z.string().nullable().optional(),
+    holiday_names: z.string().nullable().optional(),
+  }).nullable().optional(),
+  target_datetime: z.string(),
+  feature_datetime: z.string().optional(),
+  weather: z.string(),
+  generated_at: z.string(),
+  regions: z.array(z.object({
+    dong_name: z.string(),
+    score: z.number(),
+    confidence: z.number().nullable(),
+    raw_prediction: z.number().nullable().optional(),
+  })),
+});
 
-/**
- * Polls /forecast/latest.json once a minute.
- * Returns null when the file is absent, empty, or unparseable (sample mode).
- */
+async function fetchForecastResult(): Promise<ForecastResult | null> {
+  const response = await fetch("/forecast/latest.json", { cache: "no-store" });
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json();
+  const parsed = forecastResultSchema.safeParse(payload);
+  if (!parsed.success || !parsed.data.regions.length) {
+    return null;
+  }
+
+  return parsed.data satisfies ForecastResult;
+}
+
 export function useForecastResult(): ForecastResult | null {
-  const [result, setResult] = useState<ForecastResult | null>(null);
+  const snapshot = useJsonQuery<ForecastResult>(
+    "forecast-latest",
+    fetchForecastResult,
+    {
+      staleTimeMs: 60_000,
+      retryCount: 1,
+      retryDelayMs: 1_500,
+      revalidateOnFocus: true,
+    },
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch("/forecast/latest.json", { cache: "no-store" });
-        if (!res.ok) {
-          if (!cancelled) setResult(null);
-          return;
-        }
-        const json = (await res.json()) as ForecastResult | null;
-        if (!cancelled && Array.isArray(json?.regions) && json.regions.length > 0) {
-          setResult(json);
-        } else if (!cancelled) {
-          setResult(null);
-        }
-      } catch {
-        if (!cancelled) setResult(null);
-      }
-    };
-
-    load();
-    const interval = setInterval(load, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  return result;
+  return snapshot.data;
 }
