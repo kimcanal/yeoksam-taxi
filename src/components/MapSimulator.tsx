@@ -22,6 +22,8 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
+import mapGroundingConfig from "../../data/config/gangnam-map-grounding.json";
+import poiConfig from "../../data/config/gangnam-pois.json";
 import {
   WEATHER_OPTIONS,
   currentSimulationClock,
@@ -136,6 +138,8 @@ const LIVE_TRAFFIC_SCORE: Record<string, number> = {
   "서행": 2,
   "원활": 1,
 };
+const MAP_GROUNDING_SOURCE_LABEL =
+  "서울시 택시승차대 현황 + 서울시/카카오 심야 택시 리포트";
 
 type DemandMiniMapRegion = {
   name: string;
@@ -169,6 +173,46 @@ type DemandMiniMapPoi = {
   isSelected: boolean;
   textAnchor: "start" | "end";
 };
+
+type DongGroundingInfo = {
+  dongName: string;
+  taxiStandCount: number;
+  supplyGroundingScore: number;
+  contextPoiCount: number;
+  contextPoiScore: number;
+  reportHotspotTier: string;
+  reportDemandPrior: number;
+  demandGroundingScore: number;
+  groundingNote: string;
+};
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function contextPoiWeight(category: string | null | undefined, hasCitydataCode: boolean) {
+  if (category === "road_corridor_context") {
+    return 0.85;
+  }
+  if (category === "station_context") {
+    return 0.72;
+  }
+  if (hasCitydataCode) {
+    return 1;
+  }
+  return 0.58;
+}
+
+function hotspotTierLabel(tier: string | null | undefined) {
+  switch (tier) {
+    case "primary":
+      return "핵심 수요지";
+    case "secondary":
+      return "보조 수요지";
+    default:
+      return "정적 기준";
+  }
+}
 
 function isSubwayStationFeature(feature: SimulationData["transit"]["features"][number]) {
   return (
@@ -675,6 +719,66 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     () => buildLivePoiFeatureRows(liveData),
     [liveData],
   );
+  const dongGroundingByName = useMemo(() => {
+    const taxiStandCounts = new globalThis.Map<string, number>();
+    data?.taxiStands.features.forEach((feature) => {
+      const dongName = feature.properties.dong_name;
+      if (!feature.properties.is_target_dong || !dongName) {
+        return;
+      }
+      taxiStandCounts.set(dongName, (taxiStandCounts.get(dongName) ?? 0) + 1);
+    });
+
+    const contextPoiScores = new globalThis.Map<string, number>();
+    const contextPoiCounts = new globalThis.Map<string, number>();
+    [...poiConfig.citydata_collection, ...poiConfig.supplemental_watchlist].forEach((poi) => {
+      const dongName = poi.coverage_dong;
+      if (!dongName || !TARGET_DONGS.includes(dongName as (typeof TARGET_DONGS)[number])) {
+        return;
+      }
+      contextPoiCounts.set(dongName, (contextPoiCounts.get(dongName) ?? 0) + 1);
+      contextPoiScores.set(
+        dongName,
+        (contextPoiScores.get(dongName) ?? 0) +
+          contextPoiWeight(poi.category, "code" in poi && Boolean(poi.code)),
+      );
+    });
+
+    const maxTaxiStandCount = Math.max(...taxiStandCounts.values(), 1);
+    const maxContextPoiScore = Math.max(...contextPoiScores.values(), 1);
+
+    return new globalThis.Map<string, DongGroundingInfo>(
+      TARGET_DONGS.map((dongName) => {
+        const grounding =
+          mapGroundingConfig.dongs.find((entry) => entry.dong_name === dongName) ?? null;
+        const taxiStandCount = taxiStandCounts.get(dongName) ?? 0;
+        const supplyGroundingScore = taxiStandCount / maxTaxiStandCount;
+        const contextPoiCount = contextPoiCounts.get(dongName) ?? 0;
+        const contextPoiScore = (contextPoiScores.get(dongName) ?? 0) / maxContextPoiScore;
+        const reportDemandPrior = grounding?.report_demand_prior ?? 0.45;
+        const demandGroundingScore = clamp01(
+          reportDemandPrior * 0.72 + contextPoiScore * 0.28,
+        );
+
+        return [
+          dongName,
+          {
+            dongName,
+            taxiStandCount,
+            supplyGroundingScore,
+            contextPoiCount,
+            contextPoiScore,
+            reportHotspotTier: grounding?.report_hotspot_tier ?? "context",
+            reportDemandPrior,
+            demandGroundingScore,
+            groundingNote:
+              grounding?.note ??
+              "정적 기준점이 부족해 교통·상권 컨텍스트만 반영합니다.",
+          } satisfies DongGroundingInfo,
+        ] as const;
+      }),
+    );
+  }, [data]);
   const poiSpatialIndex = useMemo(() => {
     if (!data) {
       return null;
@@ -989,6 +1093,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     livePopulationMid?: number;
     liveCongestionLevel?: string | null;
     liveTrafficIndex?: string | null;
+    taxiStandCount?: number;
+    supplyGroundingScore?: number;
+    demandGroundingScore?: number;
+    reportHotspotTier?: string;
+    groundingNote?: string;
   };
   const liveDemandDongs = useMemo((): EffectiveDong[] => {
     const grouped = new globalThis.Map<string, MapPoiFeatureRow[]>();
@@ -1015,6 +1124,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         : 0;
       const liveCongestionLevel = rows[0]?.current_congestion_level ?? null;
       const liveTrafficIndex = rows[0]?.current_traffic_index ?? null;
+      const grounding = dongGroundingByName.get(dongName);
       return {
         dongName,
         rawScore,
@@ -1022,6 +1132,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         livePopulationMid,
         liveCongestionLevel,
         liveTrafficIndex,
+        grounding,
       };
     });
 
@@ -1032,8 +1143,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     return scoredDongs.map((dong) => ({
       dongName: dong.dongName,
-      relativeScore: dong.rawScore > 0 ? dong.rawScore / maxRawScore : 0,
-      contextPrior: 0,
+      relativeScore: clamp01(
+        (dong.rawScore > 0 ? (dong.rawScore / maxRawScore) * 0.88 : 0) +
+          (dong.grounding?.demandGroundingScore ?? 0) * 0.12,
+      ),
+      contextPrior: dong.grounding?.demandGroundingScore ?? 0,
       publicTransitSignal: 0,
       contextMultiplier: 1,
       source: "live" as const,
@@ -1041,8 +1155,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       livePopulationMid: dong.livePopulationMid,
       liveCongestionLevel: dong.liveCongestionLevel,
       liveTrafficIndex: dong.liveTrafficIndex,
+      taxiStandCount: dong.grounding?.taxiStandCount ?? 0,
+      supplyGroundingScore: dong.grounding?.supplyGroundingScore ?? 0,
+      demandGroundingScore: dong.grounding?.demandGroundingScore ?? 0,
+      reportHotspotTier: dong.grounding?.reportHotspotTier ?? "context",
+      groundingNote: dong.grounding?.groundingNote,
     }));
-  }, [mapPoiFeatureRows]);
+  }, [dongGroundingByName, mapPoiFeatureRows]);
   const hasLiveOperationalSignal = liveDemandDongs.some(
     (dong) => (dong.livePoiCount ?? 0) > 0 && dong.relativeScore > 0,
   );
@@ -1051,19 +1170,43 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       return liveDemandDongs;
     }
     if (forecastSource === "model" && forecastResult && !isForecastSnapshotStale) {
-      return forecastResult.regions.map((r) => ({
-        dongName: r.dong_name,
-        relativeScore: r.score,
-        contextPrior: 0,
-        publicTransitSignal: 0,
-        contextMultiplier: 1,
-        confidence: r.confidence ?? undefined,
-        source: "model" as const,
-      }));
+      return forecastResult.regions.map((r) => {
+        const grounding = dongGroundingByName.get(r.dong_name);
+        return {
+          dongName: r.dong_name,
+          relativeScore: clamp01(
+            r.score * 0.9 + (grounding?.demandGroundingScore ?? 0) * 0.1,
+          ),
+          contextPrior: grounding?.demandGroundingScore ?? 0,
+          publicTransitSignal: 0,
+          contextMultiplier: 1,
+          confidence: r.confidence ?? undefined,
+          source: "model" as const,
+          taxiStandCount: grounding?.taxiStandCount ?? 0,
+          supplyGroundingScore: grounding?.supplyGroundingScore ?? 0,
+          demandGroundingScore: grounding?.demandGroundingScore ?? 0,
+          reportHotspotTier: grounding?.reportHotspotTier ?? "context",
+          groundingNote: grounding?.groundingNote,
+        };
+      });
     }
-    return conditionedForecastDongs.map((d) => ({ ...d, source: "sample" as const }));
+    return conditionedForecastDongs.map((d) => ({
+      ...d,
+      relativeScore: clamp01(
+        d.relativeScore * 0.9 +
+          (dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? 0) * 0.1,
+      ),
+      contextPrior: dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? d.contextPrior,
+      source: "sample" as const,
+      taxiStandCount: dongGroundingByName.get(d.dongName)?.taxiStandCount ?? 0,
+      supplyGroundingScore: dongGroundingByName.get(d.dongName)?.supplyGroundingScore ?? 0,
+      demandGroundingScore: dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? 0,
+      reportHotspotTier: dongGroundingByName.get(d.dongName)?.reportHotspotTier ?? "context",
+      groundingNote: dongGroundingByName.get(d.dongName)?.groundingNote,
+    }));
   }, [
     conditionedForecastDongs,
+    dongGroundingByName,
     forecastResult,
     forecastSource,
     hasLiveOperationalSignal,
@@ -1075,21 +1218,45 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     () =>
       [...effectiveDongs]
         .map((dong) => {
-          const actionLevel = monitoringLevelForScore(dong.relativeScore);
+          const groundedDemandScore = clamp01(
+            dong.relativeScore * 0.82 + (dong.demandGroundingScore ?? 0) * 0.18,
+          );
+          const supplyProxyScore = dong.supplyGroundingScore ?? 0;
+          const congestionPenalty =
+            dong.liveTrafficIndex === "정체" ? 0.08 : dong.liveTrafficIndex === "서행" ? 0.04 : 0;
+          // supplyProxyScore는 택시승차대 수 기반이므로 패널티를 낮게 유지.
+          // 역삼1동처럼 승차대가 많아도 심야 초과수요가 최고인 경우를 반영.
+          const imbalanceScore = clamp01(
+            groundedDemandScore + congestionPenalty - supplyProxyScore * 0.12,
+          );
+          const actionLevel = monitoringLevelForScore(imbalanceScore);
           return {
             dong_name: dong.dongName,
-            predicted_demand_score: dong.relativeScore,
-            supply_proxy_score: 0,
-            imbalance_score: dong.relativeScore,
+            predicted_demand_score: groundedDemandScore,
+            supply_proxy_score: supplyProxyScore,
+            imbalance_score: imbalanceScore,
             action_level: actionLevel,
             action: monitoringActionForLevel(actionLevel),
             coverage_units: dong.livePoiCount ?? 0,
-            recommended_taxis: Math.max(1, Math.round(dong.relativeScore * 8)),
+            recommended_taxis: Math.max(
+              1,
+              Math.round(
+                imbalanceScore * 8 +
+                  (dong.reportHotspotTier === "primary"
+                    ? 1
+                    : dong.reportHotspotTier === "secondary"
+                      ? 0.5
+                      : 0),
+              ),
+            ),
             incentive_multiplier: 1,
             congestion_score: dong.liveCongestionLevel ?? null,
             avg_speed_kmh: null,
             live_population_mid: dong.livePopulationMid ?? null,
             live_traffic_index: dong.liveTrafficIndex ?? null,
+            taxi_stand_count: dong.taxiStandCount ?? 0,
+            hotspot_tier: dong.reportHotspotTier ?? "context",
+            grounding_note: dong.groundingNote ?? null,
           };
         })
         .sort((left, right) => right.imbalance_score - left.imbalance_score),
@@ -1324,6 +1491,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     sortedMapPoiRows.find((poi) => poi.poi_code === activePoiCode) ??
     sortedMapPoiRows[0] ??
     null;
+  const selectedPoiGrounding = selectedPoi?.coverage_dong
+    ? dongGroundingByName.get(selectedPoi.coverage_dong) ?? null
+    : null;
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
@@ -1892,7 +2062,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         className={`absolute left-3 top-3 z-10 w-[min(calc(100vw-1.5rem),320px)] rounded-2xl border border-white/10 bg-slate-950/84 p-3 text-white shadow-2xl backdrop-blur-md lg:left-4 lg:top-4 lg:w-[320px] lg:p-4 ${isMapFocusMode ? "hidden" : ""}`}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className={PANEL_EYEBROW_CLASS}>실시간 입력</p>
             <div className="mt-1 text-lg font-semibold text-slate-50">
               {liveInputTitle}
@@ -1906,7 +2076,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </span>
         </div>
 
-        <div className="mt-3 flex items-center">
+        <div className="mt-3 min-w-0">
           <span
             className={`${liveSourceTokenClass} text-[11px] font-medium`}
             title={liveCoverageTitle}
@@ -1915,7 +2085,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+        <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
           <div className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
             <div className="text-slate-500">현재 시각</div>
             <div className="mt-1 font-semibold tabular-nums text-slate-100">
@@ -2001,7 +2171,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <label className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
                 날짜
                 <input
@@ -2072,7 +2242,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           className="absolute bottom-0 left-0 right-0 z-20 max-h-[min(68vh,calc(100vh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/10 bg-slate-950/94 p-4 text-white shadow-2xl backdrop-blur-md sm:max-h-[min(72vh,calc(100vh-4rem))] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:rounded-none lg:border-l lg:border-t-0 lg:p-5"
         >
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className={PANEL_EYEBROW_CLASS}>운영 현황</p>
             <h2 className="mt-1 text-xl font-semibold leading-tight text-slate-50">
               역삼권 운영 패널
@@ -2082,7 +2252,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </p>
           </div>
           <span
-            className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${operationalBadgeClass}`}
+            className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${operationalBadgeClass}`}
           >
             {operationalBadgeText}
           </span>
@@ -2093,7 +2263,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className={PANEL_SECTION_LABEL_CLASS}>실시간 공개데이터</div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 {primaryLiveArea?.areaName ?? "서울 공개데이터 확인 중"}
@@ -2103,7 +2273,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </div>
             </div>
             <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] ${
+              className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] ${
                 liveData?.meta.isPartial
                   ? "border-amber-300/25 bg-amber-300/[0.08] text-amber-200"
                   : isLiveFresh
@@ -2119,7 +2289,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
           {liveData && primaryLiveArea ? (
             <>
-              <div className="mt-3 grid grid-cols-[1.08fr_0.92fr] gap-2 text-[11px]">
+              <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-[1.08fr_0.92fr]">
                 <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2">
                   <div className="text-slate-500">생활인구</div>
                   <div className="mt-1 truncate font-semibold tabular-nums text-slate-100">
@@ -2158,13 +2328,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   <span
                     key={item}
                     title={item.includes("실시간 반영") ? liveCoverageTitle : undefined}
-                    className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-0.5"
+                    className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.035] px-2 py-0.5"
                   >
                     {item}
                   </span>
                 ))}
                 {liveLatencyLabel ? (
-                  <span className={`rounded-full border px-2 py-0.5 ${liveLatencyBadgeClass}`}>
+                  <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 ${liveLatencyBadgeClass}`}>
                     {liveLatencyLabel}
                   </span>
                 ) : null}
@@ -2214,7 +2384,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 </div>
               </div>
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
                   (selectedPoi.poi_pressure_score ?? 0) >= 0.72
                     ? "border-rose-400/25 bg-rose-400/[0.08] text-rose-300"
                     : (selectedPoi.poi_pressure_score ?? 0) >= 0.56
@@ -2226,7 +2396,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </span>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-white/[0.035] px-2.5 py-2">
                 <div className="text-slate-500">현재 인구</div>
                 <div className="mt-1 truncate font-semibold tabular-nums text-slate-100">
@@ -2261,7 +2431,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               {selectedPoi.current_precipitation_type ?? "강수 없음"}
             </div>
 
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
+            {selectedPoiGrounding ? (
+              <div className="mt-2 rounded-xl border border-fuchsia-300/15 bg-fuchsia-300/[0.05] px-3 py-2 text-[11px] leading-5 text-fuchsia-50/80">
+                {selectedPoi.coverage_dong} · 승차대 {selectedPoiGrounding.taxiStandCount}개 ·{" "}
+                {hotspotTierLabel(selectedPoiGrounding.reportHotspotTier)} ·{" "}
+                {selectedPoiGrounding.groundingNote}
+              </div>
+            ) : null}
+
+            <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {sortedMapPoiRows.slice(0, 6).map((poi) => {
                 const isSelected = poi.poi_code === selectedPoi.poi_code;
                 return (
@@ -2296,7 +2474,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               {liveCoverageLabel ?? "확인 중"}
             </span>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+          <div className="mt-2 grid grid-cols-1 gap-2 text-[11px] sm:grid-cols-2">
             {sortedMapPoiRows.slice(0, 4).map((poi) => (
               <div
                 key={poi.poi_code}
@@ -2519,7 +2697,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             )}
           </div>
 
-          <div className="mt-2 grid grid-cols-5 gap-1.5 text-[10px] text-slate-400">
+          <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] text-slate-400 sm:grid-cols-3 lg:grid-cols-5">
             {[
               ["매우 낮음", "bg-slate-400/20"],
               ["낮음", "bg-teal-300/35"],
@@ -2576,26 +2754,32 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {(dong as EffectiveDong).source === "live" ? (
+                      <span className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">
+                        승차대 {dong.taxiStandCount ?? 0}개
+                      </span>
+                      <span className="inline-flex whitespace-nowrap rounded-full border border-fuchsia-300/15 bg-fuchsia-300/[0.06] px-2 py-0.5 text-[10px] text-fuchsia-100/80">
+                        {hotspotTierLabel(dong.reportHotspotTier)}
+                      </span>
+                      {dong.source === "live" ? (
                         <>
-                          <span className="rounded-full border border-cyan-300/20 bg-cyan-300/[0.06] px-2 py-0.5 text-[10px] text-cyan-100">
-                            관측 지점 {(dong as EffectiveDong).livePoiCount ?? 0}개
+                          <span className="inline-flex whitespace-nowrap rounded-full border border-cyan-300/20 bg-cyan-300/[0.06] px-2 py-0.5 text-[10px] text-cyan-100">
+                            관측 지점 {dong.livePoiCount ?? 0}개
                           </span>
-                          {((dong as EffectiveDong).liveCongestionLevel) ? (
-                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">
-                              {(dong as EffectiveDong).liveCongestionLevel}
+                          {dong.liveCongestionLevel ? (
+                            <span className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400">
+                              {dong.liveCongestionLevel}
                             </span>
                           ) : null}
                         </>
-                      ) : (dong as EffectiveDong).source === "model" ? (
-                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-0.5 text-[10px] text-emerald-400/80">
-                          신뢰도 {Math.round(((dong as EffectiveDong).confidence ?? 0) * 100)}%
+                      ) : dong.source === "model" ? (
+                        <span className="inline-flex whitespace-nowrap rounded-full border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-0.5 text-[10px] text-emerald-400/80">
+                          신뢰도 {Math.round((dong.confidence ?? 0) * 100)}%
                         </span>
                       ) : (
                         demandReasonsFor(dong).map((reason) => (
                           <span
                             key={reason}
-                            className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400"
+                            className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-400"
                           >
                             {reason}
                           </span>
@@ -2625,13 +2809,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         {sortedDispatchDecisions.length > 0 ? (
           <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className={PANEL_SECTION_LABEL_CLASS}>실시간 수급 불균형 및 동적 배차</div>
                 <div className="mt-1 text-sm font-semibold text-slate-100">
                   택시 수요 집중 (Surge Pricing) 지역
                 </div>
               </div>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] ${operationalBadgeClass}`}>
+              <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] ${operationalBadgeClass}`}>
                 {operationalBadgeText}
               </span>
             </div>
@@ -2685,6 +2869,18 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                             </svg>
                             도로 {decision.live_traffic_index || '정보없음'}
                           </span>
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-700/50 bg-slate-800/40 px-1.5 py-0.5 font-medium text-slate-300">
+                            <svg className="h-3 w-3 text-emerald-400/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            승차대 {decision.taxi_stand_count}개
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-700/50 bg-slate-800/40 px-1.5 py-0.5 font-medium text-slate-300">
+                            <svg className="h-3 w-3 text-fuchsia-300/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.959a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.367 2.446a1 1 0 00-.364 1.118l1.286 3.959c.3.921-.755 1.688-1.54 1.118l-3.367-2.446a1 1 0 00-1.176 0L7.123 18.986c-.784.57-1.838-.197-1.539-1.118l1.285-3.959a1 1 0 00-.363-1.118L3.14 9.386c-.783-.57-.38-1.81.588-1.81H7.89a1 1 0 00.951-.69l1.287-3.959z" />
+                            </svg>
+                            {hotspotTierLabel(decision.hotspot_tier)}
+                          </span>
                         </div>
                         <div className="mt-1.5 text-[10px] font-medium text-slate-500">
                           {monitoringActionLabel(decision.action, decision.action_level)} · 추천 배차 {decision.recommended_taxis}대
@@ -2693,7 +2889,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       
                       <div className="flex flex-col items-end gap-2">
                         <span
-                          className={`rounded-md border px-1.5 py-0.5 text-[9px] font-black tracking-widest ${dispatchActionBadgeClass(
+                          className={`inline-flex whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[9px] font-black tracking-widest ${dispatchActionBadgeClass(
                             decision.action_level,
                           )}`}
                         >
@@ -2712,25 +2908,28 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
 
             <div className="mt-2 text-[11px] leading-5 text-slate-500">
-              수요 집중 및 수급 불균형 점수 기반 동적 배차(Surge) 우선순위입니다.
+              실시간 공개데이터에 서울시 택시승차대 현황과 심야 택시 수요 리포트 기반 정적 priors를 더해 계산한 우선순위입니다.
             </div>
           </div>
         ) : null}
 
         <div className={`mt-3 ${PANEL_CARD_CLASS}`}>
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className={PANEL_SECTION_LABEL_CLASS}>지도 출처 / 신뢰도</div>
               <div className="mt-1 text-sm font-semibold text-slate-100">
                 OSM 기반 디지털 트윈 프로토타입
               </div>
+              <div className="mt-0.5 text-[11px] leading-5 text-slate-500">
+                실시간 공개데이터에 정적 택시 운영 근거를 더해 배차 판단을 안정화합니다.
+              </div>
             </div>
-            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
+            <span className="inline-flex whitespace-nowrap rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-2 py-0.5 text-[10px] text-cyan-200">
               OpenStreetMap
             </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] leading-5">
+          <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] leading-5 sm:grid-cols-2">
             <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.045] px-3 py-2 text-emerald-100/80">
               <span className="font-medium text-emerald-300">신뢰 높음</span>
               <br />
@@ -2743,7 +2942,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {mapEvidenceMetrics.map((metric) => (
               <div
                 key={metric.label}
@@ -2765,6 +2964,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
           <div className="mt-2 text-[11px] leading-5 text-slate-500">
             강남역·역삼역·선릉역·신논현역 주변 주요 도로와 건물 위치를 기준으로 검증했습니다.
+          </div>
+          <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] leading-5 text-slate-400">
+            {MAP_GROUNDING_SOURCE_LABEL} 기반 정적 수요·공급 priors를 함께 사용합니다.
           </div>
         </div>
         </div>

@@ -1110,7 +1110,7 @@ export const PANEL_INSET_CLASS =
 export const PANEL_INSET_PADDED_CLASS =
   "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3";
 export const PANEL_TOKEN_CLASS =
-  "rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
+  "inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
 export const PANEL_STATUS_TILE_CLASS =
   "rounded-2xl border border-white/8 bg-slate-950/55 p-3";
 
@@ -1121,7 +1121,7 @@ export function panelSelectableClass(selected: boolean) {
 }
 
 export function panelBadgeClass(active: boolean) {
-  return `rounded-full border px-2 py-1 text-[11px] font-medium ${
+  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium ${
     active
       ? "border-[#87cbb0]/22 bg-[#87cbb0]/10 text-[#d7efe6]"
       : "border-white/10 bg-slate-950/70 text-slate-300"
@@ -1129,7 +1129,7 @@ export function panelBadgeClass(active: boolean) {
 }
 
 export function panelPillToggleClass(selected: boolean) {
-  return `rounded-full border px-2 py-1 transition ${
+  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 transition ${
     selected
       ? "border-[#87cbb0]/28 bg-[#87cbb0]/12 text-[#e1f1eb]"
       : "border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] text-[#c6ddd5] hover:border-[#87cbb0]/22 hover:bg-[#87cbb0]/10"
