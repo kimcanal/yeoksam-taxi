@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-17T16:29:50.353Z",
+  "generated_at": "2026-05-17T17:30:02.980Z",
   "feature_importance": {
     "source_path": "data/processed/model_live_compatible/dong_demand_proxy_live_feature_importance.json",
     "model_feature_set": "live_compatible_calendar_weather_static",
@@ -79,14 +79,23 @@
   },
   "live_validation": {
     "source_path": "data/processed/live_validation/live_forecast_log.jsonl",
-    "log_count": 247,
-    "latest_generated_at": "2026-05-18T01:29:50+09:00",
-    "latest_target_datetime": "2026-05-18T02:00:00+09:00",
+    "log_count": 248,
+    "latest_generated_at": "2026-05-18T02:30:02+09:00",
+    "latest_target_datetime": "2026-05-18T03:00:00+09:00",
     "latest_strategy": "pattern",
-    "latest_top_region": "역삼1동",
-    "latest_dispatch_region": "역삼1동",
-    "latest_dispatch_action": "수요 집중 매우 높음",
+    "latest_top_region": "논현1동",
+    "latest_dispatch_region": "논현1동",
+    "latest_dispatch_action": "수요 집중 높음",
     "recent": [
+      {
+        "generated_at": "2026-05-18T02:30:02+09:00",
+        "target_datetime": "2026-05-18T03:00:00+09:00",
+        "strategy": "pattern",
+        "top_region": "논현1동",
+        "top_score": 1,
+        "dispatch_region": "논현1동",
+        "dispatch_action": "수요 집중 높음"
+      },
       {
         "generated_at": "2026-05-18T01:29:50+09:00",
         "target_datetime": "2026-05-18T02:00:00+09:00",
@@ -121,15 +130,6 @@
         "top_region": "논현1동",
         "top_score": 1,
         "dispatch_region": "논현1동",
-        "dispatch_action": "수요 집중 매우 높음"
-      },
-      {
-        "generated_at": "2026-05-17T21:34:31+09:00",
-        "target_datetime": "2026-05-17T22:00:00+09:00",
-        "strategy": "pattern",
-        "top_region": "논현1동",
-        "top_score": 1,
-        "dispatch_region": "역삼1동",
         "dispatch_action": "수요 집중 매우 높음"
       }
     ]
