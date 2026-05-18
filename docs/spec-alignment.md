@@ -8,7 +8,7 @@
 
 발표에서는 다음처럼 말하는 것이 가장 정확합니다.
 
-> 명세의 핵심 흐름인 시뮬레이션, 데이터 전처리, 수요 예측, 배차 판단은 유지하되, 발표와 서비스 연결을 위해 실제 행정동/OSM 기반 웹 디지털트윈으로 확장했습니다.
+> 명세의 핵심 흐름인 시뮬레이션, 데이터 전처리, 수요 예측은 유지하되, 발표와 서비스 연결을 위해 실제 행정동/OSM 기반 웹 디지털트윈으로 확장했습니다.
 
 ## Major Changes
 
@@ -19,7 +19,7 @@
 | 택시 호출량 직접 예측 | 대중교통 승차량 기반 이동 수요 proxy | 실제 KakaoT 호출 로그가 공개되어 있지 않음 | `대중교통 승차량 기반 이동 수요 proxy` |
 | 향후 30분 5분 단위 예측 | 1시간 뒤 동별 수요 proxy 예측 | 공개 데이터의 시간 단위와 현재 모델 실험 범위에 맞춤 | `1시간 뒤 이동 수요 예측` |
 | 실제 택시 GPS/공급 데이터 | 샘플 공급량과 3D taxi distribution proxy | 실시간 택시 공급 데이터가 없음 | `simulated supply proxy` |
-| 운영급 배차 최적화 | 단순 imbalance 기반 배차 판단 | 프로토타입 단계에서 설명 가능한 정책 우선 | `수요 높고 공급 낮은 동을 우선순위화` |
+| 운영급 운영 최적화 | 동별 수요 압력 모니터링 | 프로토타입 단계에서 설명 가능한 수요 신호 우선 | `수요가 높아지는 동을 그래프와 지도에서 확인` |
 
 ## Module Mapping
 
@@ -32,7 +32,7 @@
 - OSM 기반 도로, 건물, 비도로 지면, 지하철/버스 landmark
 - 택시와 일반 차량의 road-level motion
 - pickup/dropoff marker와 local scenario preset
-- 날씨, 시간, demand heatmap, dispatch context
+- 날씨, 시간, demand heatmap, demand context
 
 주의해서 말할 점:
 
@@ -46,12 +46,11 @@
 
 현재 repo에 있는 흐름:
 
-- Seoul citydata snapshot: `/api/realtime`, `scripts/collect-citydata.mjs`
-- KMA weather nowcast: `/api/weather`, `scripts/collect-weather.mjs`
+- static POI and map-context configuration: `src/components/map-simulator/config/*.json`
+- backend demand API handoff: `NEXT_PUBLIC_DEMAND_API_ENDPOINT`
 - OSM geometry: `public/*.geojson`, `public/road-network.json`
-- feature snapshot: `scripts/build-feature-snapshot.mjs`
 
-발표 자료의 모델 실험은 별도 분석 단계에서 만든 대중교통 OD + 날씨 + 휴일 + lag feature CSV를 기준으로 설명합니다. repo는 그 결과를 `/presentation`, `public/forecast/latest.json`, `public/dispatch-plan.json` 쪽 서비스 구조와 연결합니다.
+발표 자료의 모델 실험은 별도 분석 단계에서 만든 대중교통 OD + 날씨 + 휴일 + lag feature CSV를 기준으로 설명합니다. repo는 그 결과를 백엔드 API 계약과 지도 시각화 구조에 연결합니다.
 
 ### Module 3: Demand Prediction
 
@@ -64,24 +63,24 @@
 - Unit: 강남 9개 동, 날짜/시간 단위
 - Output interpretation: 실제 택시 호출량이 아니라 근미래 이동 수요 신호
 
-서비스 handoff는 `public/forecast/latest.json` 계약으로 받습니다. 이 계약은 나중에 실제 택시 호출 데이터가 확보되면 `source: "model"`과 region score를 같은 형태로 교체할 수 있게 만든 것입니다.
+서비스 handoff는 백엔드 수요 API 계약으로 받습니다. 백엔드가 동/요일 기준 0-23시 수요 예측값을 제공하면, 프론트는 그래프와 지도 선택 상태로 표시합니다.
 
-### Module 4: Dynamic Dispatch And Incentive Policy
+### Module 4: Backend Demand API Handoff
 
-현재 배차 정책은 실제 기사 수락률/택시 GPS 기반 최적화가 아니라 간단한 imbalance rule입니다.
+현재 저장소는 운영 정책을 계산하지 않습니다. 백엔드가 동/요일/시간 기준으로 0-23시 수요 예측값을 내려주면, 프론트는 선택된 동의 시간대별 값을 그래프와 지도 패널에 표시하는 역할에 집중합니다.
 
 ```text
-supply_proxy_score = inverse live road congestion/speed proxy
-imbalance_score = predicted_demand_score - supply_proxy_score
+request = { dong, weekday }
+response = [{ hour: 0, demand: number }, ... { hour: 23, demand: number }]
 ```
 
 해석은 단순합니다.
 
-- demand가 높고 도로 기반 coverability가 낮으면 우선 이동
-- demand가 높지만 coverability가 있으면 커버 보강 또는 관찰
-- demand가 낮거나 imbalance가 음수면 유지
+- 백엔드는 생활인구 예측치와 보정 계수 기반의 수요값을 계산합니다.
+- 프론트는 해당 값을 시간대별 추세선으로 보여줍니다.
+- 3D 지도는 위치 맥락과 동별 수요 압력을 설명하는 시각 레이어로 남깁니다.
 
-이 단계의 목적은 운영 최적화가 아니라, 예측 결과가 서비스 판단으로 어떻게 이어지는지 보여주는 prototype입니다.
+이 단계의 목적은 정책 최적화가 아니라, 예측 결과가 서비스 화면에서 어떻게 읽히는지 보여주는 것입니다.
 
 ## What To Say
 
@@ -96,7 +95,7 @@ imbalance_score = predicted_demand_score - supply_proxy_score
 - `택시 호출량을 직접 예측했다`
 - `실시간 택시 데이터를 사용했다`
 - `KakaoT 호출 로그를 학습했다`
-- `운영급 배차 최적화 시스템이다`
+- `운영급 택시 운영 최적화 시스템이다`
 - `전체 강남 또는 서울 traffic digital twin이다`
 
 ## Current Limitation Summary
@@ -105,4 +104,4 @@ imbalance_score = predicted_demand_score - supply_proxy_score
 - 서울 citydata는 현재 상황 layer이지 미래 수요 정답지가 아닙니다.
 - 대중교통 수요와 택시 수요는 같지 않으므로 proxy로 해석해야 합니다.
 - OSM은 prototype geometry backbone으로 적합하지만 법적 road-operation source는 아닙니다.
-- 현재 dispatch는 설명 가능한 rule-based prototype입니다.
+- 현재 프론트는 수요 예측 결과를 설명하는 시각화 prototype입니다.

@@ -1,0 +1,79 @@
+{
+  "description": "Static grounding priors used to stabilize Gangnam late-night demand-pressure and heatmap logic when vehicle-level supply telemetry is unavailable.",
+  "sources": [
+    {
+      "id": "seoul-taxi-stands",
+      "title": "서울시 택시승차대 현황",
+      "url": "https://data.seoul.go.kr/dataList/OA-22228/F/1/datasetView.do",
+      "role": "official_supply_anchor"
+    },
+    {
+      "id": "seoul-ai-demand-taxi",
+      "title": "AI 기반 수요 예측해 심야 승차난 줄인다",
+      "url": "https://news.seoul.go.kr/traffic/archives/500990?listPage=1",
+      "role": "official_demand_modeling_reference"
+    },
+    {
+      "id": "kakao-demand-report",
+      "title": "택시의 문제: 수요편",
+      "url": "https://report.kakaomobility.com/taxi-problem-with-big-data-demand",
+      "role": "night-demand_hotspot_reference"
+    }
+  ],
+  "dongs": [
+    {
+      "dong_name": "역삼1동",
+      "report_hotspot_tier": "primary",
+      "report_demand_prior": 1,
+      "note": "강남역권 심야 초과수요 중심축."
+    },
+    {
+      "dong_name": "논현1동",
+      "report_hotspot_tier": "secondary",
+      "report_demand_prior": 0.82,
+      "note": "신논현·논현 축 심야 수요 집중."
+    },
+    {
+      "dong_name": "역삼2동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 인접 생활·업무권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "논현2동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 인접 생활·상업권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "삼성1동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 업무·환승권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "삼성2동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 코엑스·환승권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "신사동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 상업권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "청담동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 상업권 컨텍스트로만 반영."
+    },
+    {
+      "dong_name": "대치4동",
+      "report_hotspot_tier": "context",
+      "report_demand_prior": 0.45,
+      "note": "공식 상위권 직접 언급은 없고, 생활권 컨텍스트로만 반영."
+    }
+  ]
+}

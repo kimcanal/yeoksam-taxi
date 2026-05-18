@@ -543,14 +543,14 @@ export function buildEnvironmentState(
     fogFar: lightingPreset.fogFar * (1 - cloudCover * 0.1),
     ambientColor: lightingPreset.ambientColor,
     ambientIntensity:
-      lightingPreset.ambientIntensity * (0.14 + readableNightLight * 0.14),
+      lightingPreset.ambientIntensity * (0.42 + readableNightLight * 0.28),
     hemiSkyColor: lightingPreset.hemiSkyColor,
     hemiGroundColor: lightingPreset.hemiGroundColor,
     hemiIntensity:
-      lightingPreset.hemiIntensity * (0.09 + readableNightLight * 0.06),
+      lightingPreset.hemiIntensity * (0.26 + readableNightLight * 0.2),
     sunColor: lightingPreset.sunColor,
     sunIntensity:
-      lightingPreset.sunIntensity * (0.42 + daylight * 0.2 + twilight * 0.06),
+      lightingPreset.sunIntensity * (0.52 + daylight * 0.24 + twilight * 0.08),
     sunPosition: solarDirection.multiplyScalar(190),
     groundColor: groundPresentationColor,
     roadColors: roadPresentationColors,
@@ -571,13 +571,13 @@ export function buildEnvironmentState(
           ? 0x2f2a22
           : 0x373127,
     laneMarkerIntensity:
-      daylight < 0.2 ? 0.18 : weatherMode === "heavy-rain" ? 0.07 : 0.05,
+      daylight < 0.2 ? 0.34 : weatherMode === "heavy-rain" ? 0.09 : 0.06,
     crosswalkColor: weatherMode === "heavy-snow" ? 0xe8ebee : 0xc6cbd1,
     crosswalkEmissive: daylight < 0.2 ? 0x242a31 : 0x15181c,
-    crosswalkIntensity: daylight < 0.2 ? 0.05 : 0.02,
+    crosswalkIntensity: daylight < 0.2 ? 0.12 : 0.03,
     stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,
     stopLineEmissive: daylight < 0.2 ? 0x262d36 : 0x181c22,
-    stopLineIntensity: daylight < 0.2 ? 0.08 : 0.03,
+    stopLineIntensity: daylight < 0.2 ? 0.16 : 0.04,
     buildingEmissive: mixHexColor(
       nightBuildingFactor > 0.5
         ? 0xffd97a  // warm yellow window light at deep night
@@ -585,7 +585,7 @@ export function buildEnvironmentState(
       0x8fb9ff,
       nightBuildingFactor * 0.22
     ),
-    buildingEmissiveIntensity: 0.018 + nightBuildingFactor * 0.06,
+    buildingEmissiveIntensity: 0.05 + nightBuildingFactor * 0.14,
     precipitation:
       weatherMode === "heavy-rain"
         ? "rain"
@@ -606,9 +606,9 @@ export function buildEnvironmentState(
           : 0,
     vehicleSpeedMultiplier: weatherSpeedMultiplier * nightSpeedMultiplier,
     exposure: THREE.MathUtils.clamp(
-      lightingPreset.exposure - surfaceNightBlend * 0.09 + daylight * 0.04,
-      0.95,
-      1.16,
+      lightingPreset.exposure + 0.08 - surfaceNightBlend * 0.03 + daylight * 0.04,
+      1.02,
+      1.24,
     ),
   };
 }

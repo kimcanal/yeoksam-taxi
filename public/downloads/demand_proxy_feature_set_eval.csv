@@ -1,8 +1,0 @@
-kind,name,feature_count,r2,mae,rmse,mape_pct,description
-model,full_observed,53,0.9888374831956291,2.530147508485211,5.6787045583027815,21.48575467134422,"Uses all observed features, including current public-transit OD and living population."
-model,no_transit_od,44,0.9541701599442872,4.402640114240225,11.50647723305431,37.785633483001085,Removes current public-transit OD features but keeps delayed living population and TOPIS traffic proxy.
-model,live_compatible_proxy,37,0.9509319985636906,4.69352302971193,11.90604161956113,36.89473570456882,"Uses calendar, weather, static POI, and traffic proxy features; excludes delayed OD and living population."
-model,live_proxy_plus_7d_od_lag,45,0.9516397591798718,4.3103900031281706,11.819862899925319,40.192003417213364,Live-compatible proxy set plus previous-week same-hour public-transit OD lag features.
-model,strict_calendar_weather_static,33,0.9585498103947521,4.367225884992877,10.942875859906842,34.57324167214736,"Uses only calendar, weather, dong identity, and static built-environment features."
-baseline,current_observed_persistence,,0.615574798211218,13.530624143713222,33.3253053342092,63.24725892422902,Predicts t+1h using observed current t public-transit OD target base. Strong but not live-available when OD is delayed.
-baseline,same_target_hour_last_week,,0.8643092699415192,4.186969692100028,19.696111564340093,19.682432713082708,Predicts t+1h using the same forecast target hour from one week earlier.

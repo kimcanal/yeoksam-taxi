@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import type { DispatchDemandSnapshot } from "@/components/map-simulator/dispatch-planner";
 import { buildEnvironmentState, type WeatherMode } from "@/components/map-simulator/simulation-environment";
 import {
   HOTSPOT_ACTIVITY_REFRESH_INTERVAL,
@@ -19,8 +18,8 @@ import {
   VEHICLE_PROXIMITY_CELL_SIZE,
 } from "@/components/map-simulator/scene-constants";
 import {
-  ACTIVE_DISPATCH_PLANNER,
   TRAFFIC_PALETTES,
+  type Hotspot,
   type NextStopState,
   type RouteTemplate,
   type SignalApproachDemand,
@@ -68,6 +67,12 @@ import type {
 
 type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
   renderSeed: number;
+};
+
+type LocalTripJob = {
+  pickupHotspot: Hotspot;
+  dropoffHotspot: Hotspot;
+  pickupRoute: RouteTemplate;
 };
 
 type LocalVehicleSimulationSample = {
@@ -289,8 +294,6 @@ export function createLocalSimulationSource(): SimulationSource {
 
   let signalById = new globalThis.Map<string, SignalData>();
   let signalByKey = new globalThis.Map<string, SignalData>();
-  let dispatchPlanner: ReturnType<typeof ACTIVE_DISPATCH_PLANNER.createSession> | null =
-    null;
 
   const ensureSignalStateMaps = () => {
     staticContext?.signals.forEach((signal) => {
@@ -308,17 +311,6 @@ export function createLocalSimulationSource(): SimulationSource {
       }
     });
   };
-
-  const buildDispatchDemandSnapshotFromMaps = (
-    pickupDemandMap: Map<string, number>,
-    dropoffDemandMap: Map<string, number>,
-  ): DispatchDemandSnapshot => ({
-    elapsedTimeSeconds,
-    completedTrips,
-    hotspotCount: staticContext?.hotspotPool.length ?? 0,
-    activePickupsByHotspotId: pickupDemandMap,
-    activeDropoffsByHotspotId: dropoffDemandMap,
-  });
 
   const rebuildHotspotDemandMaps = (
     pickupDemandMap: Map<string, number>,
@@ -347,32 +339,6 @@ export function createLocalSimulationSource(): SimulationSource {
     rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
     hotspotDemandMapsDirty = false;
     hotspotActivityAccumulator = 0;
-  };
-
-  const createDispatchDemandSnapshot = (excludedVehicleId?: string | null) => {
-    if (hotspotDemandMapsDirty) {
-      syncActiveHotspotDemandMaps();
-    }
-
-    const pickupDemandMap = new globalThis.Map(activePickupsByHotspot);
-    const dropoffDemandMap = new globalThis.Map(activeDropoffsByHotspot);
-    const excludedVehicle = excludedVehicleId
-      ? taxiById.get(excludedVehicleId) ?? null
-      : null;
-
-    if (excludedVehicle) {
-      if (!excludedVehicle.isOccupied && excludedVehicle.pickupHotspot) {
-        decrementDemandCount(pickupDemandMap, excludedVehicle.pickupHotspot.id);
-      }
-      if (excludedVehicle.isOccupied && excludedVehicle.dropoffHotspot) {
-        decrementDemandCount(dropoffDemandMap, excludedVehicle.dropoffHotspot.id);
-      }
-    }
-
-    return buildDispatchDemandSnapshotFromMaps(
-      pickupDemandMap,
-      dropoffDemandMap,
-    );
   };
 
   const buildStatsSnapshot = (
@@ -419,17 +385,82 @@ export function createLocalSimulationSource(): SimulationSource {
     return route;
   };
 
-  const rebuildDispatchPlanner = () => {
-    if (!staticContext || !staticContext.hotspotPool.length) {
-      dispatchPlanner = null;
-      return;
+  const planNextTrip = (
+    startKey: string,
+    seed: number,
+    vehicleId: string,
+    pickupDemandMap = activePickupsByHotspot,
+    dropoffDemandMap = activeDropoffsByHotspot,
+  ): LocalTripJob | null => {
+    if (!staticContext?.hotspotPool.length) {
+      return null;
     }
 
-    dispatchPlanner = ACTIVE_DISPATCH_PLANNER.createSession({
-      hotspots: staticContext.hotspotPool,
-      graph: staticContext.graph,
-      routeBuilder,
-    });
+    const originPoint = staticContext.graph.nodes.get(startKey)?.point ?? null;
+    const scoredPickups = staticContext.hotspotPool
+      .filter((hotspot) => hotspot.nodeKey !== startKey)
+      .map((hotspot, index) => ({
+        hotspot,
+        score:
+          (originPoint ? hotspot.point.distanceTo(originPoint) : index * 4) +
+          (pickupDemandMap.get(hotspot.id) ?? 0) * 14 +
+          ((seed + index * 7) % 13) * 0.55,
+      }))
+      .sort((left, right) => left.score - right.score)
+      .slice(0, 12);
+
+    for (let pickupIndex = 0; pickupIndex < scoredPickups.length; pickupIndex += 1) {
+      const pickup = scoredPickups[pickupIndex]!.hotspot;
+      const scoredDropoffs = staticContext.hotspotPool
+        .filter(
+          (hotspot) =>
+            hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
+        )
+        .map((hotspot, index) => {
+          const distance = hotspot.point.distanceTo(pickup.point);
+          return {
+            hotspot,
+            score:
+              (dropoffDemandMap.get(hotspot.id) ?? 0) * 12 -
+              Math.min(distance, 180) * 0.08 +
+              ((seed * 3 + index * 5) % 11) * 0.45,
+          };
+        })
+        .sort((left, right) => left.score - right.score)
+        .slice(0, 12);
+
+      for (
+        let dropoffIndex = 0;
+        dropoffIndex < scoredDropoffs.length;
+        dropoffIndex += 1
+      ) {
+        const dropoff =
+          scoredDropoffs[(dropoffIndex + seed + pickupIndex) % scoredDropoffs.length]!
+            .hotspot;
+        const pickupRoute = routeBuilder(
+          startKey,
+          pickup.nodeKey,
+          `${vehicleId}-pickup-${seed}-${pickupIndex}`,
+          pickup.roadName ?? pickup.label,
+        );
+        const dropoffRoute = routeBuilder(
+          pickup.nodeKey,
+          dropoff.nodeKey,
+          `${vehicleId}-dropoff-check-${seed}-${dropoffIndex}`,
+          dropoff.roadName ?? dropoff.label,
+        );
+
+        if (pickupRoute && dropoffRoute) {
+          return {
+            pickupHotspot: pickup,
+            dropoffHotspot: dropoff,
+            pickupRoute,
+          };
+        }
+      }
+    }
+
+    return null;
   };
 
   const pickNextTrafficRoute = (currentRouteId: string, vehicleIndex: number) => {
@@ -490,7 +521,7 @@ export function createLocalSimulationSource(): SimulationSource {
     vehicle as unknown as Vehicle;
 
   const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
-    if (!staticContext || !dispatchPlanner || !staticContext.hotspotPool.length) {
+    if (!staticContext || !staticContext.hotspotPool.length) {
       clearVehicleLayer();
       return;
     }
@@ -504,15 +535,13 @@ export function createLocalSimulationSource(): SimulationSource {
       const spawnHotspot =
         staticContext.hotspotPool[(index * 2) % staticContext.hotspotPool.length]!;
       const vehicleId = `taxi-${index}`;
-      const job = dispatchPlanner.planJob({
-        startKey: spawnHotspot.nodeKey,
-        seed: index + 1,
+      const job = planNextTrip(
+        spawnHotspot.nodeKey,
+        index + 1,
         vehicleId,
-        demandSnapshot: buildDispatchDemandSnapshotFromMaps(
-          bootstrapPickupDemandMap,
-          bootstrapDropoffDemandMap,
-        ),
-      });
+        bootstrapPickupDemandMap,
+        bootstrapDropoffDemandMap,
+      );
       if (!job) {
         continue;
       }
@@ -799,7 +828,7 @@ export function createLocalSimulationSource(): SimulationSource {
             );
             vehicle.pickupStartedAt = null;
             completedTrips += 1;
-            if (!dispatchPlanner || !staticContext.hotspotPool.length) {
+            if (!staticContext.hotspotPool.length) {
               continue;
             }
 
@@ -807,12 +836,14 @@ export function createLocalSimulationSource(): SimulationSource {
             decrementDemandCount(activeDropoffsByHotspot, completedDropoffHotspotId);
             hotspotDemandMapsDirty = false;
             hotspotActivityAccumulator = 0;
-            const nextJob = dispatchPlanner.planJob({
-              startKey: vehicle.route.endKey,
-              seed: completedTrips + vehicleIndex + 1,
-              vehicleId: vehicle.id,
-              demandSnapshot: createDispatchDemandSnapshot(vehicle.id),
-            });
+            if (hotspotDemandMapsDirty) {
+              syncActiveHotspotDemandMaps();
+            }
+            const nextJob = planNextTrip(
+              vehicle.route.endKey,
+              completedTrips + vehicleIndex + 1,
+              vehicle.id,
+            );
             if (nextJob) {
               vehicle.pickupHotspot = nextJob.pickupHotspot;
               vehicle.dropoffHotspot = nextJob.dropoffHotspot;
@@ -1165,8 +1196,6 @@ export function createLocalSimulationSource(): SimulationSource {
         nextStaticContext.signals.map((signal) => [signal.key, signal] as const),
       );
       syncEnvironmentMultiplier();
-      rebuildDispatchPlanner();
-
       if (shouldRebuild) {
         elapsedTimeSeconds = nextConfig.preserveState ? elapsedTimeSeconds : 0;
         rebuildVehicleLayer(nextConfig.taxiCount, nextConfig.trafficCount);

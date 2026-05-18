@@ -14,11 +14,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "A-Eye 역삼 택시 디지털 트윈",
+    default: "역삼권 택시 운영 시뮬레이터",
     template: "%s",
   },
   description:
-    "Gangnam Station micro-area 9-dong OSM digital twin companion for the A-Eye capstone.",
+    "강남·역삼권 9개 행정동의 정적 지도 자산과 번들 시나리오 기반 택시 운영 디지털 트윈",
 };
 
 export default function RootLayout({

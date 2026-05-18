@@ -11,7 +11,6 @@ import {
   CSS2DObject,
   CSS2DRenderer,
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { DispatchDemandSnapshot } from "@/components/map-simulator/dispatch-planner";
 import {
   buildEnvironmentState,
   daylightFactor,
@@ -19,6 +18,13 @@ import {
   sunsetFactor,
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
+import {
+  analysisStore,
+} from "@/components/map-simulator/simulator-stores";
+import {
+  createVehicleTrailLayer,
+  type VehicleTrailPoint,
+} from "@/components/map-simulator/vehicle-trail-renderer";
 import {
   CAMERA_BASE_MOVE_SCALE,
   CAMERA_BASE_TURN_SCALE,
@@ -30,6 +36,10 @@ import {
   CAMERA_MIN_DISTANCE,
   CAMERA_MIN_PITCH,
   CAMERA_STRAFE_SPEED,
+  CAMERA_TOUCH_ANCHOR_RADIUS,
+  CAMERA_TOUCH_PITCH_LOCK_DISTANCE,
+  CAMERA_TOUCH_PITCH_SENSITIVITY,
+  CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
   CAMERA_TURN_SPEED,
   CROSSWALK_STEP,
   CROSSWALK_STRIPE_COUNT,
@@ -50,8 +60,8 @@ import {
   LABEL_VISIBILITY_REFRESH_INTERVAL,
   MAX_VEHICLE_SIMULATION_STEPS,
   NON_ROAD_LAYER_Y,
-  PEDESTRIAN_SPAN,
   ROAD_LAYER_Y,
+  PEDESTRIAN_SPAN,
   SERVICE_STOP_DURATION,
   SIGNAL_CYCLE,
   SIGNAL_RADIUS_SQ,
@@ -67,19 +77,18 @@ import {
   VEHICLE_SIMULATION_STEP,
 } from "@/components/map-simulator/scene-constants";
 import {
-  ACTIVE_DISPATCH_PLANNER,
   BaseCameraMode,
   CameraMode,
   CameraFocusTarget,
   DongBoundarySegment,
   FpsMode,
   FpsStats,
+  HOTSPOT_PRESENTATION,
   HOTSPOT_IDLE_COLORS,
   Hotspot,
   HotspotMarkerMode,
   HotspotVisual,
   KAKAO_TAXI_ASSET_PATH,
-  KAKAO_TRAFFIC_ASSET_PATHS,
   LabelDistanceEntry,
   PedestrianVisual,
   RoadGraph,
@@ -122,17 +131,15 @@ import {
   createVehicleSimulationSample,
   curbsideLaneOffset,
   dampAngle,
-  disposeObject3DResources,
   distanceXZ,
+  disposeObject3DResources,
   dominantAxisForHeading,
   dongShapeFromRing,
-  formatHotspotTaxiBadge,
   hotspotCallElement,
   labelElement,
   labelVisibilityBudget,
   loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
-  normalizeTrafficAssetTemplate,
   offsetToRight,
   opposingSignalDirection,
   precipitationDrawRatioFor,
@@ -143,7 +150,6 @@ import {
   resetSignalApproachDistance,
   resetSignalAxisOccupancy,
   resetSignalDirectionalOccupancy,
-  resolveDispatchPlannerPresentation,
   resolveNextStop,
   resolveNextStopInto,
   resolveRenderCap,
@@ -174,7 +180,7 @@ import type {
 type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
   data: SimulationData | null;
-  poiFeatureRows: MapPoiFeatureRow[];
+  poiFeatureRowsRef: RefObject<MapPoiFeatureRow[]>;
   onPoiSelect?: (poiCode: string) => void;
   simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
@@ -226,13 +232,14 @@ type MapPoiFeatureRow = {
   lat: number | null;
   current_population_mid: number | null;
   current_congestion_level: string | null;
+  current_traffic_index?: string | null;
   current_traffic_speed_kmh: number | null;
   poi_pressure_score: number | null;
-  population_forecast_1h: {
+  population_prediction_1h: {
     population_mid: number | null;
     congestion_level: string | null;
   } | null;
-  forecast_population_delta: number | null;
+  population_prediction_delta: number | null;
 };
 
 function poiMarkerColor(score: number | null | undefined) {
@@ -244,30 +251,33 @@ function poiMarkerColor(score: number | null | undefined) {
 }
 
 function poiPressureLabel(score: number) {
-  if (score >= 0.72) return "긴급";
-  if (score >= 0.56) return "주의";
-  if (score >= 0.36) return "관찰";
-  return "안정";
+  if (score >= 0.72) return "혼잡 높음";
+  if (score >= 0.56) return "혼잡 보통";
+  if (score >= 0.36) return "원활";
+  return "여유";
 }
 
 function formatPoiPopulation(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return "-";
   }
-  return value >= 10_000
-    ? `${Math.round(value / 1_000).toLocaleString("ko-KR")}k`
-    : value.toLocaleString("ko-KR");
+  if (value >= 10_000) {
+    const man = Math.floor(value / 10_000);
+    const chun = Math.floor((value % 10_000) / 1_000);
+    if (chun === 0) return `${man}만`;
+    return `${man}만 ${chun}천`;
+  }
+  return value.toLocaleString("ko-KR");
 }
 
 function poiMarkerElement(poi: MapPoiFeatureRow) {
   const element = document.createElement("div");
   const score = poi.poi_pressure_score ?? 0;
   const accent = poiMarkerColor(score);
-  const forecastDelta = poi.forecast_population_delta ?? null;
-  const deltaLabel =
-    forecastDelta == null
-      ? "1h -"
-      : `${forecastDelta >= 0 ? "+" : ""}${formatPoiPopulation(forecastDelta)}`;
+  const speedLabel =
+    poi.current_traffic_speed_kmh == null
+      ? poi.current_traffic_index ?? "-"
+      : `${poi.current_traffic_speed_kmh}km/h`;
 
   element.dataset.labelKind = "poi";
   element.style.display = "grid";
@@ -319,7 +329,7 @@ function poiMarkerElement(poi: MapPoiFeatureRow) {
   detail.style.fontSize = "9px";
   detail.textContent = `${formatPoiPopulation(poi.current_population_mid)}명 · ${
     poi.current_congestion_level ?? "-"
-  } · ${deltaLabel}`;
+  } · ${speedLabel}`;
   element.appendChild(detail);
 
   return element;
@@ -328,7 +338,7 @@ function poiMarkerElement(poi: MapPoiFeatureRow) {
 export default function MapSimulatorSceneRuntime({
   containerRef,
   data,
-  poiFeatureRows,
+  poiFeatureRowsRef,
   onPoiSelect,
   simulationSource,
   appliedTaxiCountRef,
@@ -370,9 +380,6 @@ export default function MapSimulatorSceneRuntime({
 
     const container = containerRef.current;
     const simulationData = data;
-    const dispatchPresentation = resolveDispatchPlannerPresentation(
-      simulationData.meta.dispatchPlannerId,
-    );
     let sceneDisposed = false;
     let isPageHidden = document.visibilityState === "hidden";
     const scene = new THREE.Scene();
@@ -439,6 +446,7 @@ export default function MapSimulatorSceneRuntime({
     const dongRegions = data.dongRegions;
     const roadSegments = data.projectedRoadSegments;
     const transitLandmarks = data.transitLandmarks;
+    const taxiStandLandmarks = data.taxiStandLandmarks;
     const dongBoundarySegments = data.dongBoundarySegments;
     const dongBoundaryWallHeight = THREE.MathUtils.clamp(
       (buildingFeatures.reduce((sum, building) => sum + building.height, 0) /
@@ -501,6 +509,8 @@ export default function MapSimulatorSceneRuntime({
     const cameraOffset = new THREE.Vector3();
     const driveLookDirection = new THREE.Vector3();
     const driveStrafeDirection = new THREE.Vector3();
+    const touchPanForwardDirection = new THREE.Vector3();
+    const touchPanRightDirection = new THREE.Vector3();
     const followFocusTarget = new THREE.Vector3();
     let pointerInside = false;
     let pointerClientX = 0;
@@ -508,6 +518,23 @@ export default function MapSimulatorSceneRuntime({
     let pointerDownClientX = 0;
     let pointerDownClientY = 0;
     let pointerDragged = false;
+    const activeTouchPointers = new globalThis.Map<
+      number,
+      { x: number; y: number; startX: number; startY: number }
+    >();
+    const touchGestureState = {
+      lastCenterX: 0,
+      lastCenterY: 0,
+      lastDistance: 0,
+      lastAngle: 0,
+      lastFirstX: 0,
+      lastFirstY: 0,
+      lastSecondX: 0,
+      lastSecondY: 0,
+      multiTouchMode: "map" as "map" | "pitch",
+      pitchTouchIndex: -1,
+      usedMultiTouch: false,
+    };
     let hoverNeedsUpdate = true;
     let hoverRefreshAccumulator = HOVER_REFRESH_INTERVAL;
     let labelVisibilityNeedsUpdate = true;
@@ -657,7 +684,8 @@ export default function MapSimulatorSceneRuntime({
     scene.add(ground);
 
     const dongFloorGroup = new THREE.Group();
-    const dongFloorMaterials: THREE.MeshBasicMaterial[] = [];
+    const dongMaterialsByName = new Map<string, THREE.MeshBasicMaterial>();
+
     dongRegions.forEach((dong) => {
       dong.rings.forEach((ring) => {
         const shape = dongShapeFromRing(ring);
@@ -672,7 +700,8 @@ export default function MapSimulatorSceneRuntime({
           depthWrite: false,
           side: THREE.DoubleSide,
         });
-        dongFloorMaterials.push(fillMaterial);
+        dongMaterialsByName.set(dong.name, fillMaterial);
+
         const fill = new THREE.Mesh(
           new THREE.ShapeGeometry(shape),
           fillMaterial,
@@ -1000,9 +1029,6 @@ export default function MapSimulatorSceneRuntime({
     const vehicleById = new Map<string, Vehicle>();
     const routeCache = new Map<string, RouteTemplate | null>();
     let graph: RoadGraph | null = data.graph;
-    let dispatchPlanner: ReturnType<
-      typeof ACTIVE_DISPATCH_PLANNER.createSession
-    > | null = null;
     const hotspotPool: Hotspot[] = data.hotspotPool;
     let completedTrips = 0;
     let completedPickups = 0;
@@ -1034,7 +1060,6 @@ export default function MapSimulatorSceneRuntime({
     };
     let vehicleLayerReady = false;
     let taxiAssetTemplate: THREE.Group | null = null;
-    let trafficAssetTemplates: THREE.Group[] = [];
     let activeVehicleSpeedMultiplier = 1;
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
@@ -1135,60 +1160,11 @@ export default function MapSimulatorSceneRuntime({
       });
     };
 
-    const createDispatchDemandSnapshotFromMaps = (
-      elapsedTimeSeconds: number,
-      pickupDemandMap: Map<string, number>,
-      dropoffDemandMap: Map<string, number>,
-    ): DispatchDemandSnapshot => ({
-      elapsedTimeSeconds,
-      completedTrips,
-      hotspotCount: hotspotPool.length,
-      activePickupsByHotspotId: pickupDemandMap,
-      activeDropoffsByHotspotId: dropoffDemandMap,
-    });
-
     let hotspotDemandMapsDirty = true;
     const syncActiveHotspotDemandMaps = () => {
       rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
       hotspotDemandMapsDirty = false;
       hotspotActivityAccumulator = 0;
-    };
-
-    const createDispatchDemandSnapshot = (
-      elapsedTimeSeconds: number,
-      excludedVehicleId?: string | null,
-    ): DispatchDemandSnapshot => {
-      if (hotspotDemandMapsDirty) {
-        syncActiveHotspotDemandMaps();
-      }
-
-      const pickupDemandMap = new globalThis.Map(activePickupsByHotspot);
-      const dropoffDemandMap = new globalThis.Map(activeDropoffsByHotspot);
-      const excludedVehicle = excludedVehicleId
-        ? taxiById.get(excludedVehicleId) ?? null
-        : null;
-
-      if (excludedVehicle) {
-        if (!excludedVehicle.isOccupied && excludedVehicle.pickupHotspot) {
-          decrementDemandCount(
-            pickupDemandMap,
-            excludedVehicle.pickupHotspot.id,
-          );
-        }
-
-        if (excludedVehicle.isOccupied && excludedVehicle.dropoffHotspot) {
-          decrementDemandCount(
-            dropoffDemandMap,
-            excludedVehicle.dropoffHotspot.id,
-          );
-        }
-      }
-
-      return createDispatchDemandSnapshotFromMaps(
-        elapsedTimeSeconds,
-        pickupDemandMap,
-        dropoffDemandMap,
-      );
     };
 
     const demandMapTotal = (demandMap: ReadonlyMap<string, number>) => {
@@ -1263,17 +1239,82 @@ export default function MapSimulatorSceneRuntime({
       return route;
     };
 
-    const rebuildDispatchPlanner = () => {
+    const planNextTrip = (
+      startKey: string,
+      seed: number,
+      vehicleId: string,
+      pickupDemandMap = activePickupsByHotspot,
+      dropoffDemandMap = activeDropoffsByHotspot,
+    ) => {
       if (!graph || !hotspotPool.length) {
-        dispatchPlanner = null;
-        return;
+        return null;
       }
 
-      dispatchPlanner = ACTIVE_DISPATCH_PLANNER.createSession({
-        hotspots: hotspotPool,
-        graph,
-        routeBuilder,
-      });
+      const originPoint = graph.nodes.get(startKey)?.point ?? null;
+      const scoredPickups = hotspotPool
+        .filter((hotspot) => hotspot.nodeKey !== startKey)
+        .map((hotspot, index) => ({
+          hotspot,
+          score:
+            (originPoint ? hotspot.point.distanceTo(originPoint) : index * 4) +
+            (pickupDemandMap.get(hotspot.id) ?? 0) * 14 +
+            ((seed + index * 7) % 13) * 0.55,
+        }))
+        .sort((left, right) => left.score - right.score)
+        .slice(0, 12);
+
+      for (let pickupIndex = 0; pickupIndex < scoredPickups.length; pickupIndex += 1) {
+        const pickup = scoredPickups[pickupIndex]!.hotspot;
+        const scoredDropoffs = hotspotPool
+          .filter(
+            (hotspot) =>
+              hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
+          )
+          .map((hotspot, index) => {
+            const distance = hotspot.point.distanceTo(pickup.point);
+            return {
+              hotspot,
+              score:
+                (dropoffDemandMap.get(hotspot.id) ?? 0) * 12 -
+                Math.min(distance, 180) * 0.08 +
+                ((seed * 3 + index * 5) % 11) * 0.45,
+            };
+          })
+          .sort((left, right) => left.score - right.score)
+          .slice(0, 12);
+
+        for (
+          let dropoffIndex = 0;
+          dropoffIndex < scoredDropoffs.length;
+          dropoffIndex += 1
+        ) {
+          const dropoff =
+            scoredDropoffs[(dropoffIndex + seed + pickupIndex) % scoredDropoffs.length]!
+              .hotspot;
+          const pickupRoute = routeBuilder(
+            startKey,
+            pickup.nodeKey,
+            `${vehicleId}-pickup-${seed}-${pickupIndex}`,
+            pickup.roadName ?? pickup.label,
+          );
+          const dropoffRoute = routeBuilder(
+            pickup.nodeKey,
+            dropoff.nodeKey,
+            `${vehicleId}-dropoff-check-${seed}-${dropoffIndex}`,
+            dropoff.roadName ?? dropoff.label,
+          );
+
+          if (pickupRoute && dropoffRoute) {
+            return {
+              pickupHotspot: pickup,
+              dropoffHotspot: dropoff,
+              pickupRoute,
+            };
+          }
+        }
+      }
+
+      return null;
     };
 
     const syncSelectedTaxi = () => {
@@ -1312,24 +1353,17 @@ export default function MapSimulatorSceneRuntime({
 
     const createVehicleFromSnapshot = (
       vehicleSnapshot: VehicleSnapshot,
-      snapshotIndex: number,
     ) => {
       const route = resolveRouteForSnapshot(vehicleSnapshot);
       if (!route) {
         return null;
       }
 
-      const templateOptions =
-        vehicleSnapshot.kind === "taxi"
-          ? { taxiAssetTemplate }
-          : {
-            importedAssetTemplate: resolveTrafficAssetTemplate(snapshotIndex),
-          };
       const { group, bodyMaterial, signMaterial, clickTarget } =
         createVehicleGroup(
           vehicleSnapshot.kind,
           vehicleSnapshot.palette,
-          templateOptions,
+          vehicleSnapshot.kind === "taxi" ? { taxiAssetTemplate } : undefined,
         );
       scene.add(group);
 
@@ -1407,11 +1441,6 @@ export default function MapSimulatorSceneRuntime({
       return trafficRoutePool[seed % trafficRoutePool.length]!;
     };
 
-    const resolveTrafficAssetTemplate = (vehicleIndex: number) =>
-      trafficAssetTemplates.length
-        ? trafficAssetTemplates[vehicleIndex % trafficAssetTemplates.length]!
-        : null;
-
     const updateVehicleLayerStats = (
       nextTaxiCount: number,
       nextTrafficCount: number,
@@ -1458,40 +1487,6 @@ export default function MapSimulatorSceneRuntime({
       labelRenderer.render(scene, camera);
     };
 
-    const upgradeTrafficVehicleMeshes = () => {
-      if (!trafficAssetTemplates.length || !trafficVehicles.length) {
-        return;
-      }
-
-      trafficVehicles.forEach((vehicle, index) => {
-        const previousGroup = vehicle.group;
-        const { group, bodyMaterial, signMaterial } = createVehicleGroup(
-          "traffic",
-          vehicle.palette,
-          { importedAssetTemplate: resolveTrafficAssetTemplate(index) },
-        );
-
-        group.userData.vehicleId = vehicle.id;
-        group.traverse((child) => {
-          child.userData.vehicleId = vehicle.id;
-        });
-        scene.add(group);
-
-        vehicle.group = group;
-        vehicle.bodyMaterial = bodyMaterial;
-        vehicle.signMaterial = signMaterial;
-        syncVehicleTransform(vehicle, 1);
-
-        previousGroup.removeFromParent();
-        disposeObject3DResources(previousGroup);
-      });
-
-      labelRenderPending = true;
-      labelRenderAccumulator = 0;
-      renderer.render(scene, camera);
-      labelRenderer.render(scene, camera);
-    };
-
     const clearVehicleLayer = () => {
       vehicles.forEach((vehicle) => {
         vehicle.group.removeFromParent();
@@ -1508,6 +1503,7 @@ export default function MapSimulatorSceneRuntime({
       hotspotDemandMapsDirty = false;
       hotspotActivityAccumulator = 0;
       vehicleSimulationAccumulator = 0;
+      simulationTrailLayer.clear();
       completedTrips = 0;
       completedPickups = 0;
       totalPickupWaitSeconds = 0;
@@ -1529,8 +1525,8 @@ export default function MapSimulatorSceneRuntime({
         clearVehicleLayer();
         activeVehicleIdentitySignature = nextIdentitySignature;
 
-        vehicleSnapshots.forEach((vehicleSnapshot, snapshotIndex) => {
-          const vehicle = createVehicleFromSnapshot(vehicleSnapshot, snapshotIndex);
+        vehicleSnapshots.forEach((vehicleSnapshot) => {
+          const vehicle = createVehicleFromSnapshot(vehicleSnapshot);
           if (!vehicle) {
             return;
           }
@@ -1596,6 +1592,24 @@ export default function MapSimulatorSceneRuntime({
       syncSelectedTaxi();
     };
 
+    const syncSimulationTrails = (nowMs: number) => {
+      simulationTrailPoints.length = 0;
+
+      for (let index = 0; index < taxiVehicles.length; index += 1) {
+        const vehicle = taxiVehicles[index]!;
+        simulationTrailPoints.push({
+          id: vehicle.id,
+          position: vehicle.renderMotion.lanePosition,
+          color: taxiTrailColorFor(vehicle),
+        });
+      }
+
+      if (simulationTrailPoints.length) {
+        simulationTrailLayer.sync(simulationTrailPoints, nowMs);
+      }
+      simulationTrailLayer.fade(nowMs);
+    };
+
     const commitSourceStats = (snapshotStats: Stats) => {
       commitStatsSnapshot({
         ...snapshotStats,
@@ -1605,7 +1619,7 @@ export default function MapSimulatorSceneRuntime({
     };
 
     const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
-      if (!dispatchPlanner || !hotspotPool.length || !trafficRoutePool.length) {
+      if (!hotspotPool.length || !trafficRoutePool.length) {
         return;
       }
       if (!sceneDisposed) {
@@ -1622,16 +1636,13 @@ export default function MapSimulatorSceneRuntime({
       for (let index = 0; index < nextTaxiCount; index += 1) {
         const spawnHotspot = hotspotPool[(index * 2) % hotspotPool.length];
         const vehicleId = `taxi-${index}`;
-        const job = dispatchPlanner.planJob({
-          startKey: spawnHotspot.nodeKey,
-          seed: index + 1,
+        const job = planNextTrip(
+          spawnHotspot.nodeKey,
+          index + 1,
           vehicleId,
-          demandSnapshot: createDispatchDemandSnapshotFromMaps(
-            0,
-            bootstrapPickupDemandMap,
-            bootstrapDropoffDemandMap,
-          ),
-        });
+          bootstrapPickupDemandMap,
+          bootstrapDropoffDemandMap,
+        );
         if (!job) {
           continue;
         }
@@ -1695,7 +1706,6 @@ export default function MapSimulatorSceneRuntime({
         const { group, bodyMaterial, signMaterial } = createVehicleGroup(
           "traffic",
           palette,
-          { importedAssetTemplate: resolveTrafficAssetTemplate(index) },
         );
         scene.add(group);
 
@@ -1893,6 +1903,13 @@ export default function MapSimulatorSceneRuntime({
       }),
     };
 
+    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf3e9cf,
+      emissive: 0x4c412d,
+      emissiveIntensity: 0.06,
+      roughness: 0.82,
+    });
+    const staticRoadGroup = new THREE.Group();
     const roadGeometries = {
       arterial: [] as typeof roadSegments,
       connector: [] as typeof roadSegments,
@@ -1931,7 +1948,7 @@ export default function MapSimulatorSceneRuntime({
       mesh.instanceMatrix.needsUpdate = true;
       mesh.renderOrder =
         roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
-      scene.add(mesh);
+      staticRoadGroup.add(mesh);
     });
 
     const laneMarkers = roadSegments.flatMap((segment) => {
@@ -1965,13 +1982,6 @@ export default function MapSimulatorSceneRuntime({
         };
       });
     });
-
-    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3e9cf,
-      emissive: 0x4c412d,
-      emissiveIntensity: 0.06,
-      roughness: 0.82,
-    });
     const laneMarkerMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.16, 0.03, 1),
       laneMarkerMaterial,
@@ -1986,7 +1996,8 @@ export default function MapSimulatorSceneRuntime({
       laneMarkerMesh.setMatrixAt(index, dummy.matrix);
     });
     laneMarkerMesh.instanceMatrix.needsUpdate = true;
-    scene.add(laneMarkerMesh);
+    staticRoadGroup.add(laneMarkerMesh);
+    scene.add(staticRoadGroup);
 
     const buildingMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.98,
@@ -2017,7 +2028,17 @@ export default function MapSimulatorSceneRuntime({
       buildingMesh.instanceColor.needsUpdate = true;
     }
     scene.add(buildingMesh);
-
+    const simulationTrailLayer = createVehicleTrailLayer({
+      yOffset: 0.24,
+      maxPoints: 34,
+      minSampleDistance: 1.2,
+      minSampleIntervalMs: 90,
+      tailDurationMs: 4_400,
+      staleAfterMs: 1_500,
+      opacity: 0.72,
+      headScale: 0.5,
+    });
+    scene.add(simulationTrailLayer.group);
     const labelObjects: CSS2DObject[] = [];
     const optionalLabelObjects: CSS2DObject[] = [];
     const districtLabelElements = new Map<string, HTMLDivElement>();
@@ -2058,7 +2079,7 @@ export default function MapSimulatorSceneRuntime({
 
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === "overview";
-      dongFloorMaterials.forEach((material) => {
+      dongMaterialsByName.forEach((material) => {
         material.opacity = isOverview ? 0.05 : 0.024;
       });
       dongBoundaryGlowMaterial.opacity = isOverview ? 0.2 : 0.13;
@@ -2297,34 +2318,8 @@ export default function MapSimulatorSceneRuntime({
     applyRenderBudget(activeCameraMode);
     syncCamera();
 
-    const forecastByDong = new globalThis.Map(
-      data.trafficForecast?.regions.map((r) => [r.dong_name, r]) ?? [],
-    );
-
     dongRegions.forEach((dong) => {
-      const forecast = forecastByDong.get(dong.name);
-      const congestionScore = forecast?.predicted_congestion_score ?? 0;
-      const status =
-        congestionScore > 0.7
-          ? "혼잡"
-          : congestionScore > 0.4
-            ? "보통"
-            : "원활";
-      const statusColor =
-        status === "혼잡"
-          ? "text-rose-600 bg-rose-50 border-rose-100"
-          : status === "보통"
-            ? "text-amber-600 bg-amber-50 border-amber-100"
-            : "text-emerald-600 bg-emerald-50 border-emerald-100";
-
       const el = labelElement(dong.name, "district");
-      if (forecast) {
-        const badge = document.createElement("span");
-        badge.className = `ml-2 px-1.5 py-0.5 rounded-md border text-[10px] font-black ${statusColor}`;
-        badge.innerText = status;
-        el.appendChild(badge);
-      }
-
       const label = new CSS2DObject(el);
       label.position.set(dong.position.x, 2.8, dong.position.z);
       label.visible = true;
@@ -2394,6 +2389,67 @@ export default function MapSimulatorSceneRuntime({
         }
       });
 
+    const taxiStandBaseMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      emissive: 0x6b4b00,
+      emissiveIntensity: 0.16,
+      roughness: 0.5,
+      metalness: 0.04,
+    });
+    const taxiStandPoleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111827,
+      roughness: 0.58,
+      metalness: 0.18,
+    });
+    const taxiStandSignMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfee440,
+      emissive: 0x7c4d00,
+      emissiveIntensity: 0.2,
+      roughness: 0.42,
+    });
+    taxiStandLandmarks.forEach((stand, index) => {
+      const group = new THREE.Group();
+      group.name = `taxi-stand-${stand.standId || index}`;
+      group.position.copy(stand.position);
+      group.rotation.y = stand.yaw;
+
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.52, 0.14, 20),
+        taxiStandBaseMaterial,
+      );
+      base.position.y = 0.07;
+      group.add(base);
+
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.055, stand.isShelter ? 1.18 : 0.9, 10),
+        taxiStandPoleMaterial,
+      );
+      pole.position.y = stand.isShelter ? 0.73 : 0.6;
+      group.add(pole);
+
+      const sign = new THREE.Mesh(
+        new THREE.BoxGeometry(stand.isShelter ? 1.05 : 0.82, 0.38, 0.12),
+        taxiStandSignMaterial,
+      );
+      sign.position.set(0.15 * stand.sideSign, stand.isShelter ? 1.32 : 1.05, 0);
+      group.add(sign);
+
+      const curbHalo = new THREE.Mesh(
+        new THREE.TorusGeometry(0.68, 0.035, 8, 28),
+        new THREE.MeshBasicMaterial({
+          color: 0xfacc15,
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+        }),
+      );
+      curbHalo.rotation.x = Math.PI / 2;
+      curbHalo.position.y = 0.05;
+      group.add(curbHalo);
+
+      transitGroup.add(group);
+    });
+
     const poiMarkerGroup = new THREE.Group();
     poiMarkerGroup.name = "citydata-poi-marker-layer";
     const poiPulseMeshes: { mesh: THREE.Mesh; basePressure: number; phaseOffset: number }[] = [];
@@ -2404,10 +2460,9 @@ export default function MapSimulatorSceneRuntime({
       depthWrite: false,
     });
     poiHitMaterial.colorWrite = false;
-    const poiRowsForMap = [...poiFeatureRows]
+    const poiRowsForMap = [...(poiFeatureRowsRef.current ?? [])]
       .filter(
         (poi) =>
-          poi.source_status === "citydata_live" &&
           Number.isFinite(poi.lon) &&
           Number.isFinite(poi.lat),
       )
@@ -2528,14 +2583,13 @@ export default function MapSimulatorSceneRuntime({
     if (!hotspotPool.length) {
       return undefined;
     }
-    rebuildDispatchPlanner();
 
       const signalPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3.35, 8);
       const signalPoleMaterial = new THREE.MeshStandardMaterial({
         color: 0x8d98a6,
         roughness: 0.62,
       });
-      const signalHeadGeometry = new THREE.BoxGeometry(0.58, 1.24, 0.42);
+      const signalHeadGeometry = new THREE.BoxGeometry(1.48, 0.42, 0.42);
       const signalHeadMaterial = new THREE.MeshStandardMaterial({
         color: 0x10161f,
         roughness: 0.5,
@@ -2566,37 +2620,39 @@ export default function MapSimulatorSceneRuntime({
         const pedestrianLamps: SignalLampVisual[] = [];
 
         const mastDistance = signal.approaches.length >= 4 ? 4.2 : 3.6;
+        const lateral = 2.8;
         const mastLayout = signal.approaches.map((direction) => {
           const yaw = signal.approachYaws[direction] ?? 0;
           switch (direction) {
             case "north":
               return {
                 axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, -mastDistance),
+                offset: new THREE.Vector3(lateral, 0, -mastDistance),
                 yaw: yaw,
               };
             case "south":
               return {
                 axis: "ns" as const,
-                offset: new THREE.Vector3(0, 0, mastDistance),
+                offset: new THREE.Vector3(-lateral, 0, mastDistance),
                 yaw: yaw,
               };
             case "east":
               return {
                 axis: "ew" as const,
-                offset: new THREE.Vector3(mastDistance, 0, 0),
+                offset: new THREE.Vector3(mastDistance, 0, lateral),
                 yaw: yaw,
               };
             default:
               return {
                 axis: "ew" as const,
-                offset: new THREE.Vector3(-mastDistance, 0, 0),
+                offset: new THREE.Vector3(-mastDistance, 0, -lateral),
                 yaw: yaw,
               };
           }
         });
 
         mastLayout.forEach(({ axis, offset, yaw }) => {
+          // Pole at the curb
           dummy.position.copy(signal.visualPoint).add(offset);
           dummy.position.y = 1.675;
           dummy.rotation.set(0, yaw, 0);
@@ -2604,6 +2660,11 @@ export default function MapSimulatorSceneRuntime({
           dummy.updateMatrix();
           signalPoleMesh.setMatrixAt(mastIndex, dummy.matrix);
 
+          // Head suspended over the road
+          const headLocalOffset = new THREE.Vector3(-1.8, 0, 0); // Shift left into the road
+          const headWorldOffset = headLocalOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          
+          dummy.position.add(headWorldOffset);
           dummy.position.y = 2.62;
           dummy.updateMatrix();
           signalHeadMesh.setMatrixAt(mastIndex, dummy.matrix);
@@ -2611,7 +2672,7 @@ export default function MapSimulatorSceneRuntime({
           mastIndex += 1;
 
           const mast = new THREE.Group();
-          mast.position.copy(offset);
+          mast.position.copy(offset).add(headWorldOffset);
           mast.rotation.y = yaw;
           // Note: Pole and Head are now handled by InstancedMesh
 
@@ -2622,7 +2683,7 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x230709,
             }),
           );
-          red.position.set(0.02, 2.92, 0.24);
+          red.position.set(-0.48, 2.62, 0.24);
           mast.add(red);
           reds.push({ mesh: red, axis });
 
@@ -2633,9 +2694,21 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x2a1806,
             }),
           );
-          yellow.position.set(0.02, 2.67, 0.24);
+          yellow.position.set(-0.16, 2.62, 0.24);
           mast.add(yellow);
           yellows.push({ mesh: yellow, axis });
+
+          const leftArrow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.11, 12, 12),
+            new THREE.MeshStandardMaterial({
+              color: 0x0f2218,
+              emissive: 0x07120b,
+            }),
+          );
+          leftArrow.position.set(0.16, 2.62, 0.24);
+          leftArrow.visible = signal.hasProtectedLeft;
+          mast.add(leftArrow);
+          leftArrows.push({ mesh: leftArrow, axis });
 
           const green = new THREE.Mesh(
             new THREE.SphereGeometry(0.11, 12, 12),
@@ -2644,21 +2717,9 @@ export default function MapSimulatorSceneRuntime({
               emissive: 0x081a0f,
             }),
           );
-          green.position.set(0.02, 2.42, 0.24);
+          green.position.set(0.48, 2.62, 0.24);
           mast.add(green);
           greens.push({ mesh: green, axis });
-
-          const leftArrow = new THREE.Mesh(
-            new THREE.BoxGeometry(0.24, 0.24, 0.14),
-            new THREE.MeshStandardMaterial({
-              color: 0x0f2218,
-              emissive: 0x07120b,
-            }),
-          );
-          leftArrow.position.set(0.36, 2.66, 0.18);
-          leftArrow.visible = signal.hasProtectedLeft;
-          mast.add(leftArrow);
-          leftArrows.push({ mesh: leftArrow, axis });
 
           const pedestrianLamp = new THREE.Mesh(
             new THREE.BoxGeometry(0.24, 0.24, 0.14),
@@ -2921,7 +2982,7 @@ export default function MapSimulatorSceneRuntime({
           badgeElement,
           lastMarkerMode: "idle",
           lastAccentColor: baseColor,
-          lastBadgeText: "승차",
+          lastBadgeText: "",
         } satisfies HotspotVisual;
       });
       hotspotVisuals.push(...nextHotspotVisuals);
@@ -3052,9 +3113,8 @@ export default function MapSimulatorSceneRuntime({
     };
 
     let taxiAssetLoadStarted = false;
-    let trafficAssetLoadStarted = false;
     let lastUserInteractionTimestamp = performance.now();
-    const DEFERRED_ASSET_USER_IDLE_MS = 800;
+    const deferredAssetUserIdleMs = 650;
     const markUserInteraction = () => {
       lastUserInteractionTimestamp = performance.now();
     };
@@ -3101,10 +3161,10 @@ export default function MapSimulatorSceneRuntime({
         }
 
         const idleForMs = performance.now() - lastUserInteractionTimestamp;
-        if (idleForMs < DEFERRED_ASSET_USER_IDLE_MS) {
+        if (idleForMs < deferredAssetUserIdleMs) {
           retryHandle = window.setTimeout(
             scheduleWhenInteractionSettles,
-            Math.min(DEFERRED_ASSET_USER_IDLE_MS - idleForMs, 500),
+            Math.min(deferredAssetUserIdleMs - idleForMs, 420),
           );
           return;
         }
@@ -3129,14 +3189,16 @@ export default function MapSimulatorSceneRuntime({
 
       taxiAssetLoadStarted = true;
       void (async () => {
+        let loadedTemplate: THREE.Group | null = null;
         try {
-          const loadedTemplate = await loadVehicleAssetTemplate(KAKAO_TAXI_ASSET_PATH);
+          loadedTemplate = await loadVehicleAssetTemplate(KAKAO_TAXI_ASSET_PATH);
           if (sceneDisposed) {
             disposeObject3DResources(loadedTemplate);
             return;
           }
 
           taxiAssetTemplate = normalizeTaxiAssetTemplate(loadedTemplate);
+          loadedTemplate = null;
           if (sceneDisposed) {
             disposeObject3DResources(taxiAssetTemplate);
             taxiAssetTemplate = null;
@@ -3145,55 +3207,17 @@ export default function MapSimulatorSceneRuntime({
 
           upgradeTaxiVehicleMeshes();
         } catch (error) {
+          if (loadedTemplate) {
+            disposeObject3DResources(loadedTemplate);
+          }
           console.warn(
-            "Failed to load Kakao taxi asset; keeping primitive taxi.",
+            "Failed to load Kakao taxi asset; keeping refined fallback taxi.",
             error,
           );
         }
       })();
     };
-    const loadTrafficAssetsInBackground = () => {
-      if (sceneDisposed || trafficAssetTemplates.length || trafficAssetLoadStarted) {
-        return;
-      }
 
-      trafficAssetLoadStarted = true;
-      void (async () => {
-        const results = await Promise.allSettled(
-          KAKAO_TRAFFIC_ASSET_PATHS.map(async (path) =>
-            normalizeTrafficAssetTemplate(await loadVehicleAssetTemplate(path)),
-          ),
-        );
-
-        if (sceneDisposed) {
-          results.forEach((result) => {
-            if (result.status === "fulfilled") {
-              disposeObject3DResources(result.value);
-            }
-          });
-          return;
-        }
-
-        trafficAssetTemplates = results.flatMap((result) =>
-          result.status === "fulfilled" ? [result.value] : [],
-        );
-
-        results.forEach((result, index) => {
-          if (result.status === "rejected") {
-            console.warn(
-              `Failed to load traffic asset: ${KAKAO_TRAFFIC_ASSET_PATHS[index]}`,
-              result.reason,
-            );
-          }
-        });
-
-        if (!trafficAssetTemplates.length) {
-          return;
-        }
-
-        upgradeTrafficVehicleMeshes();
-      })();
-    };
     const timer = new THREE.Timer();
     timer.connect(document);
     let animationFrame = 0;
@@ -3213,6 +3237,10 @@ export default function MapSimulatorSceneRuntime({
     let overlayCpuSampleMs = 0;
     let renderCpuSampleMs = 0;
     let simulationStepSampleCount = 0;
+    const simulationTrailPoints: VehicleTrailPoint[] = [];
+
+    const taxiTrailColorFor = (vehicle: Vehicle) =>
+      vehicle.isOccupied ? 0xfb7185 : 0x22d3ee;
 
     function applyEnvironment(
       dateIso: string,
@@ -3247,6 +3275,7 @@ export default function MapSimulatorSceneRuntime({
       hemisphereLight.color.setHex(environment.hemiSkyColor);
       hemisphereLight.groundColor.setHex(environment.hemiGroundColor);
       hemisphereLight.intensity = environment.hemiIntensity;
+      renderer.toneMappingExposure = environment.exposure;
 
       sun.color.setHex(environment.sunColor);
       sun.intensity = environment.sunIntensity;
@@ -3545,12 +3574,8 @@ export default function MapSimulatorSceneRuntime({
         const hotspotSnapshot = hotspotSnapshotById.get(visual.hotspot.id);
         const markerMode: HotspotMarkerMode = hotspotSnapshot?.mode ?? "idle";
         const isActive = markerMode !== "idle";
-        const markerPresentation = dispatchPresentation.hotspot[markerMode];
+        const markerPresentation = HOTSPOT_PRESENTATION[markerMode];
         const accentColor = markerPresentation.accentColor;
-        const badgeText = formatHotspotTaxiBadge(
-          markerPresentation.badgeLabel,
-          hotspotSnapshot?.assignedTaxiNumbers ?? [],
-        );
 
         if (visual.lastAccentColor !== accentColor) {
           visual.lastAccentColor = accentColor;
@@ -3575,12 +3600,7 @@ export default function MapSimulatorSceneRuntime({
         if (visual.lastMarkerMode !== markerMode) {
           visual.lastMarkerMode = markerMode;
           visual.callerGroup.visible = markerPresentation.showsCaller;
-          visual.callBadge.visible = isActive;
-          visual.badgeElement.style.borderColor =
-            markerPresentation.badgeBorderColor;
-          visual.badgeElement.style.background =
-            markerPresentation.badgeBackground;
-          visual.badgeElement.style.color = markerPresentation.badgeTextColor;
+          visual.callBadge.visible = false;
 
           if (!isActive) {
             visual.base.scale.setScalar(0.72);
@@ -3600,11 +3620,6 @@ export default function MapSimulatorSceneRuntime({
             visual.hailCube.scale.setScalar(0.62);
             visual.callBadge.position.y = 1.92;
           }
-        }
-
-        if (visual.lastBadgeText !== badgeText) {
-          visual.lastBadgeText = badgeText;
-          visual.badgeElement.textContent = badgeText;
         }
 
         if (!isActive) {
@@ -3884,7 +3899,7 @@ export default function MapSimulatorSceneRuntime({
               );
               vehicle.pickupStartedAt = null;
               completedTrips += 1;
-              if (!dispatchPlanner || !hotspotPool.length) {
+              if (!hotspotPool.length) {
                 continue;
               }
               const completedDropoffHotspotId = vehicle.dropoffHotspot.id;
@@ -3894,15 +3909,14 @@ export default function MapSimulatorSceneRuntime({
               );
               hotspotDemandMapsDirty = false;
               hotspotActivityAccumulator = 0;
-              const nextJob = dispatchPlanner.planJob({
-                startKey: vehicle.route.endKey,
-                seed: completedTrips + vehicleIndex + 1,
-                vehicleId: vehicle.id,
-                demandSnapshot: createDispatchDemandSnapshot(
-                  elapsedTime,
-                  vehicle.id,
-                ),
-              });
+              if (hotspotDemandMapsDirty) {
+                syncActiveHotspotDemandMaps();
+              }
+              const nextJob = planNextTrip(
+                vehicle.route.endKey,
+                completedTrips + vehicleIndex + 1,
+                vehicle.id,
+              );
               if (nextJob) {
                 vehicle.pickupHotspot = nextJob.pickupHotspot;
                 vehicle.dropoffHotspot = nextJob.dropoffHotspot;
@@ -4221,7 +4235,7 @@ export default function MapSimulatorSceneRuntime({
       }
 
       const taxiNumber = Number(vehicle.id.replace("taxi-", "")) + 1;
-      updateHoverHint(`Taxi ${taxiNumber} · 클릭해서 택시 시점`, "pointer", []);
+      updateHoverHint(`차량 ${taxiNumber} · 클릭해서 차량 시점`, "pointer", []);
     };
 
     const setTransitHover = (stationName: string | null) => {
@@ -4346,8 +4360,227 @@ export default function MapSimulatorSceneRuntime({
       event.preventDefault();
     };
 
+    const enterTouchMapMode = () => {
+      if (cameraModeRef.current === "ride") {
+        return false;
+      }
+      cameraFocusTargetRef.current = null;
+      if (followTaxiIdRef.current) {
+        followTaxiIdRef.current = "";
+        setFollowTaxiId("");
+      }
+      if (cameraModeRef.current !== "drive") {
+        cameraModeRef.current = "drive";
+        activeCameraMode = "drive";
+        setCameraMode("drive");
+        applyDistrictPresentation("drive");
+        applyRenderBudget("drive");
+        markLabelVisibilityDirty();
+      }
+      return true;
+    };
+
+    const firstTwoTouchPoints = () => [...activeTouchPointers.values()].slice(0, 2);
+
+    const setTouchGestureBasis = () => {
+      const [firstTouch, secondTouch] = firstTwoTouchPoints();
+      if (!firstTouch) {
+        touchGestureState.lastCenterX = 0;
+        touchGestureState.lastCenterY = 0;
+        touchGestureState.lastDistance = 0;
+        touchGestureState.lastAngle = 0;
+        touchGestureState.lastFirstX = 0;
+        touchGestureState.lastFirstY = 0;
+        touchGestureState.lastSecondX = 0;
+        touchGestureState.lastSecondY = 0;
+        touchGestureState.multiTouchMode = "map";
+        touchGestureState.pitchTouchIndex = -1;
+        return;
+      }
+
+      if (!secondTouch) {
+        touchGestureState.lastCenterX = firstTouch.x;
+        touchGestureState.lastCenterY = firstTouch.y;
+        touchGestureState.lastDistance = 0;
+        touchGestureState.lastAngle = 0;
+        touchGestureState.lastFirstX = firstTouch.x;
+        touchGestureState.lastFirstY = firstTouch.y;
+        touchGestureState.lastSecondX = 0;
+        touchGestureState.lastSecondY = 0;
+        touchGestureState.multiTouchMode = "map";
+        touchGestureState.pitchTouchIndex = -1;
+        return;
+      }
+
+      touchGestureState.lastCenterX = (firstTouch.x + secondTouch.x) / 2;
+      touchGestureState.lastCenterY = (firstTouch.y + secondTouch.y) / 2;
+      touchGestureState.lastDistance = Math.max(
+        1,
+        Math.hypot(secondTouch.x - firstTouch.x, secondTouch.y - firstTouch.y),
+      );
+      touchGestureState.lastAngle = Math.atan2(
+        secondTouch.y - firstTouch.y,
+        secondTouch.x - firstTouch.x,
+      );
+      touchGestureState.lastFirstX = firstTouch.x;
+      touchGestureState.lastFirstY = firstTouch.y;
+      touchGestureState.lastSecondX = secondTouch.x;
+      touchGestureState.lastSecondY = secondTouch.y;
+      touchGestureState.multiTouchMode = "map";
+      touchGestureState.pitchTouchIndex = -1;
+    };
+
+    const panCameraByScreenDelta = (deltaX: number, deltaY: number) => {
+      if (!enterTouchMapMode()) {
+        return;
+      }
+      touchPanForwardDirection.copy(cameraRig.focus).sub(camera.position).setY(0);
+      if (touchPanForwardDirection.lengthSq() < 0.0001) {
+        touchPanForwardDirection.set(
+          -Math.sin(cameraRig.yaw),
+          0,
+          -Math.cos(cameraRig.yaw),
+        );
+      }
+      touchPanForwardDirection.normalize();
+      touchPanRightDirection
+        .set(-touchPanForwardDirection.z, 0, touchPanForwardDirection.x)
+        .normalize();
+
+      const panScale = Math.max(18, cameraRig.distance) * 0.0024;
+      cameraRig.focus.addScaledVector(touchPanRightDirection, -deltaX * panScale);
+      cameraRig.focus.addScaledVector(touchPanForwardDirection, deltaY * panScale);
+    };
+
+    const tiltCameraByScreenDelta = (deltaY: number) => {
+      if (!enterTouchMapMode()) {
+        return;
+      }
+      cameraRig.pitch = THREE.MathUtils.clamp(
+        cameraRig.pitch - deltaY * CAMERA_TOUCH_PITCH_SENSITIVITY,
+        CAMERA_MIN_PITCH,
+        CAMERA_MAX_PITCH,
+      );
+    };
+
+    const anchoredPitchTouchIndex = (
+      firstTouch: { x: number; y: number; startX: number; startY: number },
+      secondTouch: { x: number; y: number; startX: number; startY: number },
+    ) => {
+      const firstDeltaX = firstTouch.x - firstTouch.startX;
+      const firstDeltaY = firstTouch.y - firstTouch.startY;
+      const secondDeltaX = secondTouch.x - secondTouch.startX;
+      const secondDeltaY = secondTouch.y - secondTouch.startY;
+      const firstTravel = Math.hypot(firstDeltaX, firstDeltaY);
+      const secondTravel = Math.hypot(secondDeltaX, secondDeltaY);
+      const firstAnchored = firstTravel <= CAMERA_TOUCH_ANCHOR_RADIUS;
+      const secondAnchored = secondTravel <= CAMERA_TOUCH_ANCHOR_RADIUS;
+      const firstVertical =
+        Math.abs(firstDeltaY) >= CAMERA_TOUCH_PITCH_LOCK_DISTANCE &&
+        Math.abs(firstDeltaY) >
+          Math.abs(firstDeltaX) * CAMERA_TOUCH_PITCH_VERTICAL_RATIO;
+      const secondVertical =
+        Math.abs(secondDeltaY) >= CAMERA_TOUCH_PITCH_LOCK_DISTANCE &&
+        Math.abs(secondDeltaY) >
+          Math.abs(secondDeltaX) * CAMERA_TOUCH_PITCH_VERTICAL_RATIO;
+
+      if (firstAnchored && secondVertical) {
+        return 1;
+      }
+      if (secondAnchored && firstVertical) {
+        return 0;
+      }
+      return -1;
+    };
+
+    const rememberCurrentTouchGesture = (
+      firstTouch: { x: number; y: number },
+      secondTouch: { x: number; y: number },
+      distance: number,
+      angle: number,
+    ) => {
+      touchGestureState.lastCenterX = (firstTouch.x + secondTouch.x) / 2;
+      touchGestureState.lastCenterY = (firstTouch.y + secondTouch.y) / 2;
+      touchGestureState.lastDistance = distance;
+      touchGestureState.lastAngle = angle;
+      touchGestureState.lastFirstX = firstTouch.x;
+      touchGestureState.lastFirstY = firstTouch.y;
+      touchGestureState.lastSecondX = secondTouch.x;
+      touchGestureState.lastSecondY = secondTouch.y;
+    };
+
+    const applyTouchGestureMove = () => {
+      const [firstTouch, secondTouch] = firstTwoTouchPoints();
+      if (!firstTouch) {
+        return;
+      }
+
+      if (!secondTouch) {
+        const deltaX = firstTouch.x - touchGestureState.lastCenterX;
+        const deltaY = firstTouch.y - touchGestureState.lastCenterY;
+        panCameraByScreenDelta(deltaX, deltaY);
+        touchGestureState.lastCenterX = firstTouch.x;
+        touchGestureState.lastCenterY = firstTouch.y;
+        touchGestureState.lastFirstX = firstTouch.x;
+        touchGestureState.lastFirstY = firstTouch.y;
+        syncCamera();
+        return;
+      }
+
+      touchGestureState.usedMultiTouch = true;
+      const centerX = (firstTouch.x + secondTouch.x) / 2;
+      const centerY = (firstTouch.y + secondTouch.y) / 2;
+      const distance = Math.max(
+        1,
+        Math.hypot(secondTouch.x - firstTouch.x, secondTouch.y - firstTouch.y),
+      );
+      const angle = Math.atan2(
+        secondTouch.y - firstTouch.y,
+        secondTouch.x - firstTouch.x,
+      );
+      const deltaX = centerX - touchGestureState.lastCenterX;
+      const deltaY = centerY - touchGestureState.lastCenterY;
+
+      if (touchGestureState.multiTouchMode !== "pitch") {
+        const nextPitchTouchIndex = anchoredPitchTouchIndex(
+          firstTouch,
+          secondTouch,
+        );
+        if (nextPitchTouchIndex !== -1) {
+          touchGestureState.multiTouchMode = "pitch";
+          touchGestureState.pitchTouchIndex = nextPitchTouchIndex;
+        }
+      }
+
+      if (touchGestureState.multiTouchMode === "pitch") {
+        const pitchDeltaY =
+          touchGestureState.pitchTouchIndex === 0
+            ? firstTouch.y - touchGestureState.lastFirstY
+            : secondTouch.y - touchGestureState.lastSecondY;
+        tiltCameraByScreenDelta(pitchDeltaY);
+        rememberCurrentTouchGesture(firstTouch, secondTouch, distance, angle);
+        syncCamera();
+        return;
+      }
+
+      panCameraByScreenDelta(deltaX, deltaY);
+      if (touchGestureState.lastDistance > 0) {
+        cameraRig.distance = THREE.MathUtils.clamp(
+          cameraRig.distance * (touchGestureState.lastDistance / distance),
+          CAMERA_MIN_DISTANCE,
+          maxMapDistance,
+        );
+      }
+      if (touchGestureState.lastDistance > 0) {
+        cameraRig.yaw -= wrapAngle(angle - touchGestureState.lastAngle);
+      }
+
+      rememberCurrentTouchGesture(firstTouch, secondTouch, distance, angle);
+      syncCamera();
+    };
+
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) {
+      if (event.pointerType !== "touch" && event.button !== 0) {
         return;
       }
       const rect = renderer.domElement.getBoundingClientRect();
@@ -4358,6 +4591,27 @@ export default function MapSimulatorSceneRuntime({
         (pointerClientX / rect.width) * 2 - 1,
         -(pointerClientY / rect.height) * 2 + 1,
       );
+      if (event.pointerType === "touch") {
+        event.preventDefault();
+        activeTouchPointers.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+          startX: event.clientX,
+          startY: event.clientY,
+        });
+        renderer.domElement.setPointerCapture(event.pointerId);
+        pointerDownClientX = event.clientX;
+        pointerDownClientY = event.clientY;
+        pointerDragged = false;
+        if (activeTouchPointers.size >= 2) {
+          touchGestureState.usedMultiTouch = true;
+          pointerDragged = true;
+        }
+        setTouchGestureBasis();
+        stopDragging();
+        markHoverDirty();
+        return;
+      }
       cameraRig.dragging = true;
       cameraRig.pointerId = event.pointerId;
       cameraRig.pointerX = event.clientX;
@@ -4388,6 +4642,26 @@ export default function MapSimulatorSceneRuntime({
         pointerNdc.set(2, 2);
       }
       markHoverDirty();
+
+      if (event.pointerType === "touch") {
+        const touchPoint = activeTouchPointers.get(event.pointerId);
+        if (!touchPoint) {
+          return;
+        }
+        event.preventDefault();
+        touchPoint.x = event.clientX;
+        touchPoint.y = event.clientY;
+        if (
+          Math.hypot(
+            event.clientX - pointerDownClientX,
+            event.clientY - pointerDownClientY,
+          ) > TAXI_CLICK_MOVE_THRESHOLD
+        ) {
+          pointerDragged = true;
+        }
+        applyTouchGestureMove();
+        return;
+      }
 
       if (!cameraRig.dragging || event.pointerId !== cameraRig.pointerId) {
         return;
@@ -4423,6 +4697,45 @@ export default function MapSimulatorSceneRuntime({
     };
 
     const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerType === "touch") {
+        const hadTouchPointer = activeTouchPointers.has(event.pointerId);
+        if (!hadTouchPointer) {
+          return;
+        }
+        event.preventDefault();
+        const shouldTreatAsClick =
+          activeTouchPointers.size === 1 &&
+          !pointerDragged &&
+          !touchGestureState.usedMultiTouch;
+        if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+          renderer.domElement.releasePointerCapture(event.pointerId);
+        }
+        activeTouchPointers.delete(event.pointerId);
+        markHoverDirty();
+
+        if (activeTouchPointers.size > 0) {
+          pointerDragged = true;
+          setTouchGestureBasis();
+          return;
+        }
+
+        touchGestureState.usedMultiTouch = false;
+        setTouchGestureBasis();
+        if (shouldTreatAsClick) {
+          const clickedPoiCode = findPoiCodeFromPointer();
+          if (clickedPoiCode) {
+            onPoiSelect?.(clickedPoiCode);
+            return;
+          }
+
+          const clickedTaxi = findTaxiFromPointer();
+          if (clickedTaxi) {
+            enterRideMode(clickedTaxi);
+          }
+        }
+        return;
+      }
+
       if (event.pointerId !== cameraRig.pointerId) {
         return;
       }
@@ -4477,6 +4790,20 @@ export default function MapSimulatorSceneRuntime({
       if (!isInteractiveTarget(event.target)) {
         event.preventDefault();
       }
+      if (
+        cameraModeRef.current === "overview" &&
+        (event.code === "KeyW" ||
+          event.code === "KeyA" ||
+          event.code === "KeyS" ||
+          event.code === "KeyD" ||
+          event.code === "ArrowUp" ||
+          event.code === "ArrowDown" ||
+          event.code === "ArrowLeft" ||
+          event.code === "ArrowRight")
+      ) {
+        cameraModeRef.current = "drive";
+        setCameraMode("drive");
+      }
       pressedKeys.add(event.code);
     };
 
@@ -4491,6 +4818,9 @@ export default function MapSimulatorSceneRuntime({
       pressedKeys.clear();
       pointerInside = false;
       pointerDragged = false;
+      activeTouchPointers.clear();
+      touchGestureState.usedMultiTouch = false;
+      setTouchGestureBasis();
       pointerNdc.set(2, 2);
       boundaryHintText.style.display = "none";
       hoverNeedsUpdate = false;
@@ -4513,6 +4843,7 @@ export default function MapSimulatorSceneRuntime({
     window.addEventListener("resize", onResize);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("blur", onWindowBlur);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("keydown", onKeyDown);
@@ -4689,6 +5020,7 @@ export default function MapSimulatorSceneRuntime({
         simulationSnapshot.vehicles,
         vehicleInterpolationAlpha,
       );
+      syncSimulationTrails(frameTimestamp);
       simulationStepSampleCount += vehicleSimulationSteps;
       vehicleCpuSampleMs += performance.now() - vehicleCpuStart;
       const signalCpuStart = performance.now();
@@ -4908,9 +5240,9 @@ export default function MapSimulatorSceneRuntime({
         miniMapCameraDirection.normalize();
         const nextMiniMapFocusLabel =
           currentMode === "ride"
-            ? "택시 시점"
+            ? "차량 시점"
             : currentMode === "follow"
-              ? "택시 추적 위치"
+              ? "차량 추적 위치"
               : "현재 보고 있는 위치";
         const focusDeltaSq =
           (nextMiniMapFocus.x - lastMiniMapFocusReportX) ** 2 +
@@ -5117,22 +5449,43 @@ export default function MapSimulatorSceneRuntime({
       TAXI_ASSET_LOAD_DELAY_MS,
       TAXI_ASSET_IDLE_TIMEOUT_MS,
     );
-    const cancelTrafficAssetLoadSchedule = scheduleDeferredAssetLoad(
-      loadTrafficAssetsInBackground,
-      1300,
-      TAXI_ASSET_IDLE_TIMEOUT_MS,
-    );
     animate();
 
+    // --- Analysis Layer Sync (Subtle) ---
+    const unsubscribeAnalysis = analysisStore.subscribe(() => {
+      const { demandImbalanceMap } = analysisStore.getState();
+      
+      dongMaterialsByName.forEach((material, dongName) => {
+        const score = demandImbalanceMap[dongName] || 0;
+        const currentMode = cameraModeRef.current;
+        const baseOpacity = currentMode === "overview" ? 0.05 : 0.024;
+        
+        // 과하지 않게 opacity를 기본값 ~ 최대 0.18 사이로 조절
+        const targetOpacity = baseOpacity + Math.min(Math.abs(score), 1) * 0.13;
+        material.opacity = targetOpacity;
+        
+        // 색상은 아주 옅은 힌트만 주도록 설정
+        if (score > 0) {
+          material.color.setHex(0xffaa99); // 아주 연한 붉은 톤
+        } else if (score < 0) {
+          material.color.setHex(0x99aaff); // 아주 연한 푸른 톤
+        } else {
+          material.color.setHex(0x333333); // 기본 색상
+        }
+      });
+    });
+
+
     return () => {
+      unsubscribeAnalysis();
       sceneDisposed = true;
       cancelTaxiAssetLoadSchedule();
-      cancelTrafficAssetLoadSchedule();
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointerdown", markUserInteraction, true);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("wheel", markUserInteraction, true);
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -5163,9 +5516,6 @@ export default function MapSimulatorSceneRuntime({
       if (taxiAssetTemplate) {
         disposeObject3DResources(taxiAssetTemplate);
       }
-      trafficAssetTemplates.forEach((template) => {
-        disposeObject3DResources(template);
-      });
       const currentNonRoadGroup = nonRoadGroup;
       if (currentNonRoadGroup) {
         currentNonRoadGroup.removeFromParent();
@@ -5186,6 +5536,14 @@ export default function MapSimulatorSceneRuntime({
       if (transitGroupRef.current === transitGroup) {
         transitGroupRef.current = null;
       }
+      transitGroup.removeFromParent();
+      disposeObject3DResources(transitGroup);
+      simulationTrailLayer.clear();
+      simulationTrailLayer.group.removeFromParent();
+      staticRoadGroup.removeFromParent();
+      disposeObject3DResources(staticRoadGroup);
+      buildingMesh.removeFromParent();
+      disposeObject3DResources(buildingMesh);
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
@@ -5203,7 +5561,7 @@ export default function MapSimulatorSceneRuntime({
     data,
     fpsModeRef,
     followTaxiIdRef,
-    poiFeatureRows,
+    poiFeatureRowsRef,
     simulationSource,
     showFpsRef,
     showLabelsRef,

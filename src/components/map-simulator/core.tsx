@@ -1,7 +1,6 @@
 import { type ReactNode } from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import type {
   Feature,
   FeatureCollection,
@@ -12,11 +11,6 @@ import type {
   Polygon,
   Position,
 } from "geojson";
-import {
-  createDispatchPlannerRegistry,
-  createDemandAwareDispatchPlanner,
-  createHeuristicDispatchPlanner,
-} from "@/components/map-simulator/dispatch-planner";
 import {
   formatKstDateTime,
   type WeatherMode,
@@ -58,24 +52,19 @@ import {
   SIGNAL_ROAD_SNAP_DISTANCE,
   SIGNAL_WAVE_TRAVEL_SPEED,
   TAXI_ASSET_TARGET_LENGTH,
-  TRAFFIC_ASSET_TARGET_LENGTH,
   VEHICLE_PROXIMITY_CELL_SIZE,
   BUILDING_HEIGHT_SCALE,
 } from "@/components/map-simulator/scene-constants";
-export const DEFAULT_TAXI_COUNT = 12;
-export const DEFAULT_TRAFFIC_COUNT = 16;
+export const DEFAULT_TAXI_COUNT = 8;
+export const DEFAULT_TRAFFIC_COUNT = 0;
 export const MIN_TAXI_COUNT = 4;
 export const MAX_TAXI_COUNT = 24;
 export const MIN_TRAFFIC_COUNT = 8;
 export const MAX_TRAFFIC_COUNT = 36;
-export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
-export const KAKAO_TRAFFIC_ASSET_PATHS = [
-  "/assets/kakao-traffic/Sportage_01.fbx",
-  "/assets/kakao-traffic/Porter_01.fbx",
-] as const;
 export const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
-export const TAXI_ASSET_LOAD_DELAY_MS = 4_000;
-export const TAXI_ASSET_IDLE_TIMEOUT_MS = 8_000;
+export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
+export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
+export const TAXI_ASSET_IDLE_TIMEOUT_MS = 7_000;
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -90,26 +79,6 @@ export type SignalPhase =
   | "ped_walk"
   | "ped_flash"
   | "clearance";
-
-export type TrafficForecastRegion = {
-  dong_name: string;
-  predicted_traffic_volume_proxy: number;
-  predicted_traffic_volume_score: number;
-  predicted_congestion_score: number;
-  predicted_avg_speed_kmh: number;
-  current_congestion_score: number | null;
-  current_avg_speed_kmh: number | null;
-  current_link_count: number | null;
-};
-
-export type TrafficForecastStatus = {
-  generated_at: string | null;
-  target_datetime: string | null;
-  feature_datetime: string | null;
-  model_target: string;
-  note: string;
-  regions: TrafficForecastRegion[];
-};
 
 export type RoadProperties = {
   roadClass: "arterial" | "connector" | "local";
@@ -171,6 +140,23 @@ export type TransitProperties = {
   importance: number;
 };
 
+export type TaxiStandProperties = {
+  stand_id: string;
+  old_id: string;
+  jcd_id: string;
+  stand_type: string;
+  facility_type: string;
+  installed_at: string;
+  powered: string;
+  district: string;
+  dong_name: string;
+  lot_address: string;
+  road_address: string;
+  adjacent_road: string;
+  location_name: string;
+  is_target_dong: boolean;
+};
+
 export type TrafficSignalProperties = {
   name: string | null;
   signalType: string | null;
@@ -209,6 +195,10 @@ export type DongFeatureCollection = FeatureCollection<
   DongProperties
 >;
 export type TransitFeatureCollection = FeatureCollection<Point, TransitProperties>;
+export type TaxiStandFeatureCollection = FeatureCollection<
+  Point,
+  TaxiStandProperties
+>;
 export type SerializedRoadNetworkNode = {
   key: string;
   x: number;
@@ -254,7 +244,6 @@ export type AssetMeta = {
 export type SimulationMeta = {
   source: string;
   boundarySource: string;
-  dispatchPlannerId: string;
   latestAssetUpdatedAt: string | null;
   loadedAt: string;
   assets: {
@@ -263,6 +252,7 @@ export type SimulationMeta = {
     buildings: AssetMeta;
     dongs: AssetMeta;
     transit: AssetMeta;
+    taxiStands: AssetMeta | null;
     trafficSignals: AssetMeta | null;
     roadNetwork: AssetMeta | null;
   };
@@ -483,11 +473,12 @@ export type SimulationData = {
   dongBoundarySegments: DongBoundarySegment[];
   transit: TransitFeatureCollection;
   transitLandmarks: TransitLandmark[];
+  taxiStands: TaxiStandFeatureCollection;
+  taxiStandLandmarks: TaxiStandLandmark[];
   trafficSignals: TrafficSignalFeatureCollection;
   roadNetwork: SerializedRoadNetwork | null;
   graph: RoadGraph;
   signals: SignalData[];
-  trafficForecast: TrafficForecastStatus | null;
   loopRoutes: RouteTemplate[];
   taxiRoutePool: RouteTemplate[];
   trafficRoutePool: RouteTemplate[];
@@ -502,6 +493,11 @@ export const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
 
 export const EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION: TrafficSignalFeatureCollection =
 {
+  type: "FeatureCollection",
+  features: [],
+};
+
+export const EMPTY_TAXI_STAND_FEATURE_COLLECTION: TaxiStandFeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
@@ -528,6 +524,7 @@ export const SIMULATION_ASSET_LABELS: Array<{
   { key: "roads", label: "도로" },
   { key: "buildings", label: "건물" },
   { key: "transit", label: "대중교통" },
+  { key: "taxiStands", label: "택시승차대" },
   { key: "trafficSignals", label: "신호등" },
   { key: "roadNetwork", label: "도로 그래프" },
 ];
@@ -752,19 +749,6 @@ export function sharedCallerHeadMaterial() {
   return CALLER_HEAD_MATERIAL;
 }
 
-// Register additional planners here as you add data-driven dispatch engines.
-export const DISPATCH_PLANNER_REGISTRY = createDispatchPlannerRegistry(
-  [
-    createHeuristicDispatchPlanner<RouteTemplate, Hotspot>(),
-    createDemandAwareDispatchPlanner<RouteTemplate, Hotspot>(),
-  ],
-  "demand-aware-v1",
-);
-export const ACTIVE_DISPATCH_PLANNER = DISPATCH_PLANNER_REGISTRY.getPlanner(
-  process.env.NEXT_PUBLIC_DISPATCH_PLANNER?.trim() || null,
-);
-export const ACTIVE_DISPATCH_PLANNER_ID = ACTIVE_DISPATCH_PLANNER.id;
-
 export type BuildingMass = {
   id: string;
   label: string | null;
@@ -820,6 +804,19 @@ export type TransitLandmark = {
   importance: number;
   roadClass: RoadProperties["roadClass"] | null;
   isMajor: boolean;
+};
+
+export type TaxiStandLandmark = {
+  id: string;
+  standId: string;
+  name: string;
+  dongName: string;
+  roadAddress: string;
+  position: THREE.Vector3;
+  heading: THREE.Vector3;
+  sideSign: 1 | -1;
+  yaw: number;
+  isShelter: boolean;
 };
 
 export type CameraFocusTarget = {
@@ -886,21 +883,13 @@ export type PedestrianVisual = {
 
 export type HotspotMarkerMode = "pickup" | "dropoff" | "idle";
 export type SceneLabelKind = "district" | "building" | "transit" | "road";
-export type DispatchHotspotPresentation = {
+export type HotspotPresentation = {
   accentColor: number;
   badgeLabel: string;
   badgeBorderColor: string;
   badgeBackground: string;
   badgeTextColor: string;
   showsCaller: boolean;
-};
-
-export type DispatchPlannerPresentation = {
-  id: string;
-  label: string;
-  routingLabel: string;
-  routingDetail: string;
-  hotspot: Record<HotspotMarkerMode, DispatchHotspotPresentation>;
 };
 
 export type SceneLabelEntry = {
@@ -936,73 +925,32 @@ export type HotspotVisual = {
   lastBadgeText: string;
 };
 
-export const DEFAULT_DISPATCH_PRESENTATION: DispatchPlannerPresentation = {
-  id: ACTIVE_DISPATCH_PLANNER_ID,
-  label: "수요 우선 라우팅",
-  routingLabel: "수요 우선 휴리스틱",
-  routingDetail:
-    "기본 경로는 shortest path를 쓰되, 승차/하차 포인트 우선순위는 planner 설정으로 분리해 둔 상태입니다.",
-  hotspot: {
-    pickup: {
-      accentColor: 0xc99543,
-      badgeLabel: "승차",
-      badgeBorderColor: "rgba(196,154,88,0.34)",
-      badgeBackground: "rgba(35,29,22,0.84)",
-      badgeTextColor: "#efe3c6",
-      showsCaller: true,
-    },
-    dropoff: {
-      accentColor: 0x78908a,
-      badgeLabel: "하차",
-      badgeBorderColor: "rgba(124,151,146,0.32)",
-      badgeBackground: "rgba(24,31,30,0.82)",
-      badgeTextColor: "#d5dfdc",
-      showsCaller: false,
-    },
-    idle: {
-      accentColor: 0x5c646c,
-      badgeLabel: "콜 대기",
-      badgeBorderColor: "rgba(118,126,134,0.26)",
-      badgeBackground: "rgba(28,31,35,0.82)",
-      badgeTextColor: "#cfd5db",
-      showsCaller: false,
-    },
+export const HOTSPOT_PRESENTATION: Record<HotspotMarkerMode, HotspotPresentation> = {
+  pickup: {
+    accentColor: 0xc99543,
+    badgeLabel: "승차",
+    badgeBorderColor: "rgba(196,154,88,0.34)",
+    badgeBackground: "rgba(35,29,22,0.84)",
+    badgeTextColor: "#efe3c6",
+    showsCaller: true,
+  },
+  dropoff: {
+    accentColor: 0x78908a,
+    badgeLabel: "하차",
+    badgeBorderColor: "rgba(124,151,146,0.32)",
+    badgeBackground: "rgba(24,31,30,0.82)",
+    badgeTextColor: "#d5dfdc",
+    showsCaller: false,
+  },
+  idle: {
+    accentColor: 0x5c646c,
+    badgeLabel: "대기",
+    badgeBorderColor: "rgba(118,126,134,0.26)",
+    badgeBackground: "rgba(28,31,35,0.82)",
+    badgeTextColor: "#cfd5db",
+    showsCaller: false,
   },
 };
-
-export const DISPATCH_PRESENTATIONS = new Map<string, DispatchPlannerPresentation>([
-  [
-    "heuristic-default",
-    {
-      ...DEFAULT_DISPATCH_PRESENTATION,
-      id: "heuristic-default",
-      label: "기본 휴리스틱 라우팅",
-      routingLabel: "근접 우선 경로",
-      routingDetail:
-        "출발 지점에서 가까운 승차 후보를 고르고, 도로 그래프 위 shortest path로 경로를 확정합니다.",
-    },
-  ],
-  [
-    "demand-aware-v1",
-    {
-      ...DEFAULT_DISPATCH_PRESENTATION,
-      id: "demand-aware-v1",
-      label: "수요 우선 라우팅",
-      routingLabel: "수요 우선 휴리스틱",
-      routingDetail:
-        "shortest path를 유지하면서 승차/하차 후보 점수에 수요 편향을 섞는 현재 기본 planner입니다.",
-    },
-  ],
-]);
-
-export function resolveDispatchPlannerPresentation(
-  plannerId: string | null | undefined,
-) {
-  return (
-    (plannerId ? DISPATCH_PRESENTATIONS.get(plannerId) : null) ??
-    DEFAULT_DISPATCH_PRESENTATION
-  );
-}
 
 export const TAXI_PALETTE: VehiclePalette = {
   body: 0xd79a3a,
@@ -1018,7 +966,7 @@ export const TRAFFIC_PALETTES: VehiclePalette[] = [
   { body: 0x4f6478, cabin: 0xd4dfe7, sign: null },
 ];
 
-// Keep scene styling centralized so future asset or dispatch-layer swaps do
+// Keep scene styling centralized so future asset or demand-layer swaps do
 // not require touching simulation logic.
 export const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
 export const HOTSPOT_IDLE_COLORS = [0x7a6b57, 0x62716c, 0x76645c];
@@ -1088,7 +1036,7 @@ export const PANEL_INSET_CLASS =
 export const PANEL_INSET_PADDED_CLASS =
   "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3";
 export const PANEL_TOKEN_CLASS =
-  "rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
+  "inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
 export const PANEL_STATUS_TILE_CLASS =
   "rounded-2xl border border-white/8 bg-slate-950/55 p-3";
 
@@ -1099,7 +1047,7 @@ export function panelSelectableClass(selected: boolean) {
 }
 
 export function panelBadgeClass(active: boolean) {
-  return `rounded-full border px-2 py-1 text-[11px] font-medium ${
+  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium ${
     active
       ? "border-[#87cbb0]/22 bg-[#87cbb0]/10 text-[#d7efe6]"
       : "border-white/10 bg-slate-950/70 text-slate-300"
@@ -1107,7 +1055,7 @@ export function panelBadgeClass(active: boolean) {
 }
 
 export function panelPillToggleClass(selected: boolean) {
-  return `rounded-full border px-2 py-1 transition ${
+  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 transition ${
     selected
       ? "border-[#87cbb0]/28 bg-[#87cbb0]/12 text-[#e1f1eb]"
       : "border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] text-[#c6ddd5] hover:border-[#87cbb0]/22 hover:bg-[#87cbb0]/10"
@@ -1156,7 +1104,7 @@ export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
       "행정동 범위, 도로 그래프, 기본 택시 흐름을 차분하게 소개할 때 쓰기 좋습니다.",
     speakerNotes: [
       "9개 실제 행정동과 OSM 도로를 기반으로 한 기본 디지털 트윈 장면입니다.",
-      "수요 예측 이전에 공간 구조와 기본 주행 흐름을 설명할 때 가장 안정적입니다.",
+      "운영 신호 예측 이전에 공간 구조와 기본 주행 흐름을 설명할 때 가장 안정적입니다.",
     ],
     taxis: DEFAULT_TAXI_COUNT,
     traffic: DEFAULT_TRAFFIC_COUNT,
@@ -1178,7 +1126,7 @@ export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
     summary:
       "퇴근 시간대 강남역 주변의 높은 도로 점유와 택시 대응을 설명하는 혼잡 장면입니다.",
     presentationNote:
-      "수요 집중이나 혼잡 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
+      "혼잡 집중이나 운영 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
     speakerNotes: [
       "강남역 퇴근 피크를 가정해 도로 점유와 택시 대응을 더 빽빽하게 보여줍니다.",
       "혼잡 구간에서 신호와 차량 흐름이 어떻게 읽히는지 설명하기 좋습니다.",
@@ -3095,6 +3043,64 @@ export function buildTransitLandmarks(
   return [...subwayStations, ...busStops];
 }
 
+export function buildTaxiStandLandmarks(
+  taxiStands: TaxiStandFeatureCollection,
+  center: { lat: number; lon: number },
+  roadSegments: ProjectedRoadSegment[],
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex,
+) {
+  const landmarks = taxiStands.features
+    .map((feature, index) => {
+      if (feature.geometry.type !== "Point" || !feature.properties.is_target_dong) {
+        return null;
+      }
+
+      const originalPoint = projectPoint(feature.geometry.coordinates, center);
+      const nearestRoad = nearestRoadContext(
+        originalPoint,
+        roadSegments,
+        roadSegmentSpatialIndex,
+        28,
+      );
+      if (!nearestRoad || nearestRoad.distance > 28) {
+        return null;
+      }
+
+      const right = new THREE.Vector3(
+        nearestRoad.heading.z,
+        0,
+        -nearestRoad.heading.x,
+      ).normalize();
+      const sideSign =
+        right.dot(originalPoint.clone().sub(nearestRoad.closest)) >= 0 ? 1 : -1;
+      const name =
+        feature.properties.location_name ||
+        feature.properties.road_address ||
+        "택시승차대";
+
+      return {
+        id: `taxi-stand-${index}`,
+        standId: feature.properties.stand_id,
+        name,
+        dongName: feature.properties.dong_name,
+        roadAddress: feature.properties.road_address,
+        position: nearestRoad.closest
+          .clone()
+          .addScaledVector(right, sideSign * (nearestRoad.width * 0.58 + 1.55))
+          .setY(0.14),
+        heading: nearestRoad.heading.clone(),
+        sideSign,
+        yaw: Math.atan2(nearestRoad.heading.x, nearestRoad.heading.z),
+        isShelter: /쉘터/.test(feature.properties.stand_type),
+      } satisfies TaxiStandLandmark;
+    })
+    .filter(Boolean) as TaxiStandLandmark[];
+
+  return landmarks
+    .sort((left, right) => left.name.localeCompare(right.name, "ko"))
+    .slice(0, 24);
+}
+
 export function roadRank(roadClass: RoadProperties["roadClass"]) {
   switch (roadClass) {
     case "arterial":
@@ -3288,7 +3294,7 @@ export function labelElement(
 
 export function hotspotCallElement() {
   const element = document.createElement("div");
-  element.textContent = "승차";
+  element.textContent = "";
   element.dataset.labelKind = "hotspot";
   element.style.padding = "2px 7px";
   element.style.borderRadius = "999px";
@@ -4714,7 +4720,7 @@ export function hotspotLabelForRoute(
   return `택시 포인트 ${index + 1}`;
 }
 
-export function selectDispatchHotspotNodeIndex(
+export function selectTaxiHotspotNodeIndex(
   route: RouteTemplate,
   graph: RoadGraph,
   signalByKey: Map<string, SignalData>,
@@ -4789,7 +4795,7 @@ export function buildTaxiHotspots(
     const usedNodeKeys = new Set<string>();
     return fractions.map((fraction, hotspotIndex) => {
       const targetDistance = route.totalLength * fraction + routeIndex * 4.5;
-      const nodeIndex = selectDispatchHotspotNodeIndex(
+      const nodeIndex = selectTaxiHotspotNodeIndex(
         route,
         graph,
         signalByKey,
@@ -4831,6 +4837,64 @@ export function buildTaxiHotspots(
       } satisfies Hotspot;
     });
   });
+}
+
+export function buildTaxiStandHotspots(
+  taxiStandLandmarks: TaxiStandLandmark[],
+  routes: RouteTemplate[],
+) {
+  const usedNodeKeys = new Set<string>();
+
+  return taxiStandLandmarks
+    .map((stand, standIndex) => {
+      let best:
+        | {
+          route: RouteTemplate;
+          nodeIndex: number;
+          distanceSq: number;
+          reusesNode: boolean;
+        }
+        | null = null;
+
+      for (const route of routes) {
+        for (const [nodeIndex, node] of route.nodes.entries()) {
+          const reusesNode = usedNodeKeys.has(node.key);
+          const distanceSq = node.point.distanceToSquared(stand.position);
+          const score = distanceSq + (reusesNode ? 1600 : 0);
+          const bestScore = best
+            ? best.distanceSq + (best.reusesNode ? 1600 : 0)
+            : Number.POSITIVE_INFINITY;
+
+          if (score < bestScore) {
+            best = {
+              route,
+              nodeIndex,
+              distanceSq,
+              reusesNode,
+            };
+          }
+        }
+      }
+
+      if (!best) {
+        return null;
+      }
+
+      const node = best.route.nodes[best.nodeIndex]!;
+      usedNodeKeys.add(node.key);
+
+      return {
+        id: `taxi-stand-hotspot-${stand.standId || standIndex}`,
+        nodeKey: node.key,
+        routeId: best.route.id,
+        distance: best.route.cumulative[best.nodeIndex] ?? 0,
+        position: stand.position.clone(),
+        point: stand.position.clone(),
+        label: stand.name || "택시승차대",
+        roadName: stand.roadAddress || best.route.name,
+      } satisfies Hotspot;
+    })
+    .filter(Boolean) as Hotspot[];
 }
 
 export const SIGNAL_FLOW_NS_GREEN: SignalFlow = {
@@ -4965,12 +5029,18 @@ export function canVehicleProceed(
   return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
 }
 
-export function loadVehicleAssetTemplate(path: string, timeoutMs = ASSET_FETCH_TIMEOUT_MS) {
+export async function loadVehicleAssetTemplate(
+  path: string,
+  timeoutMs = ASSET_FETCH_TIMEOUT_MS,
+) {
+  const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
   const loader = new FBXLoader();
 
   return new Promise<THREE.Group>((resolve, reject) => {
     beginSuppressingFbxLoaderWarnings();
     let settled = false;
+    let timeoutId = 0;
+
     const finish = (callback: () => void) => {
       if (settled) {
         return;
@@ -4980,7 +5050,8 @@ export function loadVehicleAssetTemplate(path: string, timeoutMs = ASSET_FETCH_T
       endSuppressingFbxLoaderWarnings();
       callback();
     };
-    const timeoutId = window.setTimeout(() => {
+
+    timeoutId = window.setTimeout(() => {
       finish(() => {
         reject(new Error(`Timed out loading vehicle asset: ${path}`));
       });
@@ -5055,10 +5126,6 @@ export function normalizeVehicleAssetTemplate(
 
 export function normalizeTaxiAssetTemplate(source: THREE.Group) {
   return normalizeVehicleAssetTemplate(source, TAXI_ASSET_TARGET_LENGTH);
-}
-
-export function normalizeTrafficAssetTemplate(source: THREE.Group) {
-  return normalizeVehicleAssetTemplate(source, TRAFFIC_ASSET_TARGET_LENGTH);
 }
 
 export function vehicleAssetMaterialHint(object: THREE.Object3D): VehicleMaterialHint {
@@ -5305,19 +5372,45 @@ export function createVehicleGroup(
   const group = new THREE.Group();
   const bodyMaterial = new THREE.MeshStandardMaterial({
     color: palette.body,
-    roughness: 0.9,
-    metalness: 0.12,
+    roughness: kind === "taxi" ? 0.58 : 0.9,
+    metalness: kind === "taxi" ? 0.22 : 0.12,
+  });
+  const trimMaterial = new THREE.MeshStandardMaterial({
+    color: 0x171b20,
+    roughness: 0.92,
+    metalness: 0.04,
+  });
+  const glassMaterial = new THREE.MeshStandardMaterial({
+    color: 0x92a7b5,
+    emissive: 0x0d1720,
+    emissiveIntensity: 0.06,
+    roughness: 0.18,
+    metalness: 0.08,
+  });
+  const headlightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xfff6cf,
+    emissive: 0xffd27a,
+    emissiveIntensity: 0.32,
+    roughness: 0.35,
+    metalness: 0.02,
+  });
+  const tailLightMaterial = new THREE.MeshStandardMaterial({
+    color: 0xff4c62,
+    emissive: 0xff2038,
+    emissiveIntensity: 0.28,
+    roughness: 0.42,
+    metalness: 0.02,
   });
 
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(
-      kind === "taxi" ? 1.8 : 1.62,
-      1.2,
-      kind === "taxi" ? 4.3 : 4.05,
+      kind === "taxi" ? 1.74 : 1.62,
+      kind === "taxi" ? 0.78 : 1.2,
+      kind === "taxi" ? 3.58 : 4.05,
     ),
     bodyMaterial,
   );
-  body.position.y = 0.7;
+  body.position.y = kind === "taxi" ? 0.68 : 0.7;
   group.add(body);
 
   const lowerTrim = new THREE.Mesh(
@@ -5326,53 +5419,119 @@ export function createVehicleGroup(
       0.22,
       kind === "taxi" ? 4.18 : 3.94,
     ),
-    new THREE.MeshStandardMaterial({
-      color: 0x1d2024,
-      roughness: 0.94,
-      metalness: 0.04,
-    }),
+    trimMaterial,
   );
   lowerTrim.position.y = 0.2;
   group.add(lowerTrim);
 
+  if (kind === "taxi") {
+    const hood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.58, 0.34, 0.96),
+      bodyMaterial,
+    );
+    hood.position.set(0, 0.92, 1.55);
+    group.add(hood);
+
+    const trunk = new THREE.Mesh(
+      new THREE.BoxGeometry(1.56, 0.32, 0.72),
+      bodyMaterial,
+    );
+    trunk.position.set(0, 0.92, -1.63);
+    group.add(trunk);
+  }
+
   const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(kind === "taxi" ? 1.24 : 1.14, 0.95, 2.05),
+    new THREE.BoxGeometry(kind === "taxi" ? 1.18 : 1.14, 0.82, 1.62),
     new THREE.MeshStandardMaterial({
       color: palette.cabin,
-      roughness: 0.68,
+      roughness: kind === "taxi" ? 0.38 : 0.68,
       metalness: 0.04,
     }),
   );
-  cabin.position.set(0, 1.5, 0.15);
+  cabin.position.set(0, kind === "taxi" ? 1.34 : 1.5, kind === "taxi" ? -0.1 : 0.15);
   group.add(cabin);
 
   const windshield = new THREE.Mesh(
-    new THREE.BoxGeometry(1.08, 0.18, 1.46),
-    new THREE.MeshStandardMaterial({
-      color: 0x8fa1ae,
-      emissive: 0x0f1821,
-      emissiveIntensity: 0.06,
-      roughness: 0.22,
-      metalness: 0.08,
-    }),
+    new THREE.BoxGeometry(
+      kind === "taxi" ? 1.0 : 1.08,
+      0.18,
+      kind === "taxi" ? 1.06 : 1.46,
+    ),
+    glassMaterial,
   );
-  windshield.position.set(0, 2.05, 0.15);
+  windshield.position.set(0, kind === "taxi" ? 1.78 : 2.05, kind === "taxi" ? 0.15 : 0.15);
   group.add(windshield);
+
+  if (kind === "taxi") {
+    const rearGlass = new THREE.Mesh(
+      new THREE.BoxGeometry(0.96, 0.16, 0.58),
+      glassMaterial,
+    );
+    rearGlass.position.set(0, 1.72, -0.88);
+    group.add(rearGlass);
+
+    const stripeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x252017,
+      emissive: 0x2a1700,
+      emissiveIntensity: 0.08,
+      roughness: 0.74,
+      metalness: 0.03,
+    });
+    [-1, 1].forEach((side) => {
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.035, 0.16, 2.72),
+        stripeMaterial,
+      );
+      stripe.position.set(side * 0.91, 0.78, -0.02);
+      group.add(stripe);
+    });
+
+    [-1, 1].forEach((side) => {
+      const headlight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.12, 0.06),
+        headlightMaterial,
+      );
+      headlight.position.set(side * 0.46, 0.67, 2.09);
+      group.add(headlight);
+
+      const tailLight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.32, 0.12, 0.06),
+        tailLightMaterial,
+      );
+      tailLight.position.set(side * 0.46, 0.66, -2.09);
+      group.add(tailLight);
+    });
+
+    const wheelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x101316,
+      roughness: 0.86,
+      metalness: 0.08,
+    });
+    const wheelGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.18, 14);
+    [-1, 1].forEach((side) => {
+      [-1.34, 1.36].forEach((z) => {
+        const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(side * 0.98, 0.36, z);
+        group.add(wheel);
+      });
+    });
+  }
 
   let signMaterial: THREE.MeshStandardMaterial | null = null;
   if (kind === "taxi") {
     signMaterial = new THREE.MeshStandardMaterial({
       color: palette.sign ?? 0xfff9d8,
-      emissive: 0x3d2b0c,
-      emissiveIntensity: 0.08,
-      roughness: 0.72,
+      emissive: 0x6b4300,
+      emissiveIntensity: 0.34,
+      roughness: 0.46,
       metalness: 0,
     });
     const sign = new THREE.Mesh(
-      new THREE.BoxGeometry(0.58, 0.14, 0.36),
+      new THREE.BoxGeometry(0.68, 0.16, 0.34),
       signMaterial,
     );
-    sign.position.set(0, 2.24, -0.08);
+    sign.position.set(0, 1.88, -0.12);
     group.add(sign);
   }
 

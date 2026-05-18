@@ -1,0 +1,7643 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "name": "서울시 택시승차대 현황",
+    "source": "https://data.seoul.go.kr/dataList/OA-22228/F/1/datasetView.do",
+    "source_dataset_id": "OA-22228",
+    "generated_at_kst": "2026-05-11T12:25:31+09:00",
+    "feature_count": 254,
+    "target_dongs": [
+      "논현1동",
+      "논현2동",
+      "대치4동",
+      "삼성1동",
+      "삼성2동",
+      "신사동",
+      "역삼1동",
+      "역삼2동",
+      "청담동"
+    ]
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97524,
+          37.57042
+        ]
+      },
+      "properties": {
+        "source_row": 3,
+        "stand_id": "01-011002",
+        "old_id": "종로-01",
+        "jcd_id": "X-16",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-28",
+        "lon": 126.97524,
+        "lat": 37.57042,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "사직동",
+        "dong_name": "사직동",
+        "lot_address": "신문로1가 239",
+        "road_address": "새문안로 97",
+        "adjacent_road": "새문안로",
+        "location_name": "포시즌호텔 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97498,
+          37.5703
+        ]
+      },
+      "properties": {
+        "source_row": 4,
+        "stand_id": "01-011001",
+        "old_id": "종로-02",
+        "jcd_id": "X-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-28",
+        "lon": 126.97498,
+        "lat": 37.5703,
+        "powered": "OK",
+        "district": "종로구",
+        "source_dong_name": "사직동",
+        "dong_name": "사직동",
+        "lot_address": "신문로1가 163",
+        "road_address": "새문안로 92",
+        "adjacent_road": "새문안로",
+        "location_name": "광화문오피시아빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97884,
+          37.57054
+        ]
+      },
+      "properties": {
+        "source_row": 5,
+        "stand_id": "01-081814",
+        "old_id": "종로-03",
+        "jcd_id": "X-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-04-30",
+        "lon": 126.97884,
+        "lat": 37.57054,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "서린동 136",
+        "road_address": "종로 14",
+        "adjacent_road": "종로",
+        "location_name": "한국무역보험공사 앞(광화문우체국 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97869,
+          37.57027
+        ]
+      },
+      "properties": {
+        "source_row": 6,
+        "stand_id": "01-081009",
+        "old_id": "종로-04",
+        "jcd_id": "X-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-29",
+        "lon": 126.97869,
+        "lat": 37.57027,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "청진동 246",
+        "road_address": "종로3길 17",
+        "adjacent_road": "종로",
+        "location_name": "교보생명빌딩 옆(한국수출무역공사 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98167,
+          37.57032
+        ]
+      },
+      "properties": {
+        "source_row": 7,
+        "stand_id": "01-081010",
+        "old_id": "종로-05",
+        "jcd_id": "X-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-30",
+        "lon": 126.98167,
+        "lat": 37.57032,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "청진동 70",
+        "road_address": "종로 33",
+        "adjacent_road": "종로",
+        "location_name": "종각역 1번 출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98746,
+          37.56866
+        ]
+      },
+      "properties": {
+        "source_row": 8,
+        "stand_id": "01-080206",
+        "old_id": "종로-06",
+        "jcd_id": "X-29",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.98746,
+        "lat": 37.56866,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "관철동 10-2",
+        "road_address": "청계천로 85",
+        "adjacent_road": "삼일대로",
+        "location_name": "한국산업은행 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98775,
+          37.56944
+        ]
+      },
+      "properties": {
+        "source_row": 9,
+        "stand_id": "01-080205",
+        "old_id": "종로-07",
+        "jcd_id": "X-39",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.98775,
+        "lat": 37.56944,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "관철동 5-7",
+        "road_address": "삼일대로 390",
+        "adjacent_road": "삼일대로",
+        "location_name": "코아아트홀 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98903,
+          37.57029
+        ]
+      },
+      "properties": {
+        "source_row": 10,
+        "stand_id": "01-081008",
+        "old_id": "종로-08",
+        "jcd_id": "X-13",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-26",
+        "lon": 126.98903,
+        "lat": 37.57029,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "종로2가 40",
+        "road_address": "수표로 105",
+        "adjacent_road": "종로",
+        "location_name": "탑골공원삼일문 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99001,
+          37.57023
+        ]
+      },
+      "properties": {
+        "source_row": 11,
+        "stand_id": "01-081813",
+        "old_id": "종로-09",
+        "jcd_id": "X-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-04-30",
+        "lon": 126.99001,
+        "lat": 37.57023,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "종로3가 116-1",
+        "road_address": "종로 116-2",
+        "adjacent_road": "종로",
+        "location_name": "KT올레 종로3가점 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99319,
+          37.57056
+        ]
+      },
+      "properties": {
+        "source_row": 12,
+        "stand_id": "01-081812",
+        "old_id": "종로-10",
+        "jcd_id": "X-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-04-30",
+        "lon": 126.99319,
+        "lat": 37.57056,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "종로3가 33",
+        "road_address": "종로 139-1",
+        "adjacent_road": "종로",
+        "location_name": "종로3가역 11번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99362,
+          37.57034
+        ]
+      },
+      "properties": {
+        "source_row": 13,
+        "stand_id": "01-081815",
+        "old_id": "종로-11",
+        "jcd_id": "X-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-06-02",
+        "lon": 126.99362,
+        "lat": 37.57034,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "종로3가 154",
+        "road_address": "종로 144-1",
+        "adjacent_road": "종로",
+        "location_name": "성철제치과의원 앞(두산의료기 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00116,
+          37.571
+        ]
+      },
+      "properties": {
+        "source_row": 14,
+        "stand_id": "01-091016",
+        "old_id": "종로-12",
+        "jcd_id": "X-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-28",
+        "lon": 127.00116,
+        "lat": 37.571,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로5,6가동",
+        "dong_name": "종로5,6가동",
+        "lot_address": "종로5가 94",
+        "road_address": "종로 211",
+        "adjacent_road": "종로",
+        "location_name": "SK텔레컴 앞(종로5가역 1번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.0211,
+          37.57453
+        ]
+      },
+      "properties": {
+        "source_row": 15,
+        "stand_id": "01-120220",
+        "old_id": "종로-13",
+        "jcd_id": "X-08",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.0211,
+        "lat": 37.57453,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "숭인동",
+        "dong_name": "숭인동",
+        "lot_address": "숭인동 200-6",
+        "road_address": "종로 394",
+        "adjacent_road": "종로 66길",
+        "location_name": "NH농협 신설동지점 앞(KT동대문지사 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99791,
+          37.57307
+        ]
+      },
+      "properties": {
+        "source_row": 16,
+        "stand_id": "01-080207",
+        "old_id": "종로-14",
+        "jcd_id": "X-35",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.99791,
+        "lat": 37.57307,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "인의동 101-1",
+        "road_address": "창경궁로 119",
+        "adjacent_road": "창경궁로",
+        "location_name": "서울시재향군인회 앞(한국교직원공제회 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99938,
+          37.58359
+        ]
+      },
+      "properties": {
+        "source_row": 17,
+        "stand_id": "01-142121",
+        "old_id": "종로-15",
+        "jcd_id": "X-37",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-25",
+        "lon": 126.99938,
+        "lat": 37.58359,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "혜화동",
+        "dong_name": "혜화동",
+        "lot_address": "명륜2가 168-1",
+        "road_address": "창경궁로 247",
+        "adjacent_road": "창경궁로",
+        "location_name": "명륜음악학원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00225,
+          37.57936
+        ]
+      },
+      "properties": {
+        "source_row": 18,
+        "stand_id": "01-100218",
+        "old_id": "종로-16",
+        "jcd_id": "X-32",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.00225,
+        "lat": 37.57936,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "이화동",
+        "dong_name": "이화동",
+        "lot_address": "동숭동 169-1",
+        "road_address": "대학로 86",
+        "adjacent_road": "대학로",
+        "location_name": "한국방송통신대학교 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00108,
+          37.57618
+        ]
+      },
+      "properties": {
+        "source_row": 19,
+        "stand_id": "01-102119",
+        "old_id": "종로-17",
+        "jcd_id": "X-26",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-26",
+        "lon": 127.00108,
+        "lat": 37.57618,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "이화동",
+        "dong_name": "이화동",
+        "lot_address": "연건동 128-8",
+        "road_address": "대학로 57",
+        "adjacent_road": "대학로",
+        "location_name": "홍익대학교 대학로캠퍼스 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99986,
+          37.57585
+        ]
+      },
+      "properties": {
+        "source_row": 20,
+        "stand_id": "01-092117",
+        "old_id": "종로-18",
+        "jcd_id": "X-47",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-26",
+        "lon": 126.99986,
+        "lat": 37.57585,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "종로5,6가동",
+        "dong_name": "종로5,6가동",
+        "lot_address": "연지동 1-1",
+        "road_address": "율곡로 190",
+        "adjacent_road": "율곡로",
+        "location_name": "여전도회관 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98549,
+          37.5767
+        ]
+      },
+      "properties": {
+        "source_row": 21,
+        "stand_id": "01-020203",
+        "old_id": "종로-19",
+        "jcd_id": "X-27",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.98549,
+        "lat": 37.5767,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "삼청동",
+        "dong_name": "삼청동",
+        "lot_address": "안국동 138-2",
+        "road_address": "율곡로 55",
+        "adjacent_road": "율곡로",
+        "location_name": "우리은행 재동지점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98299,
+          37.57318
+        ]
+      },
+      "properties": {
+        "source_row": 22,
+        "stand_id": "01-080204",
+        "old_id": "종로-20",
+        "jcd_id": "X-28",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.98299,
+        "lat": 37.57318,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "견지동 68-5",
+        "road_address": "우정국로 48",
+        "adjacent_road": "우정국로",
+        "location_name": "신한은행 종로금융센터 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97909,
+          37.57562
+        ]
+      },
+      "properties": {
+        "source_row": 23,
+        "stand_id": "01-081011",
+        "old_id": "종로-21",
+        "jcd_id": "X-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-30",
+        "lon": 126.97909,
+        "lat": 37.57562,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "종로1,2,3,4가동",
+        "dong_name": "종로1,2,3,4가동",
+        "lot_address": "중학동 110-2",
+        "road_address": "종로1길 57",
+        "adjacent_road": "종로1길",
+        "location_name": "명동칼국수 앞(독도교육센터)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97914,
+          37.56434
+        ]
+      },
+      "properties": {
+        "source_row": 24,
+        "stand_id": "02-011001",
+        "old_id": "중-01",
+        "jcd_id": "Y-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-20",
+        "lon": 126.97914,
+        "lat": 37.56434,
+        "powered": "OK",
+        "district": "중구",
+        "source_dong_name": "소공동",
+        "dong_name": "소공동",
+        "lot_address": "소공동 87-1",
+        "road_address": "소공로112",
+        "adjacent_road": "소공로",
+        "location_name": "조선호텔 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97923,
+          37.56436
+        ]
+      },
+      "properties": {
+        "source_row": 25,
+        "stand_id": "02-031010",
+        "old_id": "중-02",
+        "jcd_id": "Y-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-12",
+        "lon": 126.97923,
+        "lat": 37.56436,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "남대문로2가 9-9",
+        "road_address": "소공로 109",
+        "adjacent_road": "소공로",
+        "location_name": "한화빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97914,
+          37.56434
+        ]
+      },
+      "properties": {
+        "source_row": 26,
+        "stand_id": "02-031212",
+        "old_id": "중-03",
+        "jcd_id": "Y-60",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-03-15",
+        "lon": 126.97914,
+        "lat": 37.56434,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "을지로1가 192-11",
+        "road_address": "을지로 6",
+        "adjacent_road": "을지로",
+        "location_name": "JEI재능교육빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97377,
+          37.56288
+        ]
+      },
+      "properties": {
+        "source_row": 27,
+        "stand_id": "02-011102",
+        "old_id": "중-04",
+        "jcd_id": "Y-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-28",
+        "lon": 126.97377,
+        "lat": 37.56288,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "소공동",
+        "dong_name": "소공동",
+        "lot_address": "서소문동 75-95",
+        "road_address": "서소문로 116",
+        "adjacent_road": "서소문로",
+        "location_name": "유원빌딩 앞(제일은행,시청역 9번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97203,
+          37.55798
+        ]
+      },
+      "properties": {
+        "source_row": 28,
+        "stand_id": "02-021104",
+        "old_id": "중-06",
+        "jcd_id": "Y-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-28",
+        "lon": 126.97203,
+        "lat": 37.55798,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "회현동",
+        "dong_name": "회현동",
+        "lot_address": "봉래동1가 132-6",
+        "road_address": "통일로 24",
+        "adjacent_road": "통일로",
+        "location_name": "일신빌딩 앞(한일빌딩 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96925,
+          37.55586
+        ]
+      },
+      "properties": {
+        "source_row": 29,
+        "stand_id": "02-021105",
+        "old_id": "중-07",
+        "jcd_id": "Y-59",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-11-07",
+        "lon": 126.96925,
+        "lat": 37.55586,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "회현동",
+        "dong_name": "회현동",
+        "lot_address": "봉래동 2가 122-11",
+        "road_address": "한강대로 405",
+        "adjacent_road": "청파로",
+        "location_name": "서울서부역 롯데마트 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97912,
+          37.56119
+        ]
+      },
+      "properties": {
+        "source_row": 30,
+        "stand_id": "02-021003",
+        "old_id": "중-08",
+        "jcd_id": "Y-26",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-12",
+        "lon": 126.97912,
+        "lat": 37.56119,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "회현동",
+        "dong_name": "회현동",
+        "lot_address": "남창동 1-1",
+        "road_address": "남대문로 30",
+        "adjacent_road": "남대문로",
+        "location_name": "새로나쇼핑 앞(한국은행 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98695,
+          37.56109
+        ]
+      },
+      "properties": {
+        "source_row": 31,
+        "stand_id": "02-031813",
+        "old_id": "중-09",
+        "jcd_id": "Y-21",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-06-03",
+        "lon": 126.98695,
+        "lat": 37.56109,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "충무로2가 62-12",
+        "road_address": "퇴계로137",
+        "adjacent_road": "퇴계로",
+        "location_name": "명동역 롯데호텔 L7앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98651,
+          37.56088
+        ]
+      },
+      "properties": {
+        "source_row": 32,
+        "stand_id": "02-031814P",
+        "old_id": "중-10P",
+        "jcd_id": "Pole-23",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2018-06-03",
+        "lon": 126.98651,
+        "lat": 37.56088,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "남산동3가 13-36",
+        "road_address": "퇴계로 134",
+        "adjacent_road": "퇴계로",
+        "location_name": "명동역 2번출구 앞(CU편의점 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99599,
+          37.5618
+        ]
+      },
+      "properties": {
+        "source_row": 33,
+        "stand_id": "02-062018",
+        "old_id": "중-11",
+        "jcd_id": "Y-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2020-05-22",
+        "lon": 126.99599,
+        "lat": 37.5618,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "광희동",
+        "dong_name": "광희동",
+        "lot_address": "충무로4가 120-3",
+        "road_address": "퇴계로 217",
+        "adjacent_road": "퇴계로",
+        "location_name": "진양상가 앞(행복컨벤션웨딩홀 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00296,
+          37.56036
+        ]
+      },
+      "properties": {
+        "source_row": 34,
+        "stand_id": "02-051015",
+        "old_id": "중-12",
+        "jcd_id": "Y-49",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-18",
+        "lon": 127.00296,
+        "lat": 37.56036,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "장충동",
+        "dong_name": "장충동",
+        "lot_address": "장충동2가 186-38",
+        "road_address": "동호로 288",
+        "adjacent_road": "동호로",
+        "location_name": "오래복집 앞(엠버서더호텔 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00789,
+          37.55146
+        ]
+      },
+      "properties": {
+        "source_row": 35,
+        "stand_id": "02-121122",
+        "old_id": "중-13",
+        "jcd_id": "Y-25",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-25",
+        "lon": 127.00789,
+        "lat": 37.55146,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "다산동",
+        "dong_name": "다산동",
+        "lot_address": "신당동 353-22",
+        "road_address": "다산로 77",
+        "adjacent_road": "다산로",
+        "location_name": "약수한방삼계탕 앞(송도병원 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01026,
+          37.55393
+        ]
+      },
+      "properties": {
+        "source_row": 36,
+        "stand_id": "02-131123",
+        "old_id": "중-14",
+        "jcd_id": "Y-28",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-25",
+        "lon": 127.01026,
+        "lat": 37.55393,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "약수동",
+        "dong_name": "약수동",
+        "lot_address": "신당동 368-99",
+        "road_address": "다산로 112",
+        "adjacent_road": "다산로",
+        "location_name": "담스빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01599,
+          37.56474
+        ]
+      },
+      "properties": {
+        "source_row": 37,
+        "stand_id": "02-111121",
+        "old_id": "중-15",
+        "jcd_id": "Y-16",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-26",
+        "lon": 127.01599,
+        "lat": 37.56474,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신당동",
+        "dong_name": "신당동",
+        "lot_address": "무학동 4",
+        "road_address": "다산로 243",
+        "adjacent_road": "다산로",
+        "location_name": "신당역 7번출구 앞(SK주유소 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01632,
+          37.56612
+        ]
+      },
+      "properties": {
+        "source_row": 38,
+        "stand_id": "02-061117",
+        "old_id": "중-16",
+        "jcd_id": "Y-54",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-26",
+        "lon": 127.01632,
+        "lat": 37.56612,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "광희동",
+        "dong_name": "광희동",
+        "lot_address": "을지로6가 18-212",
+        "road_address": "장충단로 263",
+        "adjacent_road": "장충단로",
+        "location_name": "밀리오레빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00491,
+          37.56662
+        ]
+      },
+      "properties": {
+        "source_row": 39,
+        "stand_id": "02-060216",
+        "old_id": "중-17",
+        "jcd_id": "Y-39",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.00491,
+        "lat": 37.56662,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "광희동",
+        "dong_name": "광희동",
+        "lot_address": "을지로6가 18-79",
+        "road_address": "을지로 245",
+        "adjacent_road": "을지로",
+        "location_name": "국립의료원 정문 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99181,
+          37.56626
+        ]
+      },
+      "properties": {
+        "source_row": 40,
+        "stand_id": "02-071020",
+        "old_id": "중-18",
+        "jcd_id": "Y-30",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-22",
+        "lon": 126.99181,
+        "lat": 37.56626,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "을지로동",
+        "dong_name": "을지로동",
+        "lot_address": "을지로3가 315-3",
+        "road_address": "을지로 124-1",
+        "adjacent_road": "을지로3가",
+        "location_name": "원인인테리어 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.99175,
+          37.56638
+        ]
+      },
+      "properties": {
+        "source_row": 41,
+        "stand_id": "02-071019",
+        "old_id": "중-19",
+        "jcd_id": "Y-42",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-22",
+        "lon": 126.99175,
+        "lat": 37.56638,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "을지로동",
+        "dong_name": "을지로동",
+        "lot_address": "을지로3가 65-38",
+        "road_address": "을지로 123-2",
+        "adjacent_road": "을지로",
+        "location_name": "일위건업 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98482,
+          37.56604
+        ]
+      },
+      "properties": {
+        "source_row": 42,
+        "stand_id": "02-031009",
+        "old_id": "중-20",
+        "jcd_id": "Y-29",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-11",
+        "lon": 126.98482,
+        "lat": 37.56604,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "을지로2가 181",
+        "road_address": "을지로 66",
+        "adjacent_road": "을지로",
+        "location_name": "하나은행본점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98479,
+          37.56609
+        ]
+      },
+      "properties": {
+        "source_row": 43,
+        "stand_id": "02-031011",
+        "old_id": "중-21",
+        "jcd_id": "Y-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-17",
+        "lon": 126.98479,
+        "lat": 37.56609,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "을지로2가 11",
+        "road_address": "을지로 65",
+        "adjacent_road": "을지로",
+        "location_name": "SK빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98245,
+          37.56732
+        ]
+      },
+      "properties": {
+        "source_row": 44,
+        "stand_id": "02-031008",
+        "old_id": "중-22",
+        "jcd_id": "Y-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-11",
+        "lon": 126.98245,
+        "lat": 37.56732,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "다동 103",
+        "road_address": "남대문로 113",
+        "adjacent_road": "남대문로",
+        "location_name": "동부상호저축은행 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97953,
+          37.56748
+        ]
+      },
+      "properties": {
+        "source_row": 45,
+        "stand_id": "02-031007",
+        "old_id": "중-23",
+        "jcd_id": "Y-20",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형-시범",
+        "installed_at": "2010년",
+        "lon": 126.97953,
+        "lat": 37.56748,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "명동",
+        "dong_name": "명동",
+        "lot_address": "무교동 95",
+        "road_address": "무교로 20",
+        "adjacent_road": "무교로",
+        "location_name": "어린이재단빌딩 앞(기업은행 무교지점앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97173,
+          37.55483
+        ]
+      },
+      "properties": {
+        "source_row": 46,
+        "stand_id": "02-162624",
+        "old_id": "중-24",
+        "jcd_id": "Y-61",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2026-01-06",
+        "lon": 126.97173,
+        "lat": 37.55483,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "봉래동",
+        "dong_name": "봉래동",
+        "lot_address": "한강대로 405",
+        "road_address": "한강대로 405",
+        "adjacent_road": "한강대로",
+        "location_name": "서울역환승센터 1번, 2번 승강장",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95585,
+          37.53197
+        ]
+      },
+      "properties": {
+        "source_row": 47,
+        "stand_id": "03-121111",
+        "old_id": "용산-01",
+        "jcd_id": "V-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-18",
+        "lon": 126.95585,
+        "lat": 37.53197,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "한강로동",
+        "dong_name": "한강로동",
+        "lot_address": "한강로3가 16-49",
+        "road_address": "청파로 40",
+        "adjacent_road": "청파로",
+        "location_name": "삼구빌딩(하나은행 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95927,
+          37.53423
+        ]
+      },
+      "properties": {
+        "source_row": 48,
+        "stand_id": "03-041105",
+        "old_id": "용산-02",
+        "jcd_id": "V-26",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-18",
+        "lon": 126.95927,
+        "lat": 37.53423,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "원효로2동",
+        "dong_name": "원효로2동",
+        "lot_address": "원효로3가 52-5",
+        "road_address": "원효로 142",
+        "adjacent_road": "원효로",
+        "location_name": "삼원빌딩(기업은행 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96255,
+          37.5388
+        ]
+      },
+      "properties": {
+        "source_row": 49,
+        "stand_id": "03-051606",
+        "old_id": "용산-03",
+        "jcd_id": "V-70",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2016-12-01",
+        "lon": 126.96255,
+        "lat": 37.5388,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "효창동",
+        "dong_name": "효창동",
+        "lot_address": "효창동 36",
+        "road_address": "백범로 287",
+        "adjacent_road": "백범로",
+        "location_name": "효창공원역 5번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96918,
+          37.5302
+        ]
+      },
+      "properties": {
+        "source_row": 50,
+        "stand_id": "03-121110",
+        "old_id": "용산-04",
+        "jcd_id": "V-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-12",
+        "lon": 126.96918,
+        "lat": 37.5302,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한강로동",
+        "dong_name": "한강로동",
+        "lot_address": "한강로2가 142",
+        "road_address": "한강대로 118",
+        "adjacent_road": "한강대로",
+        "location_name": "용산우체국 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96591,
+          37.52856
+        ]
+      },
+      "properties": {
+        "source_row": 51,
+        "stand_id": "03-121813",
+        "old_id": "용산-05",
+        "jcd_id": "V-75",
+        "stand_type": "쉘터형",
+        "facility_type": "버스쉘터형⑤",
+        "installed_at": "2018-03-19",
+        "lon": 126.96591,
+        "lat": 37.52856,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한강로동",
+        "dong_name": "한강로동",
+        "lot_address": "한강로2가 422",
+        "road_address": "한강대로 95",
+        "adjacent_road": "한강대로",
+        "location_name": "용산역 아이파크몰 건너편",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9654,
+          37.52862
+        ]
+      },
+      "properties": {
+        "source_row": 52,
+        "stand_id": "03-121814",
+        "old_id": "용산-06",
+        "jcd_id": "V-71",
+        "stand_type": "쉘터형",
+        "facility_type": "버스쉘터형③",
+        "installed_at": "2018-03-19",
+        "lon": 126.9654,
+        "lat": 37.52862,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한강로동",
+        "dong_name": "한강로동",
+        "lot_address": "한강로3가 40-999",
+        "road_address": "한강대로23길 55",
+        "adjacent_road": "한강대로23길",
+        "location_name": "용산역 아이파크몰",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9641,
+          37.52499
+        ]
+      },
+      "properties": {
+        "source_row": 53,
+        "stand_id": "03-121112",
+        "old_id": "용산-07",
+        "jcd_id": "V-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-23",
+        "lon": 126.9641,
+        "lat": 37.52499,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한강로동",
+        "dong_name": "한강로동",
+        "lot_address": "한강로3가 65-9",
+        "road_address": "한강대로 42",
+        "adjacent_road": "한강대로",
+        "location_name": "용산GS칼텍스 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98043,
+          37.52061
+        ]
+      },
+      "properties": {
+        "source_row": 54,
+        "stand_id": "03-090207",
+        "old_id": "용산-08",
+        "jcd_id": "V-60",
+        "stand_type": "쉘터형",
+        "facility_type": "버스쉘터형①",
+        "installed_at": "2002년",
+        "lon": 126.98043,
+        "lat": 37.52061,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서빙고동",
+        "dong_name": "서빙고동",
+        "lot_address": "용산동6가 168-6",
+        "road_address": "서빙고로 139",
+        "adjacent_road": "서빙고로",
+        "location_name": "용산가족공원 앞(중앙박물관 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00432,
+          37.53352
+        ]
+      },
+      "properties": {
+        "source_row": 55,
+        "stand_id": "03-131319",
+        "old_id": "용산-09",
+        "jcd_id": "V-65",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2013-04-04",
+        "lon": 127.00432,
+        "lat": 37.53352,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "한남동",
+        "dong_name": "한남동",
+        "lot_address": "한남동 657-58",
+        "road_address": "대사관로 59",
+        "adjacent_road": "대사관로",
+        "location_name": "순천향대학교병원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00679,
+          37.53514
+        ]
+      },
+      "properties": {
+        "source_row": 56,
+        "stand_id": "03-131015",
+        "old_id": "용산-10",
+        "jcd_id": "V-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-08",
+        "lon": 127.00679,
+        "lat": 37.53514,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "한남동",
+        "dong_name": "한남동",
+        "lot_address": "한남동 707-18",
+        "road_address": "한남대로 72",
+        "adjacent_road": "한남대로",
+        "location_name": "단국빌딩 앞(기업은행)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00126,
+          37.53796
+        ]
+      },
+      "properties": {
+        "source_row": 57,
+        "stand_id": "03-131016",
+        "old_id": "용산-11",
+        "jcd_id": "V-05",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-08",
+        "lon": 127.00126,
+        "lat": 37.53796,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한남동",
+        "dong_name": "한남동",
+        "lot_address": "한남동 739-1",
+        "road_address": "이태원로 261",
+        "adjacent_road": "이태원로",
+        "location_name": "로즈베이커리 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00143,
+          37.53783
+        ]
+      },
+      "properties": {
+        "source_row": 58,
+        "stand_id": "03-131017",
+        "old_id": "용산-12",
+        "jcd_id": "V-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-09",
+        "lon": 127.00143,
+        "lat": 37.53783,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한남동",
+        "dong_name": "한남동",
+        "lot_address": "한남동 683-73",
+        "road_address": "이태원로 262",
+        "adjacent_road": "이태원로",
+        "location_name": "폭스바겐 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9996,
+          37.53608
+        ]
+      },
+      "properties": {
+        "source_row": 59,
+        "stand_id": "03-131018",
+        "old_id": "용산-13",
+        "jcd_id": "V-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-09",
+        "lon": 126.9996,
+        "lat": 37.53608,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "한남동",
+        "dong_name": "한남동",
+        "lot_address": "한남동 738-18",
+        "road_address": "이태원로 237",
+        "adjacent_road": "이태원로",
+        "location_name": "썬힐환전소 앞(우리은행 한남동지점 좌측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9727,
+          37.54296
+        ]
+      },
+      "properties": {
+        "source_row": 60,
+        "stand_id": "03-031101",
+        "old_id": "용산-14",
+        "jcd_id": "V-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-12",
+        "lon": 126.9727,
+        "lat": 37.54296,
+        "powered": "OK",
+        "district": "용산구",
+        "source_dong_name": "남영동",
+        "dong_name": "남영동",
+        "lot_address": "남영동 74",
+        "road_address": "한강대로 276",
+        "adjacent_road": "한강대로",
+        "location_name": "용산빌딩 건너(더조은참치 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96963,
+          37.55024
+        ]
+      },
+      "properties": {
+        "source_row": 61,
+        "stand_id": "03-111108",
+        "old_id": "용산-15",
+        "jcd_id": "V-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-13",
+        "lon": 126.96963,
+        "lat": 37.55024,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "청파동",
+        "dong_name": "청파동",
+        "lot_address": "서계동 209",
+        "road_address": "청파로 345",
+        "adjacent_road": "청파로",
+        "location_name": "주연빌딩 앞(우리은행)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96884,
+          37.55374
+        ]
+      },
+      "properties": {
+        "source_row": 62,
+        "stand_id": "03-111109",
+        "old_id": "용산-16",
+        "jcd_id": "V-09",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-13",
+        "lon": 126.96884,
+        "lat": 37.55374,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "청파동",
+        "dong_name": "청파동",
+        "lot_address": "서계동 224-32",
+        "road_address": "청파로 383",
+        "adjacent_road": "청파로",
+        "location_name": "소화아동병원 앞(서울서부역 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96917,
+          37.55438
+        ]
+      },
+      "properties": {
+        "source_row": 63,
+        "stand_id": "03-031602P",
+        "old_id": "용산-17P",
+        "jcd_id": "Pole-14",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.96917,
+        "lat": 37.55438,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "남영동",
+        "dong_name": "남영동",
+        "lot_address": "동자동 44-6",
+        "road_address": "한강대로 405",
+        "adjacent_road": "청파로",
+        "location_name": "한국철도공사 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96917,
+          37.55438
+        ]
+      },
+      "properties": {
+        "source_row": 64,
+        "stand_id": "03-031603P",
+        "old_id": "용산-18P",
+        "jcd_id": "Pole-15",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.96917,
+        "lat": 37.55438,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "남영동",
+        "dong_name": "남영동",
+        "lot_address": "동자동 44-6",
+        "road_address": "한강대로 405",
+        "adjacent_road": "청파로",
+        "location_name": "한국철도공사 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96917,
+          37.55438
+        ]
+      },
+      "properties": {
+        "source_row": 65,
+        "stand_id": "03-031604P",
+        "old_id": "용산-19P",
+        "jcd_id": "Pole-16",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.96917,
+        "lat": 37.55438,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "남영동",
+        "dong_name": "남영동",
+        "lot_address": "동자동 44-6",
+        "road_address": "한강대로 405",
+        "adjacent_road": "청파로",
+        "location_name": "한국철도공사 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04346,
+          37.56658
+        ]
+      },
+      "properties": {
+        "source_row": 66,
+        "stand_id": "04-021101",
+        "old_id": "성동-01",
+        "jcd_id": "Q-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-07-01",
+        "lon": 127.04346,
+        "lat": 37.56658,
+        "powered": "-",
+        "district": "성동구",
+        "source_dong_name": "마장동",
+        "dong_name": "마장동",
+        "lot_address": "마장동 771-7",
+        "road_address": "마장로 305",
+        "adjacent_road": "마장로",
+        "location_name": "동광빌딩 앞(마장역 2번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04325,
+          37.56622
+        ]
+      },
+      "properties": {
+        "source_row": 67,
+        "stand_id": "04-021102",
+        "old_id": "성동-02",
+        "jcd_id": "Q-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-07-01",
+        "lon": 127.04325,
+        "lat": 37.56622,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "마장동",
+        "dong_name": "마장동",
+        "lot_address": "마장동 791-1",
+        "road_address": "마장로 300",
+        "adjacent_road": "마장로",
+        "location_name": "열산빌딩 앞(마장역 3번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04008,
+          37.55733
+        ]
+      },
+      "properties": {
+        "source_row": 68,
+        "stand_id": "04-041404",
+        "old_id": "성동-03",
+        "jcd_id": "Q-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2014-07-16",
+        "lon": 127.04008,
+        "lat": 37.55733,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "행당동",
+        "dong_name": "행당동",
+        "lot_address": "행당동 40-9",
+        "road_address": "왕십리로 241",
+        "adjacent_road": "살곶이길",
+        "location_name": "서울숲더샵 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04374,
+          37.55446
+        ]
+      },
+      "properties": {
+        "source_row": 69,
+        "stand_id": "04-041103",
+        "old_id": "성동-04",
+        "jcd_id": "Q-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-07-05",
+        "lon": 127.04374,
+        "lat": 37.55446,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "행당동",
+        "dong_name": "행당동",
+        "lot_address": "행당동 17-2",
+        "road_address": "왕십리로 190-1",
+        "adjacent_road": "왕십리로",
+        "location_name": "한양대역 3번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.08152,
+          37.55633
+        ]
+      },
+      "properties": {
+        "source_row": 70,
+        "stand_id": "05-040202",
+        "old_id": "광진-01",
+        "jcd_id": "F-06",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.08152,
+        "lat": 37.55633,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "능동",
+        "dong_name": "능동",
+        "lot_address": "능동 222-3",
+        "road_address": "천호대로 572",
+        "adjacent_road": "천호대로",
+        "location_name": "전국교수공제회관 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.08939,
+          37.55201
+        ]
+      },
+      "properties": {
+        "source_row": 71,
+        "stand_id": "05-040201",
+        "old_id": "광진-02",
+        "jcd_id": "F-07",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.08939,
+        "lat": 37.55201,
+        "powered": "-",
+        "district": "광진구",
+        "source_dong_name": "능동",
+        "dong_name": "능동",
+        "lot_address": "능동 18",
+        "road_address": "능동로 216",
+        "adjacent_road": "천호대로",
+        "location_name": "어린이대공원 후문앞(아차산역 5번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10245,
+          37.54351
+        ]
+      },
+      "properties": {
+        "source_row": 72,
+        "stand_id": "05-061805",
+        "old_id": "광진-03",
+        "jcd_id": "F-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-04-03",
+        "lon": 127.10245,
+        "lat": 37.54351,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "광장동",
+        "dong_name": "광장동",
+        "lot_address": "광장동 237-13",
+        "road_address": "천호대로 808",
+        "adjacent_road": "천호대로",
+        "location_name": "광장현대홈타운1201동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09549,
+          37.53663
+        ]
+      },
+      "properties": {
+        "source_row": 73,
+        "stand_id": "05-051604P",
+        "old_id": "광진-04P",
+        "jcd_id": "Pole-05",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.09549,
+        "lat": 37.53663,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "구의동",
+        "dong_name": "구의동",
+        "lot_address": "구의동 546-4",
+        "road_address": "광나루로 56길 85",
+        "adjacent_road": "광나루로 56길",
+        "location_name": "강변테크노마트 옆,광나루로56길",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09476,
+          37.5369
+        ]
+      },
+      "properties": {
+        "source_row": 74,
+        "stand_id": "05-050203",
+        "old_id": "광진-05",
+        "jcd_id": "F-14",
+        "stand_type": "쉘터형",
+        "facility_type": "버스쉘터형①",
+        "installed_at": "2002년",
+        "lon": 127.09476,
+        "lat": 37.5369,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구의동",
+        "dong_name": "구의동",
+        "lot_address": "구의동 546-1",
+        "road_address": "강변역로 50",
+        "adjacent_road": "강변역로",
+        "location_name": "동서울종합터미널상가 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07095,
+          37.53971
+        ]
+      },
+      "properties": {
+        "source_row": 75,
+        "stand_id": "05-071306",
+        "old_id": "광진-06",
+        "jcd_id": "F-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2013-05-08",
+        "lon": 127.07095,
+        "lat": 37.53971,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "자양동",
+        "dong_name": "자양동",
+        "lot_address": "자양동 227-342",
+        "road_address": "능동로 92",
+        "adjacent_road": "아차산로",
+        "location_name": "롯데백화점 건대스타시티점 앞(건대병원 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03722,
+          37.57424
+        ]
+      },
+      "properties": {
+        "source_row": 77,
+        "stand_id": "06-051102",
+        "old_id": "동대문-02",
+        "jcd_id": "K-16",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-10",
+        "lon": 127.03722,
+        "lat": 37.57424,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "용신동",
+        "dong_name": "용신동",
+        "lot_address": "용두동 792-7",
+        "road_address": "정릉천동로 36",
+        "adjacent_road": "천호대로",
+        "location_name": "래미안허브리츠 아파트 102동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05122,
+          37.56814
+        ]
+      },
+      "properties": {
+        "source_row": 78,
+        "stand_id": "06-071103",
+        "old_id": "동대문-03",
+        "jcd_id": "K-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-10",
+        "lon": 127.05122,
+        "lat": 37.56814,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "답십리동",
+        "dong_name": "답십리동",
+        "lot_address": "답십리동 496-1",
+        "road_address": "천호대로 265",
+        "adjacent_road": "천호대로",
+        "location_name": "답십리역 1번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06526,
+          37.56284
+        ]
+      },
+      "properties": {
+        "source_row": 79,
+        "stand_id": "06-081104",
+        "old_id": "동대문-04",
+        "jcd_id": "K-13",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-06",
+        "lon": 127.06526,
+        "lat": 37.56284,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "장안동",
+        "dong_name": "장안동",
+        "lot_address": "장안동 432-1",
+        "road_address": "장한로 17",
+        "adjacent_road": "장한로",
+        "location_name": "국립농산물품질관리원 우측",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07041,
+          37.57004
+        ]
+      },
+      "properties": {
+        "source_row": 80,
+        "stand_id": "06-081106",
+        "old_id": "동대문-05",
+        "jcd_id": "K-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-07",
+        "lon": 127.07041,
+        "lat": 37.57004,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "장안동",
+        "dong_name": "장안동",
+        "lot_address": "장안2동 366-6",
+        "road_address": "장한로 106",
+        "adjacent_road": "장한로",
+        "location_name": "경남관광호텔 우측(명동찌개마을 장안점)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07017,
+          37.57009
+        ]
+      },
+      "properties": {
+        "source_row": 81,
+        "stand_id": "06-081105",
+        "old_id": "동대문-06",
+        "jcd_id": "K-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-07",
+        "lon": 127.07017,
+        "lat": 37.57009,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "장안동",
+        "dong_name": "장안동",
+        "lot_address": "장안동 372-5",
+        "road_address": "장한로 105",
+        "adjacent_road": "장한로",
+        "location_name": "장안뉴시티주상복합 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09031,
+          37.59747
+        ]
+      },
+      "properties": {
+        "source_row": 82,
+        "stand_id": "07-021101",
+        "old_id": "중랑-01",
+        "jcd_id": "Z-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-04",
+        "lon": 127.09031,
+        "lat": 37.59747,
+        "powered": "OK",
+        "district": "중랑구",
+        "source_dong_name": "상봉동",
+        "dong_name": "상봉동",
+        "lot_address": "상봉동 81",
+        "road_address": "망우로 336",
+        "adjacent_road": "망우로",
+        "location_name": "코스트코 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09359,
+          37.59689
+        ]
+      },
+      "properties": {
+        "source_row": 83,
+        "stand_id": "07-081908",
+        "old_id": "중랑-02",
+        "jcd_id": "Z-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2019-04-23",
+        "lon": 127.09359,
+        "lat": 37.59689,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "망우본동",
+        "dong_name": "망우본동",
+        "lot_address": "망우동 506-1",
+        "road_address": "상봉로 118",
+        "adjacent_road": "상봉로",
+        "location_name": "이마트 상봉점 앞 (임시 철거 중)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09122,
+          37.59801
+        ]
+      },
+      "properties": {
+        "source_row": 84,
+        "stand_id": "07-022003P",
+        "old_id": "중랑-03P",
+        "jcd_id": "Pole-26",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2020-04-14",
+        "lon": 127.09122,
+        "lat": 37.59801,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상봉동",
+        "dong_name": "상봉동",
+        "lot_address": "상봉동 500",
+        "road_address": "망우로 353",
+        "adjacent_road": "망우로",
+        "location_name": "프리미어엠코 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.0924,
+          37.59896
+        ]
+      },
+      "properties": {
+        "source_row": 85,
+        "stand_id": "07-021802",
+        "old_id": "중랑-04",
+        "jcd_id": "Z-09",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2018-05-25",
+        "lon": 127.0924,
+        "lat": 37.59896,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "상봉동",
+        "dong_name": "상봉동",
+        "lot_address": "상봉동 72-8",
+        "road_address": "망우로55길 11-7",
+        "adjacent_road": "망우로",
+        "location_name": "망우역사 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09801,
+          37.61348
+        ]
+      },
+      "properties": {
+        "source_row": 86,
+        "stand_id": "07-061706",
+        "old_id": "중랑-05",
+        "jcd_id": "Z-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2017-04-15",
+        "lon": 127.09801,
+        "lat": 37.61348,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신내동",
+        "dong_name": "신내동",
+        "lot_address": "신내동 316",
+        "road_address": "신내로 156",
+        "adjacent_road": "신내로",
+        "location_name": "서울의료원 내",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.09257,
+          37.61665
+        ]
+      },
+      "properties": {
+        "source_row": 87,
+        "stand_id": "07-061907P",
+        "old_id": "중랑-06P",
+        "jcd_id": "Pole-24",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2019-04-23",
+        "lon": 127.09257,
+        "lat": 37.61665,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신내동",
+        "dong_name": "신내동",
+        "lot_address": "신내동 646",
+        "road_address": "신내로 211",
+        "adjacent_road": "신내로",
+        "location_name": "봉화산역3번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07858,
+          37.60595
+        ]
+      },
+      "properties": {
+        "source_row": 88,
+        "stand_id": "07-041105",
+        "old_id": "중랑-07",
+        "jcd_id": "Z-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.07858,
+        "lat": 37.60595,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "묵동",
+        "dong_name": "묵동",
+        "lot_address": "묵동 250-23",
+        "road_address": "동일로 847",
+        "adjacent_road": "동일로",
+        "location_name": "성일빌딩 앞(LG베스트샵)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07973,
+          37.59989
+        ]
+      },
+      "properties": {
+        "source_row": 89,
+        "stand_id": "07-031104",
+        "old_id": "중랑-08",
+        "jcd_id": "Z-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.07973,
+        "lat": 37.59989,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "중화동",
+        "dong_name": "중화동",
+        "lot_address": "중화동 303-16",
+        "road_address": "동일로 777",
+        "adjacent_road": "동일로",
+        "location_name": "진정훈동물병원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02418,
+          37.6016
+        ]
+      },
+      "properties": {
+        "source_row": 90,
+        "stand_id": "08-011101",
+        "old_id": "성북-01",
+        "jcd_id": "R-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-30",
+        "lon": 127.02418,
+        "lat": 37.6016,
+        "powered": "OK",
+        "district": "성북구",
+        "source_dong_name": "돈암동",
+        "dong_name": "돈암동",
+        "lot_address": "돈암동 10-5",
+        "road_address": "동소문로34길 24",
+        "adjacent_road": "정릉로",
+        "location_name": "돈암삼성아파트 101동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04137,
+          37.60145
+        ]
+      },
+      "properties": {
+        "source_row": 91,
+        "stand_id": "08-061102",
+        "old_id": "성북-02",
+        "jcd_id": "R-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-25",
+        "lon": 127.04137,
+        "lat": 37.60145,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "월곡동",
+        "dong_name": "월곡동",
+        "lot_address": "하월곡동 34-44",
+        "road_address": "월곡로 106-1",
+        "adjacent_road": "월곡로",
+        "location_name": "광흥빌딩 앞(월곡역 5번출구 방향)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03585,
+          37.58961
+        ]
+      },
+      "properties": {
+        "source_row": 92,
+        "stand_id": "08-111103",
+        "old_id": "성북-03",
+        "jcd_id": "R-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-07",
+        "lon": 127.03585,
+        "lat": 37.58961,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "종암동",
+        "dong_name": "종암동",
+        "lot_address": "종암동 29-47",
+        "road_address": "종암로 13",
+        "adjacent_road": "안암로",
+        "location_name": "고려대역 1번 출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02373,
+          37.63196
+        ]
+      },
+      "properties": {
+        "source_row": 93,
+        "stand_id": "09-021602P",
+        "old_id": "강북-02P",
+        "jcd_id": "Pole-04",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.02373,
+        "lat": 37.63196,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "수유동",
+        "dong_name": "수유동",
+        "lot_address": "수유동 737",
+        "road_address": "도봉로 267 좌측\n(도로명 주소 없음)",
+        "adjacent_road": "도봉로",
+        "location_name": "수유프라자 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02421,
+          37.63159
+        ]
+      },
+      "properties": {
+        "source_row": 94,
+        "stand_id": "09-041004",
+        "old_id": "강북-03",
+        "jcd_id": "C-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형-시범",
+        "installed_at": "2010년",
+        "lon": 127.02421,
+        "lat": 37.63159,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "미아동",
+        "dong_name": "미아동",
+        "lot_address": "미아동 189-14",
+        "road_address": "도봉로 260",
+        "adjacent_road": "도봉로",
+        "location_name": "운산빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01827,
+          37.62529
+        ]
+      },
+      "properties": {
+        "source_row": 95,
+        "stand_id": "09-031603P",
+        "old_id": "강북-04P",
+        "jcd_id": "Pole-02",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.01827,
+        "lat": 37.62529,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "삼양동",
+        "dong_name": "삼양동",
+        "lot_address": "미아동 1359",
+        "road_address": "삼양로 247",
+        "adjacent_road": "삼양로",
+        "location_name": "롯데마트삼양점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03024,
+          37.61466
+        ]
+      },
+      "properties": {
+        "source_row": 96,
+        "stand_id": "09-041205",
+        "old_id": "강북-05",
+        "jcd_id": "C-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-07-04",
+        "lon": 127.03024,
+        "lat": 37.61466,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "미아동",
+        "dong_name": "미아동",
+        "lot_address": "미아동 70-6",
+        "road_address": "도봉로 62",
+        "adjacent_road": "도봉로",
+        "location_name": "롯데백화점 미아점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03478,
+          37.649
+        ]
+      },
+      "properties": {
+        "source_row": 97,
+        "stand_id": "10-011101",
+        "old_id": "도봉-01",
+        "jcd_id": "J-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-27",
+        "lon": 127.03478,
+        "lat": 37.649,
+        "powered": "OK",
+        "district": "도봉구",
+        "source_dong_name": "쌍문동",
+        "dong_name": "쌍문동",
+        "lot_address": "쌍문동 88-105",
+        "road_address": "도봉로 487",
+        "adjacent_road": "도봉로",
+        "location_name": "쌍문역 4번 출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04363,
+          37.65194
+        ]
+      },
+      "properties": {
+        "source_row": 98,
+        "stand_id": "10-031502",
+        "old_id": "도봉-02",
+        "jcd_id": "J-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-06-12",
+        "lon": 127.04363,
+        "lat": 37.65194,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "창동",
+        "dong_name": "창동",
+        "lot_address": "창동 340",
+        "road_address": "해등로 50",
+        "adjacent_road": "노해로",
+        "location_name": "창동주공3단지앞(이마트사거리 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07978,
+          37.67062
+        ]
+      },
+      "properties": {
+        "source_row": 99,
+        "stand_id": "11-061909P",
+        "old_id": "노원-01P",
+        "jcd_id": "Pole-25",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2019-08-29",
+        "lon": 127.07978,
+        "lat": 37.67062,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상계동",
+        "dong_name": "상계동",
+        "lot_address": "상계동 111-475",
+        "road_address": "상계로 309-1",
+        "adjacent_road": "상계로",
+        "location_name": "당고개역 1번출구 (명륜빌딩 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05768,
+          37.66137
+        ]
+      },
+      "properties": {
+        "source_row": 100,
+        "stand_id": "11-061107",
+        "old_id": "노원-02",
+        "jcd_id": "I-09",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-26",
+        "lon": 127.05768,
+        "lat": 37.66137,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상계동",
+        "dong_name": "상계동",
+        "lot_address": "상계동 666-3",
+        "road_address": "동일로 1493",
+        "adjacent_road": "동일로",
+        "location_name": "상계주공10단지 상가 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05937,
+          37.6582
+        ]
+      },
+      "properties": {
+        "source_row": 101,
+        "stand_id": "11-061105",
+        "old_id": "노원-03",
+        "jcd_id": "I-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-20",
+        "lon": 127.05937,
+        "lat": 37.6582,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "상계동",
+        "dong_name": "상계동",
+        "lot_address": "상계동 609",
+        "road_address": "동일로 1449",
+        "adjacent_road": "동일로",
+        "location_name": "도봉면허시험장 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05972,
+          37.65806
+        ]
+      },
+      "properties": {
+        "source_row": 102,
+        "stand_id": "11-061106",
+        "old_id": "노원-04",
+        "jcd_id": "I-10",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-26",
+        "lon": 127.05972,
+        "lat": 37.65806,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상계동",
+        "dong_name": "상계동",
+        "lot_address": "상계동 692",
+        "road_address": "동일로 1456",
+        "adjacent_road": "동일로",
+        "location_name": "상계주공708동 앞(도봉면허시험장 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06227,
+          37.65475
+        ]
+      },
+      "properties": {
+        "source_row": 103,
+        "stand_id": "11-061208",
+        "old_id": "노원-05",
+        "jcd_id": "I-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-04-16",
+        "lon": 127.06227,
+        "lat": 37.65475,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "상계동",
+        "dong_name": "상계동",
+        "lot_address": "상계동 724-2",
+        "road_address": "노해로 492",
+        "adjacent_road": "노해로",
+        "location_name": "프린스빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07673,
+          37.64792
+        ]
+      },
+      "properties": {
+        "source_row": 104,
+        "stand_id": "11-051104",
+        "old_id": "노원-06",
+        "jcd_id": "I-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-28",
+        "lon": 127.07673,
+        "lat": 37.64792,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "중계동",
+        "dong_name": "중계동",
+        "lot_address": "중계동 364-19",
+        "road_address": "한글비석로 242",
+        "adjacent_road": "한글비석로",
+        "location_name": "삼부프라자 앞(유경데파트 좌측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06752,
+          37.63568
+        ]
+      },
+      "properties": {
+        "source_row": 105,
+        "stand_id": "11-031103",
+        "old_id": "노원-07",
+        "jcd_id": "I-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-21",
+        "lon": 127.06752,
+        "lat": 37.63568,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "하계동",
+        "dong_name": "하계동",
+        "lot_address": "하계동 270",
+        "road_address": "섬밭로 232",
+        "adjacent_road": "한글비석로",
+        "location_name": "하계우성현대아파트 112동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06746,
+          37.6232
+        ]
+      },
+      "properties": {
+        "source_row": 106,
+        "stand_id": "11-011602P",
+        "old_id": "노원-08P",
+        "jcd_id": "Pole-17",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.06746,
+        "lat": 37.6232,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "월계동",
+        "dong_name": "월계동",
+        "lot_address": "월계동 14",
+        "road_address": "마들로 59",
+        "adjacent_road": "마들로1길",
+        "location_name": "월계미성아파트 15동 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06149,
+          37.62318
+        ]
+      },
+      "properties": {
+        "source_row": 107,
+        "stand_id": "11-011101",
+        "old_id": "노원-09",
+        "jcd_id": "Pole-31",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2025년",
+        "lon": 127.06149,
+        "lat": 37.62318,
+        "powered": "-",
+        "district": "노원구",
+        "source_dong_name": "월계동",
+        "dong_name": "월계동",
+        "lot_address": "월계동 85-5",
+        "road_address": "석계로 98-2",
+        "adjacent_road": "석계로",
+        "location_name": "광운대역 2,3번 출구 앞 (승차대 - POLE형 교체)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91871,
+          37.63682
+        ]
+      },
+      "properties": {
+        "source_row": 108,
+        "stand_id": "12-101702",
+        "old_id": "은평-01",
+        "jcd_id": "W-11",
+        "stand_type": "쉘터형",
+        "facility_type": "버스쉘터형④",
+        "installed_at": "2017-04-10",
+        "lon": 126.91871,
+        "lat": 37.63682,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "진관동",
+        "dong_name": "진관동",
+        "lot_address": "진관동 63",
+        "road_address": "통일로 1050",
+        "adjacent_road": "진관2로",
+        "location_name": "구파발역, 롯데몰",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91707,
+          37.61046
+        ]
+      },
+      "properties": {
+        "source_row": 109,
+        "stand_id": "12-111103",
+        "old_id": "은평-02",
+        "jcd_id": "W-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-15",
+        "lon": 126.91707,
+        "lat": 37.61046,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "역촌동",
+        "dong_name": "역촌동",
+        "lot_address": "역촌동 1-46",
+        "road_address": "연서로 130-1",
+        "adjacent_road": "연서로",
+        "location_name": "대지빌딩 앞(구산역2번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92247,
+          37.60562
+        ]
+      },
+      "properties": {
+        "source_row": 110,
+        "stand_id": "12-111104",
+        "old_id": "은평-03",
+        "jcd_id": "W-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-20",
+        "lon": 126.92247,
+        "lat": 37.60562,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "역촌동",
+        "dong_name": "역촌동",
+        "lot_address": "역촌동 17-16",
+        "road_address": "진흥로 99",
+        "adjacent_road": "진흥로",
+        "location_name": "임현성내과의원 앞(역촌역1번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91982,
+          37.60063
+        ]
+      },
+      "properties": {
+        "source_row": 111,
+        "stand_id": "12-061001",
+        "old_id": "은평-04",
+        "jcd_id": "W-10",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형-시범",
+        "installed_at": "2010년",
+        "lon": 126.91982,
+        "lat": 37.60063,
+        "powered": "OK",
+        "district": "은평구",
+        "source_dong_name": "응암동",
+        "dong_name": "응암동",
+        "lot_address": "응암동 90-1",
+        "road_address": "은평로 111",
+        "adjacent_road": "진흥로",
+        "location_name": "이마트 은평점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93614,
+          37.58131
+        ]
+      },
+      "properties": {
+        "source_row": 112,
+        "stand_id": "13-031101",
+        "old_id": "서대문-01",
+        "jcd_id": "N-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-24",
+        "lon": 126.93614,
+        "lat": 37.58131,
+        "powered": "-",
+        "district": "서대문구",
+        "source_dong_name": "홍은동",
+        "dong_name": "홍은동",
+        "lot_address": "홍은동 274-83",
+        "road_address": "연희로 271",
+        "adjacent_road": "연희로",
+        "location_name": "서서울농협 홍은지점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95073,
+          37.58178
+        ]
+      },
+      "properties": {
+        "source_row": 113,
+        "stand_id": "13-091107",
+        "old_id": "서대문-02",
+        "jcd_id": "N-10",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-14",
+        "lon": 126.95073,
+        "lat": 37.58178,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "연희동",
+        "dong_name": "연희동",
+        "lot_address": "연희동 137-5",
+        "road_address": "연희로 103",
+        "adjacent_road": "연희로",
+        "location_name": "신라빌딩별관 앞(KEB외환은행 연희동지점)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93602,
+          37.56024
+        ]
+      },
+      "properties": {
+        "source_row": 114,
+        "stand_id": "13-081505",
+        "old_id": "서대문-03",
+        "jcd_id": "N-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-08-27",
+        "lon": 126.93602,
+        "lat": 37.56024,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신촌동",
+        "dong_name": "신촌동",
+        "lot_address": "창천동 83-61",
+        "road_address": "연세로 50",
+        "adjacent_road": "성산로",
+        "location_name": "연세대 공학원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.94256,
+          37.56237
+        ]
+      },
+      "properties": {
+        "source_row": 115,
+        "stand_id": "13-082106",
+        "old_id": "서대문-04",
+        "jcd_id": "N-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-24",
+        "lon": 126.94256,
+        "lat": 37.56237,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신촌동",
+        "dong_name": "신촌동",
+        "lot_address": "대신동 32-2",
+        "road_address": "연세로 50",
+        "adjacent_road": "성산로",
+        "location_name": "연세동문회관 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96382,
+          37.56197
+        ]
+      },
+      "properties": {
+        "source_row": 116,
+        "stand_id": "13-061103",
+        "old_id": "서대문-05",
+        "jcd_id": "N-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-24",
+        "lon": 126.96382,
+        "lat": 37.56197,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "충현동",
+        "dong_name": "충현동",
+        "lot_address": "충정로3가 139",
+        "road_address": "충정로 29",
+        "adjacent_road": "충정로",
+        "location_name": "도시기반시설본부 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9648,
+          37.56353
+        ]
+      },
+      "properties": {
+        "source_row": 117,
+        "stand_id": "13-061104",
+        "old_id": "서대문-06",
+        "jcd_id": "N-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-16",
+        "lon": 126.9648,
+        "lat": 37.56353,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "충현동",
+        "dong_name": "충현동",
+        "lot_address": "충정로2가 191",
+        "road_address": "충정로 53",
+        "adjacent_road": "충정로",
+        "location_name": "골든타워(국민은행서대문지점)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96783,
+          37.56439
+        ]
+      },
+      "properties": {
+        "source_row": 118,
+        "stand_id": "13-061102",
+        "old_id": "서대문-07",
+        "jcd_id": "N-05",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-23",
+        "lon": 126.96783,
+        "lat": 37.56439,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "충현동",
+        "dong_name": "충현동",
+        "lot_address": "미근동 197",
+        "road_address": "통일로 105",
+        "adjacent_road": "통일로",
+        "location_name": "경찰청 우측",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90607,
+          37.56037
+        ]
+      },
+      "properties": {
+        "source_row": 119,
+        "stand_id": "14-071106",
+        "old_id": "마포-01",
+        "jcd_id": "M-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-11",
+        "lon": 126.90607,
+        "lat": 37.56037,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "망원동",
+        "dong_name": "망원동",
+        "lot_address": "망원동 478-4",
+        "road_address": "월드컵로 139",
+        "adjacent_road": "월드컵로",
+        "location_name": "CU편의점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91033,
+          37.55583
+        ]
+      },
+      "properties": {
+        "source_row": 120,
+        "stand_id": "14-051102",
+        "old_id": "마포-02",
+        "jcd_id": "M-27",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-06",
+        "lon": 126.91033,
+        "lat": 37.55583,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서교동",
+        "dong_name": "서교동",
+        "lot_address": "서교동 441-19",
+        "road_address": "월드컵로 78",
+        "adjacent_road": "월드컵로",
+        "location_name": "망원역 1번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91684,
+          37.54826
+        ]
+      },
+      "properties": {
+        "source_row": 121,
+        "stand_id": "14-061105",
+        "old_id": "마포-03",
+        "jcd_id": "M-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-10",
+        "lon": 126.91684,
+        "lat": 37.54826,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "합정동",
+        "dong_name": "합정동",
+        "lot_address": "합정동 412-28",
+        "road_address": "독막로 31-1",
+        "adjacent_road": "독막로",
+        "location_name": "혜당한방병원 건너편",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92784,
+          37.55814
+        ]
+      },
+      "properties": {
+        "source_row": 122,
+        "stand_id": "14-051104",
+        "old_id": "마포-04",
+        "jcd_id": "M-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-10",
+        "lon": 126.92784,
+        "lat": 37.55814,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서교동",
+        "dong_name": "서교동",
+        "lot_address": "동교동 174-11",
+        "road_address": "신촌로 12",
+        "adjacent_road": "신촌로",
+        "location_name": "동우빌딩 앞(키움참치 홍대점)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93462,
+          37.55395
+        ]
+      },
+      "properties": {
+        "source_row": 123,
+        "stand_id": "14-051103",
+        "old_id": "마포-05",
+        "jcd_id": "M-21",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-10",
+        "lon": 126.93462,
+        "lat": 37.55395,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서교동",
+        "dong_name": "서교동",
+        "lot_address": "노고산동 57-46",
+        "road_address": "서강로 131",
+        "adjacent_road": "서강로",
+        "location_name": "아이스페이스 빌딩 앞(하나은행 신촌지점 좌측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93503,
+          37.55386
+        ]
+      },
+      "properties": {
+        "source_row": 124,
+        "stand_id": "14-021101",
+        "old_id": "마포-06",
+        "jcd_id": "M-20",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-10",
+        "lon": 126.93503,
+        "lat": 37.55386,
+        "powered": "-",
+        "district": "마포구",
+        "source_dong_name": "대흥동",
+        "dong_name": "대흥동",
+        "lot_address": "노고산동 109-125",
+        "road_address": "서강로18길 2",
+        "adjacent_road": "서강로",
+        "location_name": "유대경 능이 누룽지 닭오리백숙 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91033,
+          37.55583
+        ]
+      },
+      "properties": {
+        "source_row": 125,
+        "stand_id": "14-111108",
+        "old_id": "마포-07",
+        "jcd_id": "M-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-05",
+        "lon": 126.91033,
+        "lat": 37.55583,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "도화동",
+        "dong_name": "도화동",
+        "lot_address": "도화동 559",
+        "road_address": "마포대로 53",
+        "adjacent_road": "마포대로",
+        "location_name": "트라팰리스빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9484,
+          37.54153
+        ]
+      },
+      "properties": {
+        "source_row": 126,
+        "stand_id": "14-111107",
+        "old_id": "마포-08",
+        "jcd_id": "M-25",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-05",
+        "lon": 126.9484,
+        "lat": 37.54153,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "도화동",
+        "dong_name": "도화동",
+        "lot_address": "도화동 169-1",
+        "road_address": "마포대로 58",
+        "adjacent_road": "마포대로",
+        "location_name": "서울가든호텔 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95017,
+          37.5445
+        ]
+      },
+      "properties": {
+        "source_row": 127,
+        "stand_id": "14-131110",
+        "old_id": "마포-09",
+        "jcd_id": "M-24",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-07",
+        "lon": 126.95017,
+        "lat": 37.5445,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "공덕동",
+        "dong_name": "공덕동",
+        "lot_address": "공덕동 257-88",
+        "road_address": "마포대로 109",
+        "adjacent_road": "백범로",
+        "location_name": "마포롯데캐슬 앞(공덕역 2번출구 방향)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95232,
+          37.54567
+        ]
+      },
+      "properties": {
+        "source_row": 128,
+        "stand_id": "14-131109",
+        "old_id": "마포-10",
+        "jcd_id": "M-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-11",
+        "lon": 126.95232,
+        "lat": 37.54567,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "공덕동",
+        "dong_name": "공덕동",
+        "lot_address": "공덕동 254-5",
+        "road_address": "마포대로 122",
+        "adjacent_road": "마포대로",
+        "location_name": "신용보증기금 마포지점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95558,
+          37.55149
+        ]
+      },
+      "properties": {
+        "source_row": 129,
+        "stand_id": "14-141111",
+        "old_id": "마포-11",
+        "jcd_id": "M-05",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-06",
+        "lon": 126.95558,
+        "lat": 37.55149,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "아현동",
+        "dong_name": "아현동",
+        "lot_address": "아현동 737",
+        "road_address": "마포대로 204",
+        "adjacent_road": "마포대로",
+        "location_name": "마포SK허브 빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86418,
+          37.52669
+        ]
+      },
+      "properties": {
+        "source_row": 130,
+        "stand_id": "15-031109",
+        "old_id": "양천-01",
+        "jcd_id": "T-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-18",
+        "lon": 126.86418,
+        "lat": 37.52669,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 900-10",
+        "road_address": "목동로 203",
+        "adjacent_road": "목동로",
+        "location_name": "로데오빌딩 앞(스타벅스 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86513,
+          37.52592
+        ]
+      },
+      "properties": {
+        "source_row": 131,
+        "stand_id": "15-011102",
+        "old_id": "양천-02",
+        "jcd_id": "T-05",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-19",
+        "lon": 126.86513,
+        "lat": 37.52592,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "목동",
+        "dong_name": "목동",
+        "lot_address": "목동 927-9",
+        "road_address": "목동로 186",
+        "adjacent_road": "오목로",
+        "location_name": "목동아파트7단지 734동 앞(목동역 5번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.8646,
+          37.52491
+        ]
+      },
+      "properties": {
+        "source_row": 132,
+        "stand_id": "15-031110",
+        "old_id": "양천-03",
+        "jcd_id": "T-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-18",
+        "lon": 126.8646,
+        "lat": 37.52491,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 995-2",
+        "road_address": "목동로 183",
+        "adjacent_road": "목동로",
+        "location_name": "제성빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86589,
+          37.51804
+        ]
+      },
+      "properties": {
+        "source_row": 133,
+        "stand_id": "15-031106",
+        "old_id": "양천-05",
+        "jcd_id": "T-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-13",
+        "lon": 126.86589,
+        "lat": 37.51804,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 313",
+        "road_address": "목동서로 340",
+        "adjacent_road": "목동서로",
+        "location_name": "목동아파트9단지 912동 앞(양천구보건소 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86211,
+          37.51671
+        ]
+      },
+      "properties": {
+        "source_row": 134,
+        "stand_id": "15-031107",
+        "old_id": "양천-06",
+        "jcd_id": "T-13",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-17",
+        "lon": 126.86211,
+        "lat": 37.51671,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 312",
+        "road_address": "목동서로 340",
+        "adjacent_road": "목동서로",
+        "location_name": "목동아파트9단지 931동 앞(E스타빌 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86284,
+          37.51003
+        ]
+      },
+      "properties": {
+        "source_row": 135,
+        "stand_id": "15-031005",
+        "old_id": "양천-07",
+        "jcd_id": "T-26",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형-시범",
+        "installed_at": "2010년",
+        "lon": 126.86284,
+        "lat": 37.51003,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 276",
+        "road_address": "목동로3길 57",
+        "adjacent_road": "목동로3길",
+        "location_name": "양천아파트 단지내 114동~105동 사이도로",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.86889,
+          37.52229
+        ]
+      },
+      "properties": {
+        "source_row": 136,
+        "stand_id": "15-031108",
+        "old_id": "양천-08",
+        "jcd_id": "T-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-17",
+        "lon": 126.86889,
+        "lat": 37.52229,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신정동",
+        "dong_name": "신정동",
+        "lot_address": "신정동 314",
+        "road_address": "목동서로 280",
+        "adjacent_road": "목동서로",
+        "location_name": "목동아파트8단지 804동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.8744,
+          37.52474
+        ]
+      },
+      "properties": {
+        "source_row": 137,
+        "stand_id": "15-011101",
+        "old_id": "양천-09",
+        "jcd_id": "T-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-13",
+        "lon": 126.8744,
+        "lat": 37.52474,
+        "powered": "-",
+        "district": "양천구",
+        "source_dong_name": "목동",
+        "dong_name": "목동",
+        "lot_address": "목동 406-184",
+        "road_address": "오목로 331",
+        "adjacent_road": "오목로",
+        "location_name": "황실스튜디오 앞(목화금호아파트 102동)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88402,
+          37.53681
+        ]
+      },
+      "properties": {
+        "source_row": 138,
+        "stand_id": "15-011104",
+        "old_id": "양천-10",
+        "jcd_id": "T-20",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-24",
+        "lon": 126.88402,
+        "lat": 37.53681,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "목동",
+        "dong_name": "목동",
+        "lot_address": "목동 911-9",
+        "road_address": "목동동로 430-1",
+        "adjacent_road": "목동동로",
+        "location_name": "목동6단지아파트 601동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.882,
+          37.53786
+        ]
+      },
+      "properties": {
+        "source_row": 139,
+        "stand_id": "15-011103",
+        "old_id": "양천-11",
+        "jcd_id": "T-25",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-10-24",
+        "lon": 126.882,
+        "lat": 37.53786,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "목동",
+        "dong_name": "목동",
+        "lot_address": "목동 901",
+        "road_address": "목동서로 38",
+        "adjacent_road": "목동서로",
+        "location_name": "한신청구아파트 134동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83977,
+          37.5585
+        ]
+      },
+      "properties": {
+        "source_row": 140,
+        "stand_id": "16-051104",
+        "old_id": "강서-01",
+        "jcd_id": "D-21",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-12-30",
+        "lon": 126.83977,
+        "lat": 37.5585,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "가양동",
+        "dong_name": "가양동",
+        "lot_address": "가양동 448-1",
+        "road_address": "양천로 507",
+        "adjacent_road": "양천로",
+        "location_name": "강나루현대홈타운 101동 앞(가양역 5번 출구 방향)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.80598,
+          37.56485
+        ]
+      },
+      "properties": {
+        "source_row": 141,
+        "stand_id": "16-081106",
+        "old_id": "강서-02",
+        "jcd_id": "D-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-12-29",
+        "lon": 126.80598,
+        "lat": 37.56485,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "방화동",
+        "dong_name": "방화동",
+        "lot_address": "방화동 829-4",
+        "road_address": "금낭화로 135",
+        "adjacent_road": "금낭화로",
+        "location_name": "방화역 3번출구 앞(금강프라자 빌딩 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.80294,
+          37.57136
+        ]
+      },
+      "properties": {
+        "source_row": 142,
+        "stand_id": "16-082107P",
+        "old_id": "강서-03P",
+        "jcd_id": "Pole-27",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2021-12-30",
+        "lon": 126.80294,
+        "lat": 37.57136,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "방화동",
+        "dong_name": "방화동",
+        "lot_address": "방화동 886",
+        "road_address": "하늘길 38",
+        "adjacent_road": "하늘길",
+        "location_name": "롯데몰 김포공항점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83709,
+          37.55881
+        ]
+      },
+      "properties": {
+        "source_row": 143,
+        "stand_id": "16-051103",
+        "old_id": "강서-04",
+        "jcd_id": "D-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-22",
+        "lon": 126.83709,
+        "lat": 37.55881,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "가양동",
+        "dong_name": "가양동",
+        "lot_address": "마곡동 797-1",
+        "road_address": "공항대로 247",
+        "adjacent_road": "공항대로",
+        "location_name": "발산역9번출구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83706,
+          37.55854
+        ]
+      },
+      "properties": {
+        "source_row": 144,
+        "stand_id": "16-061105",
+        "old_id": "강서-05",
+        "jcd_id": "D-09",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-22",
+        "lon": 126.83706,
+        "lat": 37.55854,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "발산동",
+        "dong_name": "발산동",
+        "lot_address": "마곡동 808",
+        "road_address": "공항대로 260",
+        "adjacent_road": "공항대로",
+        "location_name": "발산역8번출구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83977,
+          37.5585
+        ]
+      },
+      "properties": {
+        "source_row": 145,
+        "stand_id": "16-021101",
+        "old_id": "강서-06",
+        "jcd_id": "D-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-23",
+        "lon": 126.83977,
+        "lat": 37.5585,
+        "powered": "-",
+        "district": "강서구",
+        "source_dong_name": "등촌동",
+        "dong_name": "등촌동",
+        "lot_address": "등촌동 673-6",
+        "road_address": "공항대로 291",
+        "adjacent_road": "공항대로",
+        "location_name": "성원sante view빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83706,
+          37.55854
+        ]
+      },
+      "properties": {
+        "source_row": 146,
+        "stand_id": "16-091109",
+        "old_id": "강서-07",
+        "jcd_id": "D-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-12-29",
+        "lon": 126.83706,
+        "lat": 37.55854,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "우장산동",
+        "dong_name": "우장산동",
+        "lot_address": "화곡동 1159-1",
+        "road_address": "강서로 254",
+        "adjacent_road": "강서로",
+        "location_name": "우장산역 2번출구 뒤편(우정산E편한세상상가 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.83844,
+          37.54363
+        ]
+      },
+      "properties": {
+        "source_row": 147,
+        "stand_id": "16-091108",
+        "old_id": "강서-08",
+        "jcd_id": "D-18",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-21",
+        "lon": 126.83844,
+        "lat": 37.54363,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "우장산동",
+        "dong_name": "우장산동",
+        "lot_address": "화곡동 1031-12",
+        "road_address": "강서로 194",
+        "adjacent_road": "강서로",
+        "location_name": "유광사 여성병원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.84906,
+          37.55134
+        ]
+      },
+      "properties": {
+        "source_row": 148,
+        "stand_id": "16-041102",
+        "old_id": "강서-09",
+        "jcd_id": "D-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-23",
+        "lon": 126.84906,
+        "lat": 37.55134,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "화곡동",
+        "dong_name": "화곡동",
+        "lot_address": "화곡동 998-9",
+        "road_address": "화곡로 301",
+        "adjacent_road": "화곡로",
+        "location_name": "강서구청 건너",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.82778,
+          37.56622
+        ]
+      },
+      "properties": {
+        "source_row": 149,
+        "stand_id": "16-102410",
+        "old_id": "강서-10",
+        "jcd_id": "D-28",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2024년",
+        "lon": 126.82778,
+        "lat": 37.56622,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "마곡동",
+        "dong_name": "마곡동",
+        "lot_address": "마곡동 761-5",
+        "road_address": "마곡동 761-5",
+        "adjacent_road": "마곡동 761-5",
+        "location_name": "마곡역 1번출구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.82558,
+          37.55996
+        ]
+      },
+      "properties": {
+        "source_row": 150,
+        "stand_id": "16-102411P",
+        "old_id": "강서-11",
+        "jcd_id": "Pole-28",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2024년",
+        "lon": 126.82558,
+        "lat": 37.55996,
+        "powered": "",
+        "district": "",
+        "source_dong_name": "마곡동",
+        "dong_name": "마곡동",
+        "lot_address": "마곡동 727-1428",
+        "road_address": "마곡동 727-1428",
+        "adjacent_road": "마곡동 727-1428",
+        "location_name": "마곡나루역 4번출구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.84412,
+          37.49532
+        ]
+      },
+      "properties": {
+        "source_row": 151,
+        "stand_id": "17-051109",
+        "old_id": "구로-01",
+        "jcd_id": "G-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-27",
+        "lon": 126.84412,
+        "lat": 37.49532,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "오류동",
+        "dong_name": "오류동",
+        "lot_address": "오류동 55-30",
+        "road_address": "경인로 218",
+        "adjacent_road": "경인로",
+        "location_name": "KEB하나은행 오류동 지점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88548,
+          37.49309
+        ]
+      },
+      "properties": {
+        "source_row": 152,
+        "stand_id": "17-021104",
+        "old_id": "구로-02",
+        "jcd_id": "G-10",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-27",
+        "lon": 126.88548,
+        "lat": 37.49309,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 80-24",
+        "road_address": "가마산로 218",
+        "adjacent_road": "가마산로",
+        "location_name": "고대구로병원 치과센터 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88773,
+          37.49453
+        ]
+      },
+      "properties": {
+        "source_row": 153,
+        "stand_id": "17-020203",
+        "old_id": "구로-03",
+        "jcd_id": "G-01",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 126.88773,
+        "lat": 37.49453,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 436",
+        "road_address": "가마산로 235",
+        "adjacent_road": "가마산로",
+        "location_name": "구로경찰서 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88991,
+          37.49512
+        ]
+      },
+      "properties": {
+        "source_row": 154,
+        "stand_id": "17-021106",
+        "old_id": "구로-04",
+        "jcd_id": "G-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-28",
+        "lon": 126.88991,
+        "lat": 37.49512,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 98-5",
+        "road_address": "가마산로 272",
+        "adjacent_road": "가마산로",
+        "location_name": "서울지역자활센터협회 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89071,
+          37.50014
+        ]
+      },
+      "properties": {
+        "source_row": 155,
+        "stand_id": "17-021105",
+        "old_id": "구로-05",
+        "jcd_id": "G-13",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-28",
+        "lon": 126.89071,
+        "lat": 37.50014,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 49",
+        "road_address": "공원로 26",
+        "adjacent_road": "공원로",
+        "location_name": "금호어울림아파트 앞(거리공원 방면)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88955,
+          37.50145
+        ]
+      },
+      "properties": {
+        "source_row": 156,
+        "stand_id": "17-021107",
+        "old_id": "구로-06",
+        "jcd_id": "G-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-09-28",
+        "lon": 126.88955,
+        "lat": 37.50145,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 110-2",
+        "road_address": "공원로 51",
+        "adjacent_road": "공원로",
+        "location_name": "상신운수 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88259,
+          37.5018
+        ]
+      },
+      "properties": {
+        "source_row": 157,
+        "stand_id": "17-021608P",
+        "old_id": "구로-07P",
+        "jcd_id": "Pole-06",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.88259,
+        "lat": 37.5018,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 573",
+        "road_address": "구로중앙로 152",
+        "adjacent_road": "새말로",
+        "location_name": "AK프라자 주차장 입구(커피빈 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88893,
+          37.50966
+        ]
+      },
+      "properties": {
+        "source_row": 158,
+        "stand_id": "17-011601P",
+        "old_id": "구로-08P",
+        "jcd_id": "Pole-20",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-10-13",
+        "lon": 126.88893,
+        "lat": 37.50966,
+        "powered": "-",
+        "district": "구로구",
+        "source_dong_name": "신도림동",
+        "dong_name": "신도림동",
+        "lot_address": "신도림동 337",
+        "road_address": "경인로 661",
+        "adjacent_road": "경인로",
+        "location_name": "홈플러스 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89168,
+          37.50709
+        ]
+      },
+      "properties": {
+        "source_row": 159,
+        "stand_id": "17-020202",
+        "old_id": "구로-09",
+        "jcd_id": "G-05",
+        "stand_type": "쉘터형",
+        "facility_type": "버스형",
+        "installed_at": "2002년",
+        "lon": 126.89168,
+        "lat": 37.50709,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "구로동",
+        "dong_name": "구로동",
+        "lot_address": "구로동 1-4",
+        "road_address": "새말로 117-23",
+        "adjacent_road": "새말로",
+        "location_name": "신도림역 남광장 안",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89793,
+          37.46718
+        ]
+      },
+      "properties": {
+        "source_row": 160,
+        "stand_id": "18-021101",
+        "old_id": "금천-01",
+        "jcd_id": "H-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-22",
+        "lon": 126.89793,
+        "lat": 37.46718,
+        "powered": "OK",
+        "district": "금천구",
+        "source_dong_name": "독산동",
+        "dong_name": "독산동",
+        "lot_address": "독산동 1030-1",
+        "road_address": "시흥대로 378",
+        "adjacent_road": "시흥대로",
+        "location_name": "노보텔앰배서더 독산점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89445,
+          37.45626
+        ]
+      },
+      "properties": {
+        "source_row": 161,
+        "stand_id": "18-031603P",
+        "old_id": "금천-02P",
+        "jcd_id": "Pole-07",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.89445,
+        "lat": 37.45626,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "시흥동",
+        "dong_name": "시흥동",
+        "lot_address": "시흥동 113-55",
+        "road_address": "시흥대로63길 91",
+        "adjacent_road": "벚꽃로",
+        "location_name": "금천구청역 1번출구 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90125,
+          37.45341
+        ]
+      },
+      "properties": {
+        "source_row": 162,
+        "stand_id": "18-031102",
+        "old_id": "금천-03",
+        "jcd_id": "H-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-18",
+        "lon": 126.90125,
+        "lat": 37.45341,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "시흥동",
+        "dong_name": "시흥동",
+        "lot_address": "시흥동 883-11",
+        "road_address": "시흥대로 224",
+        "adjacent_road": "시흥대로",
+        "location_name": "금천리메인시티 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89696,
+          37.52674
+        ]
+      },
+      "properties": {
+        "source_row": 163,
+        "stand_id": "19-021105",
+        "old_id": "영등포-01",
+        "jcd_id": "U-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-07",
+        "lon": 126.89696,
+        "lat": 37.52674,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "당산동",
+        "dong_name": "당산동",
+        "lot_address": "당산동3가 386-1",
+        "road_address": "당산로 133",
+        "adjacent_road": "당산로",
+        "location_name": "국민은행 영등포구청지점 앞(영등포구청 3번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.9012,
+          37.52677
+        ]
+      },
+      "properties": {
+        "source_row": 164,
+        "stand_id": "19-021104",
+        "old_id": "영등포-02",
+        "jcd_id": "U-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-01",
+        "lon": 126.9012,
+        "lat": 37.52677,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "당산동",
+        "dong_name": "당산동",
+        "lot_address": "당산동3가 2-11",
+        "road_address": "국회대로 608",
+        "adjacent_road": "국회대로",
+        "location_name": "영등포경찰서 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90329,
+          37.52576
+        ]
+      },
+      "properties": {
+        "source_row": 165,
+        "stand_id": "19-071110",
+        "old_id": "영등포-03",
+        "jcd_id": "U-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-01",
+        "lon": 126.90329,
+        "lat": 37.52576,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "영등포동",
+        "dong_name": "영등포동",
+        "lot_address": "영등포동7가 59-1",
+        "road_address": "영신로 200",
+        "adjacent_road": "국회대로",
+        "location_name": "하이서울유스호스텔 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90569,
+          37.52744
+        ]
+      },
+      "properties": {
+        "source_row": 166,
+        "stand_id": "19-071111",
+        "old_id": "영등포-04",
+        "jcd_id": "U-29",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-04",
+        "lon": 126.90569,
+        "lat": 37.52744,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "영등포동",
+        "dong_name": "영등포동",
+        "lot_address": "영등포8가 62-1",
+        "road_address": "영중로 125",
+        "adjacent_road": "영중로",
+        "location_name": "롯데마트 앞(빅마켓 영등포점)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90998,
+          37.51746
+        ]
+      },
+      "properties": {
+        "source_row": 167,
+        "stand_id": "19-071112",
+        "old_id": "영등포-05",
+        "jcd_id": "U-05",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-05",
+        "lon": 126.90998,
+        "lat": 37.51746,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "영등포동",
+        "dong_name": "영등포동",
+        "lot_address": "영등포동3가 4-4",
+        "road_address": "영등포로 236",
+        "adjacent_road": "영등포로",
+        "location_name": "영등포재래시장 건너(세븐일레븐 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90663,
+          37.51654
+        ]
+      },
+      "properties": {
+        "source_row": 168,
+        "stand_id": "19-061209",
+        "old_id": "영등포-06",
+        "jcd_id": "U-45",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형-확장",
+        "installed_at": "2012-03-19",
+        "lon": 126.90663,
+        "lat": 37.51654,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "영등포본동",
+        "dong_name": "영등포본동",
+        "lot_address": "영등포동 618-496",
+        "road_address": "경인로 846",
+        "adjacent_road": "경인로",
+        "location_name": "영등포역 앞(롯데시네마)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92015,
+          37.52269
+        ]
+      },
+      "properties": {
+        "source_row": 169,
+        "stand_id": "19-011101",
+        "old_id": "영등포-07",
+        "jcd_id": "U-24",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-03-29",
+        "lon": 126.92015,
+        "lat": 37.52269,
+        "powered": "-",
+        "district": "영등포구",
+        "source_dong_name": "여의동",
+        "dong_name": "여의동",
+        "lot_address": "여의도동 28-1",
+        "road_address": "여의대로 24",
+        "adjacent_road": "여의대로",
+        "location_name": "전경련 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92716,
+          37.52552
+        ]
+      },
+      "properties": {
+        "source_row": 170,
+        "stand_id": "19-011103",
+        "old_id": "영등포-08",
+        "jcd_id": "U-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-08-05",
+        "lon": 126.92716,
+        "lat": 37.52552,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "여의동",
+        "dong_name": "여의동",
+        "lot_address": "여의도동 23",
+        "road_address": "국제금융로 10",
+        "adjacent_road": "국제금융로",
+        "location_name": "IFC서울 앞(콘래드서울)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93324,
+          37.52607
+        ]
+      },
+      "properties": {
+        "source_row": 171,
+        "stand_id": "19-011102",
+        "old_id": "영등포-09",
+        "jcd_id": "U-38",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-03-30",
+        "lon": 126.93324,
+        "lat": 37.52607,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "여의동",
+        "dong_name": "여의동",
+        "lot_address": "여의도동 30",
+        "road_address": "여의나루로 126",
+        "adjacent_road": "여의동로",
+        "location_name": "목화아파트 1동 앞(여의나루역 4번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90775,
+          37.49081
+        ]
+      },
+      "properties": {
+        "source_row": 172,
+        "stand_id": "19-051108",
+        "old_id": "영등포-10",
+        "jcd_id": "U-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-14",
+        "lon": 126.90775,
+        "lat": 37.49081,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대림동",
+        "dong_name": "대림동",
+        "lot_address": "대림동 962-5",
+        "road_address": "시흥대로 659",
+        "adjacent_road": "시흥대로",
+        "location_name": "천지당약국 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90153,
+          37.50627
+        ]
+      },
+      "properties": {
+        "source_row": 173,
+        "stand_id": "19-041107",
+        "old_id": "영등포-11",
+        "jcd_id": "U-39",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-04",
+        "lon": 126.90153,
+        "lat": 37.50627,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신길동",
+        "dong_name": "신길동",
+        "lot_address": "신길동 364",
+        "road_address": "도림로 323",
+        "adjacent_road": "도림로",
+        "location_name": "신길건영상가 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89947,
+          37.51406
+        ]
+      },
+      "properties": {
+        "source_row": 174,
+        "stand_id": "19-091114",
+        "old_id": "영등포-12",
+        "jcd_id": "U-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-06",
+        "lon": 126.89947,
+        "lat": 37.51406,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "문래동",
+        "dong_name": "문래동",
+        "lot_address": "문래동3가 55-20",
+        "road_address": "경인로 775",
+        "adjacent_road": "경인로",
+        "location_name": "에이스하이테크시티(구로세무서 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.89505,
+          37.51746
+        ]
+      },
+      "properties": {
+        "source_row": 175,
+        "stand_id": "19-091113",
+        "old_id": "영등포-13",
+        "jcd_id": "U-32",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-04-06",
+        "lon": 126.89505,
+        "lat": 37.51746,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "문래동",
+        "dong_name": "문래동",
+        "lot_address": "문래동3가 55-3",
+        "road_address": "당산로 42",
+        "adjacent_road": "당산로",
+        "location_name": "홈플러스 영등포점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.88602,
+          37.52556
+        ]
+      },
+      "properties": {
+        "source_row": 176,
+        "stand_id": "19-031706P",
+        "old_id": "영등포-14P",
+        "jcd_id": "Pole-22",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2017-04-21",
+        "lon": 126.88602,
+        "lat": 37.52556,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "양평동",
+        "dong_name": "양평동",
+        "lot_address": "양평동2가 33-82",
+        "road_address": "선유서로 103-2",
+        "adjacent_road": "양산로",
+        "location_name": "양평역 1번출구 건너",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93116,
+          37.5187
+        ]
+      },
+      "properties": {
+        "source_row": 177,
+        "stand_id": "19-012315",
+        "old_id": "영등포-15",
+        "jcd_id": "U-46",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2023년",
+        "lon": 126.93116,
+        "lat": 37.5187,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "여의도동",
+        "dong_name": "여의도동",
+        "lot_address": "여의도동 5",
+        "road_address": "여의대방로 376-2",
+        "adjacent_road": "여의대방로",
+        "location_name": "샛강역 3번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.90692,
+          37.48788
+        ]
+      },
+      "properties": {
+        "source_row": 178,
+        "stand_id": "20-051506",
+        "old_id": "동작-01",
+        "jcd_id": "L-18",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-10-02",
+        "lon": 126.90692,
+        "lat": 37.48788,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신대방동",
+        "dong_name": "신대방동",
+        "lot_address": "신대방동 719",
+        "road_address": "신대방1가길 38",
+        "adjacent_road": "시흥대로",
+        "location_name": "동작쌍떼빌오피스텔앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98183,
+          37.48412
+        ]
+      },
+      "properties": {
+        "source_row": 179,
+        "stand_id": "20-031605P",
+        "old_id": "동작-02P",
+        "jcd_id": "Pole-11",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.98183,
+        "lat": 37.48412,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "사당동",
+        "dong_name": "사당동",
+        "lot_address": "사당동 1007-39",
+        "road_address": "동작대로 85",
+        "adjacent_road": "동작대로",
+        "location_name": "LG베스트샵 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98025,
+          37.48482
+        ]
+      },
+      "properties": {
+        "source_row": 180,
+        "stand_id": "20-031604P",
+        "old_id": "동작-03P",
+        "jcd_id": "Pole-10",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.98025,
+        "lat": 37.48482,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "사당동",
+        "dong_name": "사당동",
+        "lot_address": "사당동 144-18",
+        "road_address": "사당로 295",
+        "adjacent_road": "사당로",
+        "location_name": "이수역 10번출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.94341,
+          37.50525
+        ]
+      },
+      "properties": {
+        "source_row": 181,
+        "stand_id": "20-021103",
+        "old_id": "동작-04",
+        "jcd_id": "L-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-05-29",
+        "lon": 126.94341,
+        "lat": 37.50525,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "상도동",
+        "dong_name": "상도동",
+        "lot_address": "상도동 527",
+        "road_address": "상도로31길 19",
+        "adjacent_road": "상도로",
+        "location_name": "브라운스톤상도아파트 101동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.96035,
+          37.50794
+        ]
+      },
+      "properties": {
+        "source_row": 182,
+        "stand_id": "20-011501",
+        "old_id": "동작-05",
+        "jcd_id": "L-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-06-12",
+        "lon": 126.96035,
+        "lat": 37.50794,
+        "powered": "OK",
+        "district": "동작구",
+        "source_dong_name": "노량진동",
+        "dong_name": "노량진동",
+        "lot_address": "노량진동 60-18",
+        "road_address": "노량진로 135",
+        "adjacent_road": "노량진로",
+        "location_name": "노량진역 7번출구 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.93893,
+          37.51359
+        ]
+      },
+      "properties": {
+        "source_row": 183,
+        "stand_id": "20-011602P",
+        "old_id": "동작-06P",
+        "jcd_id": "Pole-09",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 126.93893,
+        "lat": 37.51359,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "노량진동",
+        "dong_name": "노량진동",
+        "lot_address": "노량진동 40-12",
+        "road_address": "노량진로 115",
+        "adjacent_road": "노량진로",
+        "location_name": "노량진수산시장 중앙정류소 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92407,
+          37.49389
+        ]
+      },
+      "properties": {
+        "source_row": 184,
+        "stand_id": "20-052207",
+        "old_id": "동작-07",
+        "jcd_id": "L-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2022-04-25",
+        "lon": 126.92407,
+        "lat": 37.49389,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신대방동",
+        "dong_name": "신대방동",
+        "lot_address": "신대방동 425",
+        "road_address": "보라매로5길 20",
+        "adjacent_road": "보라매로",
+        "location_name": "보라매병원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.91078,
+          37.48105
+        ]
+      },
+      "properties": {
+        "source_row": 185,
+        "stand_id": "21-211105",
+        "old_id": "관악-01",
+        "jcd_id": "E-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-20",
+        "lon": 126.91078,
+        "lat": 37.48105,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "미성동",
+        "dong_name": "미성동",
+        "lot_address": "미성동 1485-1",
+        "road_address": "남부순환로 1440",
+        "adjacent_road": "남부순환로",
+        "location_name": "제이타워웨딩 앞(금천경찰서 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.92447,
+          37.48975
+        ]
+      },
+      "properties": {
+        "source_row": 186,
+        "stand_id": "21-011101",
+        "old_id": "관악-02",
+        "jcd_id": "E-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-27",
+        "lon": 126.92447,
+        "lat": 37.48975,
+        "powered": "-",
+        "district": "관악구",
+        "source_dong_name": "보라매동",
+        "dong_name": "보라매동",
+        "lot_address": "봉천동 729-22",
+        "road_address": "봉천로 209",
+        "adjacent_road": "봉천로",
+        "location_name": "롯데백화점 관악점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.94131,
+          37.47054
+        ]
+      },
+      "properties": {
+        "source_row": 187,
+        "stand_id": "21-151104",
+        "old_id": "관악-03",
+        "jcd_id": "E-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-03-07",
+        "lon": 126.94131,
+        "lat": 37.47054,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대학동",
+        "dong_name": "대학동",
+        "lot_address": "신림동 237-27",
+        "road_address": "신림로 73",
+        "adjacent_road": "신림로",
+        "location_name": "서울산업정보학교 우측(테미스고시독서실 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.95058,
+          37.48114
+        ]
+      },
+      "properties": {
+        "source_row": 188,
+        "stand_id": "21-051102",
+        "old_id": "관악-04",
+        "jcd_id": "E-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-27",
+        "lon": 126.95058,
+        "lat": 37.48114,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "중앙동",
+        "dong_name": "중앙동",
+        "lot_address": "봉천동 874-4",
+        "road_address": "남부순환로 1801",
+        "adjacent_road": "남부순환로",
+        "location_name": "NH 농협은행 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.97799,
+          37.47638
+        ]
+      },
+      "properties": {
+        "source_row": 189,
+        "stand_id": "21-071103",
+        "old_id": "관악-05",
+        "jcd_id": "E-04",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-23",
+        "lon": 126.97799,
+        "lat": 37.47638,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "남현동",
+        "dong_name": "남현동",
+        "lot_address": "남현동 1058-16",
+        "road_address": "남부순환로 2064",
+        "adjacent_road": "남부순환로",
+        "location_name": "남부순환로 거당 음식점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01474,
+          37.51987
+        ]
+      },
+      "properties": {
+        "source_row": 190,
+        "stand_id": "22-021008",
+        "old_id": "서초-01",
+        "jcd_id": "P-31",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-28",
+        "lon": 127.01474,
+        "lat": 37.51987,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 51-3",
+        "road_address": "잠원로 204",
+        "adjacent_road": "잠원로",
+        "location_name": "한신종합상사 좌측",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01872,
+          37.51798
+        ]
+      },
+      "properties": {
+        "source_row": 191,
+        "stand_id": "22-020207",
+        "old_id": "서초-02",
+        "jcd_id": "P-13",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.01872,
+        "lat": 37.51798,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 8-24",
+        "road_address": "강남대로 631",
+        "adjacent_road": "강남대로",
+        "location_name": "크레신타워오피스텔 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02138,
+          37.5099
+        ]
+      },
+      "properties": {
+        "source_row": 192,
+        "stand_id": "22-041714",
+        "old_id": "서초-03",
+        "jcd_id": "P-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2017-04-10",
+        "lon": 127.02138,
+        "lat": 37.5099,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "반포동",
+        "dong_name": "반포동",
+        "lot_address": "반포동 707-5",
+        "road_address": "강남대로 539",
+        "adjacent_road": "강남대로",
+        "location_name": "신분당선 논현역 4번출구 뒤",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02617,
+          37.50045
+        ]
+      },
+      "properties": {
+        "source_row": 193,
+        "stand_id": "22-011605P",
+        "old_id": "서초-04P",
+        "jcd_id": "Pole-12",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.02617,
+        "lat": 37.50045,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 1306",
+        "road_address": "강남대로65길 1",
+        "adjacent_road": "강남대로",
+        "location_name": "지오다노강남점 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03082,
+          37.49087
+        ]
+      },
+      "properties": {
+        "source_row": 194,
+        "stand_id": "22-010201",
+        "old_id": "서초-05",
+        "jcd_id": "P-10",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.03082,
+        "lat": 37.49087,
+        "powered": "OK",
+        "district": "서초구",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 1338-12",
+        "road_address": "강남대로 311",
+        "adjacent_road": "강남대로",
+        "location_name": "강남대로 성지빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01656,
+          37.48447
+        ]
+      },
+      "properties": {
+        "source_row": 195,
+        "stand_id": "22-011002",
+        "old_id": "서초-06",
+        "jcd_id": "P-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-12-15",
+        "lon": 127.01656,
+        "lat": 37.48447,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 1446-1",
+        "road_address": "효령로 292",
+        "adjacent_road": "서초중앙로",
+        "location_name": "남부터미널(4번출구 건너) 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01473,
+          37.48017
+        ]
+      },
+      "properties": {
+        "source_row": 196,
+        "stand_id": "22-011103",
+        "old_id": "서초-07",
+        "jcd_id": "P-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-07-18",
+        "lon": 127.01473,
+        "lat": 37.48017,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 701-10",
+        "road_address": "남부순환로 2406",
+        "adjacent_road": "남부순환로",
+        "location_name": "예술의전당 한가람미술관 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01098,
+          37.47941
+        ]
+      },
+      "properties": {
+        "source_row": 197,
+        "stand_id": "22-012106",
+        "old_id": "서초-08",
+        "jcd_id": "P-32",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-27",
+        "lon": 127.01098,
+        "lat": 37.47941,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 724-1",
+        "road_address": "남부순환로 2406",
+        "adjacent_road": "남부순환로",
+        "location_name": "예술의 전당 음악당건물 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01092,
+          37.48563
+        ]
+      },
+      "properties": {
+        "source_row": 198,
+        "stand_id": "22-011304",
+        "old_id": "서초-09",
+        "jcd_id": "P-26",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2013-10-21",
+        "lon": 127.01092,
+        "lat": 37.48563,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "서초동",
+        "dong_name": "서초동",
+        "lot_address": "서초동 1583-8",
+        "road_address": "반포대로 54",
+        "adjacent_road": "반포대로",
+        "location_name": "서초아트자이 아파트 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.98243,
+          37.48766
+        ]
+      },
+      "properties": {
+        "source_row": 199,
+        "stand_id": "22-062115",
+        "old_id": "서초-10",
+        "jcd_id": "P-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-03-29",
+        "lon": 126.98243,
+        "lat": 37.48766,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "방배동",
+        "dong_name": "방배동",
+        "lot_address": "방배동 1763",
+        "road_address": "동작대로 126",
+        "adjacent_road": "동작대로",
+        "location_name": "김창숙부띠끄 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00394,
+          37.50118
+        ]
+      },
+      "properties": {
+        "source_row": 200,
+        "stand_id": "22-040213",
+        "old_id": "서초-11",
+        "jcd_id": "P-01",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.00394,
+        "lat": 37.50118,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "반포동",
+        "dong_name": "반포동",
+        "lot_address": "반포동 505",
+        "road_address": "반포대로 222",
+        "adjacent_road": "반포대로",
+        "location_name": "카톨릭대학교 서울성모병원 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00767,
+          37.50988
+        ]
+      },
+      "properties": {
+        "source_row": 201,
+        "stand_id": "22-022110",
+        "old_id": "서초-12",
+        "jcd_id": "P-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-27",
+        "lon": 127.00767,
+        "lat": 37.50988,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 70-2",
+        "road_address": "잠원로 51",
+        "adjacent_road": "잠원로",
+        "location_name": "반포 뉴코아아울렛 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00744,
+          37.50681
+        ]
+      },
+      "properties": {
+        "source_row": 202,
+        "stand_id": "22-021509",
+        "old_id": "서초-13",
+        "jcd_id": "P-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-12-09",
+        "lon": 127.00744,
+        "lat": 37.50681,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 69-3",
+        "road_address": "신반포로 189",
+        "adjacent_road": "신반포로",
+        "location_name": "반포쇼핑타운4동 앞(고속터미널역 8-2번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.00202,
+          37.50532
+        ]
+      },
+      "properties": {
+        "source_row": 203,
+        "stand_id": "22-022111",
+        "old_id": "서초-14",
+        "jcd_id": "P-16",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-27",
+        "lon": 127.00202,
+        "lat": 37.50532,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 75-13",
+        "road_address": "신반포로 165",
+        "adjacent_road": "신반포로",
+        "location_name": "반포쇼핑타운2동 앞(호남선 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01873,
+          37.51745
+        ]
+      },
+      "properties": {
+        "source_row": 204,
+        "stand_id": "22-022212",
+        "old_id": "서초-15",
+        "jcd_id": "P-33",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2022-06-07",
+        "lon": 127.01873,
+        "lat": 37.51745,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠원동",
+        "dong_name": "잠원동",
+        "lot_address": "잠원동 12-5",
+        "road_address": "강남대로 623",
+        "adjacent_road": "강남대로",
+        "location_name": "우일빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02127,
+          37.51668
+        ]
+      },
+      "properties": {
+        "source_row": 205,
+        "stand_id": "23-021008",
+        "old_id": "강남-01",
+        "jcd_id": "A-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-14",
+        "lon": 127.02127,
+        "lat": 37.51668,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "논현동",
+        "dong_name": "논현1동",
+        "lot_address": "논현동 2-15",
+        "road_address": "도산대로 114",
+        "adjacent_road": "도산대로",
+        "location_name": "수일빌딩 앞(수협은행 앞)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02296,
+          37.51814
+        ]
+      },
+      "properties": {
+        "source_row": 206,
+        "stand_id": "23-011001",
+        "old_id": "강남-02",
+        "jcd_id": "A-04",
+        "stand_type": "쉘터형",
+        "facility_type": "스마트형",
+        "installed_at": "2010-10-29",
+        "lon": 127.02296,
+        "lat": 37.51814,
+        "powered": "OK",
+        "district": "강남구",
+        "source_dong_name": "신사동",
+        "dong_name": "신사동",
+        "lot_address": "신사동 537-8",
+        "road_address": "도산대로 133",
+        "adjacent_road": "도산대로",
+        "location_name": "가로수길 영동빌딩 (올리브영 가로수길 중앙점 앞)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02246,
+          37.50957
+        ]
+      },
+      "properties": {
+        "source_row": 207,
+        "stand_id": "23-021005",
+        "old_id": "강남-03",
+        "jcd_id": "A-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-02",
+        "lon": 127.02246,
+        "lat": 37.50957,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "논현동",
+        "dong_name": "논현1동",
+        "lot_address": "논현동 143",
+        "road_address": "강남대로 532",
+        "adjacent_road": "강남대로",
+        "location_name": "신성빌딩 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.02607,
+          37.50159
+        ]
+      },
+      "properties": {
+        "source_row": 208,
+        "stand_id": "23-051623P",
+        "old_id": "강남-04P",
+        "jcd_id": "Pole-01",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.02607,
+        "lat": 37.50159,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "역삼동",
+        "dong_name": "역삼1동",
+        "lot_address": "역삼동 814-6",
+        "road_address": "강남대로 438",
+        "adjacent_road": "강남대로",
+        "location_name": "CGV 강남점 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03057,
+          37.49882
+        ]
+      },
+      "properties": {
+        "source_row": 209,
+        "stand_id": "23-051021",
+        "old_id": "강남-05",
+        "jcd_id": "A-28",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-07",
+        "lon": 127.03057,
+        "lat": 37.49882,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "역삼동",
+        "dong_name": "역삼1동",
+        "lot_address": "역삼동 824-19",
+        "road_address": "테헤란로 116",
+        "adjacent_road": "테헤란로",
+        "location_name": "동경빌딩 앞(올레서비스센터 강남점)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04141,
+          37.50233
+        ]
+      },
+      "properties": {
+        "source_row": 210,
+        "stand_id": "23-051019",
+        "old_id": "강남-06",
+        "jcd_id": "A-32",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-03",
+        "lon": 127.04141,
+        "lat": 37.50233,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "역삼동",
+        "dong_name": "역삼1동",
+        "lot_address": "역삼동 676",
+        "road_address": "테헤란로 231",
+        "adjacent_road": "테헤란로",
+        "location_name": "르네상스호텔 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04776,
+          37.50374
+        ]
+      },
+      "properties": {
+        "source_row": 211,
+        "stand_id": "23-051020",
+        "old_id": "강남-07",
+        "jcd_id": "A-20",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-04",
+        "lon": 127.04776,
+        "lat": 37.50374,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "역삼동",
+        "dong_name": "역삼2동",
+        "lot_address": "역삼동 705-2",
+        "road_address": "테헤란로 327",
+        "adjacent_road": "테헤란로",
+        "location_name": "빅토리아빌딩 앞(선릉역 5번출구)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04807,
+          37.50408
+        ]
+      },
+      "properties": {
+        "source_row": 212,
+        "stand_id": "23-051022",
+        "old_id": "강남-08",
+        "jcd_id": "A-33",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-30",
+        "lon": 127.04807,
+        "lat": 37.50408,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "역삼동",
+        "dong_name": "역삼2동",
+        "lot_address": "역삼동 708-4",
+        "road_address": "테헤란로 332",
+        "adjacent_road": "테헤란로",
+        "location_name": "현정빌딩 앞(선릉역 4번출구)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06273,
+          37.49445
+        ]
+      },
+      "properties": {
+        "source_row": 213,
+        "stand_id": "23-040213",
+        "old_id": "강남-09",
+        "jcd_id": "A-24",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.06273,
+        "lat": 37.49445,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 599",
+        "road_address": "남부순환로 2947",
+        "adjacent_road": "남부순환로",
+        "location_name": "하나대투증권 대치역지점 앞(대치역 2번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.0643,
+          37.49484
+        ]
+      },
+      "properties": {
+        "source_row": 214,
+        "stand_id": "23-042117",
+        "old_id": "강남-10",
+        "jcd_id": "A-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-21",
+        "lon": 127.0643,
+        "lat": 37.49484,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 510",
+        "road_address": "남부순환로 3022",
+        "adjacent_road": "남부순환로",
+        "location_name": "서울대곡초교 앞(대치역 6번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06101,
+          37.49331
+        ]
+      },
+      "properties": {
+        "source_row": 215,
+        "stand_id": "23-042118",
+        "old_id": "강남-11",
+        "jcd_id": "A-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-22",
+        "lon": 127.06101,
+        "lat": 37.49331,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 506",
+        "road_address": "삼성로 151",
+        "adjacent_road": "남부순환로",
+        "location_name": "선경종합상가 앞(선경아파트 1동)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05613,
+          37.49127
+        ]
+      },
+      "properties": {
+        "source_row": 216,
+        "stand_id": "23-041015",
+        "old_id": "강남-12",
+        "jcd_id": "A-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-23",
+        "lon": 127.05613,
+        "lat": 37.49127,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 500",
+        "road_address": "남부순환로 2912",
+        "adjacent_road": "남부순환로",
+        "location_name": "그랑프리엔상가 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05114,
+          37.4896
+        ]
+      },
+      "properties": {
+        "source_row": 217,
+        "stand_id": "23-061025",
+        "old_id": "강남-13",
+        "jcd_id": "A-30",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-24",
+        "lon": 127.05114,
+        "lat": 37.4896,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "도곡동",
+        "dong_name": "도곡동",
+        "lot_address": "도곡동 467-7",
+        "road_address": "언주로30길 21",
+        "adjacent_road": "남부순환로",
+        "location_name": "아카데미스위트 빌딩 앞(타워팰리스2차 우측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04885,
+          37.49484
+        ]
+      },
+      "properties": {
+        "source_row": 218,
+        "stand_id": "23-060224",
+        "old_id": "강남-14",
+        "jcd_id": "A-31",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.04885,
+        "lat": 37.49484,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "도곡동",
+        "dong_name": "도곡동",
+        "lot_address": "도곡동 538-3",
+        "road_address": "도곡로 320",
+        "adjacent_road": "도곡로",
+        "location_name": "래미안도곡카운티아파트 101동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05524,
+          37.49695
+        ]
+      },
+      "properties": {
+        "source_row": 219,
+        "stand_id": "23-041016",
+        "old_id": "강남-15",
+        "jcd_id": "A-35",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-11-24",
+        "lon": 127.05524,
+        "lat": 37.49695,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 1024",
+        "road_address": "도곡로 408",
+        "adjacent_road": "도곡로",
+        "location_name": "고용노동부 서울강남지청 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.06472,
+          37.50644
+        ]
+      },
+      "properties": {
+        "source_row": 220,
+        "stand_id": "23-041014",
+        "old_id": "강남-16",
+        "jcd_id": "A-27",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-01",
+        "lon": 127.06472,
+        "lat": 37.50644,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "대치동",
+        "dong_name": "대치동",
+        "lot_address": "대치동 1002",
+        "road_address": "영동대로 416",
+        "adjacent_road": "영동대로",
+        "location_name": "코스모타워 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.04885,
+          37.51868
+        ]
+      },
+      "properties": {
+        "source_row": 221,
+        "stand_id": "23-131026",
+        "old_id": "강남-17",
+        "jcd_id": "A-14",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-09-30",
+        "lon": 127.04885,
+        "lat": 37.51868,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "청담동",
+        "dong_name": "청담동",
+        "lot_address": "청담동 46-16",
+        "road_address": "학동로 435",
+        "adjacent_road": "학동로",
+        "location_name": "언고신관빌딩(삼성동롯데아파트 101동 건너)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05093,
+          37.51729
+        ]
+      },
+      "properties": {
+        "source_row": 222,
+        "stand_id": "23-031009",
+        "old_id": "강남-18",
+        "jcd_id": "A-10",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-09-29",
+        "lon": 127.05093,
+        "lat": 37.51729,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "삼성동",
+        "dong_name": "삼성2동",
+        "lot_address": "삼성동 19-4",
+        "road_address": "삼성로 651",
+        "adjacent_road": "삼성로",
+        "location_name": "래미안라클래시 101동 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.05136,
+          37.51688
+        ]
+      },
+      "properties": {
+        "source_row": 223,
+        "stand_id": "23-032112",
+        "old_id": "강남-19",
+        "jcd_id": "A-09",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-28",
+        "lon": 127.05136,
+        "lat": 37.51688,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "삼성동",
+        "dong_name": "삼성1동",
+        "lot_address": "삼성동 65-2",
+        "road_address": "삼성로 640",
+        "adjacent_road": "삼성로",
+        "location_name": "한국건설기술인협회별관 좌측",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03552,
+          37.5137
+        ]
+      },
+      "properties": {
+        "source_row": 224,
+        "stand_id": "23-021007",
+        "old_id": "강남-21",
+        "jcd_id": "A-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-07",
+        "lon": 127.03552,
+        "lat": 37.5137,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "논현동",
+        "dong_name": "논현2동",
+        "lot_address": "논현동 248-7",
+        "road_address": "언주로 640",
+        "adjacent_road": "언주로",
+        "location_name": "임페리얼팰리스호텔 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03547,
+          37.51807
+        ]
+      },
+      "properties": {
+        "source_row": 225,
+        "stand_id": "23-021006",
+        "old_id": "강남-22",
+        "jcd_id": "A-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-07",
+        "lon": 127.03547,
+        "lat": 37.51807,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "논현동",
+        "dong_name": "논현2동",
+        "lot_address": "논현동 106-21",
+        "road_address": "언주로 720",
+        "adjacent_road": "언주로",
+        "location_name": "논현삼계탕 앞(서울세관 건너)",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.03311,
+          37.525
+        ]
+      },
+      "properties": {
+        "source_row": 226,
+        "stand_id": "23-011002",
+        "old_id": "강남-23",
+        "jcd_id": "A-11",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-29",
+        "lon": 127.03311,
+        "lat": 37.525,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "신사동",
+        "dong_name": "신사동",
+        "lot_address": "신사동 623-5",
+        "road_address": "언주로 835",
+        "adjacent_road": "언주로",
+        "location_name": "삼원가든 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.01985,
+          37.51718
+        ]
+      },
+      "properties": {
+        "source_row": 227,
+        "stand_id": "23-012203",
+        "old_id": "강남-26",
+        "jcd_id": "A-36",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2022-06-07",
+        "lon": 127.01985,
+        "lat": 37.51718,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "신사동",
+        "dong_name": "신사동",
+        "lot_address": "신사동 502-11",
+        "road_address": "강남대로 620",
+        "adjacent_road": "강남대로",
+        "location_name": "영일빌딩 앞",
+        "is_target_dong": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.11764,
+          37.52854
+        ]
+      },
+      "properties": {
+        "source_row": 228,
+        "stand_id": "24-011101",
+        "old_id": "송파-01",
+        "jcd_id": "S-19",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-22",
+        "lon": 127.11764,
+        "lat": 37.52854,
+        "powered": "OK",
+        "district": "송파구",
+        "source_dong_name": "풍납동",
+        "dong_name": "풍납동",
+        "lot_address": "풍납동 402",
+        "road_address": "올림픽로47길 12",
+        "adjacent_road": "토성로",
+        "location_name": "풍납동쌍용아파트 103동",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10421,
+          37.51952
+        ]
+      },
+      "properties": {
+        "source_row": 229,
+        "stand_id": "24-141619P",
+        "old_id": "송파-02P",
+        "jcd_id": "Pole-78",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2016-09-01",
+        "lon": 127.10421,
+        "lat": 37.51952,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "신천동 15",
+        "road_address": "오금로 17-2",
+        "adjacent_road": "오금로 3길",
+        "location_name": "장미2차아파트 31동 옆",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.105,
+          37.51509
+        ]
+      },
+      "properties": {
+        "source_row": 230,
+        "stand_id": "24-141117",
+        "old_id": "송파-03",
+        "jcd_id": "S-36",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-23",
+        "lon": 127.105,
+        "lat": 37.51509,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "신천동 11-7",
+        "road_address": "올림픽로 319",
+        "adjacent_road": "올림픽로",
+        "location_name": "교통회관 앞(서울시교통연수원)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10651,
+          37.51524
+        ]
+      },
+      "properties": {
+        "source_row": 231,
+        "stand_id": "24-141118",
+        "old_id": "송파-04",
+        "jcd_id": "S-12",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-24",
+        "lon": 127.10651,
+        "lat": 37.51524,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "신천동 29-5",
+        "road_address": "올림픽로 326",
+        "adjacent_road": "올림픽로",
+        "location_name": "송파구청 앞(교통회관 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10801,
+          37.51574
+        ]
+      },
+      "properties": {
+        "source_row": 232,
+        "stand_id": "24-041002",
+        "old_id": "송파-05",
+        "jcd_id": "S-24",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-12-27",
+        "lon": 127.10801,
+        "lat": 37.51574,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "방이동",
+        "dong_name": "방이동",
+        "lot_address": "방이동 23-2",
+        "road_address": "올림픽로 342",
+        "adjacent_road": "올림픽로",
+        "location_name": "대동타워 앞(형인타워)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.11498,
+          37.51692
+        ]
+      },
+      "properties": {
+        "source_row": 233,
+        "stand_id": "24-051106",
+        "old_id": "송파-06",
+        "jcd_id": "S-21",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-22",
+        "lon": 127.11498,
+        "lat": 37.51692,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "오륜동",
+        "dong_name": "오륜동",
+        "lot_address": "방이동 88",
+        "road_address": "올림픽로 424",
+        "adjacent_road": "위례성대로",
+        "location_name": "올림픽공원 남4문 앞(임마누엘교회 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12337,
+          37.51347
+        ]
+      },
+      "properties": {
+        "source_row": 234,
+        "stand_id": "24-041104",
+        "old_id": "송파-07",
+        "jcd_id": "S-18",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-16",
+        "lon": 127.12337,
+        "lat": 37.51347,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "방이동",
+        "dong_name": "방이동",
+        "lot_address": "방이동 181-2",
+        "road_address": "위례성대로 102",
+        "adjacent_road": "위례성대로",
+        "location_name": "태평양파크아파트 앞(청담어학원 우측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12666,
+          37.51265
+        ]
+      },
+      "properties": {
+        "source_row": 235,
+        "stand_id": "24-051005",
+        "old_id": "송파-08",
+        "jcd_id": "S-13",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-12-29",
+        "lon": 127.12666,
+        "lat": 37.51265,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "오륜동",
+        "dong_name": "오륜동",
+        "lot_address": "방이동 88-2",
+        "road_address": "올림픽로 424",
+        "adjacent_road": "위례성대로",
+        "location_name": "올림픽공원 컨벤션센터 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.1302,
+          37.51554
+        ]
+      },
+      "properties": {
+        "source_row": 236,
+        "stand_id": "24-051607",
+        "old_id": "송파-09",
+        "jcd_id": "S-22",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2016-03-22",
+        "lon": 127.1302,
+        "lat": 37.51554,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "오륜동",
+        "dong_name": "오륜동",
+        "lot_address": "방이동 89-27",
+        "road_address": "양재대로 1223-2",
+        "adjacent_road": "양재대로",
+        "location_name": "올림픽테니스장 앞(올림픽공원 동2문)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12619,
+          37.50927
+        ]
+      },
+      "properties": {
+        "source_row": 237,
+        "stand_id": "24-041103",
+        "old_id": "송파-10",
+        "jcd_id": "S-23",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.12619,
+        "lat": 37.50927,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "방이동",
+        "dong_name": "방이동",
+        "lot_address": "방이동 184-8",
+        "road_address": "위례성대로18길 31-20",
+        "adjacent_road": "양재대로",
+        "location_name": "잠뱅이빌딩 앞(방이역 4번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12696,
+          37.50086
+        ]
+      },
+      "properties": {
+        "source_row": 238,
+        "stand_id": "24-101110",
+        "old_id": "송파-11",
+        "jcd_id": "S-27",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-04",
+        "lon": 127.12696,
+        "lat": 37.50086,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "가락본동",
+        "dong_name": "가락본동",
+        "lot_address": "가락동 10-3",
+        "road_address": "중대로 23길 1-11",
+        "adjacent_road": "중대로",
+        "location_name": "ICM모터스 앞(송파경찰서 좌측)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.13505,
+          37.49821
+        ]
+      },
+      "properties": {
+        "source_row": 239,
+        "stand_id": "24-061108",
+        "old_id": "송파-12",
+        "jcd_id": "S-02",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-04",
+        "lon": 127.13505,
+        "lat": 37.49821,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "오금동",
+        "dong_name": "오금동",
+        "lot_address": "오금동 166",
+        "road_address": "오금로 405",
+        "adjacent_road": "오금로",
+        "location_name": "개롱역 2번 출구 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.11998,
+          37.47843
+        ]
+      },
+      "properties": {
+        "source_row": 240,
+        "stand_id": "24-121211",
+        "old_id": "송파-13",
+        "jcd_id": "S-46",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-05-24",
+        "lon": 127.11998,
+        "lat": 37.47843,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "문정동",
+        "dong_name": "문정동",
+        "lot_address": "문정동 628",
+        "road_address": "충민로 10",
+        "adjacent_road": "충민로",
+        "location_name": "가든파이브웨딩컨벤션 앞(래미안갤러리 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10779,
+          37.50637
+        ]
+      },
+      "properties": {
+        "source_row": 241,
+        "stand_id": "24-071509",
+        "old_id": "송파-14",
+        "jcd_id": "S-47",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2015-06-15",
+        "lon": 127.10779,
+        "lat": 37.50637,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "송파동",
+        "dong_name": "송파동",
+        "lot_address": "송파동 19-8",
+        "road_address": "백제고분로 385",
+        "adjacent_road": "백제고분로",
+        "location_name": "임진각빌딩(석촌역2번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10111,
+          37.51164
+        ]
+      },
+      "properties": {
+        "source_row": 242,
+        "stand_id": "24-141621",
+        "old_id": "송파-15",
+        "jcd_id": "S-25",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2016-10-05",
+        "lon": 127.10111,
+        "lat": 37.51164,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동 40-1",
+        "road_address": "올림픽로 240",
+        "adjacent_road": "송파대로",
+        "location_name": "롯데호텔월드 앞(너구리동상)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.10117,
+          37.51226
+        ]
+      },
+      "properties": {
+        "source_row": 243,
+        "stand_id": "24-141620",
+        "old_id": "송파-16",
+        "jcd_id": "S-06",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2016-09-30",
+        "lon": 127.10117,
+        "lat": 37.51226,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "신천동 29",
+        "road_address": "올림픽로 300",
+        "adjacent_road": "송파대로",
+        "location_name": "롯데 너구리동상 건너(롯데월드타워 신축부지)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.0971,
+          37.51227
+        ]
+      },
+      "properties": {
+        "source_row": 244,
+        "stand_id": "24-142022",
+        "old_id": "송파-17",
+        "jcd_id": "S-37",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2020-06-11",
+        "lon": 127.0971,
+        "lat": 37.51227,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동 40-1",
+        "road_address": "올림픽로 240",
+        "adjacent_road": "올림픽로",
+        "location_name": "롯데월드 정문 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.08844,
+          37.51133
+        ]
+      },
+      "properties": {
+        "source_row": 245,
+        "stand_id": "24-141116",
+        "old_id": "송파-18",
+        "jcd_id": "S-29",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-02-15",
+        "lon": 127.08844,
+        "lat": 37.51133,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동 35",
+        "road_address": "잠실로 62",
+        "adjacent_road": "올림픽로",
+        "location_name": "잠실트리지움 306동 앞(잠실2동주민센터 건너)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.08474,
+          37.51183
+        ]
+      },
+      "properties": {
+        "source_row": 246,
+        "stand_id": "24-141115",
+        "old_id": "송파-19",
+        "jcd_id": "S-15",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.08474,
+        "lat": 37.51183,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동 19-9",
+        "road_address": "올림픽로 119",
+        "adjacent_road": "올림픽로",
+        "location_name": "파인애플상가 앞(신천역 5번출구)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07756,
+          37.51144
+        ]
+      },
+      "properties": {
+        "source_row": 247,
+        "stand_id": "24-131113",
+        "old_id": "송파-20",
+        "jcd_id": "S-01",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.07756,
+        "lat": 37.51144,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실본동",
+        "dong_name": "잠실본동",
+        "lot_address": "잠실본동 181-4",
+        "road_address": "올림픽로 102",
+        "adjacent_road": "올림픽로",
+        "location_name": "신천역 국민은행 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07921,
+          37.50848
+        ]
+      },
+      "properties": {
+        "source_row": 248,
+        "stand_id": "24-131012",
+        "old_id": "송파-21",
+        "jcd_id": "S-38",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2010-10-02",
+        "lon": 127.07921,
+        "lat": 37.50848,
+        "powered": "OK",
+        "district": "",
+        "source_dong_name": "잠실본동",
+        "dong_name": "잠실본동",
+        "lot_address": "잠실본동 175",
+        "road_address": "백제고분로 69",
+        "adjacent_road": "백제고분로",
+        "location_name": "애플타워 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07656,
+          37.51179
+        ]
+      },
+      "properties": {
+        "source_row": 249,
+        "stand_id": "24-141114",
+        "old_id": "송파-22",
+        "jcd_id": "S-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2011-01-05",
+        "lon": 127.07656,
+        "lat": 37.51179,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동 10-2",
+        "road_address": "올림픽로 25",
+        "adjacent_road": "올림픽로",
+        "location_name": "잠실 학생체육관 입구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.07472,
+          37.51092
+        ]
+      },
+      "properties": {
+        "source_row": 250,
+        "stand_id": "24-142623",
+        "old_id": "송파-23",
+        "jcd_id": "S-50",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2026년",
+        "lon": 127.07472,
+        "lat": 37.51092,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동51",
+        "road_address": "잠실동52",
+        "adjacent_road": "올림픽로",
+        "location_name": "잠실종합운동장역 1번출구",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.16375,
+          37.55663
+        ]
+      },
+      "properties": {
+        "source_row": 251,
+        "stand_id": "25-021901",
+        "old_id": "강동-01",
+        "jcd_id": "B-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2019-10-24",
+        "lon": 127.16375,
+        "lat": 37.55663,
+        "powered": "-",
+        "district": "강동구",
+        "source_dong_name": "고덕동",
+        "dong_name": "고덕동",
+        "lot_address": "고덕동 299",
+        "road_address": "고덕로 391-1",
+        "adjacent_road": "고덕로",
+        "location_name": "고덕그라시움 107동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.14826,
+          37.55476
+        ]
+      },
+      "properties": {
+        "source_row": 252,
+        "stand_id": "25-091206",
+        "old_id": "강동-02",
+        "jcd_id": "B-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-04-13",
+        "lon": 127.14826,
+        "lat": 37.55476,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상일동",
+        "dong_name": "상일동",
+        "lot_address": "상일동 149",
+        "road_address": "동남로 892",
+        "adjacent_road": "동남로",
+        "location_name": "강동경희대학교병원 앞(장례식장 건물 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.14254,
+          37.54616
+        ]
+      },
+      "properties": {
+        "source_row": 253,
+        "stand_id": "25-040202",
+        "old_id": "강동-03",
+        "jcd_id": "B-16",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.14254,
+        "lat": 37.54616,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "천호동",
+        "dong_name": "천호동",
+        "lot_address": "천호동 42",
+        "road_address": "양재대로 1571",
+        "adjacent_road": "상암로",
+        "location_name": "홈플러스 강동점 앞(굽은다리역 2번 출구 방향)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.13698,
+          37.53029
+        ]
+      },
+      "properties": {
+        "source_row": 254,
+        "stand_id": "25-052104",
+        "old_id": "강동-04",
+        "jcd_id": "B-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-21",
+        "lon": 127.13698,
+        "lat": 37.53029,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 397-10",
+        "road_address": "양재대로 1393",
+        "adjacent_road": "양재대로",
+        "location_name": "삼진빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12901,
+          37.52369
+        ]
+      },
+      "properties": {
+        "source_row": 255,
+        "stand_id": "25-050203",
+        "old_id": "강동-05",
+        "jcd_id": "B-05",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.12901,
+        "lat": 37.52369,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 448-11",
+        "road_address": "강동대로 207",
+        "adjacent_road": "강동대로",
+        "location_name": "삼성SDS 성내사옥 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12172,
+          37.52703
+        ]
+      },
+      "properties": {
+        "source_row": 256,
+        "stand_id": "25-052105",
+        "old_id": "강동-06",
+        "jcd_id": "B-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-21",
+        "lon": 127.12172,
+        "lat": 37.52703,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 459-6",
+        "road_address": "강동대로 143-22",
+        "adjacent_road": "강동대로",
+        "location_name": "채선당 올림픽공원점 앞(청구빌라트 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.13727,
+          37.52585
+        ]
+      },
+      "properties": {
+        "source_row": 257,
+        "stand_id": "25-062507P",
+        "old_id": "강동-07",
+        "jcd_id": "Pole-30",
+        "stand_type": "폴형",
+        "facility_type": "폴형",
+        "installed_at": "2025년",
+        "lon": 127.13727,
+        "lat": 37.52585,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "둔촌동",
+        "dong_name": "둔촌동",
+        "lot_address": "둔촌동170",
+        "road_address": "둔촌동170",
+        "adjacent_road": "둔촌동",
+        "location_name": "둔촌동파출소 앞",
+        "is_target_dong": false
+      }
+    }
+  ]
+}

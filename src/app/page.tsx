@@ -4,7 +4,7 @@ import type { BuildVersionInfo } from "@/components/map-simulator/build-version"
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "강남 교통 운영 | 역삼권 수요 proxy",
+  title: "강남·역삼권 택시 운영 시뮬레이터",
 };
 
 function readGitValue(command: string) {

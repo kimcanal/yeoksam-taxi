@@ -61,7 +61,6 @@ export const VEHICLE_PROXIMITY_CELL_SIZE = 12;
 export const ROAD_SEGMENT_INDEX_CELL_SIZE = 24;
 export const TRAFFIC_ROUTE_REENTRY_DISTANCE = 6.4;
 export const TAXI_ASSET_TARGET_LENGTH = 4.28;
-export const TRAFFIC_ASSET_TARGET_LENGTH = 4.2;
 export const ASSET_FETCH_TIMEOUT_MS = 20_000;
 
 // Camera presets favor stable presentation shots and readable taxi follow views.
@@ -71,6 +70,10 @@ export const CAMERA_TURN_SPEED = 1.95;
 export const CAMERA_BASE_MOVE_SCALE = 1.8;
 export const CAMERA_BASE_TURN_SCALE = 0.95;
 export const CAMERA_DRAG_SENSITIVITY = 0.0042;
+export const CAMERA_TOUCH_ANCHOR_RADIUS = 11;
+export const CAMERA_TOUCH_PITCH_LOCK_DISTANCE = 18;
+export const CAMERA_TOUCH_PITCH_SENSITIVITY = 0.0048;
+export const CAMERA_TOUCH_PITCH_VERTICAL_RATIO = 1.25;
 export const CAMERA_MIN_DISTANCE = 34;
 export const CAMERA_MAX_DISTANCE = 560;
 export const CAMERA_MIN_PITCH = 0.34;
@@ -90,9 +93,9 @@ export const LOCAL_SCENARIO_FOCUS_YAW_OFFSET = -0.76;
 
 // Render cadence trades visual smoothness against browser budget in heavy scenes.
 export const SHOW_DONG_BOUNDARIES = false;
-export const DRIVE_RENDER_FPS = 60;
-export const FOLLOW_RENDER_FPS = 60;
-export const OVERVIEW_RENDER_FPS = 60;
+export const DRIVE_RENDER_FPS = 30;
+export const FOLLOW_RENDER_FPS = 30;
+export const OVERVIEW_RENDER_FPS = 30;
 export const HIDDEN_RENDER_FPS = 12;
 export const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
 export const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 1.2;
@@ -104,7 +107,7 @@ export const COMMON_REFRESH_RATE_BANDS = [
 ] as const;
 export const AUTO_RENDER_HALF_REFRESH_THRESHOLD = 100;
 export const AUTO_REFRESH_BAND_HYSTERESIS_RATIO = 0.1;
-export const DRIVE_PIXEL_RATIO = 0.85;
-export const FOLLOW_PIXEL_RATIO = 0.85;
-export const OVERVIEW_PIXEL_RATIO = 0.75;
+export const DRIVE_PIXEL_RATIO = 1.2;
+export const FOLLOW_PIXEL_RATIO = 1.2;
+export const OVERVIEW_PIXEL_RATIO = 1.05;
 export const HIDDEN_PIXEL_RATIO = 0.6;
