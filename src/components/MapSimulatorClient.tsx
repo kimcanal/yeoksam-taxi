@@ -13,7 +13,7 @@ const MapSimulator = dynamic<MapSimulatorClientProps>(() => import("./MapSimulat
     <div className="flex h-screen w-full flex-col items-center justify-center gap-2 bg-[#060d16] px-6 text-center text-sm text-slate-300">
       <div>지도 모듈 불러오는 중...</div>
       <div className="text-xs text-slate-500">
-        도로 그래프와 교통·혼잡 캐시를 먼저 준비합니다.
+        도로 그래프와 지도 자산을 먼저 준비합니다.
       </div>
     </div>
   ),

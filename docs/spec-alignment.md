@@ -101,7 +101,7 @@ response = [{ hour: 0, demand: number }, ... { hour: 23, demand: number }]
 ## Current Limitation Summary
 
 - 실제 택시 호출량, GPS, 기사 수락률 데이터는 없습니다.
-- 서울 citydata는 현재 상황 layer이지 미래 수요 정답지가 아닙니다.
+- 공개 지도/POI 맥락은 수요 해석을 돕는 보조 레이어이지 미래 수요 정답지가 아닙니다.
 - 대중교통 수요와 택시 수요는 같지 않으므로 proxy로 해석해야 합니다.
 - OSM은 prototype geometry backbone으로 적합하지만 법적 road-operation source는 아닙니다.
 - 현재 프론트는 수요 예측 결과를 설명하는 시각화 prototype입니다.

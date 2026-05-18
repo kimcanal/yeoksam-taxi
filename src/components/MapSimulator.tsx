@@ -67,35 +67,13 @@ type MapSimulatorProps = {
 };
 
 type MapPoiFeatureRow = {
-  source_status: string;
   poi_code: string;
   poi_name: string;
   coverage_dong: string | null;
   category: string | null;
   lon: number | null;
   lat: number | null;
-  observed_at?: string | null;
-  current_population_min?: number | null;
-  current_population_max?: number | null;
-  current_population_mid: number | null;
-  current_congestion_level: string | null;
-  current_congestion_score?: number | null;
-  current_traffic_index?: string | null;
-  current_traffic_speed_kmh: number | null;
-  current_weather_temp_c?: number | null;
-  current_precipitation_type?: string | null;
-  demand_proxy_score?: number | null;
-  poi_pressure_score: number | null;
-  population_prediction_1h: {
-    target_time?: string | null;
-    population_min?: number | null;
-    population_max?: number | null;
-    population_mid: number | null;
-    congestion_level: string | null;
-    congestion_score?: number | null;
-  } | null;
-  population_prediction_delta: number | null;
-  population_prediction_delta_pct?: number | null;
+  context_score: number;
 };
 
 type IndexedMapPoiFeatureRow = MapPoiFeatureRow & {
@@ -146,7 +124,7 @@ type DemandMiniMapPoi = {
   y: number;
   labelX: number;
   labelY: number;
-  score: number;
+  contextScore: number;
   isSelected: boolean;
   textAnchor: "start" | "end";
 };
@@ -550,33 +528,18 @@ function buildStaticPoiFeatureRows() {
 
   return rows
     .map((poi, index) => {
-      const pressureScore = Math.round(((rawScores[index] ?? 0) / maxScore) * 1000) / 1000;
+      const contextScore = Math.round(((rawScores[index] ?? 0) / maxScore) * 1000) / 1000;
       return {
-        source_status: poi.hasCitydataCode ? "static_citydata_target" : "static_context",
         poi_code: poi.code,
         poi_name: poi.name,
         coverage_dong: poi.coverageDong,
         category: poi.category,
         lon: poi.lon,
         lat: poi.lat,
-        observed_at: null,
-        current_population_min: null,
-        current_population_max: null,
-        current_population_mid: null,
-        current_congestion_level: null,
-        current_congestion_score: null,
-        current_traffic_index: null,
-        current_traffic_speed_kmh: null,
-        current_weather_temp_c: null,
-        current_precipitation_type: null,
-        demand_proxy_score: pressureScore,
-        poi_pressure_score: pressureScore,
-        population_prediction_1h: null,
-        population_prediction_delta: null,
-        population_prediction_delta_pct: null,
+        context_score: contextScore,
       } satisfies MapPoiFeatureRow;
     })
-    .sort((left, right) => (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0));
+    .sort((left, right) => right.context_score - left.context_score);
 }
 
 function pressureMiniMapIcon(level: string | null | undefined) {
@@ -855,10 +818,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     }
 
     return [...deduped.values()]
-      .sort(
-        (left, right) =>
-          (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0),
-      )
+      .sort((left, right) => right.context_score - left.context_score)
       .slice(0, 24);
   }, [activePoiCode, cameraMode, mapPoiFeatureRows, miniMapFocus, poiSpatialIndex]);
   const scenePoiFeatureRowsRef = useSyncRef(scenePoiFeatureRows);
@@ -1281,10 +1241,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             Number.isFinite(poi.lon) &&
             Number.isFinite(poi.lat),
         )
-        .sort(
-          (left, right) =>
-            (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0),
-        )
+        .sort((left, right) => right.context_score - left.context_score)
         .slice(0, 8)
         .map((poi, index) => {
           const projected = projectPoint(
@@ -1303,7 +1260,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             y,
             labelX: labelOnLeft ? x - 2.6 : x + 2.6,
             labelY: y + (index % 2 === 0 ? -1.8 : 3),
-            score: poi.poi_pressure_score ?? 0,
+            contextScore: poi.context_score,
             isSelected: poi.poi_code === activePoiCode,
             textAnchor: labelOnLeft ? "end" : "start",
           } satisfies DemandMiniMapPoi;
@@ -2170,22 +2127,20 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       cy={poi.y}
                       r={poi.isSelected ? "4.2" : "2.7"}
                       fill="rgba(7, 17, 28, 0.68)"
-                      stroke={poi.isSelected ? "#f8fafc" : demandStrokeForScore(poi.score)}
+                      stroke={poi.isSelected ? "#f8fafc" : "#67e8f9"}
                       strokeWidth={poi.isSelected ? "0.7" : "0.46"}
                     >
-                      <title>
-                        {poi.name} 혼잡도 {Math.round(poi.score * 100)}%
-                      </title>
+                      <title>{poi.name} 관심 지점</title>
                     </circle>
                     <circle
                       cx={poi.x}
                       cy={poi.y}
                       r={poi.isSelected ? "1.95" : "1.5"}
-                      fill={demandStrokeForScore(poi.score)}
+                      fill={poi.isSelected ? "#f8fafc" : "#67e8f9"}
                       stroke="rgba(7, 17, 28, 0.82)"
                       strokeWidth="0.35"
                     />
-                    {poi.isSelected || poi.score >= 0.56 ? (
+                    {poi.isSelected || poi.contextScore >= 0.56 ? (
                       <text
                         x={poi.labelX}
                         y={poi.labelY}
@@ -2259,7 +2214,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full border border-white/50 bg-cyan-300" />
-              혼잡 지점
+              관심 지점
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm border border-white bg-transparent" />

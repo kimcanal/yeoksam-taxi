@@ -7,7 +7,7 @@ This project was originally born out of a capstone specification for taxi-demand
 ## 🚀 Key Features
 
 - **3D Urban Environment**: Real-world OpenStreetMap (OSM) geometry of Gangnam/Yeoksam rendered in rich 3D with realistic roads, buildings, and horizontally-aligned Korean traffic signals.
-- **Dynamic Demand Visualization**: Real-time visualization of POI (Points of Interest) pressure, taxi hotspots, and demand heatmaps overlaying the 3D map.
+- **Dynamic Demand Visualization**: Dong-level taxi demand curves, demand heatmaps, and map-context POI anchors overlaying the 3D map.
 - **API-Driven Architecture**: The frontend is completely decoupled from model training, acting as a lightweight client that pulls aggregated data via API for fluid rendering.
 - **Professional UX/UI**: Clean, modern overlays and natural Korean standard terminology for an intuitive user experience reminiscent of professional mapping services.
 

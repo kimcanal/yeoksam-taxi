@@ -223,116 +223,19 @@ type MapSimulatorSceneRuntimeProps = {
 };
 
 type MapPoiFeatureRow = {
-  source_status: string;
   poi_code: string;
   poi_name: string;
   coverage_dong: string | null;
   category: string | null;
   lon: number | null;
   lat: number | null;
-  current_population_mid: number | null;
-  current_congestion_level: string | null;
-  current_traffic_index?: string | null;
-  current_traffic_speed_kmh: number | null;
-  poi_pressure_score: number | null;
-  population_prediction_1h: {
-    population_mid: number | null;
-    congestion_level: string | null;
-  } | null;
-  population_prediction_delta: number | null;
+  context_score: number;
 };
 
-function poiMarkerColor(score: number | null | undefined) {
-  const normalized = score ?? 0;
-  if (normalized >= 0.72) return "#fb7185";
-  if (normalized >= 0.56) return "#fbbf24";
-  if (normalized >= 0.36) return "#38bdf8";
-  return "#94a3b8";
-}
-
-function poiPressureLabel(score: number) {
-  if (score >= 0.72) return "혼잡 높음";
-  if (score >= 0.56) return "혼잡 보통";
-  if (score >= 0.36) return "원활";
-  return "여유";
-}
-
-function formatPoiPopulation(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(value)) {
-    return "-";
-  }
-  if (value >= 10_000) {
-    const man = Math.floor(value / 10_000);
-    const chun = Math.floor((value % 10_000) / 1_000);
-    if (chun === 0) return `${man}만`;
-    return `${man}만 ${chun}천`;
-  }
-  return value.toLocaleString("ko-KR");
-}
-
-function poiMarkerElement(poi: MapPoiFeatureRow) {
-  const element = document.createElement("div");
-  const score = poi.poi_pressure_score ?? 0;
-  const accent = poiMarkerColor(score);
-  const speedLabel =
-    poi.current_traffic_speed_kmh == null
-      ? poi.current_traffic_index ?? "-"
-      : `${poi.current_traffic_speed_kmh}km/h`;
-
-  element.dataset.labelKind = "poi";
-  element.style.display = "grid";
-  element.style.gap = "3px";
-  element.style.minWidth = "118px";
-  element.style.padding = "7px 9px 7px 10px";
-  element.style.borderRadius = "14px";
-  element.style.border = `1px solid ${accent}88`;
-  element.style.background = `linear-gradient(135deg, rgba(5, 12, 23, 0.96), rgba(8, 21, 34, 0.9)), radial-gradient(circle at top right, ${accent}26, transparent 58%)`;
-  element.style.boxShadow = `0 10px 24px rgba(0,0,0,0.34), 0 0 22px ${accent}2f`;
-  element.style.color = "#e5f7ff";
-  element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
-  element.style.fontSize = "10px";
-  element.style.fontWeight = "600";
-  element.style.letterSpacing = "0";
-  element.style.lineHeight = "1.25";
-  element.style.pointerEvents = "none";
-  element.style.whiteSpace = "nowrap";
-
-  const title = document.createElement("div");
-  title.style.display = "flex";
-  title.style.alignItems = "center";
-  title.style.justifyContent = "space-between";
-  title.style.gap = "8px";
-  const indicator = document.createElement("span");
-  indicator.style.width = "6px";
-  indicator.style.height = "6px";
-  indicator.style.borderRadius = "999px";
-  indicator.style.background = accent;
-  indicator.style.boxShadow = `0 0 12px ${accent}cc`;
-  const name = document.createElement("span");
-  name.style.flex = "1";
-  name.style.minWidth = "0";
-  name.style.overflow = "hidden";
-  name.style.textOverflow = "ellipsis";
-  name.textContent = poi.poi_name;
-  const value = document.createElement("span");
-  value.textContent = poiPressureLabel(score);
-  value.style.flex = "none";
-  value.style.color = accent;
-  value.style.fontWeight = "800";
-  title.appendChild(indicator);
-  title.appendChild(name);
-  title.appendChild(value);
-  element.appendChild(title);
-
-  const detail = document.createElement("div");
-  detail.style.color = "#94a3b8";
-  detail.style.fontSize = "9px";
-  detail.textContent = `${formatPoiPopulation(poi.current_population_mid)}명 · ${
-    poi.current_congestion_level ?? "-"
-  } · ${speedLabel}`;
-  element.appendChild(detail);
-
-  return element;
+function poiMarkerColor(category: string | null | undefined) {
+  if (category === "station_context") return "#67e8f9";
+  if (category === "road_corridor_context") return "#93c5fd";
+  return "#bae6fd";
 }
 
 export default function MapSimulatorSceneRuntime({
@@ -2451,8 +2354,7 @@ export default function MapSimulatorSceneRuntime({
     });
 
     const poiMarkerGroup = new THREE.Group();
-    poiMarkerGroup.name = "citydata-poi-marker-layer";
-    const poiPulseMeshes: { mesh: THREE.Mesh; basePressure: number; phaseOffset: number }[] = [];
+    poiMarkerGroup.name = "context-poi-marker-layer";
     const poiHitGeometry = new THREE.CylinderGeometry(1.65, 1.65, 2.8, 24);
     const poiHitMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
@@ -2466,17 +2368,17 @@ export default function MapSimulatorSceneRuntime({
           Number.isFinite(poi.lon) &&
           Number.isFinite(poi.lat),
       )
-      .sort((left, right) => (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0))
+      .sort((left, right) => right.context_score - left.context_score)
       .slice(0, 10);
 
-    poiRowsForMap.forEach((poi, index) => {
+    poiRowsForMap.forEach((poi) => {
       poiByCode.set(poi.poi_code, poi);
       const projected = projectPoint(
         [poi.lon as number, poi.lat as number],
         simulationData.center,
       );
-      const score = poi.poi_pressure_score ?? 0;
-      const accent = new THREE.Color(poiMarkerColor(score));
+      const contextScore = poi.context_score;
+      const accent = new THREE.Color(poiMarkerColor(poi.category));
       const group = new THREE.Group();
       group.name = `poi-marker-${poi.poi_code}`;
       group.position.set(projected.x, 0.24, projected.z);
@@ -2518,7 +2420,7 @@ export default function MapSimulatorSceneRuntime({
       ring.position.y = 0.2;
       group.add(ring);
 
-      const stemHeight = 0.46 + Math.min(score, 1) * 0.26;
+      const stemHeight = 0.44 + Math.min(contextScore, 1) * 0.18;
       const stem = new THREE.Mesh(
         new THREE.CylinderGeometry(0.055, 0.095, stemHeight, 12),
         new THREE.MeshStandardMaterial({
@@ -2533,24 +2435,17 @@ export default function MapSimulatorSceneRuntime({
       stem.position.y = 0.22 + stemHeight / 2;
       group.add(stem);
 
-      const pulse = new THREE.Mesh(
-        new THREE.SphereGeometry(0.24 + Math.min(score, 1) * 0.12, 18, 18),
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 18, 18),
         new THREE.MeshStandardMaterial({
           color: accent,
           emissive: accent,
-          emissiveIntensity: 0.42,
+          emissiveIntensity: 0.3,
           roughness: 0.36,
         }),
       );
-      pulse.position.y = 0.32 + stemHeight;
-      poiPulseMeshes.push({ mesh: pulse, basePressure: score, phaseOffset: index * 0.72 });
-      group.add(pulse);
-
-      const label = new CSS2DObject(poiMarkerElement(poi));
-      label.position.set(0, 2.1 + (index % 3) * 0.18, 0);
-      label.visible = true;
-      group.add(label);
-      labelObjects.push(label);
+      cap.position.y = 0.32 + stemHeight;
+      group.add(cap);
 
       poiMarkerGroup.add(group);
     });
@@ -4255,7 +4150,7 @@ export default function MapSimulatorSceneRuntime({
 
       const poi = poiByCode.get(poiCode);
       updateHoverHint(
-        poi ? `${poi.poi_name} · POI 상세` : "POI 상세",
+        poi ? `${poi.poi_name} · 관심 지점` : "관심 지점",
         "pointer",
         [],
       );
@@ -4976,16 +4871,6 @@ export default function MapSimulatorSceneRuntime({
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
 
-      // Animate POI pulse meshes (use latestSimulationSnapshot which is set each frame)
-      const elapsedSec = latestSimulationSnapshot?.clock?.elapsedTimeSeconds ?? (performance.now() / 1000);
-      poiPulseMeshes.forEach(({ mesh, basePressure, phaseOffset }) => {
-        const pulseMat = mesh.material as THREE.MeshStandardMaterial;
-        const wave = 0.5 + 0.5 * Math.sin(elapsedSec * 2.4 + phaseOffset);
-        const scale = 0.92 + wave * 0.18 * (0.4 + basePressure * 0.6);
-        mesh.scale.setScalar(scale);
-        pulseMat.emissiveIntensity = 0.28 + wave * 0.28 * basePressure;
-        pulseMat.needsUpdate = true;
-      });
       vehicleSimulationAccumulator = Math.min(
         vehicleSimulationAccumulator + delta,
         VEHICLE_SIMULATION_STEP * MAX_VEHICLE_SIMULATION_STEPS,
