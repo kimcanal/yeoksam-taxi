@@ -46,7 +46,7 @@
 
 현재 repo에 있는 흐름:
 
-- static POI and map-context configuration: `data/config/*.json`
+- static POI and map-context configuration: `src/components/map-simulator/config/*.json`
 - backend demand API handoff: `NEXT_PUBLIC_DEMAND_API_ENDPOINT`
 - OSM geometry: `public/*.geojson`, `public/road-network.json`
 

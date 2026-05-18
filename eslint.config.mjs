@@ -18,10 +18,6 @@ const eslintConfig = defineConfig([
     "tmp/**",
     "papers/**",
     "notebooks/**",
-    "data/raw/**",
-    "data/processed/**",
-    // Sandbox temp dirs may become unreadable (e.g. ensurepip temp ACLs).
-    "data/tmp/**",
   ]),
 ]);
 

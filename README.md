@@ -16,7 +16,7 @@ This project was originally born out of a capstone specification for taxi-demand
 - `src/`: The Next.js application, React components, and Three.js (`MapSimulatorSceneRuntime.tsx`) scene rendering.
 - `public/`: Pre-processed OSM geometry, GeoJSON layers, and static assets for the map runtime.
 - `scripts/osm/`: Utilities to regenerate local OSM-derived geometry.
-- `data/config/`: Configuration files and targeted POI mappings.
+- `src/components/map-simulator/config/`: Small runtime configuration files and targeted POI mappings.
 
 *(Note: Documentation of past ML experiments, archive collectors, and backend algorithms have been removed from this repository to maintain focus on the frontend digital twin product.)*
 

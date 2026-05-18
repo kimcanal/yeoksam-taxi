@@ -23,8 +23,8 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
-import mapGroundingConfig from "../../data/config/gangnam-map-grounding.json";
-import poiConfig from "../../data/config/gangnam-pois.json";
+import mapGroundingConfig from "@/components/map-simulator/config/gangnam-map-grounding.json";
+import poiConfig from "@/components/map-simulator/config/gangnam-pois.json";
 import {
   WEATHER_OPTIONS,
   format24Hour,
