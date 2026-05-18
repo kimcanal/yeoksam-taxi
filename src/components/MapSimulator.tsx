@@ -101,7 +101,6 @@ type DemandMiniMapRegion = {
   labelX: number;
   labelY: number;
   score: number;
-  pressureLevel?: string;
   isSelected?: boolean;
 };
 
@@ -407,15 +406,12 @@ function averageDemand(points: HourlyDemandPoint[]) {
   );
 }
 
-function contextPoiWeight(category: string | null | undefined, hasCitydataCode: boolean) {
+function contextPoiWeight(category: string | null | undefined) {
   if (category === "road_corridor_context") {
     return 0.85;
   }
   if (category === "station_context") {
     return 0.72;
-  }
-  if (hasCitydataCode) {
-    return 1;
   }
   return 0.58;
 }
@@ -502,27 +498,25 @@ function parseTimeInput(value: string) {
 
 function buildStaticPoiFeatureRows() {
   const rows = [
-    ...poiConfig.citydata_collection.map((poi) => ({
+    ...poiConfig.context_pois.map((poi) => ({
       code: poi.code,
       name: poi.name,
       coverageDong: poi.coverage_dong,
       category: poi.category,
       lon: poi.lon,
       lat: poi.lat,
-      hasCitydataCode: true,
     })),
-    ...poiConfig.supplemental_watchlist.map((poi) => ({
+    ...poiConfig.supplemental_context_pois.map((poi) => ({
       code: poi.id,
       name: poi.name,
       coverageDong: poi.coverage_dong,
       category: poi.category,
       lon: poi.lon,
       lat: poi.lat,
-      hasCitydataCode: Boolean(poi.citydata_code),
     })),
   ];
   const rawScores = rows.map((poi) =>
-    contextPoiWeight(poi.category, poi.hasCitydataCode),
+    contextPoiWeight(poi.category),
   );
   const maxScore = Math.max(...rawScores, 1);
 
@@ -540,20 +534,6 @@ function buildStaticPoiFeatureRows() {
       } satisfies MapPoiFeatureRow;
     })
     .sort((left, right) => right.context_score - left.context_score);
-}
-
-function pressureMiniMapIcon(level: string | null | undefined) {
-  if (level === "high") return "▲";
-  if (level === "medium") return "◆";
-  if (level === "watch") return "●";
-  return "";
-}
-
-function pressureMiniMapIconColor(level: string | null | undefined) {
-  if (level === "high") return "#fb7185";
-  if (level === "medium") return "#fde047";
-  if (level === "watch") return "#7dd3fc";
-  return "#94a3b8";
 }
 
 function monitoringLevelForScore(score: number) {
@@ -656,7 +636,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const simulationDateRef = useSyncRef(simulationDate);
   const simulationTimeRef = useSyncRef(simulationTimeMinutes);
   const weatherModeRef = useSyncRef<WeatherMode>(weatherMode);
-  const congestionSpeedMultiplierRef = useRef<number>(1.0);
   const cameraModeRef = useSyncRef<CameraMode>(cameraMode);
   const followTaxiIdRef = useSyncRef(followTaxiId);
   const rideExitModeRef = useRef<BaseCameraMode>("drive");
@@ -690,7 +669,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
     const contextPoiScores = new globalThis.Map<string, number>();
     const contextPoiCounts = new globalThis.Map<string, number>();
-    [...poiConfig.citydata_collection, ...poiConfig.supplemental_watchlist].forEach((poi) => {
+    [...poiConfig.context_pois, ...poiConfig.supplemental_context_pois].forEach((poi) => {
       const dongName = poi.coverage_dong;
       if (!dongName || !TARGET_DONGS.includes(dongName as (typeof TARGET_DONGS)[number])) {
         return;
@@ -699,7 +678,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       contextPoiScores.set(
         dongName,
         (contextPoiScores.get(dongName) ?? 0) +
-          contextPoiWeight(poi.category, "code" in poi && Boolean(poi.code)),
+          contextPoiWeight(poi.category),
       );
     });
 
@@ -1192,14 +1171,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           )
           .join(" ");
         const labelPoint = mapPoint(centerOfRings(dong.rings));
-        const demandSignal = demandSignalByDong.get(dong.name);
         return {
           name: dong.name,
           path,
           labelX: labelPoint.x,
           labelY: labelPoint.y,
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
-          pressureLevel: demandSignal?.action_level,
           isSelected: dong.name === selectedDongName,
         } satisfies DemandMiniMapRegion;
       }),
@@ -1272,7 +1249,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   }, [
     data,
     demandByDong,
-    demandSignalByDong,
     mapPoiFeatureRows,
     miniMapFocus,
     scenarioMapCenter,
@@ -1388,7 +1364,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             simulationDateRef={simulationDateRef}
             simulationTimeRef={simulationTimeRef}
             weatherModeRef={weatherModeRef}
-            congestionSpeedMultiplierRef={congestionSpeedMultiplierRef}
             setStatus={setStatus}
             setStatusDetail={setStatusDetail}
             setLoadingProgress={setLoadingProgress}
@@ -2068,45 +2043,25 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     />
                   </g>
                 ) : null}
-                {demandMiniMap.regions.map((region) => {
-                  const pressureIcon = pressureMiniMapIcon(region.pressureLevel);
-                  return (
-                    <g key={`${region.name}-label`} pointerEvents="none">
-                      <text
-                        x={region.labelX}
-                        y={region.labelY}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill={region.score >= 0.55 ? "#fff7ed" : "#dbeafe"}
-                        fontSize={region.score >= 0.85 ? 3.8 : 3.2}
-                        fontWeight={region.score >= 0.55 ? 700 : 600}
-                        paintOrder="stroke"
-                        stroke="rgba(7, 17, 28, 0.82)"
-                        strokeWidth="0.72"
-                        strokeLinejoin="round"
-                      >
-                        {region.name}
-                      </text>
-                      {pressureIcon ? (
-                        <text
-                          x={region.labelX + 7.2}
-                          y={region.labelY - 4.1}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          fill={pressureMiniMapIconColor(region.pressureLevel)}
-                          fontSize="3.3"
-                          fontWeight="800"
-                          paintOrder="stroke"
-                          stroke="rgba(7, 17, 28, 0.92)"
-                          strokeWidth="0.64"
-                          strokeLinejoin="round"
-                        >
-                          {pressureIcon}
-                        </text>
-                      ) : null}
-                    </g>
-                  );
-                })}
+                {demandMiniMap.regions.map((region) => (
+                  <g key={`${region.name}-label`} pointerEvents="none">
+                    <text
+                      x={region.labelX}
+                      y={region.labelY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill={region.score >= 0.55 ? "#fff7ed" : "#dbeafe"}
+                      fontSize={region.score >= 0.85 ? 3.8 : 3.2}
+                      fontWeight={region.score >= 0.55 ? 700 : 600}
+                      paintOrder="stroke"
+                      stroke="rgba(7, 17, 28, 0.82)"
+                      strokeWidth="0.72"
+                      strokeLinejoin="round"
+                    >
+                      {region.name}
+                    </text>
+                  </g>
+                ))}
                 {demandMiniMap.pois.map((poi) => (
                   <g
                     key={poi.code}

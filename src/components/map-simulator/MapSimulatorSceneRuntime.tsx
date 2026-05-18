@@ -204,7 +204,6 @@ type MapSimulatorSceneRuntimeProps = {
   simulationDateRef: MutableRefObject<string>;
   simulationTimeRef: MutableRefObject<number>;
   weatherModeRef: MutableRefObject<WeatherMode>;
-  congestionSpeedMultiplierRef: MutableRefObject<number>;
   setStatus: Dispatch<SetStateAction<SceneStatus>>;
   setStatusDetail: Dispatch<SetStateAction<string>>;
   setLoadingProgress: Dispatch<SetStateAction<number>>;
@@ -265,7 +264,6 @@ export default function MapSimulatorSceneRuntime({
   simulationDateRef,
   simulationTimeRef,
   weatherModeRef,
-  congestionSpeedMultiplierRef,
   setStatus,
   setStatusDetail,
   setLoadingProgress,
@@ -3312,7 +3310,7 @@ export default function MapSimulatorSceneRuntime({
         cluster.visible = stormCloudOpacity > 0.01;
       });
 
-      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier * congestionSpeedMultiplierRef.current;
+      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
       rainLayer.points.visible = environment.precipitation === "rain";
       rainLayer.material.opacity = environment.precipitationOpacity;
       rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;

@@ -1,5 +1,5 @@
 {
-  "description": "Static grounding priors used to stabilize Gangnam late-night demand-pressure and heatmap logic when vehicle-level supply telemetry is unavailable.",
+  "description": "Static grounding priors used to stabilize Gangnam late-night demand heatmap logic when vehicle-level supply telemetry is unavailable.",
   "sources": [
     {
       "id": "seoul-taxi-stands",

@@ -29,12 +29,12 @@ const SCENARIOS = [
     id: "gangnam-peak",
     fileName: "scenario-gangnam-station-peak.png",
     label: "강남역 퇴근 피크",
-    summary: "강남역 퇴근 시간대의 혼잡한 도로 점유와 택시 대응 장면",
+    summary: "강남역 퇴근 시간대의 높은 이동 수요와 택시 대응 장면",
   },
   {
     id: "rainy-evening",
     fileName: "scenario-rainy-evening.png",
-    label: "우천 혼잡",
+    label: "우천 피크",
     summary: "우천 조건에서 시야와 흐름 밀도가 함께 무거워지는 저녁 장면",
   },
   {
