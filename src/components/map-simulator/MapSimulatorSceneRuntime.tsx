@@ -19,9 +19,6 @@ import {
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
 import {
-  analysisStore,
-} from "@/components/map-simulator/simulator-stores";
-import {
   createVehicleTrailLayer,
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle-trail-renderer";
@@ -46,34 +43,19 @@ import {
   CROSSWALK_WIDTH,
   CURBSIDE_SIDEWALK_OFFSET,
   HIDDEN_RENDER_FPS,
-  HOTSPOT_ACTIVITY_REFRESH_INTERVAL,
-  HOTSPOT_SLOWDOWN_DISTANCE,
-  HOTSPOT_TRIGGER_DISTANCE,
   HOVER_REFRESH_INTERVAL,
-  INTERSECTION_BOX_ENTRY_LOOKAHEAD,
-  INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ,
-  INTERSECTION_EXIT_BLOCK_SPEED,
-  INTERSECTION_EXIT_QUEUE_RADIUS_SQ,
-  INTERSECTION_OCCUPANCY_LOOKAHEAD,
-  INTERSECTION_SIGNAL_LOOKAHEAD,
   LABEL_RENDER_INTERVAL,
   LABEL_VISIBILITY_REFRESH_INTERVAL,
   MAX_VEHICLE_SIMULATION_STEPS,
   NON_ROAD_LAYER_Y,
   ROAD_LAYER_Y,
   PEDESTRIAN_SPAN,
-  SERVICE_STOP_DURATION,
   SIGNAL_CYCLE,
-  SIGNAL_RADIUS_SQ,
-  SIMULATION_STATS_UPDATE_INTERVAL,
   TAXI_CLICK_MOVE_THRESHOLD,
   TAXI_VIEW_CAMERA_BACK_OFFSET,
   TAXI_VIEW_CAMERA_HEIGHT,
   TAXI_VIEW_CAMERA_SIDE_OFFSET,
   TAXI_VIEW_LOOK_AHEAD,
-  TRAFFIC_ROUTE_REENTRY_DISTANCE,
-  VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
-  VEHICLE_PROXIMITY_CELL_SIZE,
   VEHICLE_SIMULATION_STEP,
 } from "@/components/map-simulator/scene-constants";
 import {
@@ -91,15 +73,10 @@ import {
   KAKAO_TAXI_ASSET_PATH,
   LabelDistanceEntry,
   PedestrianVisual,
-  RoadGraph,
   RouteTemplate,
   SceneLabelEntry,
   SceneLabelKind,
-  SignalApproachDemand,
-  SignalApproachDistance,
-  SignalAxisOccupancy,
   SignalData,
-  SignalDirectionalOccupancy,
   SignalFlow,
   SignalLampVisual,
   SignalVisual,
@@ -108,32 +85,19 @@ import {
   SimulationData,
   TAXI_ASSET_IDLE_TIMEOUT_MS,
   TAXI_ASSET_LOAD_DELAY_MS,
-  TAXI_PALETTE,
-  TRAFFIC_PALETTES,
   Vehicle,
-  VehicleProximityBuckets,
-  VehicleSimulationSample,
-  addVehicleSampleToBucket,
-  approachDirectionForHeading,
-  assignVehicleRoute,
   boundaryHintElement,
   buildRoadNetworkOverlay,
-  buildShortestRoute,
-  canVehicleProceed,
-  clampRouteDistance,
-  clearVehicleSampleBuckets,
   copyVehicleMotionState,
   createCallerGroup,
   createPedestrianGroup,
   createSubwayStationStructure,
   createVehicleGroup,
   createVehicleMotionState,
-  createVehicleSimulationSample,
   curbsideLaneOffset,
   dampAngle,
   distanceXZ,
   disposeObject3DResources,
-  dominantAxisForHeading,
   dongShapeFromRing,
   hotspotCallElement,
   labelElement,
@@ -141,29 +105,17 @@ import {
   loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
   offsetToRight,
-  opposingSignalDirection,
   precipitationDrawRatioFor,
   projectPoint,
   renderCapLabel,
   renderPixelRatioFor,
-  resetSignalApproachDemand,
-  resetSignalApproachDistance,
-  resetSignalAxisOccupancy,
-  resetSignalDirectionalOccupancy,
-  resolveNextStop,
-  resolveNextStopInto,
   resolveRenderCap,
-  routeSegmentIndexAtDistance,
   sampleRoute,
   setTaxiAppearance,
   shapesOfNonRoadFeature,
-  signalDirectionForVector,
   signalState,
   stabilizeRefreshRateBand,
-  syncVehicleSampleBucket,
   syncVehicleTransform,
-  updateVehicleMotionState,
-  vehicleProximityCellCoord,
   wrapAngle,
 } from "@/components/map-simulator/core";
 import type {
@@ -928,13 +880,7 @@ export default function MapSimulatorSceneRuntime({
     const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const vehicleById = new Map<string, Vehicle>();
-    const routeCache = new Map<string, RouteTemplate | null>();
-    let graph: RoadGraph | null = data.graph;
     const hotspotPool: Hotspot[] = data.hotspotPool;
-    let completedTrips = 0;
-    let completedPickups = 0;
-    let totalPickupWaitSeconds = 0;
-    let totalRideSeconds = 0;
     let activePedestrians = 0;
     let crosswalkMaterial: THREE.MeshStandardMaterial | null = null;
     let stopLineMaterial: THREE.MeshStandardMaterial | null = null;
@@ -961,7 +907,6 @@ export default function MapSimulatorSceneRuntime({
     };
     let vehicleLayerReady = false;
     let taxiAssetTemplate: THREE.Group | null = null;
-    let activeVehicleSpeedMultiplier = 1;
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
     let latestSimulationSnapshot: SimulationSnapshot | null = null;
@@ -969,133 +914,11 @@ export default function MapSimulatorSceneRuntime({
     let appliedDateIso: string | null = null;
     let appliedWeatherMode: WeatherMode | null = null;
     let appliedTimeMinutes = -1;
-    let hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
-    void hotspotActivityAccumulator;
     const frameSignalStates = new globalThis.Map<string, SignalFlow>();
-    const activePickupsByHotspot = new globalThis.Map<string, number>();
-    const activeDropoffsByHotspot = new globalThis.Map<string, number>();
-    const intersectionOccupancy = new globalThis.Map<string, SignalAxisOccupancy>();
-    const intersectionApproachDemand = new globalThis.Map<
-      string,
-      SignalApproachDemand
-    >();
-    const intersectionApproachDistance = new globalThis.Map<
-      string,
-      SignalApproachDistance
-    >();
-    const intersectionExitOccupancy = new globalThis.Map<
-      string,
-      SignalDirectionalOccupancy
-    >();
-    const proximityBuckets: VehicleProximityBuckets = new globalThis.Map();
-    const vehicleSimulationSamples: VehicleSimulationSample[] = [];
     const activeVehicleDensity = {
       taxis: appliedTaxiCountRef.current,
       traffic: appliedTrafficCountRef.current,
     };
-
-    const rebuildHotspotDemandMaps = (
-      pickupDemandMap: Map<string, number>,
-      dropoffDemandMap: Map<string, number>,
-      excludedVehicleId?: string | null,
-    ) => {
-      pickupDemandMap.clear();
-      dropoffDemandMap.clear();
-
-      for (let index = 0; index < vehicles.length; index += 1) {
-        const vehicle = vehicles[index]!;
-        if (vehicle.kind !== "taxi" || vehicle.id === excludedVehicleId) {
-          continue;
-        }
-
-        if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-          pickupDemandMap.set(
-            vehicle.pickupHotspot.id,
-            (pickupDemandMap.get(vehicle.pickupHotspot.id) ?? 0) + 1,
-          );
-        }
-
-        if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-          dropoffDemandMap.set(
-            vehicle.dropoffHotspot.id,
-            (dropoffDemandMap.get(vehicle.dropoffHotspot.id) ?? 0) + 1,
-          );
-        }
-      }
-    };
-
-    const decrementDemandCount = (
-      demandMap: Map<string, number>,
-      hotspotId: string | null | undefined,
-    ) => {
-      if (!hotspotId) {
-        return;
-      }
-
-      const nextCount = (demandMap.get(hotspotId) ?? 0) - 1;
-      if (nextCount > 0) {
-        demandMap.set(hotspotId, nextCount);
-      } else {
-        demandMap.delete(hotspotId);
-      }
-    };
-
-    const incrementDemandCount = (
-      demandMap: Map<string, number>,
-      hotspotId: string | null | undefined,
-    ) => {
-      if (!hotspotId) {
-        return;
-      }
-
-      demandMap.set(hotspotId, (demandMap.get(hotspotId) ?? 0) + 1);
-    };
-
-    const replaceDemandMapContents = (
-      demandMap: Map<string, number>,
-      nextValues: ReadonlyMap<string, number>,
-    ) => {
-      demandMap.clear();
-      nextValues.forEach((count, hotspotId) => {
-        demandMap.set(hotspotId, count);
-      });
-    };
-
-    let hotspotDemandMapsDirty = true;
-    const syncActiveHotspotDemandMaps = () => {
-      rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
-      hotspotDemandMapsDirty = false;
-      hotspotActivityAccumulator = 0;
-    };
-
-    const demandMapTotal = (demandMap: ReadonlyMap<string, number>) => {
-      let total = 0;
-      demandMap.forEach((count) => {
-        total += count;
-      });
-      return total;
-    };
-
-    const buildStatsSnapshot = (
-      nextTaxiCount: number,
-      nextTrafficCount: number,
-      waitingVehicles: number,
-      activeTrips: number,
-    ) => ({
-      taxis: nextTaxiCount,
-      traffic: nextTrafficCount,
-      waiting: waitingVehicles,
-      signals: signalVisuals.length,
-      activeTrips,
-      completedTrips,
-      pedestrians: activePedestrians,
-      pickups: completedPickups,
-      dropoffs: completedTrips,
-      activeCalls: demandMapTotal(activePickupsByHotspot),
-      avgPickupWaitSeconds:
-        completedPickups > 0 ? totalPickupWaitSeconds / completedPickups : 0,
-      avgRideSeconds: completedTrips > 0 ? totalRideSeconds / completedTrips : 0,
-    });
 
     const statsMatch = (left: Stats, right: Stats) =>
       left.taxis === right.taxis &&
@@ -1113,109 +936,6 @@ export default function MapSimulatorSceneRuntime({
 
     const commitStatsSnapshot = (nextStats: Stats) => {
       setStats((current) => (statsMatch(current, nextStats) ? current : nextStats));
-    };
-
-    const routeBuilder = (
-      start: string,
-      end: string,
-      id: string,
-      label: string | null,
-    ) => {
-      if (!graph) {
-        return null;
-      }
-      const cacheKey = `${start}|${end}`;
-      if (routeCache.has(cacheKey)) {
-        return routeCache.get(cacheKey) ?? null;
-      }
-      const route = buildShortestRoute(
-        graph,
-        signalByKey,
-        start,
-        end,
-        id,
-        label,
-      );
-      routeCache.set(cacheKey, route);
-      return route;
-    };
-
-    const planNextTrip = (
-      startKey: string,
-      seed: number,
-      vehicleId: string,
-      pickupDemandMap = activePickupsByHotspot,
-      dropoffDemandMap = activeDropoffsByHotspot,
-    ) => {
-      if (!graph || !hotspotPool.length) {
-        return null;
-      }
-
-      const originPoint = graph.nodes.get(startKey)?.point ?? null;
-      const scoredPickups = hotspotPool
-        .filter((hotspot) => hotspot.nodeKey !== startKey)
-        .map((hotspot, index) => ({
-          hotspot,
-          score:
-            (originPoint ? hotspot.point.distanceTo(originPoint) : index * 4) +
-            (pickupDemandMap.get(hotspot.id) ?? 0) * 14 +
-            ((seed + index * 7) % 13) * 0.55,
-        }))
-        .sort((left, right) => left.score - right.score)
-        .slice(0, 12);
-
-      for (let pickupIndex = 0; pickupIndex < scoredPickups.length; pickupIndex += 1) {
-        const pickup = scoredPickups[pickupIndex]!.hotspot;
-        const scoredDropoffs = hotspotPool
-          .filter(
-            (hotspot) =>
-              hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
-          )
-          .map((hotspot, index) => {
-            const distance = hotspot.point.distanceTo(pickup.point);
-            return {
-              hotspot,
-              score:
-                (dropoffDemandMap.get(hotspot.id) ?? 0) * 12 -
-                Math.min(distance, 180) * 0.08 +
-                ((seed * 3 + index * 5) % 11) * 0.45,
-            };
-          })
-          .sort((left, right) => left.score - right.score)
-          .slice(0, 12);
-
-        for (
-          let dropoffIndex = 0;
-          dropoffIndex < scoredDropoffs.length;
-          dropoffIndex += 1
-        ) {
-          const dropoff =
-            scoredDropoffs[(dropoffIndex + seed + pickupIndex) % scoredDropoffs.length]!
-              .hotspot;
-          const pickupRoute = routeBuilder(
-            startKey,
-            pickup.nodeKey,
-            `${vehicleId}-pickup-${seed}-${pickupIndex}`,
-            pickup.roadName ?? pickup.label,
-          );
-          const dropoffRoute = routeBuilder(
-            pickup.nodeKey,
-            dropoff.nodeKey,
-            `${vehicleId}-dropoff-check-${seed}-${dropoffIndex}`,
-            dropoff.roadName ?? dropoff.label,
-          );
-
-          if (pickupRoute && dropoffRoute) {
-            return {
-              pickupHotspot: pickup,
-              dropoffHotspot: dropoff,
-              pickupRoute,
-            };
-          }
-        }
-      }
-
-      return null;
     };
 
     const syncSelectedTaxi = () => {
@@ -1318,39 +1038,6 @@ export default function MapSimulatorSceneRuntime({
       return vehicle;
     };
 
-    const pickNextTrafficRoute = (
-      currentRouteId: string,
-      vehicleIndex: number,
-      elapsedTime: number,
-    ) => {
-      if (!trafficRoutePool.length) {
-        return null;
-      }
-
-      const seed =
-        Math.floor(elapsedTime * 0.6) + vehicleIndex * 7 + completedTrips * 3;
-      for (let offset = 0; offset < trafficRoutePool.length; offset += 1) {
-        const route =
-          trafficRoutePool[
-            (seed + offset + trafficRoutePool.length) % trafficRoutePool.length
-          ]!;
-        if (trafficRoutePool.length === 1 || route.id !== currentRouteId) {
-          return route;
-        }
-      }
-
-      return trafficRoutePool[seed % trafficRoutePool.length]!;
-    };
-
-    const updateVehicleLayerStats = (
-      nextTaxiCount: number,
-      nextTrafficCount: number,
-    ) => {
-      commitStatsSnapshot(
-        buildStatsSnapshot(nextTaxiCount, nextTrafficCount, 0, 0),
-      );
-    };
-
     const upgradeTaxiVehicleMeshes = () => {
       if (!taxiAssetTemplate || !taxiVehicles.length) {
         return;
@@ -1399,16 +1086,8 @@ export default function MapSimulatorSceneRuntime({
       taxiClickTargets.length = 0;
       taxiById.clear();
       vehicleById.clear();
-      activePickupsByHotspot.clear();
-      activeDropoffsByHotspot.clear();
-      hotspotDemandMapsDirty = false;
-      hotspotActivityAccumulator = 0;
       vehicleSimulationAccumulator = 0;
       simulationTrailLayer.clear();
-      completedTrips = 0;
-      completedPickups = 0;
-      totalPickupWaitSeconds = 0;
-      totalRideSeconds = 0;
     };
 
     const syncVehicleLayerFromSnapshot = (
@@ -1518,156 +1197,6 @@ export default function MapSimulatorSceneRuntime({
         pedestrians: activePedestrians,
       });
     };
-
-    const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
-      if (!hotspotPool.length || !trafficRoutePool.length) {
-        return;
-      }
-      if (!sceneDisposed) {
-        setStatusDetail("차량 레이어 구성 중");
-        setLoadingProgress(86);
-      }
-
-      clearVehicleLayer();
-      activeVehicleDensity.taxis = nextTaxiCount;
-      activeVehicleDensity.traffic = nextTrafficCount;
-      const bootstrapPickupDemandMap = new Map<string, number>();
-      const bootstrapDropoffDemandMap = new Map<string, number>();
-
-      for (let index = 0; index < nextTaxiCount; index += 1) {
-        const spawnHotspot = hotspotPool[(index * 2) % hotspotPool.length];
-        const vehicleId = `taxi-${index}`;
-        const job = planNextTrip(
-          spawnHotspot.nodeKey,
-          index + 1,
-          vehicleId,
-          bootstrapPickupDemandMap,
-          bootstrapDropoffDemandMap,
-        );
-        if (!job) {
-          continue;
-        }
-
-        const { group, bodyMaterial, signMaterial, clickTarget } =
-          createVehicleGroup("taxi", TAXI_PALETTE, { taxiAssetTemplate });
-        scene.add(group);
-
-        const vehicle: Vehicle = {
-          id: vehicleId,
-          kind: "taxi",
-          route: job.pickupRoute,
-          group,
-          bodyMaterial,
-          signMaterial,
-          baseSpeed: 7.1 + (index % 4) * 0.55,
-          speed: 0,
-          distance: 0,
-          safeGap: 7.8,
-          length: 4.6,
-          currentSignalId: null,
-          roadName: job.pickupRoute.name,
-          palette: TAXI_PALETTE,
-          isOccupied: false,
-          pickupHotspot: job.pickupHotspot,
-          dropoffHotspot: job.dropoffHotspot,
-          jobAssignedAt: latestElapsedTime,
-          pickupStartedAt: null,
-          serviceTimer: 0,
-          planMode: "pickup",
-          previousMotion: createVehicleMotionState(),
-          motion: createVehicleMotionState(),
-          renderMotion: createVehicleMotionState(),
-        };
-        vehicle.motion.nextStopIndex = resolveNextStop(
-          job.pickupRoute,
-          0,
-          0,
-        ).index;
-        group.userData.vehicleId = vehicle.id;
-        group.traverse((child) => {
-          child.userData.vehicleId = vehicle.id;
-        });
-        if (clickTarget) {
-          taxiClickTargets.push(clickTarget);
-        }
-        setTaxiAppearance(vehicle);
-        updateVehicleMotionState(vehicle);
-        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
-        copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
-        syncVehicleTransform(vehicle, 1);
-        vehicles.push(vehicle);
-        taxiVehicles.push(vehicle);
-        taxiById.set(vehicle.id, vehicle);
-        incrementDemandCount(bootstrapPickupDemandMap, job.pickupHotspot.id);
-      }
-
-      for (let index = 0; index < nextTrafficCount; index += 1) {
-        const route = trafficRoutePool[index % trafficRoutePool.length];
-        const palette = TRAFFIC_PALETTES[index % TRAFFIC_PALETTES.length];
-        const { group, bodyMaterial, signMaterial } = createVehicleGroup(
-          "traffic",
-          palette,
-        );
-        scene.add(group);
-
-        const vehicle: Vehicle = {
-          id: `traffic-${index}`,
-          kind: "traffic",
-          route,
-          group,
-          bodyMaterial,
-          signMaterial,
-          baseSpeed: 5.6 + (index % 5) * 0.4,
-          speed: 0,
-          distance: (route.totalLength / nextTrafficCount) * index,
-          safeGap: 6.4,
-          length: 4.2,
-          currentSignalId: null,
-          roadName: route.name,
-          palette,
-          isOccupied: false,
-          pickupHotspot: null,
-          dropoffHotspot: null,
-          jobAssignedAt: 0,
-          pickupStartedAt: null,
-          serviceTimer: 0,
-          planMode: "traffic",
-          previousMotion: createVehicleMotionState(),
-          motion: createVehicleMotionState(),
-          renderMotion: createVehicleMotionState(),
-        };
-        vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
-          route,
-          vehicle.distance,
-          0,
-        );
-        vehicle.motion.nextStopIndex = resolveNextStop(
-          route,
-          vehicle.distance,
-          0,
-        ).index;
-        updateVehicleMotionState(vehicle);
-        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
-        copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
-        syncVehicleTransform(vehicle, 1);
-        vehicles.push(vehicle);
-        trafficVehicles.push(vehicle);
-      }
-
-      replaceDemandMapContents(activePickupsByHotspot, bootstrapPickupDemandMap);
-      replaceDemandMapContents(activeDropoffsByHotspot, bootstrapDropoffDemandMap);
-      hotspotDemandMapsDirty = false;
-      hotspotActivityAccumulator = 0;
-      syncSelectedTaxi();
-      hoverNeedsUpdate = true;
-      updateVehicleLayerStats(taxiVehicles.length, vehicles.length - taxiVehicles.length);
-      if (!sceneDisposed) {
-        setLoadingProgress(100);
-        setStatus("ready");
-        setStatusDetail("주행 준비 완료");
-      }
-    };
-    void rebuildVehicleLayer;
 
     const syncVehicleDensity = () => {
       if (!vehicleLayerReady) {
@@ -2455,7 +1984,6 @@ export default function MapSimulatorSceneRuntime({
     optionalLabelObjectsRef.current = optionalLabelObjects;
 
     const currentGraph = data.graph;
-    graph = currentGraph;
     roadNetworkOverlay = buildRoadNetworkOverlay(currentGraph);
     roadNetworkOverlay.visible = showRoadNetworkRef.current;
     scene.add(roadNetworkOverlay);
@@ -3120,8 +2648,6 @@ export default function MapSimulatorSceneRuntime({
     let lastCapSignature = "";
     let refreshRateEstimate = 0;
     let refreshRateBand: number | null = null;
-    let latestElapsedTime = 0;
-    let statsAccumulator = 0;
     let fpsSampleElapsed = 0;
     let fpsFrameCount = 0;
     let simulationCpuSampleMs = 0;
@@ -3310,7 +2836,6 @@ export default function MapSimulatorSceneRuntime({
         cluster.visible = stormCloudOpacity > 0.01;
       });
 
-      activeVehicleSpeedMultiplier = environment.vehicleSpeedMultiplier;
       rainLayer.points.visible = environment.precipitation === "rain";
       rainLayer.material.opacity = environment.precipitationOpacity;
       rainLayer.material.size = 0.22 + environment.precipitationIntensity * 0.1;
@@ -3616,435 +3141,6 @@ export default function MapSimulatorSceneRuntime({
       activePedestrians = visibleCount;
     };
 
-    const updateVehicles = (delta: number, elapsedTime: number) => {
-      if (!vehicles.length) {
-        intersectionOccupancy.forEach(resetSignalAxisOccupancy);
-        intersectionApproachDemand.forEach(resetSignalApproachDemand);
-        intersectionApproachDistance.forEach(resetSignalApproachDistance);
-        intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
-        clearVehicleSampleBuckets(proximityBuckets);
-
-        statsAccumulator += delta;
-        if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
-          statsAccumulator = 0;
-          commitStatsSnapshot(
-            buildStatsSnapshot(taxiVehicles.length, 0, 0, 0),
-          );
-        }
-        return;
-      }
-
-      vehicleSimulationSamples.length = vehicles.length;
-      intersectionOccupancy.forEach(resetSignalAxisOccupancy);
-      intersectionApproachDemand.forEach(resetSignalApproachDemand);
-      intersectionApproachDistance.forEach(resetSignalApproachDistance);
-      intersectionExitOccupancy.forEach(resetSignalDirectionalOccupancy);
-      clearVehicleSampleBuckets(proximityBuckets);
-      for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
-        const vehicle = vehicles[vehicleIndex]!;
-        copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
-      }
-
-      for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
-        const vehicle = vehicles[vehicleIndex]!;
-        let sample = vehicleSimulationSamples[vehicleIndex];
-        if (!sample) {
-          sample = createVehicleSimulationSample(vehicle);
-          vehicleSimulationSamples[vehicleIndex] = sample;
-        } else {
-          sample.vehicle = vehicle;
-          sample.motion = vehicle.motion;
-        }
-
-        const currentMotion = sample.motion;
-        const nextStopState = resolveNextStopInto(
-          vehicle.route,
-          vehicle.distance,
-          sample.nextStopState,
-          vehicle.motion.nextStopIndex,
-        );
-        vehicle.motion.nextStopIndex = nextStopState.index;
-        vehicle.currentSignalId = null;
-
-        const stop = nextStopState.stop;
-        const signal = stop?.signal ?? null;
-        if (signal && stop) {
-          const signalDistanceSq = currentMotion.position.distanceToSquared(
-            signal.point,
-          );
-          if (signalDistanceSq < SIGNAL_RADIUS_SQ) {
-            vehicle.currentSignalId = signal.id;
-          }
-          if (nextStopState.ahead < INTERSECTION_SIGNAL_LOOKAHEAD) {
-            const approachDemand = intersectionApproachDemand.get(signal.id)!;
-            const approachDistance = intersectionApproachDistance.get(signal.id)!;
-            const approachDirection = approachDirectionForHeading(
-              vehicle.motion.heading,
-            );
-            approachDemand[approachDirection][stop.turn] += 1;
-            if (stop.turn === "straight" || stop.turn === "right") {
-              approachDistance[approachDirection] = Math.min(
-                approachDistance[approachDirection],
-                nextStopState.ahead,
-              );
-            }
-          }
-        }
-
-        if (vehicle.currentSignalId) {
-          const currentSignal = signalById.get(vehicle.currentSignalId) ?? null;
-          const currentSignalDistanceSq =
-            currentSignal?.point.distanceToSquared(currentMotion.position) ??
-            Number.POSITIVE_INFINITY;
-          if (
-            currentSignal &&
-            currentSignalDistanceSq < INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ
-          ) {
-            const claim = intersectionOccupancy.get(currentSignal.id)!;
-            const movementAxis = dominantAxisForHeading(vehicle.motion.heading);
-            claim[movementAxis] += 1;
-          }
-          const isQueuedPastIntersection =
-            currentSignal &&
-            currentSignalDistanceSq < INTERSECTION_EXIT_QUEUE_RADIUS_SQ &&
-            vehicle.speed < INTERSECTION_EXIT_BLOCK_SPEED &&
-            nextStopState.stop?.signalId !== currentSignal.id;
-          if (currentSignal && isQueuedPastIntersection) {
-            const exitClaim = intersectionExitOccupancy.get(currentSignal.id)!;
-            const travelDirection = signalDirectionForVector(
-              vehicle.motion.heading,
-            );
-            exitClaim[travelDirection] += 1;
-          }
-        }
-
-        sample.proximityCellX = vehicleProximityCellCoord(
-          currentMotion.lanePosition.x,
-        );
-        sample.proximityCellZ = vehicleProximityCellCoord(
-          currentMotion.lanePosition.z,
-        );
-        addVehicleSampleToBucket(proximityBuckets, sample);
-      }
-
-      let waitingVehicles = 0;
-      let activeTrips = 0;
-
-      for (let vehicleIndex = 0; vehicleIndex < vehicles.length; vehicleIndex += 1) {
-        const vehicle = vehicles[vehicleIndex]!;
-        const current = vehicleSimulationSamples[vehicleIndex]!;
-        const currentMotion = current.motion;
-        let nextStopState = current.nextStopState;
-        let targetSpeed = vehicle.baseSpeed * activeVehicleSpeedMultiplier;
-        let holdPosition = false;
-
-        if (vehicle.serviceTimer > 0) {
-          vehicle.serviceTimer = Math.max(0, vehicle.serviceTimer - delta);
-          targetSpeed = 0;
-          holdPosition = true;
-          waitingVehicles += 1;
-
-          if (vehicle.serviceTimer === 0 && vehicle.kind === "taxi") {
-            if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-              completedPickups += 1;
-              totalPickupWaitSeconds += Math.max(
-                0,
-                elapsedTime - vehicle.jobAssignedAt,
-              );
-              vehicle.pickupStartedAt = elapsedTime;
-              const completedPickupHotspotId = vehicle.pickupHotspot.id;
-              vehicle.isOccupied = true;
-              vehicle.pickupHotspot = null;
-              decrementDemandCount(
-                activePickupsByHotspot,
-                completedPickupHotspotId,
-              );
-              incrementDemandCount(
-                activeDropoffsByHotspot,
-                vehicle.dropoffHotspot?.id,
-              );
-              hotspotDemandMapsDirty = false;
-              hotspotActivityAccumulator = 0;
-              setTaxiAppearance(vehicle);
-              const dropRoute = routeBuilder(
-                vehicle.route.endKey,
-                vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
-                `${vehicle.id}-dropoff-${completedTrips}`,
-                vehicle.dropoffHotspot?.roadName ??
-                vehicle.dropoffHotspot?.label ??
-                null,
-              );
-              if (dropRoute) {
-                assignVehicleRoute(vehicle, dropRoute, 0);
-                vehicle.planMode = "dropoff";
-                nextStopState = resolveNextStopInto(
-                  vehicle.route,
-                  vehicle.distance,
-                  nextStopState,
-                  0,
-                );
-                vehicle.motion.nextStopIndex = nextStopState.index;
-              }
-            } else if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-              totalRideSeconds += Math.max(
-                0,
-                elapsedTime - (vehicle.pickupStartedAt ?? elapsedTime),
-              );
-              vehicle.pickupStartedAt = null;
-              completedTrips += 1;
-              if (!hotspotPool.length) {
-                continue;
-              }
-              const completedDropoffHotspotId = vehicle.dropoffHotspot.id;
-              decrementDemandCount(
-                activeDropoffsByHotspot,
-                completedDropoffHotspotId,
-              );
-              hotspotDemandMapsDirty = false;
-              hotspotActivityAccumulator = 0;
-              if (hotspotDemandMapsDirty) {
-                syncActiveHotspotDemandMaps();
-              }
-              const nextJob = planNextTrip(
-                vehicle.route.endKey,
-                completedTrips + vehicleIndex + 1,
-                vehicle.id,
-              );
-              if (nextJob) {
-                vehicle.pickupHotspot = nextJob.pickupHotspot;
-                vehicle.dropoffHotspot = nextJob.dropoffHotspot;
-                assignVehicleRoute(vehicle, nextJob.pickupRoute, 0);
-                vehicle.planMode = "pickup";
-                vehicle.isOccupied = false;
-                vehicle.jobAssignedAt = elapsedTime;
-                incrementDemandCount(
-                  activePickupsByHotspot,
-                  nextJob.pickupHotspot.id,
-                );
-                hotspotDemandMapsDirty = false;
-                hotspotActivityAccumulator = 0;
-                setTaxiAppearance(vehicle);
-                nextStopState = resolveNextStopInto(
-                  vehicle.route,
-                  vehicle.distance,
-                  nextStopState,
-                  0,
-                );
-                vehicle.motion.nextStopIndex = nextStopState.index;
-              }
-            }
-          }
-        }
-
-        if (!holdPosition) {
-          const maxInteractionDistance =
-            vehicle.safeGap + VEHICLE_FOLLOW_LOOKAHEAD_BUFFER;
-          const searchCellRadius = Math.max(
-            1,
-            Math.ceil(maxInteractionDistance / VEHICLE_PROXIMITY_CELL_SIZE),
-          );
-          const currentCellX = vehicleProximityCellCoord(
-            currentMotion.lanePosition.x,
-          );
-          const currentCellZ = vehicleProximityCellCoord(
-            currentMotion.lanePosition.z,
-          );
-
-          searchNearbyVehicles: for (
-            let cellX = currentCellX - searchCellRadius;
-            cellX <= currentCellX + searchCellRadius;
-            cellX += 1
-          ) {
-            for (
-              let cellZ = currentCellZ - searchCellRadius;
-              cellZ <= currentCellZ + searchCellRadius;
-              cellZ += 1
-            ) {
-              const bucket = proximityBuckets.get(cellX)?.get(cellZ);
-              if (!bucket) {
-                continue;
-              }
-
-              for (let bucketIndex = 0; bucketIndex < bucket.length; bucketIndex += 1) {
-                const other = bucket[bucketIndex];
-                if (other.vehicle === vehicle) {
-                  continue;
-                }
-
-                const alignment = currentMotion.heading.dot(other.motion.heading);
-                if (alignment < 0.35) {
-                  continue;
-                }
-
-                const deltaX =
-                  other.motion.lanePosition.x - currentMotion.lanePosition.x;
-                const deltaZ =
-                  other.motion.lanePosition.z - currentMotion.lanePosition.z;
-                const longitudinal =
-                  deltaX * currentMotion.heading.x +
-                  deltaZ * currentMotion.heading.z;
-                if (
-                  longitudinal <= 0 ||
-                  longitudinal > maxInteractionDistance
-                ) {
-                  continue;
-                }
-
-                const lateral = Math.abs(
-                  deltaX * currentMotion.right.x + deltaZ * currentMotion.right.z,
-                );
-                const laneTolerance =
-                  Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) *
-                  0.48;
-                if (lateral > laneTolerance) {
-                  continue;
-                }
-
-                const gapLimit = Math.max(
-                  0,
-                  (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1,
-                );
-                targetSpeed = Math.min(targetSpeed, gapLimit);
-                if (targetSpeed <= 0.001) {
-                  targetSpeed = 0;
-                  break searchNearbyVehicles;
-                }
-              }
-            }
-          }
-        }
-
-        if (
-          !holdPosition &&
-          nextStopState.stop &&
-          nextStopState.ahead < INTERSECTION_SIGNAL_LOOKAHEAD
-        ) {
-          const signal = nextStopState.stop.signal;
-          if (signal) {
-            const state =
-              frameSignalStates.get(signal.id) ?? signalState(signal, elapsedTime);
-            const occupancyState = intersectionOccupancy.get(signal.id);
-            const approachDemandState = intersectionApproachDemand.get(signal.id);
-            const approachDistanceState = intersectionApproachDistance.get(
-              signal.id,
-            );
-            const exitOccupancyState = intersectionExitOccupancy.get(signal.id);
-            const conflictingAxisOccupied =
-              occupancyState &&
-              (nextStopState.stop.axis === "ns"
-                ? occupancyState.ew > 0
-                : occupancyState.ns > 0);
-            const approachDirection = approachDirectionForHeading(
-              currentMotion.heading,
-            );
-            const opposingDirection = opposingSignalDirection(approachDirection);
-            const opposingPriorityDemand = approachDemandState
-              ? approachDemandState[opposingDirection].straight +
-              approachDemandState[opposingDirection].right
-              : 0;
-            const opposingPriorityDistance =
-              approachDistanceState?.[opposingDirection] ??
-              Number.POSITIVE_INFINITY;
-            const travelDirection = signalDirectionForVector(currentMotion.heading);
-            const sameDirectionExitBlocked =
-              (exitOccupancyState?.[travelDirection] ?? 0) > 0;
-            const canGo = canVehicleProceed(
-              nextStopState.stop,
-              state,
-              Boolean(conflictingAxisOccupied),
-              opposingPriorityDemand,
-              opposingPriorityDistance,
-            );
-            const blockedByIntersection =
-              Boolean(conflictingAxisOccupied) &&
-              nextStopState.ahead < INTERSECTION_OCCUPANCY_LOOKAHEAD;
-            const blockedByExitQueue =
-              sameDirectionExitBlocked &&
-              nextStopState.ahead < INTERSECTION_BOX_ENTRY_LOOKAHEAD;
-            if (!canGo || blockedByIntersection || blockedByExitQueue) {
-              const stopGap = Math.max(0, nextStopState.ahead - 0.8);
-              targetSpeed = Math.min(targetSpeed, Math.max(0, stopGap * 1.32));
-              if (stopGap < 1.1) {
-                waitingVehicles += 1;
-              }
-            }
-          }
-        }
-
-        if (!holdPosition && !vehicle.route.isLoop) {
-          const destinationGap = Math.max(
-            0,
-            vehicle.route.totalLength - vehicle.distance,
-          );
-          if (destinationGap < HOTSPOT_SLOWDOWN_DISTANCE) {
-            const curbGap = Math.max(0, destinationGap - 0.65);
-            targetSpeed = Math.min(targetSpeed, Math.max(0, curbGap * 1.4));
-            if (destinationGap < HOTSPOT_TRIGGER_DISTANCE) {
-              if (vehicle.kind === "traffic") {
-                const nextRoute = pickNextTrafficRoute(
-                  vehicle.route.id,
-                  vehicleIndex,
-                  elapsedTime,
-                );
-                if (nextRoute) {
-                  const entryDistance = Math.min(
-                    nextRoute.totalLength * 0.12,
-                    TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
-                  );
-                  assignVehicleRoute(vehicle, nextRoute, entryDistance);
-                  nextStopState = resolveNextStopInto(
-                    vehicle.route,
-                    vehicle.distance,
-                    nextStopState,
-                    vehicle.motion.nextStopIndex,
-                  );
-                  vehicle.motion.nextStopIndex = nextStopState.index;
-                  syncVehicleSampleBucket(proximityBuckets, current);
-                  continue;
-                }
-              } else {
-                vehicle.serviceTimer = SERVICE_STOP_DURATION;
-                targetSpeed = 0;
-                holdPosition = true;
-                waitingVehicles += 1;
-              }
-            }
-          }
-        }
-
-        vehicle.speed = holdPosition
-          ? 0
-          : THREE.MathUtils.damp(vehicle.speed, targetSpeed, 3.2, delta);
-        if (!holdPosition || (vehicle.kind === "taxi" && vehicle.serviceTimer > 0)) {
-          vehicle.distance = clampRouteDistance(
-            vehicle.route,
-            holdPosition
-              ? vehicle.distance
-              : vehicle.distance + vehicle.speed * delta,
-          );
-          updateVehicleMotionState(vehicle);
-        }
-
-        syncVehicleSampleBucket(proximityBuckets, current);
-        if (vehicle.kind === "taxi" && vehicle.isOccupied) {
-          activeTrips += 1;
-        }
-      }
-
-      statsAccumulator += delta;
-      if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
-        statsAccumulator = 0;
-        commitStatsSnapshot(
-          buildStatsSnapshot(
-            taxiVehicles.length,
-            vehicles.length - taxiVehicles.length,
-            waitingVehicles,
-            activeTrips,
-          ),
-        );
-      }
-    };
-    void updateVehicles;
 
     let activeHintText = "";
     let activeHintVisible = false;
@@ -4835,7 +3931,6 @@ export default function MapSimulatorSceneRuntime({
       }
       lastVisibleRenderTimestamp = frameTimestamp;
       const elapsedTime = timer.getElapsed();
-      latestElapsedTime = elapsedTime;
       const nextSimulationDate = simulationDateRef.current;
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
@@ -5334,33 +4429,7 @@ export default function MapSimulatorSceneRuntime({
     );
     animate();
 
-    // --- Analysis Layer Sync (Subtle) ---
-    const unsubscribeAnalysis = analysisStore.subscribe(() => {
-      const { demandImbalanceMap } = analysisStore.getState();
-      
-      dongMaterialsByName.forEach((material, dongName) => {
-        const score = demandImbalanceMap[dongName] || 0;
-        const currentMode = cameraModeRef.current;
-        const baseOpacity = currentMode === "overview" ? 0.05 : 0.024;
-        
-        // 과하지 않게 opacity를 기본값 ~ 최대 0.18 사이로 조절
-        const targetOpacity = baseOpacity + Math.min(Math.abs(score), 1) * 0.13;
-        material.opacity = targetOpacity;
-        
-        // 색상은 아주 옅은 힌트만 주도록 설정
-        if (score > 0) {
-          material.color.setHex(0xffaa99); // 아주 연한 붉은 톤
-        } else if (score < 0) {
-          material.color.setHex(0x99aaff); // 아주 연한 푸른 톤
-        } else {
-          material.color.setHex(0x333333); // 기본 색상
-        }
-      });
-    });
-
-
     return () => {
-      unsubscribeAnalysis();
       sceneDisposed = true;
       cancelTaxiAssetLoadSchedule();
       window.cancelAnimationFrame(animationFrame);

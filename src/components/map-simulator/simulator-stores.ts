@@ -46,14 +46,6 @@ type UiState = {
   isScenarioControlsExpanded: boolean;
 };
 
-type AnalysisState = {
-  externalPatternId: string;
-  demandImbalanceMap: Record<string, number>; // DongName -> Score (-1 to 1)
-  predictedFlowIntensity: number;
-  highlightedAnomalies: string[]; // List of POI codes
-};
-
-
 const initialSceneState: SceneState = {
   data: null,
   status: "loading",
@@ -101,18 +93,8 @@ const initialUiState: UiState = {
   isScenarioControlsExpanded: false,
 };
 
-const initialAnalysisState: AnalysisState = {
-  externalPatternId: "none",
-  demandImbalanceMap: {},
-  predictedFlowIntensity: 0,
-  highlightedAnomalies: [],
-};
-
-
 export const sceneStore = createStore(initialSceneState);
 export const uiStore = createStore(initialUiState);
-export const analysisStore = createStore(initialAnalysisState);
-
 
 export const sceneSetters = {
   setData: createFieldSetter(sceneStore, "data"),
@@ -139,11 +121,4 @@ export const uiSetters = {
     uiStore,
     "isScenarioControlsExpanded",
   ),
-};
-
-export const analysisSetters = {
-  setExternalPatternId: createFieldSetter(analysisStore, "externalPatternId"),
-  setDemandImbalanceMap: createFieldSetter(analysisStore, "demandImbalanceMap"),
-  setPredictedFlowIntensity: createFieldSetter(analysisStore, "predictedFlowIntensity"),
-  setHighlightedAnomalies: createFieldSetter(analysisStore, "highlightedAnomalies"),
 };

@@ -23,7 +23,6 @@ import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
-import mapGroundingConfig from "@/components/map-simulator/config/gangnam-map-grounding.json";
 import poiConfig from "@/components/map-simulator/config/gangnam-pois.json";
 import {
   WEATHER_OPTIONS,
@@ -36,11 +35,6 @@ import { loadSimulationData } from "@/components/map-simulator/load-simulation-d
 import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
 import MapSimulatorSceneRuntime from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
-import {
-  conditionDemandMock,
-  DEMAND_MOCK_SNAPSHOTS,
-  type DemandMockDong,
-} from "@/components/map-simulator/demand-mock-series";
 import {
   sceneSetters,
   sceneStore,
@@ -100,7 +94,7 @@ type DemandMiniMapRegion = {
   path: string;
   labelX: number;
   labelY: number;
-  score: number;
+  score: number | null;
   isSelected?: boolean;
 };
 
@@ -128,18 +122,6 @@ type DemandMiniMapPoi = {
   textAnchor: "start" | "end";
 };
 
-type DongGroundingInfo = {
-  dongName: string;
-  taxiStandCount: number;
-  supplyGroundingScore: number;
-  contextPoiCount: number;
-  contextPoiScore: number;
-  reportHotspotTier: string;
-  reportDemandPrior: number;
-  demandGroundingScore: number;
-  groundingNote: string;
-};
-
 const DEMAND_WEEKDAYS = [
   { id: "monday", label: "월" },
   { id: "tuesday", label: "화" },
@@ -154,24 +136,13 @@ type DemandWeekdayId = (typeof DEMAND_WEEKDAYS)[number]["id"];
 
 type HourlyDemandPoint = {
   hour: number;
-  populationPred: number;
-  r: number;
+  populationPred: number | null;
+  r: number | null;
   demandPred: number;
   trendDemandPred: number;
-  relativeScore: number;
 };
 
-type DemandFetchStatus = "local" | "loading" | "ready" | "error";
-
-const WEEKDAY_DEMAND_MULTIPLIER: Record<DemandWeekdayId, number> = {
-  monday: 0.94,
-  tuesday: 0.96,
-  wednesday: 0.98,
-  thursday: 1.02,
-  friday: 1.14,
-  saturday: 1.08,
-  sunday: 0.86,
-};
+type DemandFetchStatus = "idle" | "loading" | "ready" | "error";
 
 const DEMAND_API_ENDPOINT =
   process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
@@ -199,13 +170,6 @@ function weekdayLabel(id: DemandWeekdayId) {
   return DEMAND_WEEKDAYS.find((weekday) => weekday.id === id)?.label ?? "금";
 }
 
-function hourlyPulse(hour: number, centerHour: number, radiusHours: number) {
-  const dayHours = 24;
-  const diff = Math.abs(hour - centerHour) % dayHours;
-  const distance = Math.min(diff, dayHours - diff);
-  return Math.max(0, 1 - distance / radiusHours);
-}
-
 function roundedR(value: number) {
   return Math.round(value * 10_000) / 10_000;
 }
@@ -226,65 +190,6 @@ function withDemandTrend(points: HourlyDemandPoint[]) {
   });
 }
 
-function buildLocalHourlyDemandSeries({
-  dongName,
-  weekday,
-  weatherMode,
-  grounding,
-}: {
-  dongName: string;
-  weekday: DemandWeekdayId;
-  weatherMode: WeatherMode;
-  grounding: DongGroundingInfo | null;
-}) {
-  const weekdayMultiplier = WEEKDAY_DEMAND_MULTIPLIER[weekday];
-  const hotspotBoost =
-    grounding?.reportHotspotTier === "primary"
-      ? 0.0032
-      : grounding?.reportHotspotTier === "secondary"
-        ? 0.0016
-        : 0.0006;
-
-  const points = Array.from({ length: 24 }, (_, hour) => {
-    const demandSample =
-      conditionDemandMock(
-        DEMAND_MOCK_SNAPSHOTS[0],
-        hour * 60,
-        weatherMode,
-      ).find((dong) => dong.dongName === dongName) ??
-      DEMAND_MOCK_SNAPSHOTS[0].dongs.find((dong) => dong.dongName === dongName);
-    const relativeScore = clamp01(demandSample?.relativeScore ?? 0.08);
-    const lateNight = hourlyPulse(hour, 23, 4.2);
-    const commute = hourlyPulse(hour, 19, 4.5) + hourlyPulse(hour, 8.5, 3);
-    const populationPred = Math.round(
-      (10_500 +
-        relativeScore * 58_000 +
-        (demandSample?.publicTransitSignal ?? 0.2) * 8_500 +
-        (grounding?.demandGroundingScore ?? demandSample?.contextPrior ?? 0) * 90_000) *
-        weekdayMultiplier,
-    );
-    const r = roundedR(
-      0.0046 +
-        relativeScore * 0.0068 +
-        lateNight * 0.0036 +
-        commute * 0.0012 +
-        hotspotBoost +
-        (weekday === "friday" || weekday === "saturday" ? 0.0014 : 0),
-    );
-
-    return {
-      hour,
-      populationPred,
-      r,
-      demandPred: Math.max(0, Math.round(populationPred * r)),
-      trendDemandPred: 0,
-      relativeScore,
-    } satisfies HourlyDemandPoint;
-  });
-
-  return withDemandTrend(points);
-}
-
 function normalizeRemoteDemandPoints(payload: unknown) {
   const pointsPayload =
     payload && typeof payload === "object" && "points" in payload
@@ -300,10 +205,10 @@ function normalizeRemoteDemandPoints(payload: unknown) {
     }
     const record = point as Record<string, unknown>;
     const hour = Number(record.hour);
-    const populationPred = Number(
+    const rawPopulationPred = Number(
       record.population_pred ?? record.populationPred ?? record.population,
     );
-    const r = Number(record.r);
+    const rawR = Number(record.r);
     const demandPred = Number(
       record.demand_pred ?? record.demandPred ?? record.demand,
     );
@@ -311,8 +216,6 @@ function normalizeRemoteDemandPoints(payload: unknown) {
       !Number.isInteger(hour) ||
       hour < 0 ||
       hour > 23 ||
-      !Number.isFinite(populationPred) ||
-      !Number.isFinite(r) ||
       !Number.isFinite(demandPred)
     ) {
       return [];
@@ -320,11 +223,12 @@ function normalizeRemoteDemandPoints(payload: unknown) {
     return [
       {
         hour,
-        populationPred: Math.round(populationPred),
-        r: roundedR(r),
+        populationPred: Number.isFinite(rawPopulationPred)
+          ? Math.round(rawPopulationPred)
+          : null,
+        r: Number.isFinite(rawR) ? roundedR(rawR) : null,
         demandPred: Math.round(demandPred),
         trendDemandPred: 0,
-        relativeScore: 0,
       } satisfies HourlyDemandPoint,
     ];
   });
@@ -368,11 +272,10 @@ function buildDemandChartGeometry(points: HourlyDemandPoint[]) {
     (peak, point) => (point.demandPred > peak.demandPred ? point : peak),
     points[0] ?? {
       hour: 0,
-      populationPred: 0,
-      r: 0,
+      populationPred: null,
+      r: null,
       demandPred: 0,
       trendDemandPred: 0,
-      relativeScore: 0,
     },
   );
 
@@ -404,6 +307,20 @@ function averageDemand(points: HourlyDemandPoint[]) {
   return Math.round(
     points.reduce((sum, point) => sum + point.demandPred, 0) / points.length,
   );
+}
+
+function scoreDemandAtHour(points: HourlyDemandPoint[], minutes: number) {
+  if (!points.length) {
+    return null;
+  }
+  const hour = Math.floor(normalizeDayMinutes(minutes) / 60);
+  const point =
+    points.find((candidate) => candidate.hour === hour) ?? points[0] ?? null;
+  const maxDemand = Math.max(0, ...points.map((candidate) => candidate.demandPred));
+  if (!point || maxDemand <= 0) {
+    return null;
+  }
+  return clamp01(point.demandPred / maxDemand);
 }
 
 function contextPoiWeight(category: string | null | undefined) {
@@ -457,28 +374,26 @@ function centerOfRings(rings: THREE.Vector3[][]) {
   return bounds.getCenter(new THREE.Vector3());
 }
 
-function demandFillForScore(score: number) {
-  if (score >= 0.85) return "rgba(244, 63, 94, 0.78)";
-  if (score >= 0.55) return "rgba(249, 115, 22, 0.68)";
-  if (score >= 0.25) return "rgba(234, 179, 8, 0.58)";
-  if (score >= 0.04) return "rgba(45, 212, 191, 0.38)";
+function demandFillForScore(score: number | null, isSelected = false) {
+  if (score === null) {
+    return isSelected ? "rgba(14, 165, 233, 0.20)" : "rgba(148, 163, 184, 0.10)";
+  }
+  if (score >= 0.85) return "rgba(14, 165, 233, 0.62)";
+  if (score >= 0.55) return "rgba(56, 189, 248, 0.48)";
+  if (score >= 0.25) return "rgba(125, 211, 252, 0.34)";
+  if (score >= 0.04) return "rgba(186, 230, 253, 0.24)";
   return "rgba(148, 163, 184, 0.18)";
 }
 
-function demandStrokeForScore(score: number) {
-  if (score >= 0.85) return "rgba(251, 113, 133, 0.92)";
-  if (score >= 0.55) return "rgba(251, 146, 60, 0.82)";
-  if (score >= 0.25) return "rgba(250, 204, 21, 0.72)";
-  if (score >= 0.04) return "rgba(94, 234, 212, 0.62)";
+function demandStrokeForScore(score: number | null, isSelected = false) {
+  if (score === null) {
+    return isSelected ? "rgba(186, 230, 253, 0.86)" : "rgba(148, 163, 184, 0.30)";
+  }
+  if (score >= 0.85) return "rgba(125, 211, 252, 0.94)";
+  if (score >= 0.55) return "rgba(56, 189, 248, 0.84)";
+  if (score >= 0.25) return "rgba(125, 211, 252, 0.70)";
+  if (score >= 0.04) return "rgba(186, 230, 253, 0.56)";
   return "rgba(148, 163, 184, 0.34)";
-}
-
-function demandLevelLabel(score: number) {
-  if (score >= 0.85) return "매우 높음";
-  if (score >= 0.55) return "높음";
-  if (score >= 0.25) return "중간";
-  if (score >= 0.04) return "낮음";
-  return "매우 낮음";
 }
 
 function compactPoiLabel(name: string) {
@@ -536,20 +451,6 @@ function buildStaticPoiFeatureRows() {
     .sort((left, right) => right.context_score - left.context_score);
 }
 
-function monitoringLevelForScore(score: number) {
-  if (score >= 0.72) return "high";
-  if (score >= 0.52) return "medium";
-  if (score >= 0.28) return "watch";
-  return "low";
-}
-
-function monitoringActionForLevel(level: string) {
-  if (level === "high") return "선제 이동";
-  if (level === "medium") return "커버 보강";
-  if (level === "watch") return "관찰";
-  return "유지";
-}
-
 function mapToolButtonClass(active: boolean) {
   return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
     active
@@ -598,7 +499,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     HourlyDemandPoint[] | null
   >(null);
   const [demandFetchStatus, setDemandFetchStatus] =
-    useState<DemandFetchStatus>("local");
+    useState<DemandFetchStatus>("idle");
 
   const {
     setData,
@@ -626,10 +527,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showNonRoad = false;
   const showTransit = true;
   const showRoadNetwork = false;
-  const demandOffsetMinutes = 15;
   const fpsMode: FpsMode = "fixed60";
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
-  // Keep the map focused on taxi operations until backend traffic markers land.
   const appliedTrafficCount = 0;
   const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
   const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
@@ -657,66 +556,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     () => buildStaticPoiFeatureRows(),
     [],
   );
-  const dongGroundingByName = useMemo(() => {
-    const taxiStandCounts = new globalThis.Map<string, number>();
-    data?.taxiStands.features.forEach((feature) => {
-      const dongName = feature.properties.dong_name;
-      if (!feature.properties.is_target_dong || !dongName) {
-        return;
-      }
-      taxiStandCounts.set(dongName, (taxiStandCounts.get(dongName) ?? 0) + 1);
-    });
-
-    const contextPoiScores = new globalThis.Map<string, number>();
-    const contextPoiCounts = new globalThis.Map<string, number>();
-    [...poiConfig.context_pois, ...poiConfig.supplemental_context_pois].forEach((poi) => {
-      const dongName = poi.coverage_dong;
-      if (!dongName || !TARGET_DONGS.includes(dongName as (typeof TARGET_DONGS)[number])) {
-        return;
-      }
-      contextPoiCounts.set(dongName, (contextPoiCounts.get(dongName) ?? 0) + 1);
-      contextPoiScores.set(
-        dongName,
-        (contextPoiScores.get(dongName) ?? 0) +
-          contextPoiWeight(poi.category),
-      );
-    });
-
-    const maxTaxiStandCount = Math.max(...taxiStandCounts.values(), 1);
-    const maxContextPoiScore = Math.max(...contextPoiScores.values(), 1);
-
-    return new globalThis.Map<string, DongGroundingInfo>(
-      TARGET_DONGS.map((dongName) => {
-        const grounding =
-          mapGroundingConfig.dongs.find((entry) => entry.dong_name === dongName) ?? null;
-        const taxiStandCount = taxiStandCounts.get(dongName) ?? 0;
-        const supplyGroundingScore = taxiStandCount / maxTaxiStandCount;
-        const contextPoiCount = contextPoiCounts.get(dongName) ?? 0;
-        const contextPoiScore = (contextPoiScores.get(dongName) ?? 0) / maxContextPoiScore;
-        const reportDemandPrior = grounding?.report_demand_prior ?? 0.45;
-        const demandGroundingScore = clamp01(
-          reportDemandPrior * 0.72 + contextPoiScore * 0.28,
-        );
-
-        return [
-          dongName,
-          {
-            dongName,
-            taxiStandCount,
-            supplyGroundingScore,
-            contextPoiCount,
-            contextPoiScore,
-            reportHotspotTier: grounding?.report_hotspot_tier ?? "context",
-            reportDemandPrior,
-            demandGroundingScore,
-            groundingNote:
-              grounding?.note ??
-              "정적 기준점이 부족해 교통·상권 컨텍스트만 반영합니다.",
-          } satisfies DongGroundingInfo,
-        ] as const;
-      }),
-    );
-  }, [data]);
   const poiSpatialIndex = useMemo(() => {
     if (!data) {
       return null;
@@ -917,125 +756,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
-  const conditionedDemandDongs = useMemo(
-    () => {
-      const snapshot =
-        DEMAND_MOCK_SNAPSHOTS.find(
-          (sample) => sample.offsetMinutes === demandOffsetMinutes,
-        ) ?? DEMAND_MOCK_SNAPSHOTS[0];
-      return conditionDemandMock(
-        snapshot,
-        normalizeDayMinutes(
-          normalizedSimulationTimeMinutes + snapshot.offsetMinutes,
-        ),
-        weatherMode,
-      );
-    },
-    [demandOffsetMinutes, normalizedSimulationTimeMinutes, weatherMode],
-  );
-  // effectiveDongs is what the heatmap actually renders. Keep it local and
-  // deterministic so the map stays light and offline-friendly.
-  type OperationalSource = "sample";
-  type EffectiveDong = DemandMockDong & {
-    confidence?: number;
-    source: OperationalSource;
-    staticPoiCount?: number;
-    taxiStandCount?: number;
-    supplyGroundingScore?: number;
-    demandGroundingScore?: number;
-    reportHotspotTier?: string;
-    groundingNote?: string;
-  };
-  const effectiveDongs = useMemo((): EffectiveDong[] => {
-    return conditionedDemandDongs.map((d) => ({
-      ...d,
-      relativeScore: clamp01(
-        d.relativeScore * 0.9 +
-          (dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? 0) * 0.1,
-      ),
-      contextPrior: dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? d.contextPrior,
-      source: "sample" as const,
-      staticPoiCount: mapPoiFeatureRows.filter(
-        (poi) => poi.coverage_dong === d.dongName,
-      ).length,
-      taxiStandCount: dongGroundingByName.get(d.dongName)?.taxiStandCount ?? 0,
-      supplyGroundingScore: dongGroundingByName.get(d.dongName)?.supplyGroundingScore ?? 0,
-      demandGroundingScore: dongGroundingByName.get(d.dongName)?.demandGroundingScore ?? 0,
-      reportHotspotTier: dongGroundingByName.get(d.dongName)?.reportHotspotTier ?? "context",
-      groundingNote: dongGroundingByName.get(d.dongName)?.groundingNote,
-    }));
-  }, [
-    conditionedDemandDongs,
-    dongGroundingByName,
-    mapPoiFeatureRows,
-  ]);
-
-  const sortedDemandSignals = useMemo(
-    () =>
-      [...effectiveDongs]
-        .map((dong) => {
-          const groundedDemandScore = clamp01(
-            dong.relativeScore * 0.82 + (dong.demandGroundingScore ?? 0) * 0.18,
-          );
-          const supplyProxyScore = dong.supplyGroundingScore ?? 0;
-          // supplyProxyScore는 택시승차대 수 기반이므로 패널티를 낮게 유지.
-          // 역삼1동처럼 승차대가 많아도 심야 초과수요가 최고인 경우를 반영.
-          const imbalanceScore = clamp01(
-            groundedDemandScore - supplyProxyScore * 0.12,
-          );
-          const actionLevel = monitoringLevelForScore(imbalanceScore);
-          return {
-            dong_name: dong.dongName,
-            predicted_demand_score: groundedDemandScore,
-            supply_proxy_score: supplyProxyScore,
-            imbalance_score: imbalanceScore,
-            action_level: actionLevel,
-            action: monitoringActionForLevel(actionLevel),
-            coverage_units: dong.staticPoiCount ?? 0,
-            recommended_taxis: Math.max(
-              1,
-              Math.round(
-                imbalanceScore * 8 +
-                  (dong.reportHotspotTier === "primary"
-                    ? 1
-                    : dong.reportHotspotTier === "secondary"
-                      ? 0.5
-                      : 0),
-              ),
-            ),
-            incentive_multiplier: 1,
-            context_signal_label: demandLevelLabel(dong.relativeScore),
-            road_signal_label: "정적 도로망",
-            taxi_stand_count: dong.taxiStandCount ?? 0,
-            hotspot_tier: dong.reportHotspotTier ?? "context",
-            grounding_note: dong.groundingNote ?? null,
-          };
-        })
-        .sort((left, right) => right.imbalance_score - left.imbalance_score),
-    [effectiveDongs],
-  );
-  const demandSignalByDong = useMemo(
-    () =>
-      new globalThis.Map(
-        sortedDemandSignals.map(
-          (decision) => [decision.dong_name, decision] as const,
-        ),
-      ),
-    [sortedDemandSignals],
-  );
-
-  const selectedDemandGrounding =
-    dongGroundingByName.get(selectedDongName) ?? null;
-  const localDemandSeries = useMemo(
-    () =>
-      buildLocalHourlyDemandSeries({
-        dongName: selectedDongName,
-        weekday: selectedWeekday,
-        weatherMode,
-        grounding: selectedDemandGrounding,
-      }),
-    [selectedDongName, selectedWeekday, selectedDemandGrounding, weatherMode],
-  );
 
   useEffect(() => {
     if (!DEMAND_API_ENDPOINT) {
@@ -1046,6 +766,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
     url.searchParams.set("dong", selectedDongName);
     url.searchParams.set("weekday", selectedWeekday);
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) {
+        setRemoteDemandPoints(null);
+        setDemandFetchStatus("loading");
+      }
+    });
 
     fetch(url.toString(), {
       cache: "no-store",
@@ -1077,33 +803,41 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     return () => controller.abort();
   }, [selectedDongName, selectedWeekday]);
 
-  const hourlyDemandSeries = remoteDemandPoints ?? localDemandSeries;
+  const hourlyDemandSeries = useMemo(
+    () => remoteDemandPoints ?? [],
+    [remoteDemandPoints],
+  );
+  const hasDemandData = hourlyDemandSeries.length > 0;
   const demandChart = useMemo(
     () => buildDemandChartGeometry(hourlyDemandSeries),
     [hourlyDemandSeries],
   );
-  const selectedDemandSignal = demandSignalByDong.get(selectedDongName) ?? null;
   const selectedAverageDemand = averageDemand(hourlyDemandSeries);
   const selectedPeakDemand = demandChart.peakPoint;
-  const selectedDemandRLabel = `${(selectedPeakDemand.r * 100).toFixed(2)}%`;
+  const selectedDemandRLabel =
+    selectedPeakDemand.r === null
+      ? "-"
+      : `${(selectedPeakDemand.r * 100).toFixed(2)}%`;
+  const selectedDemandScore = useMemo(
+    () => scoreDemandAtHour(hourlyDemandSeries, normalizedSimulationTimeMinutes),
+    [hourlyDemandSeries, normalizedSimulationTimeMinutes],
+  );
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
       ? "백엔드"
       : demandFetchStatus === "loading"
         ? "요청 중"
         : demandFetchStatus === "error"
-          ? "로컬 대체"
-          : "로컬";
-
-  const demandByDong = useMemo(
-    () =>
-      new globalThis.Map(
-        effectiveDongs.map(
-          (dong) => [dong.dongName, dong] as const,
-        ),
-      ),
-    [effectiveDongs],
-  );
+          ? "연결 실패"
+          : "API 필요";
+  const demandFetchBadgeClass =
+    demandFetchStatus === "ready"
+      ? "border-sky-300/25 bg-sky-300/[0.08] text-sky-100"
+      : demandFetchStatus === "loading"
+        ? "border-cyan-300/25 bg-cyan-300/[0.08] text-cyan-100"
+        : demandFetchStatus === "error"
+          ? "border-rose-300/25 bg-rose-300/[0.08] text-rose-100"
+          : "border-slate-500/30 bg-slate-500/[0.08] text-slate-300";
   const demandMiniMap = useMemo(() => {
     const dongRegions = data?.dongRegions;
     if (!data || !dongRegions?.length) {
@@ -1176,7 +910,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           path,
           labelX: labelPoint.x,
           labelY: labelPoint.y,
-          score: demandByDong.get(dong.name)?.relativeScore ?? 0,
+          score: dong.name === selectedDongName ? selectedDemandScore : null,
           isSelected: dong.name === selectedDongName,
         } satisfies DemandMiniMapRegion;
       }),
@@ -1248,12 +982,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     };
   }, [
     data,
-    demandByDong,
     mapPoiFeatureRows,
     miniMapFocus,
     scenarioMapCenter,
     activePoiCode,
     selectedDongName,
+    selectedDemandScore,
   ]);
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
@@ -1289,8 +1023,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   ]);
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const formattedSimulationDate = formatDateLabel(simulationDate);
-  const operationalBadgeClass =
-    "border-sky-300/25 bg-sky-300/[0.08] text-sky-100";
   const isSidebarVisible = !isSidebarCollapsed && !isMapFocusMode;
   const mapCanvasClass = isSidebarVisible
     ? "h-full w-full border-r border-white/10 lg:w-[62vw] xl:w-[calc(100%-500px)]"
@@ -1391,7 +1123,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <Search className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold text-slate-950">
-                  강남 교통 운영
+                  강남 수요 지도
                 </span>
                 <span className="block truncate text-[11px] text-slate-500">
                   {MAP_SCOPE_LABEL} · {formattedSimulationTime} · {selectedWeather.label}
@@ -1400,13 +1132,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </button>
 
             <span className="hidden shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
-              로컬
+              지도
             </span>
 
             <button
               type="button"
               data-ui-control="map-sidebar-toggle"
-              aria-label={isSidebarVisible ? "운영 패널 닫기" : "운영 패널 열기"}
+              aria-label={isSidebarVisible ? "정보 패널 닫기" : "정보 패널 열기"}
               aria-expanded={isSidebarVisible}
               onClick={toggleSidebar}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
@@ -1446,7 +1178,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 <div className="rounded-xl bg-slate-100 px-3 py-2">
                   <div className="text-slate-500">데이터</div>
                   <div className="mt-0.5 font-semibold text-slate-900">
-                    오프라인
+                    정적 지도
                   </div>
                 </div>
               </div>
@@ -1462,7 +1194,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       setSimulationDate(event.target.value);
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                    aria-label="운영 지도 기준 날짜"
+                    aria-label="지도 기준 날짜"
                   />
                 </label>
                 <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -1480,7 +1212,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       setSimulationTimeMinutes(nextMinutes);
                     }}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                    aria-label="운영 지도 기준 시간"
+                    aria-label="지도 기준 시간"
                   />
                 </label>
               </div>
@@ -1494,7 +1226,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                     setWeatherMode(event.target.value as WeatherMode);
                   }}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                  aria-label="운영 지도 날씨 조건"
+                  aria-label="지도 날씨 조건"
                 >
                   {WEATHER_OPTIONS.map((option) => (
                     <option key={option.id} value={option.id}>
@@ -1646,12 +1378,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <button
             type="button"
             data-ui-control="mobile-sidebar-toggle"
-            aria-label="운영 패널 열기"
+            aria-label="정보 패널 열기"
             onClick={toggleSidebar}
             className={`${mapToolButtonClass(false)} flex-1 justify-center`}
           >
             <Menu className="h-4 w-4" aria-hidden="true" />
-            <span>운영</span>
+            <span>정보</span>
           </button>
         </div>
       ) : null}
@@ -1757,7 +1489,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       {isSidebarVisible ? (
         <button
           type="button"
-          aria-label="운영 패널 닫기"
+          aria-label="정보 패널 닫기"
           onClick={toggleSidebar}
           className="absolute inset-0 z-10 bg-slate-950/40 lg:hidden"
         />
@@ -1779,7 +1511,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </p>
           </div>
           <span
-            className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${operationalBadgeClass}`}
+            className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${demandFetchBadgeClass}`}
           >
             {demandFetchBadgeText}
           </span>
@@ -1787,7 +1519,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         <div
           className={`mt-4 ${PANEL_CARD_CLASS} p-4`}
-          data-ui-panel="hourly-demand-mock-series"
+          data-ui-panel="hourly-demand-api-series"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex items-center gap-2">
@@ -1797,7 +1529,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <div className="min-w-0">
                 <div className={PANEL_SECTION_LABEL_CLASS}>수요 곡선</div>
                 <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                  생활인구 예측치 × r
+                  백엔드 API 응답값
                 </div>
               </div>
             </div>
@@ -1845,13 +1577,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div className="px-2 py-2">
               <div className="text-[10px] text-slate-500">피크</div>
               <div className="mt-1 font-semibold tabular-nums text-slate-100">
-                {selectedPeakDemand.hour}시
+                {hasDemandData ? `${selectedPeakDemand.hour}시` : "-"}
               </div>
             </div>
             <div className="px-2 py-2">
               <div className="text-[10px] text-slate-500">수요</div>
               <div className="mt-1 font-semibold tabular-nums text-rose-100">
-                {selectedPeakDemand.demandPred.toLocaleString("ko-KR")}
+                {hasDemandData
+                  ? selectedPeakDemand.demandPred.toLocaleString("ko-KR")
+                  : "-"}
               </div>
             </div>
             <div className="px-2 py-2">
@@ -1863,94 +1597,100 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           </div>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#07111c]">
-            <svg
-              viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
-              role="img"
-              aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요 예측`}
-              className="block h-auto w-full"
-            >
-              <defs>
-                <linearGradient id="demandCurveFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="rgba(34,211,238,0.32)" />
-                  <stop offset="100%" stopColor="rgba(34,211,238,0)" />
-                </linearGradient>
-              </defs>
-              <rect
-                x="0"
-                y="0"
-                width={demandChart.width}
-                height={demandChart.height}
-                fill="#07111c"
-              />
-              {demandChart.yTicks.map((tick) => (
-                <g key={tick.value}>
-                  <line
-                    x1={demandChart.paddingLeft}
-                    y1={tick.y}
-                    x2={demandChart.width - 12}
-                    y2={tick.y}
-                    stroke="rgba(148,163,184,0.16)"
-                    strokeWidth="0.8"
-                  />
-                  <text
-                    x={demandChart.paddingLeft - 8}
-                    y={tick.y + 3}
-                    textAnchor="end"
-                    fill="rgba(148,163,184,0.74)"
-                    fontSize="8"
-                  >
-                    {tick.value}
-                  </text>
-                </g>
-              ))}
-              {demandChart.xTicks.map((tick) => (
-                <g key={tick.hour}>
-                  <line
-                    x1={tick.x}
-                    y1={demandChart.baseY}
-                    x2={tick.x}
-                    y2={demandChart.baseY + 4}
-                    stroke="rgba(148,163,184,0.35)"
-                    strokeWidth="0.8"
-                  />
-                  <text
-                    x={tick.x}
-                    y={demandChart.baseY + 16}
-                    textAnchor="middle"
-                    fill="rgba(148,163,184,0.78)"
-                    fontSize="8"
-                  >
-                    {tick.hour}
-                  </text>
-                </g>
-              ))}
-              <path d={demandChart.areaPath} fill="url(#demandCurveFill)" />
-              <path
-                d={demandChart.trendPath}
-                fill="none"
-                stroke="#fda4af"
-                strokeDasharray="4 4"
-                strokeLinecap="round"
-                strokeWidth="1.6"
-                opacity="0.9"
-              />
-              <path
-                d={demandChart.linePath}
-                fill="none"
-                stroke="#22d3ee"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.4"
-              />
-              <circle
-                cx={demandChart.peakX}
-                cy={demandChart.peakY}
-                r="4"
-                fill="#fff7ed"
-                stroke="#fb7185"
-                strokeWidth="1.6"
-              />
-            </svg>
+            {hasDemandData ? (
+              <svg
+                viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
+                role="img"
+                aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요 예측`}
+                className="block h-auto w-full"
+              >
+                <defs>
+                  <linearGradient id="demandCurveFill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="rgba(34,211,238,0.32)" />
+                    <stop offset="100%" stopColor="rgba(34,211,238,0)" />
+                  </linearGradient>
+                </defs>
+                <rect
+                  x="0"
+                  y="0"
+                  width={demandChart.width}
+                  height={demandChart.height}
+                  fill="#07111c"
+                />
+                {demandChart.yTicks.map((tick) => (
+                  <g key={tick.value}>
+                    <line
+                      x1={demandChart.paddingLeft}
+                      y1={tick.y}
+                      x2={demandChart.width - 12}
+                      y2={tick.y}
+                      stroke="rgba(148,163,184,0.16)"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={demandChart.paddingLeft - 8}
+                      y={tick.y + 3}
+                      textAnchor="end"
+                      fill="rgba(148,163,184,0.74)"
+                      fontSize="8"
+                    >
+                      {tick.value}
+                    </text>
+                  </g>
+                ))}
+                {demandChart.xTicks.map((tick) => (
+                  <g key={tick.hour}>
+                    <line
+                      x1={tick.x}
+                      y1={demandChart.baseY}
+                      x2={tick.x}
+                      y2={demandChart.baseY + 4}
+                      stroke="rgba(148,163,184,0.35)"
+                      strokeWidth="0.8"
+                    />
+                    <text
+                      x={tick.x}
+                      y={demandChart.baseY + 16}
+                      textAnchor="middle"
+                      fill="rgba(148,163,184,0.78)"
+                      fontSize="8"
+                    >
+                      {tick.hour}
+                    </text>
+                  </g>
+                ))}
+                <path d={demandChart.areaPath} fill="url(#demandCurveFill)" />
+                <path
+                  d={demandChart.trendPath}
+                  fill="none"
+                  stroke="#fda4af"
+                  strokeDasharray="4 4"
+                  strokeLinecap="round"
+                  strokeWidth="1.6"
+                  opacity="0.9"
+                />
+                <path
+                  d={demandChart.linePath}
+                  fill="none"
+                  stroke="#22d3ee"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.4"
+                />
+                <circle
+                  cx={demandChart.peakX}
+                  cy={demandChart.peakY}
+                  r="4"
+                  fill="#fff7ed"
+                  stroke="#fb7185"
+                  strokeWidth="1.6"
+                />
+              </svg>
+            ) : (
+              <div className="flex h-[164px] items-center justify-center px-5 text-center text-xs leading-5 text-slate-500">
+                백엔드 수요 API가 연결되면 선택한 동의 0-23시 그래프가 표시됩니다.
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
@@ -1965,8 +1705,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </span>
             </div>
             <span className="tabular-nums">
-              평균 {selectedAverageDemand.toLocaleString("ko-KR")} · 추천{" "}
-              {selectedDemandSignal?.recommended_taxis ?? "-"}대
+              {hasDemandData
+                ? `평균 ${selectedAverageDemand.toLocaleString("ko-KR")}`
+                : "백엔드 응답 대기"}
             </span>
           </div>
         </div>
@@ -1989,7 +1730,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <svg
                 viewBox="0 0 100 100"
                 role="img"
-                aria-label="역삼동 주변 9개 동 운영 신호 지도"
+                aria-label="역삼동 주변 9개 동 수요 표시 지도"
                 className="block aspect-square w-full"
               >
                 <defs>
@@ -2002,14 +1743,22 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 <rect x="0" y="0" width="100" height="100" fill="#07111c" />
                 {demandMiniMap.regions.map((region) => (
                   <g key={`${region.name}-shape`}>
-	                    <path
-	                      d={region.path}
-	                      fill={demandFillForScore(region.score)}
-	                      stroke={region.isSelected ? "#e0f2fe" : demandStrokeForScore(region.score)}
-	                      strokeWidth={region.isSelected ? 1.25 : region.score >= 0.55 ? 0.7 : 0.42}
-	                    />
+                    <path
+                      d={region.path}
+                      fill={demandFillForScore(region.score, region.isSelected)}
+                      stroke={demandStrokeForScore(region.score, region.isSelected)}
+                      strokeWidth={
+                        region.isSelected
+                          ? 1.25
+                          : region.score !== null && region.score >= 0.55
+                            ? 0.7
+                            : 0.42
+                      }
+                    />
                     <title>
-                      {region.name} 운영 신호 {Math.round(region.score * 100)}
+                      {region.score === null
+                        ? `${region.name} 수요 데이터 없음`
+                        : `${region.name} 수요 ${Math.round(region.score * 100)}`}
                     </title>
                   </g>
                 ))}
@@ -2050,9 +1799,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       y={region.labelY}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fill={region.score >= 0.55 ? "#fff7ed" : "#dbeafe"}
-                      fontSize={region.score >= 0.85 ? 3.8 : 3.2}
-                      fontWeight={region.score >= 0.55 ? 700 : 600}
+                      fill={region.isSelected ? "#f8fafc" : "#dbeafe"}
+                      fontSize={region.isSelected ? 3.6 : 3.2}
+                      fontWeight={region.isSelected ? 700 : 600}
                       paintOrder="stroke"
                       stroke="rgba(7, 17, 28, 0.82)"
                       strokeWidth="0.72"

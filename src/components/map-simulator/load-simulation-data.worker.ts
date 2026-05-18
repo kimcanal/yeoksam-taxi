@@ -222,7 +222,7 @@ async function loadSimulationData() {
 
   postMessage({
     type: "stage",
-    detail: "주행 경로와 택시승차대 운영 포인트 준비 중",
+    detail: "주행 경로와 지도 기준점 준비 중",
     progress: 65,
   });
 

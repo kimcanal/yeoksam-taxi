@@ -1,16 +1,16 @@
 # Demand API Contract
 
 This frontend does not train or batch-run the demand model. The backend owns
-model training, feature generation, and persistence. The frontend only requests
-a 24-hour demand curve for the selected dong and weekday.
+model training, feature generation, persistence, and dispatch interpretation.
+The frontend only requests a 24-hour demand curve for the selected dong and
+weekday.
 
 ## Runtime Behavior
 
 - Configure `NEXT_PUBLIC_DEMAND_API_ENDPOINT` to enable backend fetches.
 - The frontend sends `dong` and `weekday` as query parameters.
 - If the endpoint is not configured, fails, or returns malformed data, the UI
-  falls back to bundled mock curves in `src/components/map-simulator/demand-mock-series.ts`.
-- The fallback is presentation data only; it is not a model artifact.
+  shows an API-required state. It does not synthesize local demand predictions.
 
 ## Request
 
@@ -50,10 +50,10 @@ monday, tuesday, wednesday, thursday, friday, saturday, sunday
 - `points`: 24 hourly rows are preferred. The frontend accepts any valid subset
   and sorts by `hour`.
 - `hour`: integer from `0` to `23`.
-- `population_pred`: predicted living/floating population for that hour.
-  `populationPred` and `population` are also accepted.
-- `r`: backend correction coefficient.
-- `demand_pred`: taxi demand estimate, usually `population_pred * r`.
+- `population_pred`: optional predicted living/floating population for that hour.
+  `populationPred` and `population` are also accepted when supplied.
+- `r`: optional backend correction coefficient.
+- `demand_pred`: required backend taxi demand estimate.
   `demandPred` and `demand` are also accepted.
 
 ## Frontend Scope
@@ -63,7 +63,8 @@ The frontend renders this payload as:
 - hourly demand line
 - smoothed trend line
 - peak-hour summary
-- dong selection state in the minimap
+- selected-dong minimap highlight based on the returned curve
 
 Backend-owned work, including model training, feature tables, validation CSVs,
-and batch prediction artifacts, should live in the backend or data repository.
+batch prediction artifacts, and dispatch policy, should live in the backend or
+data repository.

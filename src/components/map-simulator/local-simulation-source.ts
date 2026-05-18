@@ -1,16 +1,12 @@
 import * as THREE from "three";
 import { buildEnvironmentState, type WeatherMode } from "@/components/map-simulator/simulation-environment";
 import {
-  HOTSPOT_ACTIVITY_REFRESH_INTERVAL,
-  HOTSPOT_SLOWDOWN_DISTANCE,
-  HOTSPOT_TRIGGER_DISTANCE,
   INTERSECTION_BOX_ENTRY_LOOKAHEAD,
   INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ,
   INTERSECTION_EXIT_BLOCK_SPEED,
   INTERSECTION_EXIT_QUEUE_RADIUS_SQ,
   INTERSECTION_OCCUPANCY_LOOKAHEAD,
   INTERSECTION_SIGNAL_LOOKAHEAD,
-  SERVICE_STOP_DURATION,
   SIGNAL_RADIUS_SQ,
   SIMULATION_STATS_UPDATE_INTERVAL,
   TRAFFIC_ROUTE_REENTRY_DISTANCE,
@@ -19,9 +15,7 @@ import {
 } from "@/components/map-simulator/scene-constants";
 import {
   TRAFFIC_PALETTES,
-  type Hotspot,
   type NextStopState,
-  type RouteTemplate,
   type SignalApproachDemand,
   type SignalApproachDistance,
   type SignalAxisOccupancy,
@@ -40,7 +34,6 @@ import {
   clampRouteDistance,
   copyVehicleMotionState,
   canVehicleProceed,
-  buildShortestRoute,
   resolveNextStop,
   resolveNextStopInto,
   routeSegmentIndexAtDistance,
@@ -52,7 +45,6 @@ import {
   updateVehicleMotionState,
   assignVehicleRoute,
   vehicleProximityCellCoord,
-  taxiDisplayNumber,
 } from "@/components/map-simulator/core";
 import type {
   HotspotSnapshot,
@@ -67,12 +59,6 @@ import type {
 
 type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
   renderSeed: number;
-};
-
-type LocalTripJob = {
-  pickupHotspot: Hotspot;
-  dropoffHotspot: Hotspot;
-  pickupRoute: RouteTemplate;
 };
 
 type LocalVehicleSimulationSample = {
@@ -93,6 +79,8 @@ const DEFAULT_CLOCK = {
   minutes: 12 * 60,
   weatherMode: "clear" as WeatherMode,
 };
+const ROUTE_END_SLOWDOWN_DISTANCE = 18;
+const ROUTE_END_SWITCH_DISTANCE = 1.5;
 
 function createVehicleSimulationSample(
   vehicle: LocalVehicle,
@@ -168,51 +156,6 @@ function syncVehicleSampleBucket(
   addVehicleSampleToBucket(buckets, sample, nextCellX, nextCellZ);
 }
 
-function decrementDemandCount(
-  demandMap: Map<string, number>,
-  hotspotId: string | null | undefined,
-) {
-  if (!hotspotId) {
-    return;
-  }
-
-  const nextCount = (demandMap.get(hotspotId) ?? 0) - 1;
-  if (nextCount > 0) {
-    demandMap.set(hotspotId, nextCount);
-  } else {
-    demandMap.delete(hotspotId);
-  }
-}
-
-function incrementDemandCount(
-  demandMap: Map<string, number>,
-  hotspotId: string | null | undefined,
-) {
-  if (!hotspotId) {
-    return;
-  }
-
-  demandMap.set(hotspotId, (demandMap.get(hotspotId) ?? 0) + 1);
-}
-
-function replaceDemandMapContents(
-  demandMap: Map<string, number>,
-  nextValues: ReadonlyMap<string, number>,
-) {
-  demandMap.clear();
-  nextValues.forEach((count, hotspotId) => {
-    demandMap.set(hotspotId, count);
-  });
-}
-
-function demandMapTotal(demandMap: ReadonlyMap<string, number>) {
-  let total = 0;
-  demandMap.forEach((count) => {
-    total += count;
-  });
-  return total;
-}
-
 function clonePose(source: VehicleMotionState): VehiclePoseSnapshot {
   return {
     position: source.position.clone(),
@@ -263,21 +206,13 @@ export function createLocalSimulationSource(): SimulationSource {
   let latestSnapshot = createEmptySnapshot();
   let snapshotDirty = true;
   let activeVehicleSpeedMultiplier = 1;
-  let hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
   let statsAccumulator = 0;
-  let completedTrips = 0;
-  let completedPickups = 0;
-  let totalPickupWaitSeconds = 0;
-  let totalRideSeconds = 0;
 
   const vehicles: LocalVehicle[] = [];
   const taxiVehicles: LocalVehicle[] = [];
   const trafficVehicles: LocalVehicle[] = [];
   const taxiById = new globalThis.Map<string, LocalVehicle>();
-  const routeCache = new globalThis.Map<string, RouteTemplate | null>();
   const frameSignalStates = new globalThis.Map<string, SignalFlow>();
-  const activePickupsByHotspot = new globalThis.Map<string, number>();
-  const activeDropoffsByHotspot = new globalThis.Map<string, number>();
   const intersectionOccupancy = new globalThis.Map<string, SignalAxisOccupancy>();
   const intersectionApproachDemand = new globalThis.Map<string, SignalApproachDemand>();
   const intersectionApproachDistance = new globalThis.Map<
@@ -290,10 +225,8 @@ export function createLocalSimulationSource(): SimulationSource {
   >();
   const proximityBuckets: VehicleProximityBuckets = new globalThis.Map();
   const vehicleSimulationSamples: LocalVehicleSimulationSample[] = [];
-  let hotspotDemandMapsDirty = true;
 
   let signalById = new globalThis.Map<string, SignalData>();
-  let signalByKey = new globalThis.Map<string, SignalData>();
 
   const ensureSignalStateMaps = () => {
     staticContext?.signals.forEach((signal) => {
@@ -312,35 +245,6 @@ export function createLocalSimulationSource(): SimulationSource {
     });
   };
 
-  const rebuildHotspotDemandMaps = (
-    pickupDemandMap: Map<string, number>,
-    dropoffDemandMap: Map<string, number>,
-    excludedVehicleId?: string | null,
-  ) => {
-    pickupDemandMap.clear();
-    dropoffDemandMap.clear();
-
-    for (let index = 0; index < vehicles.length; index += 1) {
-      const vehicle = vehicles[index]!;
-      if (vehicle.kind !== "taxi" || vehicle.id === excludedVehicleId) {
-        continue;
-      }
-
-      if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-        incrementDemandCount(pickupDemandMap, vehicle.pickupHotspot.id);
-      }
-      if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-        incrementDemandCount(dropoffDemandMap, vehicle.dropoffHotspot.id);
-      }
-    }
-  };
-
-  const syncActiveHotspotDemandMaps = () => {
-    rebuildHotspotDemandMaps(activePickupsByHotspot, activeDropoffsByHotspot);
-    hotspotDemandMapsDirty = false;
-    hotspotActivityAccumulator = 0;
-  };
-
   const buildStatsSnapshot = (
     waitingVehicles: number,
     activeTrips: number,
@@ -350,156 +254,49 @@ export function createLocalSimulationSource(): SimulationSource {
     waiting: waitingVehicles,
     signals: staticContext?.signals.length ?? 0,
     activeTrips,
-    completedTrips,
+    completedTrips: 0,
     pedestrians: 0,
-    pickups: completedPickups,
-    dropoffs: completedTrips,
-    activeCalls: demandMapTotal(activePickupsByHotspot),
-    avgPickupWaitSeconds:
-      completedPickups > 0 ? totalPickupWaitSeconds / completedPickups : 0,
-    avgRideSeconds: completedTrips > 0 ? totalRideSeconds / completedTrips : 0,
+    pickups: 0,
+    dropoffs: 0,
+    activeCalls: 0,
+    avgPickupWaitSeconds: 0,
+    avgRideSeconds: 0,
   });
 
-  const routeBuilder = (
-    start: string,
-    end: string,
-    id: string,
-    label: string | null,
-  ) => {
-    if (!staticContext) {
-      return null;
-    }
-    const cacheKey = `${start}|${end}`;
-    if (routeCache.has(cacheKey)) {
-      return routeCache.get(cacheKey) ?? null;
-    }
-    const route = buildShortestRoute(
-      staticContext.graph,
-      signalByKey,
-      start,
-      end,
-      id,
-      label,
-    );
-    routeCache.set(cacheKey, route);
-    return route;
-  };
-
-  const planNextTrip = (
-    startKey: string,
-    seed: number,
-    vehicleId: string,
-    pickupDemandMap = activePickupsByHotspot,
-    dropoffDemandMap = activeDropoffsByHotspot,
-  ): LocalTripJob | null => {
-    if (!staticContext?.hotspotPool.length) {
-      return null;
-    }
-
-    const originPoint = staticContext.graph.nodes.get(startKey)?.point ?? null;
-    const scoredPickups = staticContext.hotspotPool
-      .filter((hotspot) => hotspot.nodeKey !== startKey)
-      .map((hotspot, index) => ({
-        hotspot,
-        score:
-          (originPoint ? hotspot.point.distanceTo(originPoint) : index * 4) +
-          (pickupDemandMap.get(hotspot.id) ?? 0) * 14 +
-          ((seed + index * 7) % 13) * 0.55,
-      }))
-      .sort((left, right) => left.score - right.score)
-      .slice(0, 12);
-
-    for (let pickupIndex = 0; pickupIndex < scoredPickups.length; pickupIndex += 1) {
-      const pickup = scoredPickups[pickupIndex]!.hotspot;
-      const scoredDropoffs = staticContext.hotspotPool
-        .filter(
-          (hotspot) =>
-            hotspot.id !== pickup.id && hotspot.nodeKey !== pickup.nodeKey,
-        )
-        .map((hotspot, index) => {
-          const distance = hotspot.point.distanceTo(pickup.point);
-          return {
-            hotspot,
-            score:
-              (dropoffDemandMap.get(hotspot.id) ?? 0) * 12 -
-              Math.min(distance, 180) * 0.08 +
-              ((seed * 3 + index * 5) % 11) * 0.45,
-          };
-        })
-        .sort((left, right) => left.score - right.score)
-        .slice(0, 12);
-
-      for (
-        let dropoffIndex = 0;
-        dropoffIndex < scoredDropoffs.length;
-        dropoffIndex += 1
-      ) {
-        const dropoff =
-          scoredDropoffs[(dropoffIndex + seed + pickupIndex) % scoredDropoffs.length]!
-            .hotspot;
-        const pickupRoute = routeBuilder(
-          startKey,
-          pickup.nodeKey,
-          `${vehicleId}-pickup-${seed}-${pickupIndex}`,
-          pickup.roadName ?? pickup.label,
-        );
-        const dropoffRoute = routeBuilder(
-          pickup.nodeKey,
-          dropoff.nodeKey,
-          `${vehicleId}-dropoff-check-${seed}-${dropoffIndex}`,
-          dropoff.roadName ?? dropoff.label,
-        );
-
-        if (pickupRoute && dropoffRoute) {
-          return {
-            pickupHotspot: pickup,
-            dropoffHotspot: dropoff,
-            pickupRoute,
-          };
-        }
-      }
-    }
-
-    return null;
-  };
-
   const pickNextTrafficRoute = (currentRouteId: string, vehicleIndex: number) => {
-    if (!staticContext?.trafficRoutePool.length) {
+    const routePool =
+      staticContext?.trafficRoutePool.length
+        ? staticContext.trafficRoutePool
+        : staticContext?.taxiRoutePool ?? [];
+    if (!routePool.length) {
       return null;
     }
 
     const seed =
-      Math.floor(elapsedTimeSeconds * 0.6) + vehicleIndex * 7 + completedTrips * 3;
+      Math.floor(elapsedTimeSeconds * 0.6) + vehicleIndex * 7;
     for (
       let offset = 0;
-      offset < staticContext.trafficRoutePool.length;
+      offset < routePool.length;
       offset += 1
     ) {
       const route =
-        staticContext.trafficRoutePool[
-          (seed + offset + staticContext.trafficRoutePool.length) %
-            staticContext.trafficRoutePool.length
+        routePool[
+          (seed + offset + routePool.length) %
+            routePool.length
         ]!;
       if (
-        staticContext.trafficRoutePool.length === 1 ||
+        routePool.length === 1 ||
         route.id !== currentRouteId
       ) {
         return route;
       }
     }
 
-    return staticContext.trafficRoutePool[
-      seed % staticContext.trafficRoutePool.length
-    ]!;
+    return routePool[seed % routePool.length]!;
   };
 
   const resetMetrics = () => {
-    completedTrips = 0;
-    completedPickups = 0;
-    totalPickupWaitSeconds = 0;
-    totalRideSeconds = 0;
     statsAccumulator = 0;
-    hotspotActivityAccumulator = HOTSPOT_ACTIVITY_REFRESH_INTERVAL;
     latestStats = buildStatsSnapshot(0, 0);
   };
 
@@ -508,12 +305,8 @@ export function createLocalSimulationSource(): SimulationSource {
     taxiVehicles.length = 0;
     trafficVehicles.length = 0;
     taxiById.clear();
-    activePickupsByHotspot.clear();
-    activeDropoffsByHotspot.clear();
     clearVehicleSampleBuckets(proximityBuckets);
     vehicleSimulationSamples.length = 0;
-    hotspotDemandMapsDirty = false;
-    routeCache.clear();
     resetMetrics();
   };
 
@@ -521,67 +314,61 @@ export function createLocalSimulationSource(): SimulationSource {
     vehicle as unknown as Vehicle;
 
   const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
-    if (!staticContext || !staticContext.hotspotPool.length) {
+    const taxiRoutePool =
+      staticContext?.trafficRoutePool.length
+        ? staticContext.trafficRoutePool
+        : staticContext?.taxiRoutePool ?? [];
+    if (!staticContext || !taxiRoutePool.length) {
       clearVehicleLayer();
       return;
     }
 
     clearVehicleLayer();
 
-    const bootstrapPickupDemandMap = new Map<string, number>();
-    const bootstrapDropoffDemandMap = new Map<string, number>();
-
     for (let index = 0; index < nextTaxiCount; index += 1) {
-      const spawnHotspot =
-        staticContext.hotspotPool[(index * 2) % staticContext.hotspotPool.length]!;
       const vehicleId = `taxi-${index}`;
-      const job = planNextTrip(
-        spawnHotspot.nodeKey,
-        index + 1,
-        vehicleId,
-        bootstrapPickupDemandMap,
-        bootstrapDropoffDemandMap,
-      );
-      if (!job) {
-        continue;
-      }
+      const route = taxiRoutePool[index % taxiRoutePool.length]!;
 
       const vehicle: LocalVehicle = {
         id: vehicleId,
         kind: "taxi",
-        route: job.pickupRoute,
+        route,
         baseSpeed: 7.1 + (index % 4) * 0.55,
         speed: 0,
-        distance: 0,
+        distance: (route.totalLength / Math.max(nextTaxiCount, 1)) * index,
         safeGap: 7.8,
         length: 4.6,
         currentSignalId: null,
-        roadName: job.pickupRoute.name,
+        roadName: route.name,
         palette: {
           body: 0xffcc4d,
           cabin: 0x1e252e,
           sign: 0xffd970,
         },
         isOccupied: false,
-        pickupHotspot: job.pickupHotspot,
-        dropoffHotspot: job.dropoffHotspot,
-        jobAssignedAt: elapsedTimeSeconds,
+        pickupHotspot: null,
+        dropoffHotspot: null,
+        jobAssignedAt: 0,
         pickupStartedAt: null,
         serviceTimer: 0,
-        planMode: "pickup",
+        planMode: "traffic",
         previousMotion: createVehicleMotionState(),
         motion: createVehicleMotionState(),
         renderMotion: createVehicleMotionState(),
         renderSeed: index,
       };
-      vehicle.motion.nextStopIndex = resolveNextStop(job.pickupRoute, 0, 0).index;
+      vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
+        route,
+        vehicle.distance,
+        0,
+      );
+      vehicle.motion.nextStopIndex = resolveNextStop(route, vehicle.distance, 0).index;
       updateVehicleMotionState(castVehicleForMotion(vehicle));
       copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
       copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
       vehicles.push(vehicle);
       taxiVehicles.push(vehicle);
       taxiById.set(vehicle.id, vehicle);
-      incrementDemandCount(bootstrapPickupDemandMap, job.pickupHotspot.id);
     }
 
     for (let index = 0; index < nextTrafficCount; index += 1) {
@@ -628,9 +415,6 @@ export function createLocalSimulationSource(): SimulationSource {
       trafficVehicles.push(vehicle);
     }
 
-    replaceDemandMapContents(activePickupsByHotspot, bootstrapPickupDemandMap);
-    replaceDemandMapContents(activeDropoffsByHotspot, bootstrapDropoffDemandMap);
-    hotspotDemandMapsDirty = false;
     latestStats = buildStatsSnapshot(0, 0);
   };
 
@@ -793,72 +577,6 @@ export function createLocalSimulationSource(): SimulationSource {
         targetSpeed = 0;
         holdPosition = true;
         waitingVehicles += 1;
-
-        if (vehicle.serviceTimer === 0 && vehicle.kind === "taxi") {
-          if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-            completedPickups += 1;
-            totalPickupWaitSeconds += Math.max(
-              0,
-              elapsedTimeSeconds - vehicle.jobAssignedAt,
-            );
-            vehicle.pickupStartedAt = elapsedTimeSeconds;
-            const completedPickupHotspotId = vehicle.pickupHotspot.id;
-            vehicle.isOccupied = true;
-            vehicle.pickupHotspot = null;
-            decrementDemandCount(activePickupsByHotspot, completedPickupHotspotId);
-            incrementDemandCount(activeDropoffsByHotspot, vehicle.dropoffHotspot?.id);
-            hotspotDemandMapsDirty = false;
-            hotspotActivityAccumulator = 0;
-            vehicle.planMode = "dropoff";
-            const dropRoute = routeBuilder(
-              vehicle.route.endKey,
-              vehicle.dropoffHotspot?.nodeKey ?? vehicle.route.endKey,
-              `${vehicle.id}-dropoff-${completedTrips}`,
-              vehicle.dropoffHotspot?.roadName ?? vehicle.dropoffHotspot?.label ?? null,
-            );
-            if (dropRoute) {
-              assignVehicleRoute(castVehicleForMotion(vehicle), dropRoute, 0);
-              nextStopState = resolveNextStopInto(vehicle.route, vehicle.distance, nextStopState, 0);
-              vehicle.motion.nextStopIndex = nextStopState.index;
-            }
-          } else if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-            totalRideSeconds += Math.max(
-              0,
-              elapsedTimeSeconds - (vehicle.pickupStartedAt ?? elapsedTimeSeconds),
-            );
-            vehicle.pickupStartedAt = null;
-            completedTrips += 1;
-            if (!staticContext.hotspotPool.length) {
-              continue;
-            }
-
-            const completedDropoffHotspotId = vehicle.dropoffHotspot.id;
-            decrementDemandCount(activeDropoffsByHotspot, completedDropoffHotspotId);
-            hotspotDemandMapsDirty = false;
-            hotspotActivityAccumulator = 0;
-            if (hotspotDemandMapsDirty) {
-              syncActiveHotspotDemandMaps();
-            }
-            const nextJob = planNextTrip(
-              vehicle.route.endKey,
-              completedTrips + vehicleIndex + 1,
-              vehicle.id,
-            );
-            if (nextJob) {
-              vehicle.pickupHotspot = nextJob.pickupHotspot;
-              vehicle.dropoffHotspot = nextJob.dropoffHotspot;
-              vehicle.planMode = "pickup";
-              vehicle.isOccupied = false;
-              vehicle.jobAssignedAt = elapsedTimeSeconds;
-              incrementDemandCount(activePickupsByHotspot, nextJob.pickupHotspot.id);
-              hotspotDemandMapsDirty = false;
-              hotspotActivityAccumulator = 0;
-              assignVehicleRoute(castVehicleForMotion(vehicle), nextJob.pickupRoute, 0);
-              nextStopState = resolveNextStopInto(vehicle.route, vehicle.distance, nextStopState, 0);
-              vehicle.motion.nextStopIndex = nextStopState.index;
-            }
-          }
-        }
       }
 
       if (!holdPosition) {
@@ -996,33 +714,26 @@ export function createLocalSimulationSource(): SimulationSource {
           0,
           vehicle.route.totalLength - vehicle.distance,
         );
-        if (destinationGap < HOTSPOT_SLOWDOWN_DISTANCE) {
+        if (destinationGap < ROUTE_END_SLOWDOWN_DISTANCE) {
           const curbGap = Math.max(0, destinationGap - 0.65);
           targetSpeed = Math.min(targetSpeed, Math.max(0, curbGap * 1.4));
-          if (destinationGap < HOTSPOT_TRIGGER_DISTANCE) {
-            if (vehicle.kind === "traffic") {
-              const nextRoute = pickNextTrafficRoute(vehicle.route.id, vehicleIndex);
-              if (nextRoute) {
-                const entryDistance = Math.min(
-                  nextRoute.totalLength * 0.12,
-                  TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
-                );
-                assignVehicleRoute(castVehicleForMotion(vehicle), nextRoute, entryDistance);
-                nextStopState = resolveNextStopInto(
-                  vehicle.route,
-                  vehicle.distance,
-                  nextStopState,
-                  vehicle.motion.nextStopIndex,
-                );
-                vehicle.motion.nextStopIndex = nextStopState.index;
-                syncVehicleSampleBucket(proximityBuckets, current);
-                continue;
-              }
-            } else {
-              vehicle.serviceTimer = SERVICE_STOP_DURATION;
-              targetSpeed = 0;
-              holdPosition = true;
-              waitingVehicles += 1;
+          if (destinationGap < ROUTE_END_SWITCH_DISTANCE) {
+            const nextRoute = pickNextTrafficRoute(vehicle.route.id, vehicleIndex);
+            if (nextRoute) {
+              const entryDistance = Math.min(
+                nextRoute.totalLength * 0.12,
+                TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
+              );
+              assignVehicleRoute(castVehicleForMotion(vehicle), nextRoute, entryDistance);
+              nextStopState = resolveNextStopInto(
+                vehicle.route,
+                vehicle.distance,
+                nextStopState,
+                vehicle.motion.nextStopIndex,
+              );
+              vehicle.motion.nextStopIndex = nextStopState.index;
+              syncVehicleSampleBucket(proximityBuckets, current);
+              continue;
             }
           }
         }
@@ -1103,58 +814,7 @@ export function createLocalSimulationSource(): SimulationSource {
   };
 
   const buildHotspotSnapshots = (): HotspotSnapshot[] => {
-    if (!staticContext) {
-      return [];
-    }
-    if (hotspotDemandMapsDirty) {
-      syncActiveHotspotDemandMaps();
-    }
-
-    const pickupTaxiNumbersByHotspot = new Map<string, number[]>();
-    const dropoffTaxiNumbersByHotspot = new Map<string, number[]>();
-    for (let index = 0; index < taxiVehicles.length; index += 1) {
-      const vehicle = taxiVehicles[index]!;
-      const taxiNumber = taxiDisplayNumber(vehicle.id);
-      if (!taxiNumber) {
-        continue;
-      }
-
-      if (!vehicle.isOccupied && vehicle.pickupHotspot) {
-        const activeTaxiNumbers =
-          pickupTaxiNumbersByHotspot.get(vehicle.pickupHotspot.id) ?? [];
-        activeTaxiNumbers.push(taxiNumber);
-        pickupTaxiNumbersByHotspot.set(vehicle.pickupHotspot.id, activeTaxiNumbers);
-      }
-      if (vehicle.isOccupied && vehicle.dropoffHotspot) {
-        const activeTaxiNumbers =
-          dropoffTaxiNumbersByHotspot.get(vehicle.dropoffHotspot.id) ?? [];
-        activeTaxiNumbers.push(taxiNumber);
-        dropoffTaxiNumbersByHotspot.set(vehicle.dropoffHotspot.id, activeTaxiNumbers);
-      }
-    }
-
-    return staticContext.hotspotPool.map((hotspot) => {
-      const pickupCalls = activePickupsByHotspot.get(hotspot.id) ?? 0;
-      const dropoffCalls = activeDropoffsByHotspot.get(hotspot.id) ?? 0;
-      const mode =
-        pickupCalls > 0 ? "pickup" : dropoffCalls > 0 ? "dropoff" : "idle";
-
-      return {
-        id: hotspot.id,
-        label: hotspot.label,
-        roadName: hotspot.roadName,
-        position: hotspot.position.clone(),
-        mode,
-        pickupCalls,
-        dropoffCalls,
-        assignedTaxiNumbers:
-          mode === "pickup"
-            ? [...(pickupTaxiNumbersByHotspot.get(hotspot.id) ?? [])]
-            : mode === "dropoff"
-              ? [...(dropoffTaxiNumbersByHotspot.get(hotspot.id) ?? [])]
-              : [],
-      };
-    });
+    return [];
   };
 
   const rebuildSnapshot = () => {
@@ -1192,9 +852,6 @@ export function createLocalSimulationSource(): SimulationSource {
       signalById = new globalThis.Map(
         nextStaticContext.signals.map((signal) => [signal.id, signal] as const),
       );
-      signalByKey = new globalThis.Map(
-        nextStaticContext.signals.map((signal) => [signal.key, signal] as const),
-      );
       syncEnvironmentMultiplier();
       if (shouldRebuild) {
         elapsedTimeSeconds = nextConfig.preserveState ? elapsedTimeSeconds : 0;
@@ -1212,17 +869,6 @@ export function createLocalSimulationSource(): SimulationSource {
       elapsedTimeSeconds += deltaSeconds;
       syncEnvironmentMultiplier();
       refreshSignalFlows();
-      hotspotActivityAccumulator += deltaSeconds;
-      if (!vehicles.length) {
-        activePickupsByHotspot.clear();
-        activeDropoffsByHotspot.clear();
-        hotspotDemandMapsDirty = false;
-      } else if (
-        hotspotDemandMapsDirty ||
-        hotspotActivityAccumulator >= HOTSPOT_ACTIVITY_REFRESH_INTERVAL
-      ) {
-        syncActiveHotspotDemandMaps();
-      }
       updateVehicles(deltaSeconds);
       snapshotDirty = true;
     },
