@@ -37,10 +37,10 @@ import { createLocalSimulationSource } from "@/components/map-simulator/local-si
 import MapSimulatorSceneRuntime from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 import {
-  conditionDemandForecast,
-  DEMAND_FORECAST_SNAPSHOTS,
-  type DemandForecastDong,
-} from "@/components/map-simulator/demand-forecast";
+  conditionDemandMock,
+  DEMAND_MOCK_SNAPSHOTS,
+  type DemandMockDong,
+} from "@/components/map-simulator/demand-mock-series";
 import {
   sceneSetters,
   sceneStore,
@@ -86,16 +86,16 @@ type MapPoiFeatureRow = {
   current_precipitation_type?: string | null;
   demand_proxy_score?: number | null;
   poi_pressure_score: number | null;
-  population_forecast_1h: {
-    forecast_time?: string | null;
+  population_prediction_1h: {
+    target_time?: string | null;
     population_min?: number | null;
     population_max?: number | null;
     population_mid: number | null;
     congestion_level: string | null;
     congestion_score?: number | null;
   } | null;
-  forecast_population_delta: number | null;
-  forecast_population_delta_pct?: number | null;
+  population_prediction_delta: number | null;
+  population_prediction_delta_pct?: number | null;
 };
 
 type IndexedMapPoiFeatureRow = MapPoiFeatureRow & {
@@ -163,7 +163,7 @@ type DongGroundingInfo = {
   groundingNote: string;
 };
 
-const FORECAST_WEEKDAYS = [
+const DEMAND_WEEKDAYS = [
   { id: "monday", label: "월" },
   { id: "tuesday", label: "화" },
   { id: "wednesday", label: "수" },
@@ -173,7 +173,7 @@ const FORECAST_WEEKDAYS = [
   { id: "sunday", label: "일" },
 ] as const;
 
-type ForecastWeekdayId = (typeof FORECAST_WEEKDAYS)[number]["id"];
+type DemandWeekdayId = (typeof DEMAND_WEEKDAYS)[number]["id"];
 
 type HourlyDemandPoint = {
   hour: number;
@@ -186,7 +186,7 @@ type HourlyDemandPoint = {
 
 type DemandFetchStatus = "local" | "loading" | "ready" | "error";
 
-const WEEKDAY_DEMAND_MULTIPLIER: Record<ForecastWeekdayId, number> = {
+const WEEKDAY_DEMAND_MULTIPLIER: Record<DemandWeekdayId, number> = {
   monday: 0.94,
   tuesday: 0.96,
   wednesday: 0.98,
@@ -196,17 +196,17 @@ const WEEKDAY_DEMAND_MULTIPLIER: Record<ForecastWeekdayId, number> = {
   sunday: 0.86,
 };
 
-const DEMAND_FORECAST_ENDPOINT =
-  process.env.NEXT_PUBLIC_DEMAND_FORECAST_ENDPOINT?.trim() ?? "";
+const DEMAND_API_ENDPOINT =
+  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
-function weekdayIdFromDate(dateIso: string): ForecastWeekdayId {
+function weekdayIdFromDate(dateIso: string): DemandWeekdayId {
   const parsed = new Date(`${dateIso}T00:00:00`);
   const dayIndex = Number.isFinite(parsed.getTime()) ? parsed.getDay() : 5;
-  const byDayIndex: ForecastWeekdayId[] = [
+  const byDayIndex: DemandWeekdayId[] = [
     "sunday",
     "monday",
     "tuesday",
@@ -218,8 +218,8 @@ function weekdayIdFromDate(dateIso: string): ForecastWeekdayId {
   return byDayIndex[dayIndex] ?? "friday";
 }
 
-function weekdayLabel(id: ForecastWeekdayId) {
-  return FORECAST_WEEKDAYS.find((weekday) => weekday.id === id)?.label ?? "금";
+function weekdayLabel(id: DemandWeekdayId) {
+  return DEMAND_WEEKDAYS.find((weekday) => weekday.id === id)?.label ?? "금";
 }
 
 function hourlyPulse(hour: number, centerHour: number, radiusHours: number) {
@@ -256,7 +256,7 @@ function buildLocalHourlyDemandSeries({
   grounding,
 }: {
   dongName: string;
-  weekday: ForecastWeekdayId;
+  weekday: DemandWeekdayId;
   weatherMode: WeatherMode;
   grounding: DongGroundingInfo | null;
 }) {
@@ -269,21 +269,21 @@ function buildLocalHourlyDemandSeries({
         : 0.0006;
 
   const points = Array.from({ length: 24 }, (_, hour) => {
-    const forecast =
-      conditionDemandForecast(
-        DEMAND_FORECAST_SNAPSHOTS[0],
+    const demandSample =
+      conditionDemandMock(
+        DEMAND_MOCK_SNAPSHOTS[0],
         hour * 60,
         weatherMode,
       ).find((dong) => dong.dongName === dongName) ??
-      DEMAND_FORECAST_SNAPSHOTS[0].dongs.find((dong) => dong.dongName === dongName);
-    const relativeScore = clamp01(forecast?.relativeScore ?? 0.08);
+      DEMAND_MOCK_SNAPSHOTS[0].dongs.find((dong) => dong.dongName === dongName);
+    const relativeScore = clamp01(demandSample?.relativeScore ?? 0.08);
     const lateNight = hourlyPulse(hour, 23, 4.2);
     const commute = hourlyPulse(hour, 19, 4.5) + hourlyPulse(hour, 8.5, 3);
     const populationPred = Math.round(
       (10_500 +
         relativeScore * 58_000 +
-        (forecast?.publicTransitSignal ?? 0.2) * 8_500 +
-        (grounding?.demandGroundingScore ?? forecast?.contextPrior ?? 0) * 90_000) *
+        (demandSample?.publicTransitSignal ?? 0.2) * 8_500 +
+        (grounding?.demandGroundingScore ?? demandSample?.contextPrior ?? 0) * 90_000) *
         weekdayMultiplier,
     );
     const r = roundedR(
@@ -571,9 +571,9 @@ function buildStaticPoiFeatureRows() {
         current_precipitation_type: null,
         demand_proxy_score: pressureScore,
         poi_pressure_score: pressureScore,
-        population_forecast_1h: null,
-        forecast_population_delta: null,
-        forecast_population_delta_pct: null,
+        population_prediction_1h: null,
+        population_prediction_delta: null,
+        population_prediction_delta_pct: null,
       } satisfies MapPoiFeatureRow;
     })
     .sort((left, right) => (right.poi_pressure_score ?? 0) - (left.poi_pressure_score ?? 0));
@@ -647,8 +647,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const isScenarioControlsExpanded = uiStore.useStore(
     (state) => state.isScenarioControlsExpanded,
   );
-  const [forecastDongName, setForecastDongName] = useState<string>("역삼1동");
-  const [forecastWeekday, setForecastWeekday] = useState<ForecastWeekdayId>(
+  const [selectedDongName, setSelectedDongName] = useState<string>("역삼1동");
+  const [selectedWeekday, setSelectedWeekday] = useState<DemandWeekdayId>(
     () => weekdayIdFromDate(simulationDate),
   );
   const [remoteDemandPoints, setRemoteDemandPoints] = useState<
@@ -683,7 +683,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showNonRoad = false;
   const showTransit = true;
   const showRoadNetwork = false;
-  const forecastOffsetMinutes = 15;
+  const demandOffsetMinutes = 15;
   const fpsMode: FpsMode = "fixed60";
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
   // Keep the map focused on taxi operations until backend traffic markers land.
@@ -978,13 +978,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
-  const conditionedForecastDongs = useMemo(
+  const conditionedDemandDongs = useMemo(
     () => {
       const snapshot =
-        DEMAND_FORECAST_SNAPSHOTS.find(
-          (forecast) => forecast.offsetMinutes === forecastOffsetMinutes,
-        ) ?? DEMAND_FORECAST_SNAPSHOTS[0];
-      return conditionDemandForecast(
+        DEMAND_MOCK_SNAPSHOTS.find(
+          (sample) => sample.offsetMinutes === demandOffsetMinutes,
+        ) ?? DEMAND_MOCK_SNAPSHOTS[0];
+      return conditionDemandMock(
         snapshot,
         normalizeDayMinutes(
           normalizedSimulationTimeMinutes + snapshot.offsetMinutes,
@@ -992,12 +992,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         weatherMode,
       );
     },
-    [forecastOffsetMinutes, normalizedSimulationTimeMinutes, weatherMode],
+    [demandOffsetMinutes, normalizedSimulationTimeMinutes, weatherMode],
   );
   // effectiveDongs is what the heatmap actually renders. Keep it local and
   // deterministic so the map stays light and offline-friendly.
   type OperationalSource = "sample";
-  type EffectiveDong = DemandForecastDong & {
+  type EffectiveDong = DemandMockDong & {
     confidence?: number;
     source: OperationalSource;
     staticPoiCount?: number;
@@ -1008,7 +1008,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     groundingNote?: string;
   };
   const effectiveDongs = useMemo((): EffectiveDong[] => {
-    return conditionedForecastDongs.map((d) => ({
+    return conditionedDemandDongs.map((d) => ({
       ...d,
       relativeScore: clamp01(
         d.relativeScore * 0.9 +
@@ -1026,7 +1026,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       groundingNote: dongGroundingByName.get(d.dongName)?.groundingNote,
     }));
   }, [
-    conditionedForecastDongs,
+    conditionedDemandDongs,
     dongGroundingByName,
     mapPoiFeatureRows,
   ]);
@@ -1085,28 +1085,28 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     [sortedDemandSignals],
   );
 
-  const selectedForecastGrounding =
-    dongGroundingByName.get(forecastDongName) ?? null;
+  const selectedDemandGrounding =
+    dongGroundingByName.get(selectedDongName) ?? null;
   const localDemandSeries = useMemo(
     () =>
       buildLocalHourlyDemandSeries({
-        dongName: forecastDongName,
-        weekday: forecastWeekday,
+        dongName: selectedDongName,
+        weekday: selectedWeekday,
         weatherMode,
-        grounding: selectedForecastGrounding,
+        grounding: selectedDemandGrounding,
       }),
-    [forecastDongName, forecastWeekday, selectedForecastGrounding, weatherMode],
+    [selectedDongName, selectedWeekday, selectedDemandGrounding, weatherMode],
   );
 
   useEffect(() => {
-    if (!DEMAND_FORECAST_ENDPOINT) {
+    if (!DEMAND_API_ENDPOINT) {
       return;
     }
 
     const controller = new AbortController();
-    const url = new URL(DEMAND_FORECAST_ENDPOINT, window.location.origin);
-    url.searchParams.set("dong", forecastDongName);
-    url.searchParams.set("weekday", forecastWeekday);
+    const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
+    url.searchParams.set("dong", selectedDongName);
+    url.searchParams.set("weekday", selectedWeekday);
 
     fetch(url.toString(), {
       cache: "no-store",
@@ -1114,14 +1114,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error(`Demand forecast request failed: ${response.status}`);
+          throw new Error(`Demand API request failed: ${response.status}`);
         }
         return response.json() as Promise<unknown>;
       })
       .then((payload) => {
         const normalized = normalizeRemoteDemandPoints(payload);
         if (!normalized) {
-          throw new Error("Demand forecast response has no valid points.");
+          throw new Error("Demand API response has no valid points.");
         }
         setRemoteDemandPoints(normalized);
         setDemandFetchStatus("ready");
@@ -1136,17 +1136,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       });
 
     return () => controller.abort();
-  }, [forecastDongName, forecastWeekday]);
+  }, [selectedDongName, selectedWeekday]);
 
   const hourlyDemandSeries = remoteDemandPoints ?? localDemandSeries;
   const demandChart = useMemo(
     () => buildDemandChartGeometry(hourlyDemandSeries),
     [hourlyDemandSeries],
   );
-  const selectedForecastDecision = demandSignalByDong.get(forecastDongName) ?? null;
+  const selectedDemandSignal = demandSignalByDong.get(selectedDongName) ?? null;
   const selectedAverageDemand = averageDemand(hourlyDemandSeries);
   const selectedPeakDemand = demandChart.peakPoint;
-  const selectedForecastRLabel = `${(selectedPeakDemand.r * 100).toFixed(2)}%`;
+  const selectedDemandRLabel = `${(selectedPeakDemand.r * 100).toFixed(2)}%`;
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
       ? "백엔드"
@@ -1240,7 +1240,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           labelY: labelPoint.y,
           score: demandByDong.get(dong.name)?.relativeScore ?? 0,
           pressureLevel: demandSignal?.action_level,
-          isSelected: dong.name === forecastDongName,
+          isSelected: dong.name === selectedDongName,
         } satisfies DemandMiniMapRegion;
       }),
       landmarks: data.transit.features
@@ -1320,7 +1320,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     miniMapFocus,
     scenarioMapCenter,
     activePoiCode,
-    forecastDongName,
+    selectedDongName,
   ]);
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
@@ -1843,7 +1843,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               동별 24시간 택시 수요
             </h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              {forecastDongName} · {weekdayLabel(forecastWeekday)}요일 · 0-23시
+              {selectedDongName} · {weekdayLabel(selectedWeekday)}요일 · 0-23시
             </p>
           </div>
           <span
@@ -1855,7 +1855,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         <div
           className={`mt-4 ${PANEL_CARD_CLASS} p-4`}
-          data-ui-panel="hourly-demand-forecast"
+          data-ui-panel="hourly-demand-mock-series"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex items-center gap-2">
@@ -1878,8 +1878,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-500">
               동
               <select
-                value={forecastDongName}
-                onChange={(event) => setForecastDongName(event.target.value)}
+                value={selectedDongName}
+                onChange={(event) => setSelectedDongName(event.target.value)}
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/70 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
                 aria-label="수요 예측 행정동"
               >
@@ -1893,14 +1893,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-500">
               요일
               <select
-                value={forecastWeekday}
+                value={selectedWeekday}
                 onChange={(event) =>
-                  setForecastWeekday(event.target.value as ForecastWeekdayId)
+                  setSelectedWeekday(event.target.value as DemandWeekdayId)
                 }
                 className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/70 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
                 aria-label="수요 예측 요일"
               >
-                {FORECAST_WEEKDAYS.map((weekday) => (
+                {DEMAND_WEEKDAYS.map((weekday) => (
                   <option key={weekday.id} value={weekday.id}>
                     {weekday.label}요일
                   </option>
@@ -1925,7 +1925,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div className="px-2 py-2">
               <div className="text-[10px] text-slate-500">r</div>
               <div className="mt-1 font-semibold tabular-nums text-cyan-100">
-                {selectedForecastRLabel}
+                {selectedDemandRLabel}
               </div>
             </div>
           </div>
@@ -1934,7 +1934,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <svg
               viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
               role="img"
-              aria-label={`${forecastDongName} ${weekdayLabel(forecastWeekday)}요일 시간대별 택시 수요 예측`}
+              aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요 예측`}
               className="block h-auto w-full"
             >
               <defs>
@@ -2034,7 +2034,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
             <span className="tabular-nums">
               평균 {selectedAverageDemand.toLocaleString("ko-KR")} · 추천{" "}
-              {selectedForecastDecision?.recommended_taxis ?? "-"}대
+              {selectedDemandSignal?.recommended_taxis ?? "-"}대
             </span>
           </div>
         </div>
@@ -2047,7 +2047,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div className="text-right text-[11px] text-slate-500">
               선택 동
               <div className="mt-0.5 font-medium text-slate-300">
-                {forecastDongName}
+                {selectedDongName}
               </div>
             </div>
           </div>
@@ -2061,7 +2061,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 className="block aspect-square w-full"
               >
                 <defs>
-                  <radialGradient id="forecastFocusGlow">
+                  <radialGradient id="demandFocusGlow">
                     <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
                     <stop offset="50%" stopColor="rgba(34,211,238,0.35)" />
                     <stop offset="100%" stopColor="rgba(34,211,238,0)" />
@@ -2087,7 +2087,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                       cx={demandMiniMap.focus.x}
                       cy={demandMiniMap.focus.y}
                       r="7"
-                      fill="url(#forecastFocusGlow)"
+                      fill="url(#demandFocusGlow)"
                     />
                     {demandMiniMap.focusHeading ? (
                       <line

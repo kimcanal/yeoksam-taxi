@@ -1,6 +1,6 @@
 import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
 
-export type DemandForecastDong = {
+export type DemandMockDong = {
   dongName: string;
   relativeScore: number;
   contextPrior: number;
@@ -8,20 +8,14 @@ export type DemandForecastDong = {
   contextMultiplier: number;
 };
 
-export type DemandForecastSnapshot = {
+export type DemandMockSnapshot = {
   offsetMinutes: number;
   timestamp: string;
   label: string;
-  dongs: DemandForecastDong[];
+  dongs: DemandMockDong[];
 };
 
-export const DEMAND_FORECAST_SOURCE =
-  "A-Eye Gangnam context-transfer relative demand, March 2026 sample";
-
-export const DEMAND_FORECAST_SAFE_CLAIM =
-  "직접 호출 수가 아니라, 공개 강남 지표와 시간대별 이동 패턴을 결합한 동 단위 상대 운영 신호입니다.";
-
-export const DEMAND_FORECAST_SNAPSHOTS: DemandForecastSnapshot[] = [
+export const DEMAND_MOCK_SNAPSHOTS: DemandMockSnapshot[] = [
   {
     offsetMinutes: 0,
     timestamp: "2026-03-31 18:30:00",
@@ -132,7 +126,7 @@ function timeDemandMultiplier(dongName: string, targetMinutes: number) {
   );
 }
 
-function weatherDemandMultiplier(dong: DemandForecastDong, weatherMode: WeatherMode) {
+function weatherDemandMultiplier(dong: DemandMockDong, weatherMode: WeatherMode) {
   if (weatherMode === "heavy-rain") {
     return 1.08 + dong.publicTransitSignal * 0.3 + dong.contextMultiplier * 0.05;
   }
@@ -145,8 +139,8 @@ function weatherDemandMultiplier(dong: DemandForecastDong, weatherMode: WeatherM
   return 1;
 }
 
-export function conditionDemandForecast(
-  snapshot: DemandForecastSnapshot,
+export function conditionDemandMock(
+  snapshot: DemandMockSnapshot,
   targetMinutes: number,
   weatherMode: WeatherMode,
 ) {

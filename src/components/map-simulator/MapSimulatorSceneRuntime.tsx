@@ -235,11 +235,11 @@ type MapPoiFeatureRow = {
   current_traffic_index?: string | null;
   current_traffic_speed_kmh: number | null;
   poi_pressure_score: number | null;
-  population_forecast_1h: {
+  population_prediction_1h: {
     population_mid: number | null;
     congestion_level: string | null;
   } | null;
-  forecast_population_delta: number | null;
+  population_prediction_delta: number | null;
 };
 
 function poiMarkerColor(score: number | null | undefined) {

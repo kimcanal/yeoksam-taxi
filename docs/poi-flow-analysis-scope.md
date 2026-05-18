@@ -10,7 +10,7 @@
 
 - 행정동별 용도/상권/교통/이벤트 성격을 설명 가능한 점수로 만든다.
 - 삼성1동과 역삼1동처럼 오차가 자주 커지는 동의 POI 차이를 정량/정성으로 비교한다.
-- 기존 지도 heatmap, POI marker, forecast/pressure JSON과 연결할 수 있는 산출물 계약을 만든다.
+- 기존 지도 heatmap, POI marker, demand API와 연결할 수 있는 산출물 계약을 만든다.
 - 버스/지하철, raw/processed, source/derived 값을 임의로 섞지 않는다.
 
 ## Map Scope
@@ -106,7 +106,7 @@
 - `jamsil_sports_adjacent`
 - `moving_lucky_day`
 
-이 레이어는 forecast target을 바로 바꾸기보다, 오차가 큰 날짜/동을 설명하고 다음 retraining feature 후보를 제안하는 용도로 둔다.
+이 레이어는 demand target을 바로 바꾸기보다, 오차가 큰 날짜/동을 설명하고 다음 retraining feature 후보를 제안하는 용도로 둔다.
 
 ## Deliverables
 

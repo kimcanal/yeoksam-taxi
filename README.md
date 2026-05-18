@@ -2,7 +2,7 @@
 
 `yeoksam-taxi` is a modern, map-first **Mobility Digital Twin** for the Gangnam/Yeoksam area, built with Next.js and Three.js.
 
-This project was originally born out of a capstone specification for taxi-demand forecasting and digital-twin visualization. However, to maximize its value as a presentation-ready product, the heavy backend ML and data processing pipelines have been decoupled. This repository focuses entirely on the **Frontend 3D Visualization and API Integration**—transforming aggregated demand data into a clear, interactive 3D digital twin.
+This project was originally born out of a capstone specification for taxi-demand modeling and digital-twin visualization. However, to maximize its value as a presentation-ready product, the heavy backend ML and data processing pipelines have been decoupled. This repository focuses entirely on the **Frontend 3D Visualization and API Integration**—transforming aggregated demand data into a clear, interactive 3D digital twin.
 
 ## 🚀 Key Features
 
@@ -32,14 +32,14 @@ npm run dev
 
 The application will be available at `http://localhost:3000`.
 
-## 🔮 Backend Forecast Handoff
+## 🔮 Backend Demand API Handoff
 
 Model training and batch inference live outside this frontend repository. The map
-can call a backend demand endpoint through `NEXT_PUBLIC_DEMAND_FORECAST_ENDPOINT`.
+can call a backend demand endpoint through `NEXT_PUBLIC_DEMAND_API_ENDPOINT`.
 When that endpoint is not configured or fails, the UI falls back to small bundled
 mock demand curves so the frontend remains demoable on its own.
 
-See `docs/forecast-contract.md` for the request and response shape.
+See `docs/demand-api-contract.md` for the request and response shape.
 
 ## 🗺 Map Asset Refresh
 

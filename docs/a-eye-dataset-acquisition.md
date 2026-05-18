@@ -288,7 +288,7 @@ This is still on the Seoul portal, but conceptually separate from the regular tr
 
 ### C. KMA / Public Data Portal
 
-#### C-1. Weather forecast
+#### C-1. Weather outlook
 
 - Dataset: `기상청_단기예보 조회서비스(기상청API허브 연계)`
 - Page: https://www.data.go.kr/data/15139470/openapi.do
@@ -303,7 +303,7 @@ This is still on the Seoul portal, but conceptually separate from the regular tr
   - actual request URL redirects to the KMA API Hub
 - What to extract:
   - base date / time
-  - forecast date / time
+  - target date / time
   - temperature
   - precipitation type
   - precipitation amount

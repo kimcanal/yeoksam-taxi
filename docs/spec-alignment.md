@@ -47,7 +47,7 @@
 현재 repo에 있는 흐름:
 
 - static POI and map-context configuration: `data/config/*.json`
-- backend demand forecast handoff: `NEXT_PUBLIC_DEMAND_FORECAST_ENDPOINT`
+- backend demand API handoff: `NEXT_PUBLIC_DEMAND_API_ENDPOINT`
 - OSM geometry: `public/*.geojson`, `public/road-network.json`
 
 발표 자료의 모델 실험은 별도 분석 단계에서 만든 대중교통 OD + 날씨 + 휴일 + lag feature CSV를 기준으로 설명합니다. repo는 그 결과를 백엔드 API 계약과 지도 시각화 구조에 연결합니다.

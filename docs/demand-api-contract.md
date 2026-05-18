@@ -1,4 +1,4 @@
-# Forecast Contract
+# Demand API Contract
 
 This frontend does not train or batch-run the demand model. The backend owns
 model training, feature generation, and persistence. The frontend only requests
@@ -6,16 +6,16 @@ a 24-hour demand curve for the selected dong and weekday.
 
 ## Runtime Behavior
 
-- Configure `NEXT_PUBLIC_DEMAND_FORECAST_ENDPOINT` to enable backend fetches.
+- Configure `NEXT_PUBLIC_DEMAND_API_ENDPOINT` to enable backend fetches.
 - The frontend sends `dong` and `weekday` as query parameters.
 - If the endpoint is not configured, fails, or returns malformed data, the UI
-  falls back to bundled mock curves in `src/components/map-simulator/demand-forecast.ts`.
+  falls back to bundled mock curves in `src/components/map-simulator/demand-mock-series.ts`.
 - The fallback is presentation data only; it is not a model artifact.
 
 ## Request
 
 ```text
-GET {NEXT_PUBLIC_DEMAND_FORECAST_ENDPOINT}?dong=역삼1동&weekday=friday
+GET {NEXT_PUBLIC_DEMAND_API_ENDPOINT}?dong=역삼1동&weekday=friday
 ```
 
 Current weekday IDs:
@@ -66,4 +66,4 @@ The frontend renders this payload as:
 - dong selection state in the minimap
 
 Backend-owned work, including model training, feature tables, validation CSVs,
-and batch forecast artifacts, should live in the backend or data repository.
+and batch prediction artifacts, should live in the backend or data repository.
