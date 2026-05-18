@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-05-18T11:31:00.277Z",
+  "generated_at": "2026-05-18T13:33:34.635Z",
   "source_log_path": "data/processed/live_validation/live_forecast_log.jsonl",
   "traffic_source_dir": "data/raw/traffic",
   "status": "waiting_for_observation",
   "note": "Live comparison pairs saved demand-proxy forecasts with road congestion observed by Seoul citydata after the forecast target time. Public transit/taxi-call demand labels are separate and may arrive later.",
   "match_window_minutes": 90,
-  "log_count": 260,
+  "log_count": 261,
   "completed_count": 0,
-  "waiting_count": 260,
+  "waiting_count": 261,
   "latest": {
     "kind": "waiting",
-    "generated_at": "2026-05-18T20:31:00+09:00",
-    "target_datetime": "2026-05-18T21:00:00+09:00",
-    "feature_datetime": "2026-05-18T20:00:00+09:00",
+    "generated_at": "2026-05-18T22:33:34+09:00",
+    "target_datetime": "2026-05-18T23:00:00+09:00",
+    "feature_datetime": "2026-05-18T22:00:00+09:00",
     "strategy": "pattern",
     "top_forecast_dong": "논현1동",
     "top_forecast_score": 1,
@@ -20,15 +20,6 @@
   },
   "completed": [],
   "waiting": [
-    {
-      "generated_at": "2026-05-17T19:38:16+09:00",
-      "target_datetime": "2026-05-17T20:00:00+09:00",
-      "feature_datetime": "2026-05-17T19:00:00+09:00",
-      "strategy": "pattern",
-      "top_forecast_dong": "논현1동",
-      "top_forecast_score": 1,
-      "status": "waiting_for_observed_snapshot"
-    },
     {
       "generated_at": "2026-05-17T20:33:33+09:00",
       "target_datetime": "2026-05-17T21:00:00+09:00",
@@ -195,6 +186,15 @@
       "generated_at": "2026-05-18T20:31:00+09:00",
       "target_datetime": "2026-05-18T21:00:00+09:00",
       "feature_datetime": "2026-05-18T20:00:00+09:00",
+      "strategy": "pattern",
+      "top_forecast_dong": "논현1동",
+      "top_forecast_score": 1,
+      "status": "waiting_for_observed_snapshot"
+    },
+    {
+      "generated_at": "2026-05-18T22:33:34+09:00",
+      "target_datetime": "2026-05-18T23:00:00+09:00",
+      "feature_datetime": "2026-05-18T22:00:00+09:00",
       "strategy": "pattern",
       "top_forecast_dong": "논현1동",
       "top_forecast_score": 1,
