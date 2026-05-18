@@ -1,12 +1,8 @@
 {
   "version": 1,
   "generated_at": "2026-05-06",
-  "description": "Gangnam-focused POI registry for Seoul citydata collection and OSM-backed supplemental watch points. Citydata entries are official OA-21285 hotspot codes; supplemental entries are map/context points only.",
-  "official_reference": {
-    "name": "Seoul real-time citydata OA-21285 update notice",
-    "url": "https://data.seoul.go.kr/together/notice/datasetNoticeView.do?bbsCd=10008&ditcCd=&pageIndex=1&seq=27399e1302ead42db866fa14824c4c56"
-  },
-  "citydata_collection": [
+  "description": "Gangnam-focused POI registry for map-context anchors. These entries are presentation anchors only; realtime interpretation belongs to the backend.",
+  "context_pois": [
     {
       "code": "POI001",
       "name": "강남 MICE 관광특구",
@@ -14,8 +10,7 @@
       "category": "tourism_business",
       "lon": 127.059,
       "lat": 37.5127,
-      "collection_enabled": true,
-      "note": "COEX/MICE district proxy for Samsung-dong visitor pressure."
+      "note": "COEX/MICE district context anchor for Samsung-dong."
     },
     {
       "code": "POI014",
@@ -24,7 +19,6 @@
       "category": "station_commercial",
       "lon": 127.0276,
       "lat": 37.498,
-      "collection_enabled": true,
       "note": "High-volume station and commercial demand anchor."
     },
     {
@@ -34,7 +28,6 @@
       "category": "station_office",
       "lon": 127.049,
       "lat": 37.5045,
-      "collection_enabled": true,
       "note": "Station and office-flow proxy around Seolleung."
     },
     {
@@ -44,7 +37,6 @@
       "category": "station_nightlife",
       "lon": 127.023,
       "lat": 37.5077,
-      "collection_enabled": true,
       "note": "Combined station hotspot for Nonhyeon/Gangnam north edge."
     },
     {
@@ -54,7 +46,6 @@
       "category": "adjacent_station",
       "lon": 127.034,
       "lat": 37.4844,
-      "collection_enabled": false,
       "actual_area_note": "서초구 서초/양재동 및 강남구 도곡동 경계권. 9개 target dong에 직접 귀속하지 않음.",
       "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
     },
@@ -65,7 +56,6 @@
       "category": "station_office",
       "lon": 127.037,
       "lat": 37.5008,
-      "collection_enabled": true,
       "note": "Core Yeoksam office-flow proxy."
     },
     {
@@ -75,7 +65,6 @@
       "category": "commercial_street",
       "lon": 127.0233,
       "lat": 37.521,
-      "collection_enabled": true,
       "note": "Sinsa/Garosu-gil retail and dining visitor proxy."
     },
     {
@@ -85,7 +74,6 @@
       "category": "commercial_street",
       "lon": 127.0405,
       "lat": 37.5275,
-      "collection_enabled": false,
       "actual_area_note": "압구정/청담 경계 성격의 상권 POI. 신사동으로 단정 매핑하지 않음.",
       "note": "Excluded from live target-dong aggregation until boundary mapping is made explicit."
     },
@@ -96,8 +84,7 @@
       "category": "commercial_street",
       "lon": 127.0456,
       "lat": 37.5248,
-      "collection_enabled": true,
-      "note": "Cheongdam retail visitor and road pressure proxy."
+      "note": "Cheongdam retail visitor context anchor."
     },
     {
       "code": "POI018",
@@ -106,12 +93,11 @@
       "category": "adjacent_station",
       "lon": 127.0146,
       "lat": 37.4934,
-      "collection_enabled": false,
       "actual_area_note": "서초구 서초동 권역. 강남구 대치4동에 귀속하지 않음.",
       "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
     }
   ],
-  "supplemental_watchlist": [
+  "supplemental_context_pois": [
     {
       "id": "osm-hakdong-station",
       "name": "학동역",
@@ -119,10 +105,8 @@
       "category": "station_context",
       "lon": 127.03075,
       "lat": 37.513957,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM transit.geojson",
-      "note": "No confirmed Seoul citydata hotspot code; keep as map/context POI."
+      "note": "Map/context POI."
     },
     {
       "id": "osm-eonju-station",
@@ -131,10 +115,8 @@
       "category": "station_context",
       "lon": 127.033875,
       "lat": 37.507321,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM transit.geojson",
-      "note": "No confirmed Seoul citydata hotspot code; keep as map/context POI."
+      "note": "Map/context POI."
     },
     {
       "id": "osm-gangnam-gu-office-station",
@@ -143,10 +125,8 @@
       "category": "station_context",
       "lon": 127.041286,
       "lat": 37.517176,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM transit.geojson",
-      "note": "No confirmed Seoul citydata hotspot code; keep as map/context POI."
+      "note": "Map/context POI."
     },
     {
       "id": "osm-daechi-station",
@@ -155,10 +135,8 @@
       "category": "station_context",
       "lon": 127.063,
       "lat": 37.4945,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM transit/road context",
-      "note": "No confirmed Seoul citydata hotspot code; keep as map/context POI."
+      "note": "Map/context POI."
     },
     {
       "id": "osm-hanti-station",
@@ -167,10 +145,8 @@
       "category": "station_context",
       "lon": 127.0522,
       "lat": 37.4977,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM transit.geojson",
-      "note": "No confirmed Seoul citydata hotspot code; keep as map/context POI."
+      "note": "Map/context POI."
     },
     {
       "id": "osm-teheran-ro",
@@ -179,10 +155,8 @@
       "category": "road_corridor_context",
       "lon": 127.0395,
       "lat": 37.503,
-      "citydata_code": null,
-      "collection_enabled": false,
       "source": "OSM road context",
-      "note": "Corridor-level context POI. Use TOPIS/road graph rather than citydata hotspot population."
+      "note": "Corridor-level context POI."
     }
   ]
 }

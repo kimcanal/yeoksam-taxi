@@ -1122,14 +1122,14 @@ export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   {
     id: "gangnam-peak",
     label: "강남역 퇴근 피크",
-    detail: "퇴근 시간대 역세권 혼잡",
+    detail: "퇴근 시간대 역세권 피크",
     summary:
-      "퇴근 시간대 강남역 주변의 높은 도로 점유와 택시 대응을 설명하는 혼잡 장면입니다.",
+      "퇴근 시간대 강남역 주변의 높은 이동 수요와 택시 대응을 설명하는 피크 장면입니다.",
     presentationNote:
-      "혼잡 집중이나 운영 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
+      "수요 집중이나 운영 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
     speakerNotes: [
       "강남역 퇴근 피크를 가정해 도로 점유와 택시 대응을 더 빽빽하게 보여줍니다.",
-      "혼잡 구간에서 신호와 차량 흐름이 어떻게 읽히는지 설명하기 좋습니다.",
+      "피크 시간대에 신호와 차량 흐름이 어떻게 읽히는지 설명하기 좋습니다.",
     ],
     taxis: 16,
     traffic: 24,
@@ -1146,7 +1146,7 @@ export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
   },
   {
     id: "rainy-evening",
-    label: "우천 혼잡",
+    label: "우천 피크",
     detail: "비 오는 저녁 보수 주행",
     summary:
       "우천 조건에서 보수적으로 움직이는 택시와 더 무거워진 저녁 흐름을 보여주는 장면입니다.",
@@ -1154,7 +1154,7 @@ export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
       "날씨가 시야와 이동 흐름에 어떻게 영향을 주는지 말할 때 자연스럽게 이어집니다.",
     speakerNotes: [
       "날씨를 붙이면 같은 도로망 위에서도 체감 흐름과 시각 밀도가 달라집니다.",
-      "우천 상황에서 저녁 혼잡을 어떻게 읽을지 보여주는 설명용 프리셋입니다.",
+      "우천 상황에서 저녁 수요를 어떻게 읽을지 보여주는 설명용 프리셋입니다.",
     ],
     taxis: 18,
     traffic: 26,
