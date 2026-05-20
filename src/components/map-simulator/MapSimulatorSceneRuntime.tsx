@@ -3779,20 +3779,6 @@ export default function MapSimulatorSceneRuntime({
       if (!isInteractiveTarget(event.target)) {
         event.preventDefault();
       }
-      if (
-        cameraModeRef.current === "overview" &&
-        (event.code === "KeyW" ||
-          event.code === "KeyA" ||
-          event.code === "KeyS" ||
-          event.code === "KeyD" ||
-          event.code === "ArrowUp" ||
-          event.code === "ArrowDown" ||
-          event.code === "ArrowLeft" ||
-          event.code === "ArrowRight")
-      ) {
-        cameraModeRef.current = "drive";
-        setCameraMode("drive");
-      }
       pressedKeys.add(event.code);
     };
 
@@ -4010,12 +3996,8 @@ export default function MapSimulatorSceneRuntime({
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const forwardInput =
-          Number(pressedKeys.has("KeyW") || pressedKeys.has("ArrowUp")) -
-          Number(pressedKeys.has("KeyS") || pressedKeys.has("ArrowDown"));
-        const strafeInput =
-          Number(pressedKeys.has("KeyD") || pressedKeys.has("ArrowRight")) -
-          Number(pressedKeys.has("KeyA") || pressedKeys.has("ArrowLeft"));
+        const forwardInput = 0;
+        const strafeInput = 0;
         const turnInput =
           Number(pressedKeys.has("KeyE")) - Number(pressedKeys.has("KeyQ"));
         const boostScale =

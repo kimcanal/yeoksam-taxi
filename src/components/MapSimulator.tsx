@@ -146,6 +146,19 @@ type DemandFetchStatus = "idle" | "loading" | "ready" | "error";
 
 const DEMAND_API_ENDPOINT =
   process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
+const TRAFFIC_LINK_IDS = [
+  "1080012700",
+  "1080012800",
+  "1080012900",
+  "1080013000",
+  "1080013100",
+  "1080013200",
+  "1080011900",
+  "1080012000",
+  "1080012100",
+  "1080012200",
+  "1080012300",
+] as const;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -401,16 +414,6 @@ function compactPoiLabel(name: string) {
   return normalized.length > 8 ? normalized.slice(0, 8) : normalized;
 }
 
-function parseTimeInput(value: string) {
-  const [hourValue, minuteValue] = value.split(":");
-  const hour = Number(hourValue);
-  const minute = Number(minuteValue);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
-    return null;
-  }
-  return normalizeDayMinutes(hour * 60 + minute);
-}
-
 function buildStaticPoiFeatureRows() {
   const rows = [
     ...poiConfig.context_pois.map((poi) => ({
@@ -506,10 +509,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setStatus,
     setStatusDetail,
     setLoadingProgress,
-    setCircumstanceMode,
-    setSimulationDate,
-    setSimulationTimeMinutes,
-    setWeatherMode,
     setCameraMode,
     setMiniMapFocus,
     setFollowTaxiId,
@@ -756,6 +755,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
+  const simulationHour = Math.floor(normalizedSimulationTimeMinutes / 60);
+  const simulationMonth = Number(simulationDate.split("-")[1] ?? "1");
+  const simulationDayOfMonth = Number(simulationDate.split("-")[2] ?? "1");
+
+  useEffect(() => {
+    setSelectedWeekday(weekdayIdFromDate(simulationDate));
+  }, [simulationDate]);
 
   useEffect(() => {
     if (!DEMAND_API_ENDPOINT) {
@@ -766,6 +772,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
     url.searchParams.set("dong", selectedDongName);
     url.searchParams.set("weekday", selectedWeekday);
+    url.searchParams.set("date", simulationDate);
+    url.searchParams.set("hour", String(simulationHour));
+    url.searchParams.set("month", String(simulationMonth));
+    url.searchParams.set("day", String(simulationDayOfMonth));
+    url.searchParams.set("is_weekend", selectedWeekday === "saturday" || selectedWeekday === "sunday" ? "1" : "0");
+    url.searchParams.set("traffic_link_ids", TRAFFIC_LINK_IDS.join(","));
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
         setRemoteDemandPoints(null);
@@ -801,7 +813,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       });
 
     return () => controller.abort();
-  }, [selectedDongName, selectedWeekday]);
+  }, [
+    selectedDongName,
+    selectedWeekday,
+    simulationDate,
+    simulationHour,
+    simulationMonth,
+    simulationDayOfMonth,
+  ]);
 
   const hourlyDemandSeries = useMemo(
     () => remoteDemandPoints ?? [],
@@ -1057,8 +1076,20 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       setIsSidebarCollapsed(true);
       return;
     }
+    setIsScenarioControlsExpanded(false);
     setIsMapFocusMode(false);
     setIsSidebarCollapsed(false);
+  }
+
+  function toggleScenarioControls() {
+    setIsScenarioControlsExpanded((current) => {
+      const nextExpanded = !current;
+      if (nextExpanded) {
+        setIsMapFocusMode(false);
+        setIsSidebarCollapsed(true);
+      }
+      return nextExpanded;
+    });
   }
 
   return (
@@ -1117,7 +1148,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               type="button"
               aria-label="지도 조건 열기"
               aria-expanded={isScenarioControlsExpanded}
-              onClick={() => setIsScenarioControlsExpanded((current) => !current)}
+              onClick={toggleScenarioControls}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
             >
               <Search className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
@@ -1126,7 +1157,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   강남 수요 지도
                 </span>
                 <span className="block truncate text-[11px] text-slate-500">
-                  {MAP_SCOPE_LABEL} · {formattedSimulationTime} · {selectedWeather.label}
+                  {MAP_SCOPE_LABEL} · {formattedSimulationTime}
                 </span>
               </span>
             </button>
@@ -1183,58 +1214,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  날짜
-                  <input
-                    type="date"
-                    value={simulationDate}
-                    onChange={(event) => {
-                      setCircumstanceMode("specific");
-                      setSimulationDate(event.target.value);
-                    }}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                    aria-label="지도 기준 날짜"
-                  />
-                </label>
-                <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  시간
-                  <input
-                    type="time"
-                    step={300}
-                    value={formattedSimulationTime}
-                    onChange={(event) => {
-                      const nextMinutes = parseTimeInput(event.target.value);
-                      if (nextMinutes === null) {
-                        return;
-                      }
-                      setCircumstanceMode("specific");
-                      setSimulationTimeMinutes(nextMinutes);
-                    }}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                    aria-label="지도 기준 시간"
-                  />
-                </label>
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+                발표/시연용 고정 뷰입니다. 조건 변경 입력은 숨겨두었습니다.
               </div>
-
-              <label className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                날씨
-                <select
-                  value={weatherMode}
-                  onChange={(event) => {
-                    setCircumstanceMode("specific");
-                    setWeatherMode(event.target.value as WeatherMode);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none transition focus:border-cyan-400"
-                  aria-label="지도 날씨 조건"
-                >
-                  {WEATHER_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
           ) : null}
         </div>
