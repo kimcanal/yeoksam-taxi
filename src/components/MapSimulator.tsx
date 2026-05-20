@@ -81,6 +81,8 @@ const TARGET_DONGS = [
   "청담동",
   "대치4동",
 ] as const;
+const MINIMAP_DONGS = TARGET_DONGS.filter((dong) => dong !== "대치4동");
+const MINIMAP_DONG_SET = new Set<string>(MINIMAP_DONGS);
 const PRIMARY_SUBWAY_STATION_NAMES = new Set(["강남", "역삼", "선릉", "신논현"]);
 
 type DemandMiniMapRegion = {
@@ -852,6 +854,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     }
 
     const displayDongs = dongRegions
+      .filter((dong) => MINIMAP_DONG_SET.has(dong.name))
       .map((dong) => ({
         ...dong,
         rings: displayRingsForHeatmap(dong.rings),
@@ -925,10 +928,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         .filter(isSubwayStationFeature)
         .flatMap((feature) => {
           const name = feature.properties.name ?? "";
-          if (!name) {
+          if (!name || !PRIMARY_SUBWAY_STATION_NAMES.has(name)) {
             return [];
           }
-          const isPrimary = PRIMARY_SUBWAY_STATION_NAMES.has(name);
           const projected = projectPoint(feature.geometry.coordinates, data.center);
           const point = mapPoint(projected);
           const x = THREE.MathUtils.clamp(point.x, 4, 96);
@@ -938,7 +940,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             {
               name: `${name}역`,
               label: name,
-              isPrimary,
+              isPrimary: true,
               x,
               y,
               labelX: labelOnLeft ? x - 2.1 : x + 2.1,
@@ -957,7 +959,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         .filter(
           (poi) =>
             Number.isFinite(poi.lon) &&
-            Number.isFinite(poi.lat),
+            Number.isFinite(poi.lat) &&
+            poi.coverage_dong !== "대치4동",
         )
         .sort((left, right) => right.context_score - left.context_score)
         .slice(0, 8)
