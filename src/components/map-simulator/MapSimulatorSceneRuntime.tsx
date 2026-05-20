@@ -3668,20 +3668,26 @@ export default function MapSimulatorSceneRuntime({
       ) {
         pointerDragged = true;
       }
-      if (cameraModeRef.current === "follow") {
+      if (cameraModeRef.current === "ride") {
+        return;
+      }
+
+      const shouldRotate =
+        event.shiftKey || event.altKey || cameraModeRef.current === "follow";
+      if (shouldRotate && cameraModeRef.current === "follow") {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
         );
-      } else if (cameraModeRef.current === "ride") {
-        return;
-      } else {
+      } else if (shouldRotate) {
         cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
+        cameraRig.pitch = THREE.MathUtils.clamp(
+          cameraRig.pitch - deltaY * CAMERA_DRAG_SENSITIVITY,
+          CAMERA_MIN_PITCH,
+          CAMERA_MAX_PITCH,
+        );
+      } else {
+        panCameraByScreenDelta(deltaX, deltaY);
       }
-      cameraRig.pitch = THREE.MathUtils.clamp(
-        cameraRig.pitch - deltaY * CAMERA_DRAG_SENSITIVITY,
-        CAMERA_MIN_PITCH,
-        CAMERA_MAX_PITCH,
-      );
       syncCamera();
     };
 
