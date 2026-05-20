@@ -3713,11 +3713,7 @@ export default function MapSimulatorSceneRuntime({
       }
 
       const isRightDrag = (event.buttons & 2) === 2;
-      const shouldRotate =
-        isRightDrag ||
-        event.shiftKey ||
-        event.altKey ||
-        cameraModeRef.current === "follow";
+      const shouldRotate = isRightDrag || cameraModeRef.current === "follow";
       if (shouldRotate && cameraModeRef.current === "follow") {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
