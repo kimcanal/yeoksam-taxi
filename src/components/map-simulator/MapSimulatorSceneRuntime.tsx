@@ -1348,6 +1348,8 @@ export default function MapSimulatorSceneRuntime({
       connector: [] as typeof roadSegments,
       local: [] as typeof roadSegments,
     };
+    // NOTE: This overlay is currently demo-only synthetic scoring per segment.
+    // Replace bucket assignment with backend-provided link metrics when traffic API is connected.
     const trafficOverlayGroup = new THREE.Group();
     const trafficOverlayBuckets = {
       smooth: [] as typeof roadSegments,

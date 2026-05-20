@@ -541,7 +541,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showNonRoad = false;
   const showTransit = true;
   const showRoadNetwork = false;
-  const [showTrafficOverlay, setShowTrafficOverlay] = useState(true);
+  const [showTrafficOverlay, setShowTrafficOverlay] = useState(false);
   const fpsMode: FpsMode = "fixed60";
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
   const appliedTrafficCount = 0;
@@ -1249,8 +1249,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <span
             className={`h-2 w-2 rounded-full ${showTrafficOverlay ? "bg-emerald-400" : "bg-slate-500"}`}
           />
-          <span>{showTrafficOverlay ? "교통 레이어 ON" : "교통 레이어 OFF"}</span>
+          <span>
+            {showTrafficOverlay
+              ? "교통 레이어 ON (데모 샘플)"
+              : "교통 레이어 OFF (데모 샘플)"}
+          </span>
         </button>
+        <p className="mt-1 text-[10px] text-slate-500">
+          현재 교통 레이어는 실시간 API 연동 전 단계의 샘플 시각화입니다.
+        </p>
 
         <div className="absolute bottom-3 left-3 z-20 hidden rounded-xl border border-white/10 bg-slate-950/82 px-3 py-2 text-[11px] text-slate-200 shadow-lg backdrop-blur-md lg:block">
           이동: 좌클릭 드래그 · 회전: 우클릭 드래그
