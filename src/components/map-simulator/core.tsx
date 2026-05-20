@@ -1030,7 +1030,7 @@ export const PANEL_CARD_CLASS =
 export const PANEL_CARD_COMPACT_CLASS =
   "rounded-2xl border border-white/8 bg-white/[0.045] p-3 text-sm";
 export const PANEL_ACCENT_CARD_CLASS =
-  "rounded-2xl border border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] p-4 text-sm";
+  "rounded-2xl border border-white/10 bg-slate-900/55 p-4 text-sm";
 export const PANEL_INSET_CLASS =
   "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400";
 export const PANEL_INSET_PADDED_CLASS =
@@ -2590,6 +2590,33 @@ export function colorForBuilding(height: number) {
   return 0x5d6670;
 }
 
+function buildingAccentByKind(kind: string | null) {
+  const normalizedKind = (kind ?? "").toLowerCase();
+  if (/(commercial|retail|mall|shop|office|business|상업|업무|판매)/i.test(normalizedKind)) {
+    return 0xb7a58f;
+  }
+  if (/(apartments|residential|house|living|주거|아파트|주택)/i.test(normalizedKind)) {
+    return 0xa2acb8;
+  }
+  if (/(industrial|warehouse|factory|공장|산업)/i.test(normalizedKind)) {
+    return 0x9a8f84;
+  }
+  return 0xa5adb6;
+}
+
+function jitterHexColor(baseHex: number, seed: number) {
+  const color = new THREE.Color(baseHex);
+  const jitter = ((Math.sin(seed * 12.9898) + 1) / 2) * 0.16 - 0.08;
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl);
+  color.setHSL(
+    hsl.h,
+    THREE.MathUtils.clamp(hsl.s * 0.92, 0.08, 0.36),
+    THREE.MathUtils.clamp(hsl.l + jitter, 0.28, 0.74),
+  );
+  return color.getHex();
+}
+
 export function buildDongRegions(
   dongs: DongFeatureCollection,
   center: { lat: number; lon: number },
@@ -3422,7 +3449,13 @@ export function buildBuildingMasses(
         width,
         depth,
         rotationY,
-        color: colorForBuilding(heightMeters),
+        color: jitterHexColor(
+          buildingAccentByKind(feature.properties.kind) ?? colorForBuilding(heightMeters),
+          index +
+            heightMeters * 0.01 +
+            footprintCenter.x * 0.0001 +
+            footprintCenter.z * 0.0001,
+        ),
       } satisfies BuildingMass;
     })
     .filter(Boolean) as BuildingMass[];
