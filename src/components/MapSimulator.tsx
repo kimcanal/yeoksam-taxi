@@ -75,7 +75,6 @@ type IndexedMapPoiFeatureRow = MapPoiFeatureRow & {
   projectedZ: number;
 };
 
-const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
 const TARGET_DONGS = [
   "역삼1동",
   "역삼2동",
@@ -1154,10 +1153,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <Search className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold text-slate-950">
-                  강남 수요 지도
+                  역삼 택시 수요 지도
                 </span>
                 <span className="block truncate text-[11px] text-slate-500">
-                  {MAP_SCOPE_LABEL} · {formattedSimulationTime}
+                  기준 {formattedSimulationTime} · {demandFetchBadgeText}
                 </span>
               </span>
             </button>
@@ -1219,6 +1218,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="absolute bottom-3 left-3 z-20 hidden rounded-xl border border-white/10 bg-slate-950/82 px-3 py-2 text-[11px] text-slate-200 shadow-lg backdrop-blur-md lg:block">
+          이동: 좌클릭 드래그 · 회전: 우클릭 드래그
         </div>
 
       {isSceneBusy ? (
@@ -1670,7 +1673,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </svg>
             ) : (
               <div className="flex h-[164px] items-center justify-center px-5 text-center text-xs leading-5 text-slate-500">
-                백엔드 수요 API가 연결되면 선택한 동의 0-23시 그래프가 표시됩니다.
+                아직 수요 데이터가 준비되지 않았어요. 잠시 후 다시 확인해 주세요.
               </div>
             )}
           </div>
@@ -1689,7 +1692,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <span className="tabular-nums">
               {hasDemandData
                 ? `평균 ${selectedAverageDemand.toLocaleString("ko-KR")}`
-                : "백엔드 응답 대기"}
+                : "데이터 수신 대기 중"}
             </span>
           </div>
         </div>
