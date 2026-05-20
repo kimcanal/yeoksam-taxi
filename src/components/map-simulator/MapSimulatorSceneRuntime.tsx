@@ -3606,7 +3606,7 @@ export default function MapSimulatorSceneRuntime({
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.pointerType !== "touch" && event.button !== 0) {
+      if (event.pointerType !== "touch" && event.button !== 0 && event.button !== 2) {
         return;
       }
       const rect = renderer.domElement.getBoundingClientRect();
@@ -3645,6 +3645,9 @@ export default function MapSimulatorSceneRuntime({
       pointerDownClientX = event.clientX;
       pointerDownClientY = event.clientY;
       pointerDragged = false;
+      if (event.button === 2) {
+        event.preventDefault();
+      }
       renderer.domElement.style.cursor = "grabbing";
       markHoverDirty();
     };
@@ -3709,8 +3712,12 @@ export default function MapSimulatorSceneRuntime({
         return;
       }
 
+      const isRightDrag = (event.buttons & 2) === 2;
       const shouldRotate =
-        event.shiftKey || event.altKey || cameraModeRef.current === "follow";
+        isRightDrag ||
+        event.shiftKey ||
+        event.altKey ||
+        cameraModeRef.current === "follow";
       if (shouldRotate && cameraModeRef.current === "follow") {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
