@@ -1171,7 +1171,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               aria-label={isSidebarVisible ? "정보 패널 닫기" : "정보 패널 열기"}
               aria-expanded={isSidebarVisible}
               onClick={toggleSidebar}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 lg:hidden"
             >
               {isSidebarVisible ? (
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -1219,6 +1219,22 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </div>
           ) : null}
         </div>
+
+        <button
+          type="button"
+          data-ui-control="desktop-sidebar-toggle"
+          aria-label={isSidebarVisible ? "정보 패널 닫기" : "정보 패널 열기"}
+          aria-expanded={isSidebarVisible}
+          onClick={toggleSidebar}
+          className="absolute right-4 top-4 z-30 hidden items-center gap-2 rounded-xl border border-white/12 bg-slate-950/78 px-3 py-2 text-xs font-medium text-slate-100 shadow-lg backdrop-blur-md transition hover:bg-slate-900/86 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 lg:inline-flex"
+        >
+          {isSidebarVisible ? (
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Menu className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          <span>{isSidebarVisible ? "패널 닫기" : "수요 패널"}</span>
+        </button>
 
         <div className="absolute bottom-3 left-3 z-20 hidden rounded-xl border border-white/10 bg-slate-950/82 px-3 py-2 text-[11px] text-slate-200 shadow-lg backdrop-blur-md lg:block">
           이동: 좌클릭 드래그 · 회전: 우클릭 드래그
