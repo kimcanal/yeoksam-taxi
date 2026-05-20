@@ -752,6 +752,7 @@ export function sharedCallerHeadMaterial() {
 export type BuildingMass = {
   id: string;
   label: string | null;
+  kindClass: "residential" | "commercial" | "industrial" | "mixed";
   height: number;
   position: THREE.Vector3;
   width: number;
@@ -2604,6 +2605,20 @@ function buildingAccentByKind(kind: string | null) {
   return 0xa5adb6;
 }
 
+function classifyBuildingKind(kind: string | null) {
+  const normalizedKind = (kind ?? "").toLowerCase();
+  if (/(commercial|retail|mall|shop|office|business|상업|업무|판매)/i.test(normalizedKind)) {
+    return "commercial" as const;
+  }
+  if (/(industrial|warehouse|factory|공장|산업)/i.test(normalizedKind)) {
+    return "industrial" as const;
+  }
+  if (/(apartments|residential|house|living|주거|아파트|주택)/i.test(normalizedKind)) {
+    return "residential" as const;
+  }
+  return "mixed" as const;
+}
+
 function jitterHexColor(baseHex: number, seed: number) {
   const color = new THREE.Color(baseHex);
   const jitter = ((Math.sin(seed * 12.9898) + 1) / 2) * 0.16 - 0.08;
@@ -3444,6 +3459,7 @@ export function buildBuildingMasses(
       return {
         id: `building-${index}`,
         label: feature.properties.label,
+        kindClass: classifyBuildingKind(feature.properties.kind),
         height: Math.max(2, heightMeters * BUILDING_HEIGHT_SCALE),
         position: footprintCenter,
         width,

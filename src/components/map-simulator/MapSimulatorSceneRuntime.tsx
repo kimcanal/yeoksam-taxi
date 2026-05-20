@@ -15,6 +15,7 @@ import {
   buildEnvironmentState,
   daylightFactor,
   mixHexColor,
+  normalizeDayMinutes,
   sunsetFactor,
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
@@ -1429,35 +1430,62 @@ export default function MapSimulatorSceneRuntime({
     staticRoadGroup.add(laneMarkerMesh);
     scene.add(staticRoadGroup);
 
-    const buildingMaterial = new THREE.MeshStandardMaterial({
-      roughness: 0.98,
-      metalness: 0.02,
-      emissive: 0x171b20,
-      emissiveIntensity: 0.025,
-    });
-    const buildingMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      buildingMaterial,
-      buildingFeatures.length,
-    );
-
-    buildingFeatures.forEach((building, index) => {
-      dummy.position.set(
-        building.position.x,
-        building.height / 2,
-        building.position.z,
+    const buildingGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const buildingMaterialsByKind = {
+      residential: new THREE.MeshStandardMaterial({
+        roughness: 0.94,
+        metalness: 0.02,
+        emissive: 0x171b20,
+        emissiveIntensity: 0.03,
+      }),
+      commercial: new THREE.MeshStandardMaterial({
+        roughness: 0.82,
+        metalness: 0.06,
+        emissive: 0x171b20,
+        emissiveIntensity: 0.04,
+      }),
+      industrial: new THREE.MeshStandardMaterial({
+        roughness: 0.98,
+        metalness: 0.01,
+        emissive: 0x171b20,
+        emissiveIntensity: 0.02,
+      }),
+      mixed: new THREE.MeshStandardMaterial({
+        roughness: 0.9,
+        metalness: 0.03,
+        emissive: 0x171b20,
+        emissiveIntensity: 0.03,
+      }),
+    } as const;
+    const buildingKinds = Object.keys(buildingMaterialsByKind) as Array<
+      keyof typeof buildingMaterialsByKind
+    >;
+    const buildingMeshes = buildingKinds.map((kind) => {
+      const subset = buildingFeatures.filter((building) => building.kindClass === kind);
+      const mesh = new THREE.InstancedMesh(
+        buildingGeometry,
+        buildingMaterialsByKind[kind],
+        subset.length,
       );
-      dummy.rotation.set(0, building.rotationY, 0);
-      dummy.scale.set(building.width, building.height, building.depth);
-      dummy.updateMatrix();
-      buildingMesh.setMatrixAt(index, dummy.matrix);
-      buildingMesh.setColorAt(index, new THREE.Color(building.color));
+      subset.forEach((building, index) => {
+        dummy.position.set(
+          building.position.x,
+          building.height / 2,
+          building.position.z,
+        );
+        dummy.rotation.set(0, building.rotationY, 0);
+        dummy.scale.set(building.width, building.height, building.depth);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+        mesh.setColorAt(index, new THREE.Color(building.color));
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) {
+        mesh.instanceColor.needsUpdate = true;
+      }
+      scene.add(mesh);
+      return mesh;
     });
-    buildingMesh.instanceMatrix.needsUpdate = true;
-    if (buildingMesh.instanceColor) {
-      buildingMesh.instanceColor.needsUpdate = true;
-    }
-    scene.add(buildingMesh);
     const simulationTrailLayer = createVehicleTrailLayer({
       yOffset: 0.24,
       maxPoints: 34,
@@ -2717,10 +2745,19 @@ export default function MapSimulatorSceneRuntime({
       laneMarkerMaterial.color.setHex(environment.laneMarkerColor);
       laneMarkerMaterial.emissive.setHex(environment.laneMarkerEmissive);
       laneMarkerMaterial.emissiveIntensity = environment.laneMarkerIntensity;
-      buildingMaterial.color.setHex(environment.buildingTint);
-      buildingMaterial.emissive.setHex(environment.buildingEmissive);
-      buildingMaterial.emissiveIntensity =
-        environment.buildingEmissiveIntensity;
+      const normalizedTimeMinutes = normalizeDayMinutes(minutes);
+      const hour = Math.floor(normalizedTimeMinutes / 60);
+      const isNight = hour >= 19 || hour < 6;
+      buildingKinds.forEach((kind) => {
+        const material = buildingMaterialsByKind[kind];
+        material.color.setHex(environment.buildingTint);
+        material.emissive.setHex(environment.buildingEmissive);
+        const baseIntensity =
+          kind === "commercial" ? 0.045 : kind === "industrial" ? 0.022 : 0.032;
+        material.emissiveIntensity = isNight
+          ? baseIntensity + 0.055
+          : environment.buildingEmissiveIntensity;
+      });
       if (crosswalkMaterial) {
         crosswalkMaterial.color.setHex(environment.crosswalkColor);
         crosswalkMaterial.emissive.setHex(environment.crosswalkEmissive);
@@ -4482,8 +4519,10 @@ export default function MapSimulatorSceneRuntime({
       simulationTrailLayer.group.removeFromParent();
       staticRoadGroup.removeFromParent();
       disposeObject3DResources(staticRoadGroup);
-      buildingMesh.removeFromParent();
-      disposeObject3DResources(buildingMesh);
+      buildingMeshes.forEach((mesh) => {
+        mesh.removeFromParent();
+        disposeObject3DResources(mesh);
+      });
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
