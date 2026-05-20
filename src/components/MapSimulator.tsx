@@ -512,6 +512,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showNonRoad = false;
   const showTransit = true;
   const showRoadNetwork = false;
+  const [showTrafficOverlay, setShowTrafficOverlay] = useState(true);
   const fpsMode: FpsMode = "fixed60";
   const appliedTaxiCount = DEFAULT_TAXI_COUNT;
   const appliedTrafficCount = 0;
@@ -535,6 +536,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const nonRoadGroupRef = useRef<THREE.Group | null>(null);
   const showRoadNetworkRef = useSyncRef(showRoadNetwork);
   const roadNetworkGroupRef = useRef<THREE.Group | null>(null);
+  const showTrafficOverlayRef = useSyncRef(showTrafficOverlay);
   const cameraFocusTargetRef = useRef<CameraFocusTarget | null>(null);
 
   const mapPoiFeatureRows = useMemo(
@@ -1088,6 +1090,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             nonRoadGroupRef={nonRoadGroupRef}
             showRoadNetworkRef={showRoadNetworkRef}
             roadNetworkGroupRef={roadNetworkGroupRef}
+            showTrafficOverlayRef={showTrafficOverlayRef}
             cameraFocusTargetRef={cameraFocusTargetRef}
             simulationDateRef={simulationDateRef}
             simulationTimeRef={simulationTimeRef}
@@ -1200,6 +1203,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <Menu className="h-3.5 w-3.5" aria-hidden="true" />
           )}
           <span>{isSidebarVisible ? "패널 닫기" : "수요 패널"}</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={showTrafficOverlay}
+          onClick={() => setShowTrafficOverlay((current) => !current)}
+          className="absolute right-40 top-4 z-30 hidden items-center gap-2 rounded-xl border border-white/12 bg-slate-950/78 px-3 py-2 text-xs font-medium text-slate-100 shadow-lg backdrop-blur-md transition hover:bg-slate-900/86 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 lg:inline-flex"
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${showTrafficOverlay ? "bg-emerald-400" : "bg-slate-500"}`}
+          />
+          <span>{showTrafficOverlay ? "교통 레이어 ON" : "교통 레이어 OFF"}</span>
         </button>
 
         <div className="absolute bottom-3 left-3 z-20 hidden rounded-xl border border-white/10 bg-slate-950/82 px-3 py-2 text-[11px] text-slate-200 shadow-lg backdrop-blur-md lg:block">

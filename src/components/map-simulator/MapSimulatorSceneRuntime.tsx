@@ -153,6 +153,7 @@ type MapSimulatorSceneRuntimeProps = {
   nonRoadGroupRef: MutableRefObject<THREE.Group | null>;
   showRoadNetworkRef: MutableRefObject<boolean>;
   roadNetworkGroupRef: MutableRefObject<THREE.Group | null>;
+  showTrafficOverlayRef: MutableRefObject<boolean>;
   cameraFocusTargetRef: MutableRefObject<CameraFocusTarget | null>;
   simulationDateRef: MutableRefObject<string>;
   simulationTimeRef: MutableRefObject<number>;
@@ -213,6 +214,7 @@ export default function MapSimulatorSceneRuntime({
   nonRoadGroupRef,
   showRoadNetworkRef,
   roadNetworkGroupRef,
+  showTrafficOverlayRef,
   cameraFocusTargetRef,
   simulationDateRef,
   simulationTimeRef,
@@ -1346,12 +1348,35 @@ export default function MapSimulatorSceneRuntime({
       connector: [] as typeof roadSegments,
       local: [] as typeof roadSegments,
     };
+    const trafficOverlayGroup = new THREE.Group();
+    const trafficOverlayBuckets = {
+      smooth: [] as typeof roadSegments,
+      moderate: [] as typeof roadSegments,
+      congested: [] as typeof roadSegments,
+    };
+    const scoreFromSegmentSeed = (seed: string) => {
+      let hash = 0;
+      for (let i = 0; i < seed.length; i += 1) {
+        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+      }
+      return (hash % 100) / 100;
+    };
 
     roadSegments.forEach((segment) => {
       if (distanceXZ(segment.start, segment.end) < 1) {
         return;
       }
       roadGeometries[segment.roadClass].push(segment);
+      const score = scoreFromSegmentSeed(
+        `${segment.start.x.toFixed(1)}:${segment.start.z.toFixed(1)}:${segment.end.x.toFixed(1)}:${segment.end.z.toFixed(1)}:${segment.roadClass}`,
+      );
+      if (score >= 0.67) {
+        trafficOverlayBuckets.congested.push(segment);
+      } else if (score >= 0.34) {
+        trafficOverlayBuckets.moderate.push(segment);
+      } else {
+        trafficOverlayBuckets.smooth.push(segment);
+      }
     });
 
     (["arterial", "connector", "local"] as const).forEach((roadClass) => {
@@ -1381,6 +1406,43 @@ export default function MapSimulatorSceneRuntime({
         roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
       staticRoadGroup.add(mesh);
     });
+    (
+      [
+        ["smooth", 0x22c55e],
+        ["moderate", 0xf59e0b],
+        ["congested", 0xef4444],
+      ] as const
+    ).forEach(([bucket, color]) => {
+      const segments = trafficOverlayBuckets[bucket];
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.72,
+      });
+      const mesh = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 0.03, 1),
+        material,
+        segments.length,
+      );
+      segments.forEach((segment, index) => {
+        const length = distanceXZ(segment.start, segment.end);
+        const center = segment.start.clone().lerp(segment.end, 0.5);
+        const angle = Math.atan2(
+          segment.end.x - segment.start.x,
+          segment.end.z - segment.start.z,
+        );
+        dummy.position.set(center.x, ROAD_LAYER_Y[segment.roadClass] + 0.14, center.z);
+        dummy.rotation.set(0, angle, 0);
+        dummy.scale.set(Math.max(0.7, segment.width * 0.4), 1, Math.max(0.5, length - 0.6));
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.renderOrder = 28;
+      trafficOverlayGroup.add(mesh);
+    });
+    trafficOverlayGroup.visible = showTrafficOverlayRef.current;
+    scene.add(trafficOverlayGroup);
 
     const laneMarkers = roadSegments.flatMap((segment) => {
       if (segment.roadClass === "local") {
@@ -3990,6 +4052,9 @@ export default function MapSimulatorSceneRuntime({
         applyRenderBudget(currentMode);
         markLabelVisibilityDirty();
       }
+      if (trafficOverlayGroup.visible !== showTrafficOverlayRef.current) {
+        trafficOverlayGroup.visible = showTrafficOverlayRef.current;
+      }
       if (currentMode === "overview") {
         applyModePreset(currentMode);
       }
@@ -4522,6 +4587,7 @@ export default function MapSimulatorSceneRuntime({
       simulationTrailLayer.group.removeFromParent();
       staticRoadGroup.removeFromParent();
       disposeObject3DResources(staticRoadGroup);
+      disposeObject3DResources(trafficOverlayGroup);
       buildingMeshes.forEach((mesh) => {
         mesh.removeFromParent();
         disposeObject3DResources(mesh);
