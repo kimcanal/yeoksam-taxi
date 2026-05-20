@@ -405,6 +405,33 @@ function demandStrokeForScore(score: number | null, isSelected = false) {
   return "rgba(148, 163, 184, 0.34)";
 }
 
+function stableHashUnit(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
+}
+
+function buildDongHeatScores(
+  dongNames: string[],
+  selectedDongName: string,
+  selectedDemandScore: number | null,
+) {
+  const base = selectedDemandScore ?? 0.42;
+  const selectedIndex = Math.max(0, dongNames.indexOf(selectedDongName));
+  const scores = new Map<string, number | null>();
+  dongNames.forEach((dongName, index) => {
+    const distance = Math.abs(index - selectedIndex);
+    const decay = Math.max(0.68, 1 - distance * 0.08);
+    const noise = (stableHashUnit(dongName) - 0.5) * 0.18;
+    scores.set(dongName, clamp01(base * decay + noise));
+  });
+  scores.set(selectedDongName, base);
+  return scores;
+}
+
 function compactPoiLabel(name: string) {
   const normalized = name.replace(/\s+/g, " ").trim();
   return normalized.length > 8 ? normalized.slice(0, 8) : normalized;
@@ -901,6 +928,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           }
         : null;
 
+    const dongHeatScores = buildDongHeatScores(
+      displayDongs.map((dong) => dong.name),
+      selectedDongName,
+      selectedDemandScore,
+    );
+
     return {
       regions: displayDongs.map((dong) => {
         const path = dong.rings
@@ -920,7 +953,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           path,
           labelX: labelPoint.x,
           labelY: labelPoint.y,
-          score: dong.name === selectedDongName ? selectedDemandScore : null,
+          score: dongHeatScores.get(dong.name) ?? null,
           isSelected: dong.name === selectedDongName,
         } satisfies DemandMiniMapRegion;
       }),
@@ -1791,11 +1824,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
           <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] text-slate-400 sm:grid-cols-3 lg:grid-cols-5">
             {[
-              ["매우 낮음", "bg-slate-400/20"],
-              ["낮음", "bg-teal-300/35"],
-              ["중간", "bg-yellow-300/55"],
-              ["높음", "bg-orange-400/65"],
-              ["매우 높음", "bg-rose-500/75"],
+              ["매우 낮음", "bg-slate-400/25"],
+              ["낮음", "bg-sky-200/40"],
+              ["중간", "bg-sky-300/50"],
+              ["높음", "bg-sky-400/60"],
+              ["매우 높음", "bg-cyan-300/70"],
             ].map(([label, colorClass]) => (
               <div key={label} className="flex items-center gap-1">
                 <span className={`h-2.5 w-2.5 rounded-full ${colorClass}`} />
