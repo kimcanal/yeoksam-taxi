@@ -9,13 +9,8 @@ import {
   useState,
 } from "react";
 import {
-  Gauge,
   LineChart,
-  Map as MapIcon,
-  Maximize2,
   Menu,
-  Minimize2,
-  Navigation,
   Search,
   X,
 } from "lucide-react";
@@ -451,14 +446,6 @@ function buildStaticPoiFeatureRows() {
       } satisfies MapPoiFeatureRow;
     })
     .sort((left, right) => right.context_score - left.context_score);
-}
-
-function mapToolButtonClass(active: boolean) {
-  return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
-    active
-      ? "border-cyan-300/35 bg-cyan-300/14 text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.12)]"
-      : "border-white/10 bg-slate-950/82 text-slate-300 hover:border-white/20 hover:bg-slate-900/86 hover:text-white"
-  }`;
 }
 
 function poiRenderRadius(cameraMode: CameraMode) {
@@ -1049,27 +1036,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     ? "lg:right-[calc(min(38vw,500px)+1rem)]"
     : "lg:right-4";
 
-  function toggleMapFocusMode() {
-    setIsMapFocusMode((current) => {
-      const next = !current;
-      if (next) {
-        setIsSidebarCollapsed(true);
-        setCameraMode("overview");
-      }
-      return next;
-    });
-  }
-
-  function toggleOverviewCamera() {
-    setCameraMode((current) => {
-      const next = current === "overview" ? "drive" : "overview";
-      if (next === "overview") {
-        setIsSidebarCollapsed(true);
-      }
-      return next;
-    });
-  }
-
   function toggleSidebar() {
     if (isSidebarVisible) {
       setIsSidebarCollapsed(true);
@@ -1290,102 +1256,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               처음 접속 시 잠시 더 걸릴 수 있습니다.
             </div>
           </div>
-        </div>
-      ) : null}
-
-      <div
-        data-ui-panel="map-toolbar"
-        className={`absolute bottom-4 z-20 hidden items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/82 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:flex ${floatingControlOffsetClass}`}
-      >
-        <button
-          type="button"
-          data-ui-control="map-focus-toggle"
-          aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
-          aria-pressed={isMapFocusMode}
-          title={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
-          onClick={toggleMapFocusMode}
-          className={mapToolButtonClass(isMapFocusMode)}
-        >
-          {isMapFocusMode ? (
-            <Minimize2 className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Maximize2 className="h-4 w-4" aria-hidden="true" />
-          )}
-          <span>{isMapFocusMode ? "해제" : "집중"}</span>
-        </button>
-        <button
-          type="button"
-          data-ui-control="camera-mode-toggle"
-          aria-label={cameraMode === "overview" ? "주행 모드로 전환" : "조감 모드로 전환"}
-          onClick={toggleOverviewCamera}
-          className={mapToolButtonClass(cameraMode === "overview")}
-        >
-          {cameraMode === "overview" ? (
-            <MapIcon className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Navigation className="h-4 w-4" aria-hidden="true" />
-          )}
-          <span>{cameraMode === "overview" ? "조감 모드" : "주행 모드"}</span>
-        </button>
-        <button
-          type="button"
-          data-ui-control="render-diagnostics-toggle"
-          aria-label={showFps ? "렌더 상태 숨기기" : "렌더 상태 보기"}
-          aria-pressed={showFps}
-          title={showFps ? "렌더 상태 숨기기" : "렌더 상태 보기"}
-          onClick={() => setShowFps((current) => !current)}
-          className={mapToolButtonClass(showFps)}
-        >
-          <Gauge className="h-4 w-4" aria-hidden="true" />
-          <span>FPS</span>
-        </button>
-      </div>
-
-      {!isSidebarVisible ? (
-        <div
-          data-ui-panel="mobile-map-toolbar"
-          className="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/88 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden"
-        >
-          <button
-            type="button"
-            data-ui-control="mobile-map-focus-toggle"
-            aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
-            aria-pressed={isMapFocusMode}
-            onClick={toggleMapFocusMode}
-            className={`${mapToolButtonClass(isMapFocusMode)} flex-1 justify-center`}
-          >
-            {isMapFocusMode ? (
-              <Minimize2 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Maximize2 className="h-4 w-4" aria-hidden="true" />
-            )}
-            <span>{isMapFocusMode ? "해제" : "집중"}</span>
-          </button>
-          <button
-            type="button"
-            data-ui-control="mobile-camera-mode-toggle"
-            aria-label={cameraMode === "overview" ? "주행 모드로 전환" : "조감 모드로 전환"}
-            aria-pressed={cameraMode === "overview"}
-            onClick={toggleOverviewCamera}
-            className={`${mapToolButtonClass(cameraMode === "overview")} flex-1 justify-center`}
-          >
-            {cameraMode === "overview" ? (
-              <MapIcon className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Navigation className="h-4 w-4" aria-hidden="true" />
-            )}
-            <span>{cameraMode === "overview" ? "조감" : "주행"}</span>
-          </button>
-          <button
-            type="button"
-            data-ui-control="mobile-sidebar-toggle"
-            aria-label="정보 패널 열기"
-            onClick={toggleSidebar}
-            className={`${mapToolButtonClass(false)} flex-1 justify-center`}
-          >
-            <Menu className="h-4 w-4" aria-hidden="true" />
-            <span>정보</span>
-          </button>
         </div>
       ) : null}
 
