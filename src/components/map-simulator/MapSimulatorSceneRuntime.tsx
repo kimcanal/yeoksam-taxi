@@ -79,6 +79,10 @@ import {
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
+  setTaxiAppearance,
+  syncVehicleTransform,
+} from "@/components/map-simulator/vehicle-runtime-utils";
+import {
   boundaryHintElement,
   hotspotCallElement,
   labelElement,
@@ -119,10 +123,8 @@ import {
   offsetToRight,
   projectPoint,
   sampleRoute,
-  setTaxiAppearance,
   shapesOfNonRoadFeature,
   signalState,
-  syncVehicleTransform,
   wrapAngle,
 } from "@/components/map-simulator/core";
 import { dongShapeFromRing } from "@/components/map-simulator/map-geometry-utils";

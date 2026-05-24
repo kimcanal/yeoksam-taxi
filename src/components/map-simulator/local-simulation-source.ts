@@ -42,10 +42,12 @@ import {
   dominantAxisForHeading,
   approachDirectionForHeading,
   opposingSignalDirection,
-  updateVehicleMotionState,
-  assignVehicleRoute,
   vehicleProximityCellCoord,
 } from "@/components/map-simulator/core";
+import {
+  assignVehicleRoute,
+  updateVehicleMotionState,
+} from "@/components/map-simulator/vehicle-runtime-utils";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
