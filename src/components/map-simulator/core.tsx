@@ -104,7 +104,6 @@ import {
   SIGNAL_CLUSTER_DISTANCE,
   SIGNAL_NODE_SNAP_DISTANCE,
   SIGNAL_ROAD_SNAP_DISTANCE,
-  TAXI_ASSET_TARGET_LENGTH,
   BUILDING_HEIGHT_SCALE,
 } from "@/components/map-simulator/scene-constants";
 export { DEFAULT_MAP_CENTER };
@@ -3433,60 +3432,6 @@ export function buildTaxiStandHotspots(
       } satisfies Hotspot;
     })
     .filter(Boolean) as Hotspot[];
-}
-
-export function normalizeVehicleAssetTemplate(
-  source: THREE.Group,
-  targetLength: number,
-) {
-  const container = new THREE.Group();
-  const model = source;
-  container.add(model);
-
-  let bounds = new THREE.Box3().setFromObject(container);
-  const initialSize = bounds.getSize(new THREE.Vector3());
-  if (initialSize.x > initialSize.z * 1.12) {
-    model.rotation.y = Math.PI / 2;
-    bounds = new THREE.Box3().setFromObject(container);
-  }
-
-  const normalizedSize = bounds.getSize(new THREE.Vector3());
-  const length = Math.max(normalizedSize.z, normalizedSize.x, 0.001);
-  model.scale.setScalar(targetLength / length);
-
-  bounds = new THREE.Box3().setFromObject(container);
-  const center = bounds.getCenter(new THREE.Vector3());
-  model.position.x -= center.x;
-  model.position.z -= center.z;
-  model.position.y -= bounds.min.y;
-
-  const sourceMaterials = new Set<THREE.Material>();
-  container.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) {
-      return;
-    }
-    child.castShadow = true;
-    child.receiveShadow = true;
-    child.userData.vehicleMaterialHint = vehicleAssetMaterialHint(child);
-    child.userData.skipMaterialDispose = true;
-    const materials = Array.isArray(child.material)
-      ? child.material
-      : [child.material];
-    materials.forEach((material) => {
-      if (!(material instanceof THREE.Material) || sourceMaterials.has(material)) {
-        return;
-      }
-      sourceMaterials.add(material);
-      disposeMaterialResources(material);
-    });
-    child.material = sharedVehicleTemplatePlaceholderMaterial();
-  });
-
-  return container;
-}
-
-export function normalizeTaxiAssetTemplate(source: THREE.Group) {
-  return normalizeVehicleAssetTemplate(source, TAXI_ASSET_TARGET_LENGTH);
 }
 
 export function vehicleAssetMaterialHint(object: THREE.Object3D): VehicleMaterialHint {

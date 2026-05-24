@@ -69,6 +69,7 @@ import {
   TAXI_ASSET_IDLE_TIMEOUT_MS,
   TAXI_ASSET_LOAD_DELAY_MS,
   loadVehicleAssetTemplate,
+  normalizeTaxiAssetTemplate,
 } from "@/components/map-simulator/vehicle-asset-loader";
 import {
   BaseCameraMode,
@@ -112,7 +113,6 @@ import {
   dongShapeFromRing,
   hotspotCallElement,
   labelElement,
-  normalizeTaxiAssetTemplate,
   offsetToRight,
   projectPoint,
   sampleRoute,
