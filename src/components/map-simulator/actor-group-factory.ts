@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { markMeshResourceSharing } from "@/components/map-simulator/core";
+import { markMeshResourceSharing } from "@/components/map-simulator/object-resource-utils";
 
 const CALLER_TOP_PALETTES = [0x8a7d70, 0x6f7d8a, 0x6d8376, 0x97846a, 0x7a7387];
 const CALLER_BOTTOM_PALETTES = [0x25292d, 0x2b3035, 0x31353a, 0x2a2e32];

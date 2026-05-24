@@ -1,14 +1,16 @@
 import * as THREE from "three";
+import { markMeshResourceSharing } from "@/components/map-simulator/object-resource-utils";
 import {
-  markMeshResourceSharing,
+  type VehicleKind,
+  type VehiclePalette,
+} from "@/components/map-simulator/core";
+import {
   sharedImportedTaxiClickTargetGeometry,
   sharedImportedTaxiShadowGeometry,
   sharedImportedTaxiSignGeometry,
   sharedImportedTrafficShadowGeometry,
-  type VehicleKind,
-  type VehiclePalette,
   vehicleAssetMaterialHint,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/vehicle-render-resources";
 
 function createTaxiAssetGroup(
   palette: VehiclePalette,

@@ -106,6 +106,7 @@ import {
   SIGNAL_ROAD_SNAP_DISTANCE,
   BUILDING_HEIGHT_SCALE,
 } from "@/components/map-simulator/scene-constants";
+import { disposeMaterialResources } from "@/components/map-simulator/object-resource-utils";
 export { DEFAULT_MAP_CENTER };
 export {
   DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
@@ -507,8 +508,6 @@ export type VehiclePalette = {
   sign: number | null;
 };
 
-export type VehicleMaterialHint = "body" | "glass" | "trim" | "metal" | "default";
-
 export type VehicleKind = "taxi" | "traffic";
 export type VehiclePlanMode = "traffic" | "pickup" | "dropoff";
 export type CircumstanceMode = "live" | "specific";
@@ -641,59 +640,6 @@ export type Hotspot = {
   label: string;
   roadName: string | null;
 };
-
-export function markMeshResourceSharing(
-  mesh: THREE.Mesh,
-  {
-    geometry = true,
-    material = false,
-  }: { geometry?: boolean; material?: boolean } = {},
-) {
-  if (geometry) {
-    mesh.userData.skipGeometryDispose = true;
-  }
-  if (material) {
-    mesh.userData.skipMaterialDispose = true;
-  }
-  return mesh;
-}
-
-export function disposeMaterialResources(material: THREE.Material) {
-  const materialWithTextures = material as THREE.Material &
-    Partial<Record<(typeof MATERIAL_TEXTURE_KEYS)[number], THREE.Texture | null>>;
-
-  MATERIAL_TEXTURE_KEYS.forEach((key) => {
-    materialWithTextures[key]?.dispose?.();
-  });
-  material.dispose();
-}
-
-export function sharedVehicleTemplatePlaceholderMaterial() {
-  VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL ??= new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-  });
-  return VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL;
-}
-
-export function sharedImportedTaxiSignGeometry() {
-  IMPORTED_TAXI_SIGN_GEOMETRY ??= new THREE.BoxGeometry(0.56, 0.12, 0.34);
-  return IMPORTED_TAXI_SIGN_GEOMETRY;
-}
-
-export function sharedImportedTaxiShadowGeometry() {
-  IMPORTED_TAXI_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(2.5, 5);
-  return IMPORTED_TAXI_SHADOW_GEOMETRY;
-}
-
-export function sharedImportedTrafficShadowGeometry() {
-  IMPORTED_TRAFFIC_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(2.5, 5.1);
-  return IMPORTED_TRAFFIC_SHADOW_GEOMETRY;
-}
-
-export function sharedImportedTaxiClickTargetGeometry() {
-  IMPORTED_TAXI_CLICK_TARGET_GEOMETRY ??= new THREE.BoxGeometry(3.2, 3.2, 6.8);
-  return IMPORTED_TAXI_CLICK_TARGET_GEOMETRY;
-}
 
 export type BuildingMass = {
   id: string;
@@ -908,32 +854,6 @@ export const TRAFFIC_PALETTES: VehiclePalette[] = [
 export const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
 export const HOTSPOT_IDLE_COLORS = [0x7a6b57, 0x62716c, 0x76645c];
 export const SUBWAY_STRUCTURE_ACCENTS = [0x78aaa0, 0x89b9ae, 0x6f978f];
-export const MATERIAL_TEXTURE_KEYS = [
-  "map",
-  "alphaMap",
-  "aoMap",
-  "bumpMap",
-  "displacementMap",
-  "emissiveMap",
-  "envMap",
-  "lightMap",
-  "metalnessMap",
-  "normalMap",
-  "roughnessMap",
-  "specularMap",
-  "clearcoatMap",
-  "clearcoatNormalMap",
-  "clearcoatRoughnessMap",
-  "sheenColorMap",
-  "sheenRoughnessMap",
-  "thicknessMap",
-  "transmissionMap",
-] as const;
-let VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL: THREE.MeshBasicMaterial | null = null;
-let IMPORTED_TAXI_SIGN_GEOMETRY: THREE.BoxGeometry | null = null;
-let IMPORTED_TAXI_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
-let IMPORTED_TRAFFIC_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
-let IMPORTED_TAXI_CLICK_TARGET_GEOMETRY: THREE.BoxGeometry | null = null;
 
 export function averagePoint(points: THREE.Vector3[]) {
   if (!points.length) {
@@ -3278,45 +3198,6 @@ export function buildTaxiStandHotspots(
       } satisfies Hotspot;
     })
     .filter(Boolean) as Hotspot[];
-}
-
-export function vehicleAssetMaterialHint(object: THREE.Object3D): VehicleMaterialHint {
-  const cachedHint = object.userData.vehicleMaterialHint;
-  if (
-    cachedHint === "body" ||
-    cachedHint === "glass" ||
-    cachedHint === "trim" ||
-    cachedHint === "metal" ||
-    cachedHint === "default"
-  ) {
-    return cachedHint;
-  }
-
-  const mesh = object as THREE.Mesh;
-  const sourceLabel = [
-    object.name,
-    Array.isArray(mesh.material)
-      ? mesh.material.map((material) => material?.name ?? "").join(" ")
-      : mesh.material instanceof THREE.Material
-        ? mesh.material.name
-        : "",
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  if (/paint|orange/.test(sourceLabel)) {
-    return "body";
-  }
-  if (/glass|screen|window|blue_grass/.test(sourceLabel)) {
-    return "glass";
-  }
-  if (/rubber|tire|wheel|plastic|black|air_duct/.test(sourceLabel)) {
-    return "trim";
-  }
-  if (/silver|metallic|chrome/.test(sourceLabel)) {
-    return "metal";
-  }
-  return "default";
 }
 
 export function buildMajorRoadNames(roads: RoadFeatureCollection | null) {

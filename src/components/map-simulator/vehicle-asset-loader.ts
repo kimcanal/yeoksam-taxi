@@ -3,11 +3,11 @@ import {
   ASSET_FETCH_TIMEOUT_MS,
   TAXI_ASSET_TARGET_LENGTH,
 } from "@/components/map-simulator/scene-constants";
+import { disposeMaterialResources } from "@/components/map-simulator/object-resource-utils";
 import {
-  disposeMaterialResources,
   sharedVehicleTemplatePlaceholderMaterial,
   vehicleAssetMaterialHint,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/vehicle-render-resources";
 
 export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
