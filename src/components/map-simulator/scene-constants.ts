@@ -64,11 +64,6 @@ export const TAXI_ASSET_TARGET_LENGTH = 4.28;
 export const ASSET_FETCH_TIMEOUT_MS = 20_000;
 
 // Camera presets favor stable presentation shots and readable taxi follow views.
-export const CAMERA_DRIVE_SPEED = 26;
-export const CAMERA_STRAFE_SPEED = 22;
-export const CAMERA_TURN_SPEED = 1.95;
-export const CAMERA_BASE_MOVE_SCALE = 1.8;
-export const CAMERA_BASE_TURN_SCALE = 0.95;
 export const CAMERA_DRAG_SENSITIVITY = 0.0042;
 export const CAMERA_TOUCH_ANCHOR_RADIUS = 11;
 export const CAMERA_TOUCH_PITCH_LOCK_DISTANCE = 18;

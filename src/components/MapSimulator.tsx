@@ -2,6 +2,7 @@
 
 import {
   startTransition,
+  type ChangeEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -16,7 +17,9 @@ import {
   Menu,
   Minimize2,
   Navigation,
+  RotateCw,
   Search,
+  SlidersVertical,
   X,
 } from "lucide-react";
 import * as THREE from "three";
@@ -38,16 +41,22 @@ import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 import {
   sceneSetters,
   sceneStore,
+  type MiniMapFocus,
   uiSetters,
   uiStore,
 } from "@/components/map-simulator/simulator-stores";
 import { QuadTree } from "@/components/map-simulator/spatial-quadtree";
 import {
   BaseCameraMode,
+  CameraPitchControlState,
   CameraFocusTarget,
   CameraMode,
+  CameraYawControlState,
+  DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
+  DEFAULT_CAMERA_YAW_CONTROL_VALUE,
   DEFAULT_TAXI_COUNT,
   FpsMode,
+  MAX_TAXI_COUNT,
   PANEL_ACCENT_CARD_CLASS,
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
@@ -76,6 +85,7 @@ type IndexedMapPoiFeatureRow = MapPoiFeatureRow & {
 };
 
 const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
+const MOBILE_LAYOUT_QUERY = "(max-width: 1023px)";
 const TARGET_DONGS = [
   "역삼1동",
   "역삼2동",
@@ -137,15 +147,27 @@ type DemandWeekdayId = (typeof DEMAND_WEEKDAYS)[number]["id"];
 type HourlyDemandPoint = {
   hour: number;
   populationPred: number | null;
-  r: number | null;
   demandPred: number;
   trendDemandPred: number;
+};
+
+type FiveMinuteDemandPoint = {
+  minuteOfDay: number;
+  hour: number;
+  slot: number;
+  demand: number;
+  visualUnits: number;
 };
 
 type DemandFetchStatus = "idle" | "loading" | "ready" | "error";
 
 const DEMAND_API_ENDPOINT =
   process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
+const DEMAND_SLOT_MINUTES = 5;
+const DEMAND_SLOTS_PER_HOUR = 60 / DEMAND_SLOT_MINUTES;
+const DEMAND_SLOT_ALLOCATION_LABEL = "균등분할";
+const DEMAND_VISUAL_UNIT_CALLS = 100;
+const DEMAND_VISUAL_MAX_TAXIS = MAX_TAXI_COUNT;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -168,10 +190,6 @@ function weekdayIdFromDate(dateIso: string): DemandWeekdayId {
 
 function weekdayLabel(id: DemandWeekdayId) {
   return DEMAND_WEEKDAYS.find((weekday) => weekday.id === id)?.label ?? "금";
-}
-
-function roundedR(value: number) {
-  return Math.round(value * 10_000) / 10_000;
 }
 
 function withDemandTrend(points: HourlyDemandPoint[]) {
@@ -208,9 +226,12 @@ function normalizeRemoteDemandPoints(payload: unknown) {
     const rawPopulationPred = Number(
       record.population_pred ?? record.populationPred ?? record.population,
     );
-    const rawR = Number(record.r);
     const demandPred = Number(
-      record.demand_pred ?? record.demandPred ?? record.demand,
+      record.demand_count ??
+        record.demandCount ??
+        record.demand_pred ??
+        record.demandPred ??
+        record.demand,
     );
     if (
       !Number.isInteger(hour) ||
@@ -226,7 +247,6 @@ function normalizeRemoteDemandPoints(payload: unknown) {
         populationPred: Number.isFinite(rawPopulationPred)
           ? Math.round(rawPopulationPred)
           : null,
-        r: Number.isFinite(rawR) ? roundedR(rawR) : null,
         demandPred: Math.round(demandPred),
         trendDemandPred: 0,
       } satisfies HourlyDemandPoint,
@@ -242,6 +262,57 @@ function normalizeRemoteDemandPoints(payload: unknown) {
       .sort((left, right) => left.hour - right.hour)
       .filter((point, index, sorted) => index === 0 || point.hour !== sorted[index - 1]?.hour),
   );
+}
+
+function demandVisualUnitCount(fiveMinuteDemand: number) {
+  if (!Number.isFinite(fiveMinuteDemand) || fiveMinuteDemand <= 0) {
+    return 0;
+  }
+  return THREE.MathUtils.clamp(
+    Math.round(fiveMinuteDemand / DEMAND_VISUAL_UNIT_CALLS),
+    1,
+    DEMAND_VISUAL_MAX_TAXIS,
+  );
+}
+
+function buildFiveMinuteDemandSeries(points: HourlyDemandPoint[]) {
+  if (!points.length) {
+    return [];
+  }
+
+  const demandByHour = new globalThis.Map(
+    points.map((point) => [point.hour, Math.max(0, point.demandPred)] as const),
+  );
+  const hourlyTotals = Array.from({ length: 24 }, (_, hour) =>
+    demandByHour.get(hour) ?? 0,
+  );
+  const fiveMinutePoints: FiveMinuteDemandPoint[] = [];
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    const hourlyTotal = hourlyTotals[hour]!;
+    const slotDemand = hourlyTotal / DEMAND_SLOTS_PER_HOUR;
+
+    for (let slot = 0; slot < DEMAND_SLOTS_PER_HOUR; slot += 1) {
+      fiveMinutePoints.push({
+        minuteOfDay: hour * 60 + slot * DEMAND_SLOT_MINUTES,
+        hour,
+        slot,
+        demand: slotDemand,
+        visualUnits: demandVisualUnitCount(slotDemand),
+      });
+    }
+  }
+
+  return fiveMinutePoints;
+}
+
+function demandSlotLabel(point: FiveMinuteDemandPoint | null) {
+  if (!point) {
+    return "-";
+  }
+  const start = point.minuteOfDay;
+  const end = normalizeDayMinutes(start + DEMAND_SLOT_MINUTES);
+  return `${format24Hour(start)}-${format24Hour(end)}`;
 }
 
 function buildDemandChartGeometry(points: HourlyDemandPoint[]) {
@@ -273,7 +344,6 @@ function buildDemandChartGeometry(points: HourlyDemandPoint[]) {
     points[0] ?? {
       hour: 0,
       populationPred: null,
-      r: null,
       demandPred: 0,
       trendDemandPred: 0,
     },
@@ -376,24 +446,24 @@ function centerOfRings(rings: THREE.Vector3[][]) {
 
 function demandFillForScore(score: number | null, isSelected = false) {
   if (score === null) {
-    return isSelected ? "rgba(14, 165, 233, 0.20)" : "rgba(148, 163, 184, 0.10)";
+    return isSelected ? "rgba(14, 165, 233, 0.30)" : "rgba(148, 163, 184, 0.16)";
   }
-  if (score >= 0.85) return "rgba(14, 165, 233, 0.62)";
-  if (score >= 0.55) return "rgba(56, 189, 248, 0.48)";
-  if (score >= 0.25) return "rgba(125, 211, 252, 0.34)";
-  if (score >= 0.04) return "rgba(186, 230, 253, 0.24)";
-  return "rgba(148, 163, 184, 0.18)";
+  if (score >= 0.85) return "rgba(14, 165, 233, 0.72)";
+  if (score >= 0.55) return "rgba(56, 189, 248, 0.60)";
+  if (score >= 0.25) return "rgba(125, 211, 252, 0.46)";
+  if (score >= 0.04) return "rgba(186, 230, 253, 0.34)";
+  return "rgba(148, 163, 184, 0.24)";
 }
 
 function demandStrokeForScore(score: number | null, isSelected = false) {
   if (score === null) {
-    return isSelected ? "rgba(186, 230, 253, 0.86)" : "rgba(148, 163, 184, 0.30)";
+    return isSelected ? "rgba(186, 230, 253, 0.92)" : "rgba(148, 163, 184, 0.42)";
   }
   if (score >= 0.85) return "rgba(125, 211, 252, 0.94)";
-  if (score >= 0.55) return "rgba(56, 189, 248, 0.84)";
-  if (score >= 0.25) return "rgba(125, 211, 252, 0.70)";
-  if (score >= 0.04) return "rgba(186, 230, 253, 0.56)";
-  return "rgba(148, 163, 184, 0.34)";
+  if (score >= 0.55) return "rgba(56, 189, 248, 0.90)";
+  if (score >= 0.25) return "rgba(125, 211, 252, 0.78)";
+  if (score >= 0.04) return "rgba(186, 230, 253, 0.66)";
+  return "rgba(148, 163, 184, 0.44)";
 }
 
 function compactPoiLabel(name: string) {
@@ -454,8 +524,8 @@ function buildStaticPoiFeatureRows() {
 function mapToolButtonClass(active: boolean) {
   return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
     active
-      ? "border-cyan-300/35 bg-cyan-300/14 text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.12)]"
-      : "border-white/10 bg-slate-950/82 text-slate-300 hover:border-white/20 hover:bg-slate-900/86 hover:text-white"
+      ? "border-cyan-300/45 bg-cyan-300/20 text-cyan-50 shadow-[0_0_22px_rgba(34,211,238,0.14)]"
+      : "border-white/14 bg-slate-950/92 text-slate-300 hover:border-white/24 hover:bg-slate-900/95 hover:text-white"
   }`;
 }
 
@@ -500,6 +570,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   >(null);
   const [demandFetchStatus, setDemandFetchStatus] =
     useState<DemandFetchStatus>("idle");
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [pitchControlValue, setPitchControlValue] = useState(
+    DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
+  );
+  const [yawControlValue, setYawControlValue] = useState(
+    DEFAULT_CAMERA_YAW_CONTROL_VALUE,
+  );
 
   const {
     setData,
@@ -528,7 +605,33 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showTransit = true;
   const showRoadNetwork = false;
   const fpsMode: FpsMode = "fixed60";
-  const appliedTaxiCount = DEFAULT_TAXI_COUNT;
+  const normalizedSimulationTimeMinutes = normalizeDayMinutes(
+    simulationTimeMinutes,
+  );
+  const hourlyDemandSeries = useMemo(
+    () => remoteDemandPoints ?? [],
+    [remoteDemandPoints],
+  );
+  const hasDemandData = hourlyDemandSeries.length > 0;
+  const fiveMinuteDemandSeries = useMemo(
+    () => buildFiveMinuteDemandSeries(hourlyDemandSeries),
+    [hourlyDemandSeries],
+  );
+  const currentDemandSlot = useMemo(() => {
+    if (!fiveMinuteDemandSeries.length) {
+      return null;
+    }
+    const slotIndex = Math.min(
+      fiveMinuteDemandSeries.length - 1,
+      Math.floor(normalizedSimulationTimeMinutes / DEMAND_SLOT_MINUTES),
+    );
+    return fiveMinuteDemandSeries[slotIndex] ?? null;
+  }, [fiveMinuteDemandSeries, normalizedSimulationTimeMinutes]);
+  const currentDemandVisualUnits = currentDemandSlot?.visualUnits ?? 0;
+  const currentFiveMinuteDemand = currentDemandSlot?.demand ?? 0;
+  const appliedTaxiCount = hasDemandData
+    ? currentDemandVisualUnits
+    : DEFAULT_TAXI_COUNT;
   const appliedTrafficCount = 0;
   const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
   const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
@@ -538,6 +641,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const cameraModeRef = useSyncRef<CameraMode>(cameraMode);
   const followTaxiIdRef = useSyncRef(followTaxiId);
   const rideExitModeRef = useRef<BaseCameraMode>("drive");
+  const cameraPitchControlRef = useRef<CameraPitchControlState>({
+    value: DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
+    version: 0,
+  });
+  const cameraYawControlRef = useRef<CameraYawControlState>({
+    value: DEFAULT_CAMERA_YAW_CONTROL_VALUE,
+    version: 0,
+  });
   const showLabelsRef = useSyncRef(showLabels);
   const optionalLabelObjectsRef = useRef<CSS2DObject[]>([]);
   const showTransitRef = useSyncRef(showTransit);
@@ -619,6 +730,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       label: "",
       headingX: 0,
       headingZ: 0,
+      pitchControlValue,
+      yawControlValue,
     };
     const nearbyRows = poiSpatialIndex.tree
       .query({
@@ -638,7 +751,15 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     return [...deduped.values()]
       .sort((left, right) => right.context_score - left.context_score)
       .slice(0, 24);
-  }, [activePoiCode, cameraMode, mapPoiFeatureRows, miniMapFocus, poiSpatialIndex]);
+  }, [
+    activePoiCode,
+    cameraMode,
+    mapPoiFeatureRows,
+    miniMapFocus,
+    pitchControlValue,
+    yawControlValue,
+    poiSpatialIndex,
+  ]);
   const scenePoiFeatureRowsRef = useSyncRef(scenePoiFeatureRows);
 
   const markSceneRendering = useCallback((detail: string) => {
@@ -674,6 +795,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       roadNetworkGroupRef.current.visible = showRoadNetwork;
     }
   }, [showRoadNetwork]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
+    const syncMobileLayout = () => setIsMobileLayout(mediaQuery.matches);
+    syncMobileLayout();
+    mediaQuery.addEventListener("change", syncMobileLayout);
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileLayout);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -753,9 +884,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
     WEATHER_OPTIONS[0];
-  const normalizedSimulationTimeMinutes = normalizeDayMinutes(
-    simulationTimeMinutes,
-  );
+  const selectedDemandHour = Math.floor(normalizedSimulationTimeMinutes / 60);
 
   useEffect(() => {
     if (!DEMAND_API_ENDPOINT) {
@@ -765,6 +894,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     const controller = new AbortController();
     const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
     url.searchParams.set("dong", selectedDongName);
+    url.searchParams.set("date", simulationDate);
+    url.searchParams.set("hour", String(selectedDemandHour));
+    url.searchParams.set("timezone", "Asia/Seoul");
     url.searchParams.set("weekday", selectedWeekday);
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
@@ -801,27 +933,32 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       });
 
     return () => controller.abort();
-  }, [selectedDongName, selectedWeekday]);
+  }, [
+    selectedDemandHour,
+    selectedDongName,
+    selectedWeekday,
+    simulationDate,
+  ]);
 
-  const hourlyDemandSeries = useMemo(
-    () => remoteDemandPoints ?? [],
-    [remoteDemandPoints],
-  );
-  const hasDemandData = hourlyDemandSeries.length > 0;
   const demandChart = useMemo(
     () => buildDemandChartGeometry(hourlyDemandSeries),
     [hourlyDemandSeries],
   );
   const selectedAverageDemand = averageDemand(hourlyDemandSeries);
   const selectedPeakDemand = demandChart.peakPoint;
-  const selectedDemandRLabel =
-    selectedPeakDemand.r === null
-      ? "-"
-      : `${(selectedPeakDemand.r * 100).toFixed(2)}%`;
   const selectedDemandScore = useMemo(
     () => scoreDemandAtHour(hourlyDemandSeries, normalizedSimulationTimeMinutes),
     [hourlyDemandSeries, normalizedSimulationTimeMinutes],
   );
+  const selectedDemandIntensityLabel =
+    selectedDemandScore === null
+      ? "-"
+      : `${Math.round(selectedDemandScore * 100).toLocaleString("ko-KR")}%`;
+  const selectedDemandDongRef = useSyncRef(selectedDongName);
+  const hasDemandDataRef = useSyncRef(hasDemandData);
+  const selectedDemandScoreRef = useSyncRef(selectedDemandScore);
+  const currentFiveMinuteDemandRef = useSyncRef(currentFiveMinuteDemand);
+  const currentDemandVisualUnitsRef = useSyncRef(currentDemandVisualUnits);
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
       ? "백엔드"
@@ -992,6 +1129,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
+    if (isMobileLayout) {
+      setIsScenarioControlsExpanded(false);
+    }
     setIsSidebarCollapsed(false);
     setIsMapFocusMode(false);
     if (
@@ -1015,12 +1155,27 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     }
   }, [
     data,
+    isMobileLayout,
     mapPoiFeatureRows,
     setCameraMode,
     setIsMapFocusMode,
     setIsSidebarCollapsed,
+    setIsScenarioControlsExpanded,
     setSelectedPoiCode,
   ]);
+  const handleCameraFocusChange = useCallback((focus: MiniMapFocus) => {
+    const nextPitchValue = Math.round(focus.pitchControlValue);
+    const nextYawValue = Math.round(focus.yawControlValue);
+    cameraPitchControlRef.current.value = nextPitchValue;
+    cameraYawControlRef.current.value = nextYawValue;
+    setPitchControlValue((current) =>
+      Math.abs(current - nextPitchValue) < 1 ? current : nextPitchValue,
+    );
+    setYawControlValue((current) =>
+      Math.abs(current - nextYawValue) < 1 ? current : nextYawValue,
+    );
+    setMiniMapFocus(focus);
+  }, [setMiniMapFocus]);
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const formattedSimulationDate = formatDateLabel(simulationDate);
   const isSidebarVisible = !isSidebarCollapsed && !isMapFocusMode;
@@ -1030,6 +1185,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const floatingControlOffsetClass = isSidebarVisible
     ? "lg:right-[calc(min(38vw,500px)+1rem)]"
     : "lg:right-4";
+
+  useEffect(() => {
+    if (isMobileLayout && isSidebarVisible && isScenarioControlsExpanded) {
+      setIsScenarioControlsExpanded(false);
+    }
+  }, [
+    isMobileLayout,
+    isScenarioControlsExpanded,
+    isSidebarVisible,
+    setIsScenarioControlsExpanded,
+  ]);
 
   function toggleMapFocusMode() {
     setIsMapFocusMode((current) => {
@@ -1052,17 +1218,48 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     });
   }
 
+  function toggleScenarioControls() {
+    setIsScenarioControlsExpanded((current) => {
+      const next = !current;
+      if (next && isMobileLayout) {
+        setIsSidebarCollapsed(true);
+      }
+      return next;
+    });
+  }
+
+  function handlePitchControlChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextValue = THREE.MathUtils.clamp(Number(event.target.value), 0, 100);
+    cameraPitchControlRef.current = {
+      value: nextValue,
+      version: cameraPitchControlRef.current.version + 1,
+    };
+    setPitchControlValue(nextValue);
+  }
+
+  function handleYawControlChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextValue = THREE.MathUtils.clamp(Number(event.target.value), 0, 359);
+    cameraYawControlRef.current = {
+      value: nextValue,
+      version: cameraYawControlRef.current.version + 1,
+    };
+    setYawControlValue(nextValue);
+  }
+
   function toggleSidebar() {
     if (isSidebarVisible) {
       setIsSidebarCollapsed(true);
       return;
+    }
+    if (isMobileLayout) {
+      setIsScenarioControlsExpanded(false);
     }
     setIsMapFocusMode(false);
     setIsSidebarCollapsed(false);
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#060d16]">
+    <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#060d16]">
       <section className="relative h-full overflow-hidden">
         <div
           ref={containerRef}
@@ -1077,6 +1274,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             simulationSource={simulationSource}
             appliedTaxiCountRef={appliedTaxiCountRef}
             appliedTrafficCountRef={appliedTrafficCountRef}
+            selectedDemandDongRef={selectedDemandDongRef}
+            hasDemandDataRef={hasDemandDataRef}
+            selectedDemandScoreRef={selectedDemandScoreRef}
+            currentFiveMinuteDemandRef={currentFiveMinuteDemandRef}
+            currentDemandVisualUnitsRef={currentDemandVisualUnitsRef}
             cameraModeRef={cameraModeRef}
             followTaxiIdRef={followTaxiIdRef}
             rideExitModeRef={rideExitModeRef}
@@ -1096,15 +1298,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             simulationDateRef={simulationDateRef}
             simulationTimeRef={simulationTimeRef}
             weatherModeRef={weatherModeRef}
+            cameraPitchControlRef={cameraPitchControlRef}
+            cameraYawControlRef={cameraYawControlRef}
             setStatus={setStatus}
             setStatusDetail={setStatusDetail}
             setLoadingProgress={setLoadingProgress}
             setStats={setStats}
             setFpsStats={setFpsStats}
-            setShowFps={setShowFps}
             setFollowTaxiId={setFollowTaxiId}
             setCameraMode={setCameraMode}
-            onCameraFocusChange={setMiniMapFocus}
+            onCameraFocusChange={handleCameraFocusChange}
           />
         </MapSimulatorErrorBoundary>
 
@@ -1112,12 +1315,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           data-ui-panel="map-search-control"
           className={`absolute left-3 right-3 top-3 z-30 max-w-[430px] lg:left-4 lg:right-auto ${isSidebarVisible ? "lg:max-w-[calc(62vw-2rem)]" : ""}`}
         >
-          <div className="flex h-14 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/96 px-2.5 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.20)] backdrop-blur-md">
+          <div className="flex h-14 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2.5 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.20)]">
             <button
               type="button"
               aria-label="지도 조건 열기"
               aria-expanded={isScenarioControlsExpanded}
-              onClick={() => setIsScenarioControlsExpanded((current) => !current)}
+              onClick={toggleScenarioControls}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
             >
               <Search className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
@@ -1126,13 +1329,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   강남 수요 지도
                 </span>
                 <span className="block truncate text-[11px] text-slate-500">
-                  {MAP_SCOPE_LABEL} · {formattedSimulationTime} · {selectedWeather.label}
+                  {MAP_SCOPE_LABEL} · {formattedSimulationTime} ·{" "}
+                  {hasDemandData ? `표현 ${appliedTaxiCount}대` : selectedWeather.label}
                 </span>
               </span>
             </button>
 
             <span className="hidden shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 sm:inline-flex">
-              지도
+              {DEMAND_SLOT_ALLOCATION_LABEL}
             </span>
 
             <button
@@ -1154,7 +1358,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           {isScenarioControlsExpanded ? (
             <div
               data-ui-panel="map-condition-drawer"
-              className="mt-2 rounded-2xl border border-slate-200/80 bg-white/96 p-3 text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,0.18)] backdrop-blur-md"
+              className="mt-2 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,0.18)]"
             >
               <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
                 <div className="rounded-xl bg-slate-100 px-3 py-2">
@@ -1239,12 +1443,39 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           ) : null}
         </div>
 
+        {!isSceneBusy ? (
+          <footer
+            data-ui-panel="map-footer"
+            className={`pointer-events-none absolute bottom-3 left-3 z-20 hidden max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/90 px-3 py-2 text-[10px] font-medium text-slate-300 shadow-2xl shadow-black/25 backdrop-blur-md sm:flex ${isSidebarVisible ? "lg:max-w-[calc(62vw-2rem)]" : ""}`}
+          >
+            <span className="font-semibold text-slate-100">
+              yeoksam-taxi
+            </span>
+            <span className="h-3 w-px bg-white/14" />
+            <span>{demandFetchBadgeText}</span>
+            <span className="h-3 w-px bg-white/14" />
+            <span>5분 {DEMAND_SLOT_ALLOCATION_LABEL}</span>
+            <span className="h-3 w-px bg-white/14" />
+            <span>
+              축척 {DEMAND_VISUAL_UNIT_CALLS.toLocaleString("ko-KR")}건/대
+            </span>
+            <span className="h-3 w-px bg-white/14" />
+            <span>{buildVersion.environmentLabel}</span>
+            {buildVersion.commit ? (
+              <>
+                <span className="h-3 w-px bg-white/14" />
+                <span>{buildVersion.commit}</span>
+              </>
+            ) : null}
+          </footer>
+        ) : null}
+
       {isSceneBusy ? (
         <div
           data-ui-panel="scene-loading"
-          className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/46 px-6 backdrop-blur-[2px]"
+          className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/62 px-6 backdrop-blur-[2px]"
         >
-          <div className="w-full max-w-[420px] rounded-[24px] border border-white/12 bg-slate-950/88 p-5 text-white shadow-2xl">
+          <div className="w-full max-w-[420px] rounded-[24px] border border-white/16 bg-slate-950/95 p-5 text-white shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin" />
               <div>
@@ -1257,7 +1488,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
+            <div className="mt-4 rounded-2xl border border-white/12 bg-white/[0.08] px-4 py-3">
               <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-400">
                 <span>현재 단계</span>
                 <span className="tabular-nums text-cyan-100">
@@ -1292,9 +1523,53 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         </div>
       ) : null}
 
+      {!isSceneBusy && cameraMode !== "ride" ? (
+        <div
+          data-ui-control="camera-orbit-controls"
+          className={`absolute right-3 top-24 z-20 flex w-[156px] items-center gap-3 rounded-2xl border border-white/14 bg-slate-950/92 px-3 py-3 text-cyan-100 shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 ${isSidebarVisible ? "hidden lg:flex" : "flex"} ${floatingControlOffsetClass}`}
+        >
+          <div className="flex h-36 w-8 flex-col items-center justify-between">
+            <SlidersVertical className="h-4 w-4" aria-hidden="true" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={pitchControlValue}
+              onChange={handlePitchControlChange}
+              aria-label="3D 지도 상하 기울기"
+              className="h-24 w-5 cursor-pointer accent-cyan-300"
+              style={{ writingMode: "vertical-lr", direction: "rtl" }}
+            />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <RotateCw className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="text-[10px] font-semibold tabular-nums text-slate-300">
+                {yawControlValue}°
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={359}
+              step={1}
+              value={yawControlValue}
+              onChange={handleYawControlChange}
+              aria-label="3D 지도 좌우 회전"
+              className="w-full cursor-pointer accent-cyan-300"
+            />
+            <div className="flex items-center justify-between text-[9px] font-semibold text-slate-500">
+              <span>좌</span>
+              <span>우</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div
         data-ui-panel="map-toolbar"
-        className={`absolute bottom-4 z-20 hidden items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/82 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:flex ${floatingControlOffsetClass}`}
+        className={`absolute bottom-4 z-20 hidden items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/92 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:flex ${floatingControlOffsetClass}`}
       >
         <button
           type="button"
@@ -1343,7 +1618,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       {!isSidebarVisible ? (
         <div
           data-ui-panel="mobile-map-toolbar"
-          className="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/88 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden"
+          className="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/95 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden"
         >
           <button
             type="button"
@@ -1409,7 +1684,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               style={{ filter: "drop-shadow(0 0 4px rgba(0,0,0,0.5))" }}
             >
               {/* Outer ring */}
-              <circle cx="22" cy="22" r="20" fill="rgba(15,23,42,0.82)" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+              <circle cx="22" cy="22" r="20" fill="rgba(15,23,42,0.94)" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
               {/* Cardinal ticks */}
               {[0, 90, 180, 270].map((angle) => (
                 <line
@@ -1418,7 +1693,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                   y1="4"
                   x2="22"
                   y2="8"
-                  stroke="rgba(255,255,255,0.25)"
+                  stroke="rgba(255,255,255,0.42)"
                   strokeWidth="1.2"
                   transform={`rotate(${angle},22,22)`}
                 />
@@ -1433,7 +1708,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               {/* Center dot */}
               <circle cx="22" cy="22" r="2.4" fill="#f8fafc" />
             </svg>
-            <span className="rounded-full border border-white/10 bg-slate-950/82 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-300">
+            <span className="rounded-full border border-white/14 bg-slate-950/94 px-1.5 py-0.5 text-[9px] font-bold tracking-widest text-slate-300">
               {cardinal}
             </span>
           </div>
@@ -1443,7 +1718,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       {showFps ? (
         <div
           data-ui-panel="render-diagnostics"
-          className={`absolute bottom-20 z-20 hidden w-[260px] rounded-2xl border border-cyan-300/15 bg-slate-950/88 p-3 text-xs text-slate-300 shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:block ${floatingControlOffsetClass}`}
+          className={`absolute bottom-20 z-20 hidden w-[260px] rounded-2xl border border-cyan-300/20 bg-slate-950/95 p-3 text-xs text-slate-300 shadow-2xl shadow-black/30 backdrop-blur-md transition-[right] duration-300 lg:block ${floatingControlOffsetClass}`}
         >
           <div className="flex items-center justify-between gap-3">
             <div className={PANEL_SECTION_LABEL_CLASS}>렌더 상태</div>
@@ -1452,32 +1727,32 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="rounded-xl border border-white/12 bg-white/[0.08] px-3 py-2">
               <div className="text-slate-500">FPS</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-slate-50">
                 {fpsStats.fps}
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="rounded-xl border border-white/12 bg-white/[0.08] px-3 py-2">
               <div className="text-slate-500">차량</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-slate-50">
                 {fpsStats.vehicles}
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="rounded-xl border border-white/12 bg-white/[0.08] px-3 py-2">
               <div className="text-slate-500">처리</div>
               <div className="mt-1 font-semibold tabular-nums text-slate-100">
                 {fpsStats.simulationMs.toFixed(2)}ms
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="rounded-xl border border-white/12 bg-white/[0.08] px-3 py-2">
               <div className="text-slate-500">렌더</div>
               <div className="mt-1 font-semibold tabular-nums text-slate-100">
                 {fpsStats.renderMs.toFixed(2)}ms
               </div>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
+          <div className="mt-2 flex items-center justify-between rounded-xl border border-white/12 bg-white/[0.08] px-3 py-2">
             <span className="text-slate-500">갱신 주기</span>
             <span className="font-semibold tabular-nums text-slate-100">
               {fpsStats.simulationHz}
@@ -1491,20 +1766,20 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           type="button"
           aria-label="정보 패널 닫기"
           onClick={toggleSidebar}
-          className="absolute inset-0 z-10 bg-slate-950/40 lg:hidden"
+          className="absolute inset-0 z-10 bg-slate-950/56 lg:hidden"
         />
       ) : null}
 
       {isSidebarVisible ? (
         <div
           data-ui-panel="right-sidebar"
-          className="absolute bottom-0 left-0 right-0 z-20 max-h-[min(68vh,calc(100vh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/10 bg-slate-950/94 p-4 text-white shadow-2xl backdrop-blur-md sm:max-h-[min(72vh,calc(100vh-4rem))] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:rounded-none lg:border-l lg:border-t-0 lg:p-5"
+          className="absolute bottom-0 left-0 right-0 z-20 max-h-[min(68vh,calc(100vh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/14 bg-slate-950/98 p-4 text-white shadow-2xl backdrop-blur-md sm:max-h-[min(72vh,calc(100vh-4rem))] lg:left-auto lg:right-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[38vw] lg:min-w-[400px] lg:max-w-[500px] lg:rounded-none lg:border-l lg:border-t-0 lg:p-5"
         >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <p className={PANEL_EYEBROW_CLASS}>수요 예측</p>
             <h2 className="mt-1 text-xl font-semibold leading-tight text-slate-50">
-              동별 24시간 택시 수요
+              동별 수요와 지도 축척
             </h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               {selectedDongName} · {weekdayLabel(selectedWeekday)}요일 · 0-23시
@@ -1529,12 +1804,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <div className="min-w-0">
                 <div className={PANEL_SECTION_LABEL_CLASS}>수요 곡선</div>
                 <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                  백엔드 API 응답값
+                  백엔드 1시간 실제 수요량
                 </div>
               </div>
             </div>
-            <span className="inline-flex whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300">
-              24H
+            <span className="inline-flex whitespace-nowrap rounded-full border border-white/12 bg-white/[0.08] px-2 py-0.5 text-[10px] text-slate-300">
+              1H / 12
             </span>
           </div>
 
@@ -1544,7 +1819,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               <select
                 value={selectedDongName}
                 onChange={(event) => setSelectedDongName(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/70 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
+                className="mt-1 w-full rounded-xl border border-white/12 bg-slate-900/88 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
                 aria-label="수요 예측 행정동"
               >
                 {TARGET_DONGS.map((dongName) => (
@@ -1561,7 +1836,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
                 onChange={(event) =>
                   setSelectedWeekday(event.target.value as DemandWeekdayId)
                 }
-                className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/70 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
+                className="mt-1 w-full rounded-xl border border-white/12 bg-slate-900/88 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400/40"
                 aria-label="수요 예측 요일"
               >
                 {DEMAND_WEEKDAYS.map((weekday) => (
@@ -1573,7 +1848,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             </label>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/10 bg-white/[0.035] text-center">
+          <div className="mt-4 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/12 bg-white/[0.08] text-center">
             <div className="px-2 py-2">
               <div className="text-[10px] text-slate-500">피크</div>
               <div className="mt-1 font-semibold tabular-nums text-slate-100">
@@ -1581,7 +1856,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </div>
             </div>
             <div className="px-2 py-2">
-              <div className="text-[10px] text-slate-500">수요</div>
+              <div className="text-[10px] text-slate-500">1H 수요</div>
               <div className="mt-1 font-semibold tabular-nums text-rose-100">
                 {hasDemandData
                   ? selectedPeakDemand.demandPred.toLocaleString("ko-KR")
@@ -1589,11 +1864,37 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
               </div>
             </div>
             <div className="px-2 py-2">
-              <div className="text-[10px] text-slate-500">r</div>
+              <div className="text-[10px] text-slate-500">현재 강도</div>
               <div className="mt-1 font-semibold tabular-nums text-cyan-100">
-                {selectedDemandRLabel}
+                {selectedDemandIntensityLabel}
               </div>
             </div>
+          </div>
+
+          <div className="mt-2 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] text-center">
+            <div className="px-2 py-2">
+              <div className="text-[10px] text-slate-500">현재 슬롯</div>
+              <div className="mt-1 text-[11px] font-semibold tabular-nums text-slate-100">
+                {demandSlotLabel(currentDemandSlot)}
+              </div>
+            </div>
+            <div className="px-2 py-2">
+              <div className="text-[10px] text-slate-500">5분 수요</div>
+              <div className="mt-1 font-semibold tabular-nums text-cyan-100">
+                {hasDemandData
+                  ? Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")
+                  : "-"}
+              </div>
+            </div>
+            <div className="px-2 py-2">
+              <div className="text-[10px] text-slate-500">지도 차량</div>
+              <div className="mt-1 font-semibold tabular-nums text-amber-100">
+                {hasDemandData ? `${appliedTaxiCount}대` : "-"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] leading-4 text-slate-400">
+            5분 값은 백엔드 1시간 수요를 12등분한 표시값이며, 지도 차량 1대는 약 실제 호출 {DEMAND_VISUAL_UNIT_CALLS.toLocaleString("ko-KR")}건 기준입니다. 지도는 선택 동의 도로 회랑과 수요 앵커를 함께 강조합니다.
           </div>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#07111c]">
@@ -1697,7 +1998,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-4 rounded-full bg-cyan-300" />
-                예측 수요
+                1시간 수요
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-0 w-4 border-t border-dashed border-rose-300" />

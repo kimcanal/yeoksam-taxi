@@ -88,7 +88,7 @@ export default function Home() {
   const buildVersion = resolveBuildVersion();
 
   return (
-    <main className="h-screen w-full overflow-hidden bg-black">
+    <main className="h-full min-h-0 w-full overflow-hidden bg-black">
       <MapSimulatorClient buildVersion={buildVersion} />
     </main>
   );

@@ -20,6 +20,8 @@ export type MiniMapFocus = {
   label: string;
   headingX: number;
   headingZ: number;
+  pitchControlValue: number;
+  yawControlValue: number;
 };
 
 type SceneState = {

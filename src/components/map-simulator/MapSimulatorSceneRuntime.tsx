@@ -23,21 +23,16 @@ import {
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle-trail-renderer";
 import {
-  CAMERA_BASE_MOVE_SCALE,
-  CAMERA_BASE_TURN_SCALE,
   CAMERA_DRAG_SENSITIVITY,
-  CAMERA_DRIVE_SPEED,
   CAMERA_LOOK_HEIGHT,
   CAMERA_MAX_DISTANCE,
   CAMERA_MAX_PITCH,
   CAMERA_MIN_DISTANCE,
   CAMERA_MIN_PITCH,
-  CAMERA_STRAFE_SPEED,
   CAMERA_TOUCH_ANCHOR_RADIUS,
   CAMERA_TOUCH_PITCH_LOCK_DISTANCE,
   CAMERA_TOUCH_PITCH_SENSITIVITY,
   CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
-  CAMERA_TURN_SPEED,
   CROSSWALK_STEP,
   CROSSWALK_STRIPE_COUNT,
   CROSSWALK_WIDTH,
@@ -61,7 +56,9 @@ import {
 import {
   BaseCameraMode,
   CameraMode,
+  CameraPitchControlState,
   CameraFocusTarget,
+  CameraYawControlState,
   DongBoundarySegment,
   FpsMode,
   FpsStats,
@@ -98,6 +95,7 @@ import {
   dampAngle,
   distanceXZ,
   disposeObject3DResources,
+  dongContainsPoint,
   dongShapeFromRing,
   hotspotCallElement,
   labelElement,
@@ -137,6 +135,11 @@ type MapSimulatorSceneRuntimeProps = {
   simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
   appliedTrafficCountRef: MutableRefObject<number>;
+  selectedDemandDongRef: MutableRefObject<string>;
+  hasDemandDataRef: MutableRefObject<boolean>;
+  selectedDemandScoreRef: MutableRefObject<number | null>;
+  currentFiveMinuteDemandRef: MutableRefObject<number>;
+  currentDemandVisualUnitsRef: MutableRefObject<number>;
   cameraModeRef: MutableRefObject<CameraMode>;
   followTaxiIdRef: MutableRefObject<string>;
   rideExitModeRef: MutableRefObject<BaseCameraMode>;
@@ -156,12 +159,13 @@ type MapSimulatorSceneRuntimeProps = {
   simulationDateRef: MutableRefObject<string>;
   simulationTimeRef: MutableRefObject<number>;
   weatherModeRef: MutableRefObject<WeatherMode>;
+  cameraPitchControlRef: MutableRefObject<CameraPitchControlState>;
+  cameraYawControlRef: MutableRefObject<CameraYawControlState>;
   setStatus: Dispatch<SetStateAction<SceneStatus>>;
   setStatusDetail: Dispatch<SetStateAction<string>>;
   setLoadingProgress: Dispatch<SetStateAction<number>>;
   setStats: Dispatch<SetStateAction<Stats>>;
   setFpsStats: Dispatch<SetStateAction<FpsStats>>;
-  setShowFps: Dispatch<SetStateAction<boolean>>;
   setFollowTaxiId: Dispatch<SetStateAction<string>>;
   setCameraMode: Dispatch<SetStateAction<CameraMode>>;
   onCameraFocusChange?: (focus: {
@@ -170,6 +174,8 @@ type MapSimulatorSceneRuntimeProps = {
     label: string;
     headingX: number;
     headingZ: number;
+    pitchControlValue: number;
+    yawControlValue: number;
   }) => void;
 };
 
@@ -181,6 +187,17 @@ type MapPoiFeatureRow = {
   lon: number | null;
   lat: number | null;
   context_score: number;
+};
+
+type DemandAnchorKind = "poi" | "stand";
+
+type DemandAnchor = {
+  id: string;
+  label: string;
+  kind: DemandAnchorKind;
+  position: THREE.Vector3;
+  dongNames: string[];
+  score: number;
 };
 
 function poiMarkerColor(category: string | null | undefined) {
@@ -197,6 +214,11 @@ export default function MapSimulatorSceneRuntime({
   simulationSource,
   appliedTaxiCountRef,
   appliedTrafficCountRef,
+  selectedDemandDongRef,
+  hasDemandDataRef,
+  selectedDemandScoreRef,
+  currentFiveMinuteDemandRef,
+  currentDemandVisualUnitsRef,
   cameraModeRef,
   followTaxiIdRef,
   rideExitModeRef,
@@ -216,12 +238,13 @@ export default function MapSimulatorSceneRuntime({
   simulationDateRef,
   simulationTimeRef,
   weatherModeRef,
+  cameraPitchControlRef,
+  cameraYawControlRef,
   setStatus,
   setStatusDetail,
   setLoadingProgress,
   setStats,
   setFpsStats,
-  setShowFps,
   setFollowTaxiId,
   setCameraMode,
   onCameraFocusChange,
@@ -342,14 +365,16 @@ export default function MapSimulatorSceneRuntime({
       pointerId: -1,
       pointerX: 0,
       pointerY: 0,
+      dragMode: "pan" as "pan" | "orbit",
     };
     let lastMiniMapFocusReportTimestamp = 0;
     let lastMiniMapFocusReportX = Number.POSITIVE_INFINITY;
     let lastMiniMapFocusReportZ = Number.POSITIVE_INFINITY;
     let lastMiniMapFocusReportHeadingX = Number.POSITIVE_INFINITY;
     let lastMiniMapFocusReportHeadingZ = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportPitchValue = Number.POSITIVE_INFINITY;
+    let lastMiniMapFocusReportYawValue = Number.POSITIVE_INFINITY;
     let lastMiniMapFocusReportLabel = "";
-    const pressedKeys = new Set<string>();
     const followOrbit = { yawOffset: 0.22 };
     let activeCameraMode = cameraModeRef.current;
     let activeFollowTaxiId = followTaxiIdRef.current;
@@ -360,8 +385,6 @@ export default function MapSimulatorSceneRuntime({
     const poiPointerHits: THREE.Intersection[] = [];
     const boundaryPointerHits: THREE.Intersection[] = [];
     const cameraOffset = new THREE.Vector3();
-    const driveLookDirection = new THREE.Vector3();
-    const driveStrafeDirection = new THREE.Vector3();
     const touchPanForwardDirection = new THREE.Vector3();
     const touchPanRightDirection = new THREE.Vector3();
     const followFocusTarget = new THREE.Vector3();
@@ -412,6 +435,31 @@ export default function MapSimulatorSceneRuntime({
     const districtLabelEntries: SceneLabelEntry[] = [];
     const optionalLabelEntries: SceneLabelEntry[] = [];
     const labelDistanceEntries: LabelDistanceEntry[] = [];
+    let appliedPitchControlVersion = cameraPitchControlRef.current.version;
+    let appliedYawControlVersion = cameraYawControlRef.current.version;
+
+    const pitchControlValueFromPitch = (pitch: number) =>
+      THREE.MathUtils.clamp(
+        ((pitch - CAMERA_MIN_PITCH) / (CAMERA_MAX_PITCH - CAMERA_MIN_PITCH)) *
+          100,
+        0,
+        100,
+      );
+
+    const pitchFromControlValue = (value: number) =>
+      THREE.MathUtils.lerp(
+        CAMERA_MIN_PITCH,
+        CAMERA_MAX_PITCH,
+        THREE.MathUtils.clamp(value / 100, 0, 1),
+      );
+    const yawControlValueFromYaw = (yaw: number) =>
+      THREE.MathUtils.clamp(
+        THREE.MathUtils.radToDeg((wrapAngle(yaw) + Math.PI * 2) % (Math.PI * 2)),
+        0,
+        359,
+      );
+    const yawFromControlValue = (value: number) =>
+      THREE.MathUtils.degToRad(THREE.MathUtils.clamp(value, 0, 359));
 
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
@@ -538,6 +586,11 @@ export default function MapSimulatorSceneRuntime({
 
     const dongFloorGroup = new THREE.Group();
     const dongMaterialsByName = new Map<string, THREE.MeshBasicMaterial>();
+    const demandFloorGroup = new THREE.Group();
+    const demandFloorMaterialsByName = new Map<
+      string,
+      THREE.MeshBasicMaterial[]
+    >();
 
     dongRegions.forEach((dong) => {
       dong.rings.forEach((ring) => {
@@ -549,7 +602,7 @@ export default function MapSimulatorSceneRuntime({
         const fillMaterial = new THREE.MeshBasicMaterial({
           color: dong.color,
           transparent: true,
-          opacity: 0.03,
+          opacity: 0.06,
           depthWrite: false,
           side: THREE.DoubleSide,
         });
@@ -563,9 +616,228 @@ export default function MapSimulatorSceneRuntime({
         fill.position.y = 0.018;
         fill.renderOrder = 2;
         dongFloorGroup.add(fill);
+
+        const demandMaterial = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+        });
+        const demandFill = new THREE.Mesh(
+          new THREE.ShapeGeometry(shape),
+          demandMaterial,
+        );
+        demandFill.rotation.x = -Math.PI / 2;
+        demandFill.position.y = 0.052;
+        demandFill.renderOrder = 6;
+        demandFloorGroup.add(demandFill);
+
+        const materials = demandFloorMaterialsByName.get(dong.name) ?? [];
+        materials.push(demandMaterial);
+        demandFloorMaterialsByName.set(dong.name, materials);
       });
     });
     scene.add(dongFloorGroup);
+    scene.add(demandFloorGroup);
+
+    const demandPulseGroup = new THREE.Group();
+    demandPulseGroup.visible = false;
+    const demandPulseMaterial = new THREE.MeshBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const demandPulseRing = new THREE.Mesh(
+      new THREE.RingGeometry(10, 12.5, 96),
+      demandPulseMaterial,
+    );
+    demandPulseRing.rotation.x = -Math.PI / 2;
+    demandPulseRing.position.y = 0.48;
+    demandPulseRing.renderOrder = 42;
+    demandPulseGroup.add(demandPulseRing);
+
+    const demandPulseCoreMaterial = new THREE.MeshBasicMaterial({
+      color: 0x67e8f9,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const demandPulseCore = new THREE.Mesh(
+      new THREE.CircleGeometry(4.6, 64),
+      demandPulseCoreMaterial,
+    );
+    demandPulseCore.rotation.x = -Math.PI / 2;
+    demandPulseCore.position.y = 0.5;
+    demandPulseCore.renderOrder = 41;
+    demandPulseGroup.add(demandPulseCore);
+    scene.add(demandPulseGroup);
+
+    const demandBadgeElement = document.createElement("div");
+    demandBadgeElement.className = "scene-label scene-label-demand";
+    demandBadgeElement.style.pointerEvents = "none";
+    demandBadgeElement.style.border = "1px solid rgba(103,232,249,0.42)";
+    demandBadgeElement.style.background = "rgba(8,18,29,0.92)";
+    demandBadgeElement.style.color = "#e0faff";
+    demandBadgeElement.style.boxShadow =
+      "0 0 0 1px rgba(34,211,238,0.12), 0 14px 30px rgba(0,0,0,0.36)";
+    demandBadgeElement.style.fontWeight = "700";
+    demandBadgeElement.style.fontSize = "11px";
+    demandBadgeElement.style.letterSpacing = "0";
+    demandBadgeElement.style.padding = "5px 8px";
+    demandBadgeElement.style.borderRadius = "999px";
+    demandBadgeElement.style.whiteSpace = "nowrap";
+    const demandBadgeLabel = new CSS2DObject(demandBadgeElement);
+    demandBadgeLabel.position.set(0, 6.8, 0);
+    demandBadgeLabel.visible = false;
+    demandPulseGroup.add(demandBadgeLabel);
+
+    const demandCorridorSegments = roadSegments
+      .filter((segment) => segment.roadClass !== "local")
+      .map((segment, index) => {
+        const length = distanceXZ(segment.start, segment.end);
+        const center = segment.start.clone().lerp(segment.end, 0.5);
+        return {
+          segment,
+          index,
+          center,
+          length,
+          angle: Math.atan2(
+            segment.end.x - segment.start.x,
+            segment.end.z - segment.start.z,
+          ),
+          dongNames: dongRegions
+            .filter((dong) => dongContainsPoint(dong, center))
+            .map((dong) => dong.name),
+        };
+      })
+      .filter((entry) => entry.length >= 14 && entry.dongNames.length > 0)
+      .slice(0, 520);
+    const demandCorridorMaterial = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const demandCorridorMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.04, 1),
+      demandCorridorMaterial,
+      demandCorridorSegments.length,
+    );
+    demandCorridorSegments.forEach((entry, index) => {
+      dummy.position.set(entry.center.x, 0.42, entry.center.z);
+      dummy.rotation.set(0, entry.angle, 0);
+      dummy.scale.set(0.001, 1, 0.001);
+      dummy.updateMatrix();
+      demandCorridorMesh.setMatrixAt(index, dummy.matrix);
+      demandCorridorMesh.setColorAt(index, new THREE.Color(0x38bdf8));
+    });
+    demandCorridorMesh.instanceMatrix.needsUpdate = true;
+    if (demandCorridorMesh.instanceColor) {
+      demandCorridorMesh.instanceColor.needsUpdate = true;
+    }
+    demandCorridorMesh.renderOrder = 43;
+    scene.add(demandCorridorMesh);
+
+    const poiDemandAnchors = [...(poiFeatureRowsRef.current ?? [])]
+      .filter(
+        (poi) =>
+          Number.isFinite(poi.lon) &&
+          Number.isFinite(poi.lat),
+      )
+      .map((poi) => {
+        const projected = projectPoint(
+          [poi.lon as number, poi.lat as number],
+          simulationData.center,
+        );
+        const position = new THREE.Vector3(projected.x, 0, projected.z);
+        const inferredDongs = poi.coverage_dong
+          ? [poi.coverage_dong]
+          : dongRegions
+              .filter((dong) => dongContainsPoint(dong, position))
+              .map((dong) => dong.name);
+
+        return {
+          id: `poi-${poi.poi_code}`,
+          label: poi.poi_name,
+          kind: "poi" as const,
+          position,
+          dongNames: inferredDongs,
+          score: THREE.MathUtils.clamp(poi.context_score, 0.25, 1),
+        } satisfies DemandAnchor;
+      })
+      .filter((anchor) => anchor.dongNames.length > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 24);
+
+    const standDemandAnchors = taxiStandLandmarks
+      .map((stand) => ({
+        id: `stand-${stand.standId || stand.id}`,
+        label: stand.name,
+        kind: "stand" as const,
+        position: stand.position.clone().setY(0),
+        dongNames: [stand.dongName],
+        score: stand.isShelter ? 0.72 : 0.58,
+      }) satisfies DemandAnchor)
+      .slice(0, 24);
+
+    const demandAnchors = [...poiDemandAnchors, ...standDemandAnchors];
+    const demandAnchorColumnMaterial = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const demandAnchorColumnMesh = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.62, 0.84, 1, 24),
+      demandAnchorColumnMaterial,
+      demandAnchors.length,
+    );
+    const demandAnchorRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const demandAnchorRingMesh = new THREE.InstancedMesh(
+      new THREE.RingGeometry(0.9, 1.14, 44),
+      demandAnchorRingMaterial,
+      demandAnchors.length,
+    );
+    demandAnchors.forEach((anchor, index) => {
+      dummy.position.set(anchor.position.x, -20, anchor.position.z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(0.001, 0.001, 0.001);
+      dummy.updateMatrix();
+      demandAnchorColumnMesh.setMatrixAt(index, dummy.matrix);
+      demandAnchorColumnMesh.setColorAt(index, new THREE.Color(0x38bdf8));
+
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.updateMatrix();
+      demandAnchorRingMesh.setMatrixAt(index, dummy.matrix);
+      demandAnchorRingMesh.setColorAt(index, new THREE.Color(0x38bdf8));
+    });
+    demandAnchorColumnMesh.instanceMatrix.needsUpdate = true;
+    demandAnchorRingMesh.instanceMatrix.needsUpdate = true;
+    if (demandAnchorColumnMesh.instanceColor) {
+      demandAnchorColumnMesh.instanceColor.needsUpdate = true;
+    }
+    if (demandAnchorRingMesh.instanceColor) {
+      demandAnchorRingMesh.instanceColor.needsUpdate = true;
+    }
+    demandAnchorColumnMesh.renderOrder = 45;
+    demandAnchorRingMesh.renderOrder = 44;
+    scene.add(demandAnchorRingMesh);
+    scene.add(demandAnchorColumnMesh);
 
     const nonRoadShapes = {
       facility: [] as THREE.Shape[],
@@ -585,7 +857,7 @@ export default function MapSimulatorSceneRuntime({
       facility: new THREE.MeshBasicMaterial({
         color: 0x4f5358,
         transparent: true,
-        opacity: 0.12,
+        opacity: 0.2,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -595,7 +867,7 @@ export default function MapSimulatorSceneRuntime({
       green: new THREE.MeshBasicMaterial({
         color: 0x3d6645,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.42,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -605,7 +877,7 @@ export default function MapSimulatorSceneRuntime({
       pedestrian: new THREE.MeshBasicMaterial({
         color: 0x67645f,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.18,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -615,7 +887,7 @@ export default function MapSimulatorSceneRuntime({
       parking: new THREE.MeshBasicMaterial({
         color: 0x5d5751,
         transparent: true,
-        opacity: 0.13,
+        opacity: 0.2,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -625,7 +897,7 @@ export default function MapSimulatorSceneRuntime({
       water: new THREE.MeshBasicMaterial({
         color: 0x2a5f7d,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.42,
         depthWrite: false,
         side: THREE.DoubleSide,
         polygonOffset: true,
@@ -1215,10 +1487,155 @@ export default function MapSimulatorSceneRuntime({
       resetSimulationSource(true);
     };
 
+    const demandLayerColor = new THREE.Color();
+    const demandAnchorColor = new THREE.Color();
+    const demandLayerBaseColor = new THREE.Color(0x38bdf8);
+    const demandLayerPeakColor = new THREE.Color(0xfb7185);
+    const demandAnchorStandColor = new THREE.Color(0xfacc15);
+    let lastDemandBadgeText = "";
+    const updateDemandMapLayer = (elapsedTime: number) => {
+      const selectedDongName = selectedDemandDongRef.current;
+      const hasDemandData = hasDemandDataRef.current;
+      const demandScore = THREE.MathUtils.clamp(
+        selectedDemandScoreRef.current ?? 0,
+        0,
+        1,
+      );
+      const fiveMinuteDemand = Math.max(0, currentFiveMinuteDemandRef.current);
+      const visualUnits = Math.max(0, currentDemandVisualUnitsRef.current);
+      const activeDong = dongRegions.find(
+        (dong) => dong.name === selectedDongName,
+      );
+      const isVisible = Boolean(activeDong && hasDemandData);
+      const pulse = (Math.sin(elapsedTime * 2.4) + 1) * 0.5;
+
+      demandLayerColor.copy(demandLayerBaseColor).lerp(
+        demandLayerPeakColor,
+        demandScore,
+      );
+      demandCorridorMaterial.color.copy(demandLayerColor);
+      demandCorridorMaterial.opacity = isVisible ? 0.24 + demandScore * 0.34 : 0;
+      let visibleCorridorIndex = 0;
+      demandCorridorSegments.forEach((entry, index) => {
+        const isActive =
+          isVisible && entry.dongNames.includes(selectedDongName);
+        if (isActive) {
+          const width =
+            entry.segment.width * (0.55 + demandScore * 0.45) +
+            Math.min(visualUnits, 12) * 0.05 +
+            pulse * 0.08;
+          dummy.position.set(entry.center.x, 0.44 + visibleCorridorIndex * 0.0006, entry.center.z);
+          dummy.rotation.set(0, entry.angle, 0);
+          dummy.scale.set(width, 1, entry.length + 2.8);
+          dummy.updateMatrix();
+          demandCorridorMesh.setMatrixAt(index, dummy.matrix);
+          demandCorridorMesh.setColorAt(index, demandLayerColor);
+          visibleCorridorIndex += 1;
+          return;
+        }
+
+        dummy.position.set(entry.center.x, -20, entry.center.z);
+        dummy.rotation.set(0, entry.angle, 0);
+        dummy.scale.set(0.001, 1, 0.001);
+        dummy.updateMatrix();
+        demandCorridorMesh.setMatrixAt(index, dummy.matrix);
+        demandCorridorMesh.setColorAt(index, demandLayerColor);
+      });
+      demandCorridorMesh.instanceMatrix.needsUpdate = true;
+      if (demandCorridorMesh.instanceColor) {
+        demandCorridorMesh.instanceColor.needsUpdate = true;
+      }
+      demandAnchorColumnMaterial.opacity = isVisible ? 0.26 + demandScore * 0.36 : 0;
+      demandAnchorRingMaterial.opacity = isVisible ? 0.18 + demandScore * 0.28 : 0;
+      demandAnchors.forEach((anchor, index) => {
+        const isActive =
+          isVisible && anchor.dongNames.includes(selectedDongName);
+        if (isActive) {
+          const anchorIntensity =
+            (0.45 + demandScore * 0.55) * (0.58 + anchor.score * 0.42);
+          const height =
+            1.2 +
+            anchorIntensity * 5.8 +
+            Math.min(visualUnits, 14) * 0.28;
+          const radius =
+            1.2 +
+            anchor.score * 0.72 +
+            demandScore * 0.9 +
+            pulse * 0.18;
+
+          demandAnchorColor
+            .copy(anchor.kind === "stand" ? demandAnchorStandColor : demandLayerColor)
+            .lerp(demandLayerPeakColor, demandScore * 0.34);
+
+          dummy.position.set(anchor.position.x, height / 2 + 0.24, anchor.position.z);
+          dummy.rotation.set(0, 0, 0);
+          dummy.scale.set(0.82 + anchor.score * 0.34, height, 0.82 + anchor.score * 0.34);
+          dummy.updateMatrix();
+          demandAnchorColumnMesh.setMatrixAt(index, dummy.matrix);
+          demandAnchorColumnMesh.setColorAt(index, demandAnchorColor);
+
+          dummy.position.set(anchor.position.x, 0.62, anchor.position.z);
+          dummy.rotation.set(-Math.PI / 2, 0, 0);
+          dummy.scale.set(radius, radius, 1);
+          dummy.updateMatrix();
+          demandAnchorRingMesh.setMatrixAt(index, dummy.matrix);
+          demandAnchorRingMesh.setColorAt(index, demandAnchorColor);
+          return;
+        }
+
+        dummy.position.set(anchor.position.x, -20, anchor.position.z);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.set(0.001, 0.001, 0.001);
+        dummy.updateMatrix();
+        demandAnchorColumnMesh.setMatrixAt(index, dummy.matrix);
+        dummy.rotation.set(-Math.PI / 2, 0, 0);
+        dummy.updateMatrix();
+        demandAnchorRingMesh.setMatrixAt(index, dummy.matrix);
+      });
+      demandAnchorColumnMesh.instanceMatrix.needsUpdate = true;
+      demandAnchorRingMesh.instanceMatrix.needsUpdate = true;
+      if (demandAnchorColumnMesh.instanceColor) {
+        demandAnchorColumnMesh.instanceColor.needsUpdate = true;
+      }
+      if (demandAnchorRingMesh.instanceColor) {
+        demandAnchorRingMesh.instanceColor.needsUpdate = true;
+      }
+      demandFloorMaterialsByName.forEach((materials, dongName) => {
+        const isActive = isVisible && dongName === selectedDongName;
+        materials.forEach((material) => {
+          material.color.copy(demandLayerColor);
+          material.opacity = isActive ? 0.13 + demandScore * 0.22 : 0;
+        });
+      });
+
+      demandPulseGroup.visible = isVisible;
+      demandBadgeLabel.visible = isVisible;
+      if (!isVisible || !activeDong) {
+        return;
+      }
+
+      demandPulseGroup.position.set(activeDong.position.x, 0, activeDong.position.z);
+      const ringScale =
+        1.2 + demandScore * 1.05 + Math.min(visualUnits, 12) * 0.045 + pulse * 0.08;
+      const coreScale = 1 + demandScore * 0.55 + pulse * 0.05;
+      demandPulseRing.scale.set(ringScale, ringScale, 1);
+      demandPulseCore.scale.set(coreScale, coreScale, 1);
+      demandPulseMaterial.color.copy(demandLayerColor);
+      demandPulseCoreMaterial.color.copy(demandLayerColor);
+      demandPulseMaterial.opacity = 0.22 + demandScore * 0.26 + pulse * 0.08;
+      demandPulseCoreMaterial.opacity = 0.08 + demandScore * 0.16 + pulse * 0.04;
+
+      const nextBadgeText = `${selectedDongName} 5분 ${Math.round(fiveMinuteDemand).toLocaleString("ko-KR")}건 · 지도 ${visualUnits}대`;
+      if (nextBadgeText !== lastDemandBadgeText) {
+        demandBadgeElement.textContent = nextBadgeText;
+        lastDemandBadgeText = nextBadgeText;
+      }
+    };
+
     const dongBoundaryGlowMaterial = new THREE.MeshBasicMaterial({
       color: 0x6dbb9b,
       transparent: true,
-      opacity: 0.2,
+      opacity: 0.28,
       depthWrite: false,
     });
     const dongBoundaryGlowMesh = new THREE.InstancedMesh(
@@ -1246,7 +1663,7 @@ export default function MapSimulatorSceneRuntime({
     const dongBoundaryLineMaterial = new THREE.MeshBasicMaterial({
       color: 0x87d2b0,
       transparent: true,
-      opacity: 0.78,
+      opacity: 0.88,
     });
     const dongBoundaryMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 0.05, 1),
@@ -1332,6 +1749,14 @@ export default function MapSimulatorSceneRuntime({
         polygonOffsetUnits: 0,
       }),
     };
+    const roadSheenMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd8e2ec,
+      transparent: true,
+      opacity: 0,
+      roughness: 0.16,
+      metalness: 0.1,
+      depthWrite: false,
+    });
 
     const laneMarkerMaterial = new THREE.MeshStandardMaterial({
       color: 0xf3e9cf,
@@ -1380,6 +1805,34 @@ export default function MapSimulatorSceneRuntime({
         roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
       staticRoadGroup.add(mesh);
     });
+    const roadSheenSegments = roadSegments.filter(
+      (segment) =>
+        segment.roadClass !== "local" && distanceXZ(segment.start, segment.end) >= 10,
+    );
+    const roadSheenMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 0.025, 1),
+      roadSheenMaterial,
+      roadSheenSegments.length,
+    );
+
+    roadSheenSegments.forEach((segment, index) => {
+      const length = distanceXZ(segment.start, segment.end);
+      const center = segment.start.clone().lerp(segment.end, 0.5);
+      const angle = Math.atan2(
+        segment.end.x - segment.start.x,
+        segment.end.z - segment.start.z,
+      );
+      const widthScale =
+        segment.roadClass === "arterial" ? 0.62 : 0.54;
+      dummy.position.set(center.x, ROAD_LAYER_Y[segment.roadClass] + 0.036, center.z);
+      dummy.rotation.set(0, angle, 0);
+      dummy.scale.set(segment.width * widthScale, 1, length + 0.8);
+      dummy.updateMatrix();
+      roadSheenMesh.setMatrixAt(index, dummy.matrix);
+    });
+    roadSheenMesh.instanceMatrix.needsUpdate = true;
+    roadSheenMesh.renderOrder = 22;
+    staticRoadGroup.add(roadSheenMesh);
 
     const laneMarkers = roadSegments.flatMap((segment) => {
       if (segment.roadClass === "local") {
@@ -1435,9 +1888,24 @@ export default function MapSimulatorSceneRuntime({
       emissive: 0x171b20,
       emissiveIntensity: 0.025,
     });
+    const buildingRoofMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf3f6f8,
+      emissive: 0x0f1520,
+      emissiveIntensity: 0.04,
+      transparent: true,
+      opacity: 0.18,
+      roughness: 0.72,
+      metalness: 0.06,
+      depthWrite: false,
+    });
     const buildingMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
       buildingMaterial,
+      buildingFeatures.length,
+    );
+    const buildingRoofMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      buildingRoofMaterial,
       buildingFeatures.length,
     );
 
@@ -1452,12 +1920,29 @@ export default function MapSimulatorSceneRuntime({
       dummy.updateMatrix();
       buildingMesh.setMatrixAt(index, dummy.matrix);
       buildingMesh.setColorAt(index, new THREE.Color(building.color));
+
+      dummy.position.set(
+        building.position.x,
+        building.height + 0.12,
+        building.position.z,
+      );
+      dummy.rotation.set(0, building.rotationY, 0);
+      dummy.scale.set(
+        Math.max(0.72, building.width * 0.92),
+        0.24,
+        Math.max(0.72, building.depth * 0.92),
+      );
+      dummy.updateMatrix();
+      buildingRoofMesh.setMatrixAt(index, dummy.matrix);
     });
     buildingMesh.instanceMatrix.needsUpdate = true;
     if (buildingMesh.instanceColor) {
       buildingMesh.instanceColor.needsUpdate = true;
     }
+    buildingRoofMesh.instanceMatrix.needsUpdate = true;
+    buildingRoofMesh.renderOrder = 8;
     scene.add(buildingMesh);
+    scene.add(buildingRoofMesh);
     const simulationTrailLayer = createVehicleTrailLayer({
       yOffset: 0.24,
       maxPoints: 34,
@@ -1510,11 +1995,11 @@ export default function MapSimulatorSceneRuntime({
     const applyDistrictPresentation = (mode: CameraMode) => {
       const isOverview = mode === "overview";
       dongMaterialsByName.forEach((material) => {
-        material.opacity = isOverview ? 0.05 : 0.024;
+        material.opacity = isOverview ? 0.09 : 0.05;
       });
-      dongBoundaryGlowMaterial.opacity = isOverview ? 0.2 : 0.13;
+      dongBoundaryGlowMaterial.opacity = isOverview ? 0.28 : 0.18;
       dongBoundaryLineMaterial.color.setHex(isOverview ? 0x93d7b7 : 0x7fc8a9);
-      dongBoundaryLineMaterial.opacity = isOverview ? 0.8 : 0.62;
+      dongBoundaryLineMaterial.opacity = isOverview ? 0.88 : 0.74;
       dongWallMaterial.opacity = 0.001;
     };
 
@@ -1531,6 +2016,9 @@ export default function MapSimulatorSceneRuntime({
     let activeHighlightedDongNames: string[] = [];
     const setBoundaryDongHighlight = (dongNames: string[]) => {
       const activeDongs = new Set(dongNames.filter(Boolean));
+      if (hasDemandDataRef.current && selectedDemandDongRef.current) {
+        activeDongs.add(selectedDemandDongRef.current);
+      }
       const previousDongs = activeHighlightedDongNames;
       if (
         previousDongs.length === activeDongs.size &&
@@ -2493,6 +2981,7 @@ export default function MapSimulatorSceneRuntime({
       latestSimulationSnapshot = snapshot;
       syncVehicleLayerFromSnapshot(snapshot.vehicles, interpolationAlpha);
       updateSignalVisuals(snapshot.signals, signalElapsedTime);
+      updateDemandMapLayer(signalElapsedTime);
       updateHotspotVisuals(snapshot.hotspots, signalElapsedTime);
       updatePedestrians(signalElapsedTime);
       commitSourceStats(snapshot.stats);
@@ -2674,6 +3163,15 @@ export default function MapSimulatorSceneRuntime({
       );
       const daylight = daylightFactor(dateIso, minutes, simulationData.center);
       const sunset = sunsetFactor(dateIso, minutes, simulationData.center);
+      const nightFactor = THREE.MathUtils.clamp((0.24 - daylight) / 0.24, 0, 1);
+      const rainFactor =
+        nextWeatherMode === "heavy-rain"
+          ? 1
+          : nextWeatherMode === "cloudy"
+            ? 0.34
+            : nextWeatherMode === "heavy-snow"
+              ? 0.18
+              : 0.06;
       const cloudVisibility =
         nextWeatherMode === "clear"
           ? 1
@@ -2700,6 +3198,8 @@ export default function MapSimulatorSceneRuntime({
       sun.intensity = environment.sunIntensity;
 
       groundMaterial.color.setHex(environment.groundColor);
+      groundMaterial.roughness = nextWeatherMode === "heavy-rain" ? 0.42 : 0.94;
+      groundMaterial.metalness = nextWeatherMode === "heavy-rain" ? 0.08 : 0.01;
       roadMaterials.arterial.color.setHex(environment.roadColors.arterial);
       roadMaterials.connector.color.setHex(environment.roadColors.connector);
       roadMaterials.local.color.setHex(environment.roadColors.local);
@@ -2721,6 +3221,40 @@ export default function MapSimulatorSceneRuntime({
       buildingMaterial.emissive.setHex(environment.buildingEmissive);
       buildingMaterial.emissiveIntensity =
         environment.buildingEmissiveIntensity;
+      buildingMaterial.roughness = nextWeatherMode === "heavy-rain" ? 0.84 : 0.98;
+      buildingMaterial.metalness = nextWeatherMode === "heavy-rain" ? 0.06 : 0.02;
+      roadSheenMaterial.color.setHex(
+        mixHexColor(
+          0xdfe8ef,
+          nextWeatherMode === "heavy-rain" ? 0x8fb7df : 0xc5d2de,
+          rainFactor * 0.76 + nightFactor * 0.16,
+        ),
+      );
+      roadSheenMaterial.opacity = THREE.MathUtils.clamp(
+        rainFactor * 0.22 + nightFactor * 0.05 + sunset * 0.04,
+        0.02,
+        0.26,
+      );
+      roadSheenMaterial.roughness =
+        nextWeatherMode === "heavy-rain" ? 0.08 : 0.24 + daylight * 0.1;
+      roadSheenMaterial.metalness =
+        nextWeatherMode === "heavy-rain" ? 0.14 : 0.05;
+      buildingRoofMaterial.color.setHex(
+        mixHexColor(
+          0xf3f6f8,
+          nextWeatherMode === "heavy-rain" ? 0x6b7886 : 0xaeb9c4,
+          nightFactor * 0.48 + rainFactor * 0.24,
+        ),
+      );
+      buildingRoofMaterial.emissive.setHex(
+        mixHexColor(0x121924, 0xffcf8c, nightFactor * 0.22),
+      );
+      buildingRoofMaterial.emissiveIntensity = 0.03 + nightFactor * 0.08;
+      buildingRoofMaterial.opacity = THREE.MathUtils.clamp(
+        0.14 + sunset * 0.05 + nightFactor * 0.08 + rainFactor * 0.03,
+        0.14,
+        0.28,
+      );
       if (crosswalkMaterial) {
         crosswalkMaterial.color.setHex(environment.crosswalkColor);
         crosswalkMaterial.emissive.setHex(environment.crosswalkEmissive);
@@ -3308,22 +3842,6 @@ export default function MapSimulatorSceneRuntime({
       markLabelVisibilityDirty();
     };
 
-    const controlKeyCodes = new Set([
-      "KeyW",
-      "KeyA",
-      "KeyQ",
-      "KeyS",
-      "KeyD",
-      "KeyE",
-      "KeyF",
-      "ShiftLeft",
-      "ShiftRight",
-      "ArrowUp",
-      "ArrowDown",
-      "ArrowLeft",
-      "ArrowRight",
-    ]);
-
     const isInteractiveTarget = (target: EventTarget | null) => {
       const element = target as HTMLElement | null;
       if (!element) {
@@ -3342,6 +3860,7 @@ export default function MapSimulatorSceneRuntime({
     const stopDragging = () => {
       cameraRig.dragging = false;
       cameraRig.pointerId = -1;
+      cameraRig.dragMode = "pan";
       renderer.domElement.style.cursor = "grab";
     };
 
@@ -3569,7 +4088,11 @@ export default function MapSimulatorSceneRuntime({
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.pointerType !== "touch" && event.button !== 0) {
+      if (
+        event.pointerType !== "touch" &&
+        event.button !== 0 &&
+        event.button !== 2
+      ) {
         return;
       }
       const rect = renderer.domElement.getBoundingClientRect();
@@ -3601,13 +4124,15 @@ export default function MapSimulatorSceneRuntime({
         markHoverDirty();
         return;
       }
+      event.preventDefault();
       cameraRig.dragging = true;
       cameraRig.pointerId = event.pointerId;
       cameraRig.pointerX = event.clientX;
       cameraRig.pointerY = event.clientY;
+      cameraRig.dragMode = event.button === 2 ? "orbit" : "pan";
       pointerDownClientX = event.clientX;
       pointerDownClientY = event.clientY;
-      pointerDragged = false;
+      pointerDragged = event.button === 2;
       renderer.domElement.style.cursor = "grabbing";
       markHoverDirty();
     };
@@ -3668,6 +4193,12 @@ export default function MapSimulatorSceneRuntime({
       ) {
         pointerDragged = true;
       }
+      if (cameraRig.dragMode === "pan") {
+        panCameraByScreenDelta(deltaX, deltaY);
+        syncCamera();
+        return;
+      }
+
       if (cameraModeRef.current === "follow") {
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
@@ -3675,6 +4206,7 @@ export default function MapSimulatorSceneRuntime({
       } else if (cameraModeRef.current === "ride") {
         return;
       } else {
+        enterTouchMapMode();
         cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
       }
       cameraRig.pitch = THREE.MathUtils.clamp(
@@ -3728,7 +4260,7 @@ export default function MapSimulatorSceneRuntime({
       if (event.pointerId !== cameraRig.pointerId) {
         return;
       }
-      const shouldTreatAsClick = !pointerDragged;
+      const shouldTreatAsClick = cameraRig.dragMode === "pan" && !pointerDragged;
       stopDragging();
       markHoverDirty();
       if (shouldTreatAsClick) {
@@ -3764,47 +4296,10 @@ export default function MapSimulatorSceneRuntime({
           event.preventDefault();
         }
         setCameraMode(rideExitModeRef.current);
-        return;
       }
-      if (event.code === "KeyF") {
-        if (!isInteractiveTarget(event.target)) {
-          event.preventDefault();
-        }
-        setShowFps((current) => !current);
-        return;
-      }
-      if (!controlKeyCodes.has(event.code)) {
-        return;
-      }
-      if (!isInteractiveTarget(event.target)) {
-        event.preventDefault();
-      }
-      if (
-        cameraModeRef.current === "overview" &&
-        (event.code === "KeyW" ||
-          event.code === "KeyA" ||
-          event.code === "KeyS" ||
-          event.code === "KeyD" ||
-          event.code === "ArrowUp" ||
-          event.code === "ArrowDown" ||
-          event.code === "ArrowLeft" ||
-          event.code === "ArrowRight")
-      ) {
-        cameraModeRef.current = "drive";
-        setCameraMode("drive");
-      }
-      pressedKeys.add(event.code);
-    };
-
-    const onKeyUp = (event: KeyboardEvent) => {
-      if (!controlKeyCodes.has(event.code)) {
-        return;
-      }
-      pressedKeys.delete(event.code);
     };
 
     const onWindowBlur = () => {
-      pressedKeys.clear();
       pointerInside = false;
       pointerDragged = false;
       activeTouchPointers.clear();
@@ -3836,7 +4331,6 @@ export default function MapSimulatorSceneRuntime({
     window.addEventListener("blur", onWindowBlur);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
     renderer.domElement.addEventListener("contextmenu", onContextMenu);
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
@@ -3950,7 +4444,7 @@ export default function MapSimulatorSceneRuntime({
         );
         resetSimulationSource(true);
       }
-      const currentMode = cameraModeRef.current;
+      let currentMode = cameraModeRef.current;
       if (currentMode !== activeCameraMode) {
         activeCameraMode = currentMode;
         applyModePreset(currentMode);
@@ -3963,6 +4457,27 @@ export default function MapSimulatorSceneRuntime({
       }
       syncPrecipitationDensity(currentMode);
       syncVehicleDensity();
+      const nextPitchControlVersion = cameraPitchControlRef.current.version;
+      const nextYawControlVersion = cameraYawControlRef.current.version;
+      const pitchControlChanged =
+        nextPitchControlVersion !== appliedPitchControlVersion;
+      const yawControlChanged = nextYawControlVersion !== appliedYawControlVersion;
+      if ((pitchControlChanged || yawControlChanged) && currentMode !== "ride") {
+        appliedPitchControlVersion = nextPitchControlVersion;
+        appliedYawControlVersion = nextYawControlVersion;
+        enterTouchMapMode();
+        currentMode = cameraModeRef.current;
+        cameraFocusTargetRef.current = null;
+        if (pitchControlChanged) {
+          cameraRig.pitch = pitchFromControlValue(
+            cameraPitchControlRef.current.value,
+          );
+        }
+        if (yawControlChanged) {
+          cameraRig.yaw = yawFromControlValue(cameraYawControlRef.current.value);
+        }
+        syncCamera();
+      }
 
       vehicleSimulationAccumulator = Math.min(
         vehicleSimulationAccumulator + delta,
@@ -4010,63 +4525,13 @@ export default function MapSimulatorSceneRuntime({
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const forwardInput =
-          Number(pressedKeys.has("KeyW") || pressedKeys.has("ArrowUp")) -
-          Number(pressedKeys.has("KeyS") || pressedKeys.has("ArrowDown"));
-        const strafeInput =
-          Number(pressedKeys.has("KeyD") || pressedKeys.has("ArrowRight")) -
-          Number(pressedKeys.has("KeyA") || pressedKeys.has("ArrowLeft"));
-        const turnInput =
-          Number(pressedKeys.has("KeyE")) - Number(pressedKeys.has("KeyQ"));
-        const boostScale =
-          pressedKeys.has("ShiftLeft") || pressedKeys.has("ShiftRight")
-            ? 1.8
-            : 1;
-        const moveSpeed =
-          CAMERA_DRIVE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
-        const strafeSpeed =
-          CAMERA_STRAFE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
-        const turnSpeed = CAMERA_TURN_SPEED * CAMERA_BASE_TURN_SCALE;
-
-        if (turnInput !== 0) {
-          cameraRig.yaw += turnInput * turnSpeed * delta;
-        }
-        if (forwardInput !== 0 || strafeInput !== 0) {
-          driveLookDirection.copy(cameraRig.focus).sub(camera.position).setY(0);
-          if (driveLookDirection.lengthSq() < 0.0001) {
-            driveLookDirection.set(
-              -Math.sin(cameraRig.yaw),
-              0,
-              -Math.cos(cameraRig.yaw),
-            );
-          }
-          driveLookDirection.normalize();
-          driveStrafeDirection.set(
-            -driveLookDirection.z,
-            0,
-            driveLookDirection.x,
-          ).normalize();
-          cameraRig.focus.addScaledVector(
-            driveStrafeDirection,
-            strafeInput * strafeSpeed * delta,
-          );
-          cameraRig.focus.addScaledVector(
-            driveLookDirection,
-            forwardInput * moveSpeed * delta,
-          );
-        }
         cameraRig.focus.y = THREE.MathUtils.damp(
           cameraRig.focus.y,
           0,
           4.6,
           delta,
         );
-        if (
-          forwardInput !== 0 ||
-          strafeInput !== 0 ||
-          turnInput !== 0 ||
-          cameraRig.dragging
-        ) {
+        if (cameraRig.dragging) {
           cameraFocusTargetRef.current = null;
         } else if (cameraFocusTargetRef.current) {
           const focusTarget = cameraFocusTargetRef.current;
@@ -4228,10 +4693,20 @@ export default function MapSimulatorSceneRuntime({
         const headingDeltaSq =
           (miniMapCameraDirection.x - lastMiniMapFocusReportHeadingX) ** 2 +
           (miniMapCameraDirection.z - lastMiniMapFocusReportHeadingZ) ** 2;
+        const nextPitchControlValue = pitchControlValueFromPitch(cameraRig.pitch);
+        const nextYawControlValue = yawControlValueFromYaw(cameraRig.yaw);
+        const pitchValueDelta = Math.abs(
+          nextPitchControlValue - lastMiniMapFocusReportPitchValue,
+        );
+        const yawValueDelta = Math.abs(
+          nextYawControlValue - lastMiniMapFocusReportYawValue,
+        );
         if (
           frameTimestamp - lastMiniMapFocusReportTimestamp > 240 &&
           (focusDeltaSq > 1.6 ||
             headingDeltaSq > 0.006 ||
+            pitchValueDelta > 0.5 ||
+            yawValueDelta > 0.5 ||
             nextMiniMapFocusLabel !== lastMiniMapFocusReportLabel)
         ) {
           lastMiniMapFocusReportTimestamp = frameTimestamp;
@@ -4239,6 +4714,8 @@ export default function MapSimulatorSceneRuntime({
           lastMiniMapFocusReportZ = nextMiniMapFocus.z;
           lastMiniMapFocusReportHeadingX = miniMapCameraDirection.x;
           lastMiniMapFocusReportHeadingZ = miniMapCameraDirection.z;
+          lastMiniMapFocusReportPitchValue = nextPitchControlValue;
+          lastMiniMapFocusReportYawValue = nextYawControlValue;
           lastMiniMapFocusReportLabel = nextMiniMapFocusLabel;
           onCameraFocusChange({
             x: nextMiniMapFocus.x,
@@ -4246,11 +4723,14 @@ export default function MapSimulatorSceneRuntime({
             label: nextMiniMapFocusLabel,
             headingX: miniMapCameraDirection.x,
             headingZ: miniMapCameraDirection.z,
+            pitchControlValue: nextPitchControlValue,
+            yawControlValue: nextYawControlValue,
           });
         }
       }
 
       const overlayCpuStart = performance.now();
+      updateDemandMapLayer(simulationSnapshot.clock.elapsedTimeSeconds);
       updateHotspotVisuals(
         simulationSnapshot.hotspots,
         simulationSnapshot.clock.elapsedTimeSeconds,
@@ -4421,7 +4901,6 @@ export default function MapSimulatorSceneRuntime({
     finalizeVehicleLayerSetup();
     window.addEventListener("pointerdown", markUserInteraction, true);
     window.addEventListener("wheel", markUserInteraction, true);
-    window.addEventListener("keydown", markUserInteraction, true);
     const cancelTaxiAssetLoadSchedule = scheduleDeferredAssetLoad(
       loadTaxiAssetInBackground,
       TAXI_ASSET_LOAD_DELAY_MS,
@@ -4441,9 +4920,7 @@ export default function MapSimulatorSceneRuntime({
       window.removeEventListener("wheel", markUserInteraction, true);
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("keydown", markUserInteraction, true);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
       resizeObserver?.disconnect();
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
@@ -4492,10 +4969,25 @@ export default function MapSimulatorSceneRuntime({
       disposeObject3DResources(transitGroup);
       simulationTrailLayer.clear();
       simulationTrailLayer.group.removeFromParent();
+      demandCorridorMesh.removeFromParent();
+      disposeObject3DResources(demandCorridorMesh);
+      demandAnchorColumnMesh.removeFromParent();
+      disposeObject3DResources(demandAnchorColumnMesh);
+      demandAnchorRingMesh.removeFromParent();
+      disposeObject3DResources(demandAnchorRingMesh);
+      demandBadgeLabel.removeFromParent();
+      demandPulseGroup.removeFromParent();
+      disposeObject3DResources(demandPulseGroup);
+      demandFloorGroup.removeFromParent();
+      disposeObject3DResources(demandFloorGroup);
+      dongFloorGroup.removeFromParent();
+      disposeObject3DResources(dongFloorGroup);
       staticRoadGroup.removeFromParent();
       disposeObject3DResources(staticRoadGroup);
       buildingMesh.removeFromParent();
       disposeObject3DResources(buildingMesh);
+      buildingRoofMesh.removeFromParent();
+      disposeObject3DResources(buildingRoofMesh);
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
@@ -4509,11 +5001,18 @@ export default function MapSimulatorSceneRuntime({
   }, [
     appliedTaxiCountRef,
     appliedTrafficCountRef,
+    cameraPitchControlRef,
+    cameraYawControlRef,
     cameraModeRef,
+    currentDemandVisualUnitsRef,
+    currentFiveMinuteDemandRef,
     data,
     fpsModeRef,
     followTaxiIdRef,
+    hasDemandDataRef,
     poiFeatureRowsRef,
+    selectedDemandDongRef,
+    selectedDemandScoreRef,
     simulationSource,
     showFpsRef,
     showLabelsRef,

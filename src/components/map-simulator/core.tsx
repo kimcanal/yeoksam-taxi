@@ -62,9 +62,21 @@ export const MAX_TAXI_COUNT = 24;
 export const MIN_TRAFFIC_COUNT = 8;
 export const MAX_TRAFFIC_COUNT = 36;
 export const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
+export const DEFAULT_CAMERA_PITCH_CONTROL_VALUE = 44;
+export const DEFAULT_CAMERA_YAW_CONTROL_VALUE = 321;
 export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
 export const TAXI_ASSET_IDLE_TIMEOUT_MS = 7_000;
+
+export type CameraPitchControlState = {
+  value: number;
+  version: number;
+};
+
+export type CameraYawControlState = {
+  value: number;
+  version: number;
+};
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -1026,19 +1038,19 @@ export const PANEL_EYEBROW_CLASS =
 export const PANEL_SECTION_LABEL_CLASS =
   "text-xs uppercase tracking-[0.16em] text-[#99cbbd]/80";
 export const PANEL_CARD_CLASS =
-  "rounded-2xl border border-white/8 bg-white/[0.045] p-4 text-sm";
+  "rounded-2xl border border-white/12 bg-white/[0.08] p-4 text-sm";
 export const PANEL_CARD_COMPACT_CLASS =
-  "rounded-2xl border border-white/8 bg-white/[0.045] p-3 text-sm";
+  "rounded-2xl border border-white/12 bg-white/[0.08] p-3 text-sm";
 export const PANEL_ACCENT_CARD_CLASS =
-  "rounded-2xl border border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] p-4 text-sm";
+  "rounded-2xl border border-[#87cbb0]/18 bg-[#87cbb0]/[0.10] p-4 text-sm";
 export const PANEL_INSET_CLASS =
-  "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-2 text-xs leading-5 text-slate-400";
+  "rounded-2xl border border-white/10 bg-slate-950/78 px-3 py-2 text-xs leading-5 text-slate-400";
 export const PANEL_INSET_PADDED_CLASS =
-  "rounded-2xl border border-white/8 bg-slate-950/55 px-3 py-3";
+  "rounded-2xl border border-white/10 bg-slate-950/78 px-3 py-3";
 export const PANEL_TOKEN_CLASS =
-  "inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/8 bg-slate-950/55 px-2 py-1 text-slate-100";
+  "inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/10 bg-slate-950/80 px-2 py-1 text-slate-100";
 export const PANEL_STATUS_TILE_CLASS =
-  "rounded-2xl border border-white/8 bg-slate-950/55 p-3";
+  "rounded-2xl border border-white/10 bg-slate-950/78 p-3";
 
 export function panelSelectableClass(selected: boolean) {
   return selected
