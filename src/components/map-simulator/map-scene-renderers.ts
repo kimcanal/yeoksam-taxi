@@ -2,10 +2,8 @@ import * as THREE from "three";
 import {
   CSS2DRenderer,
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import {
-  type CameraMode,
-  renderPixelRatioFor,
-} from "@/components/map-simulator/core";
+import type { CameraMode } from "@/components/map-simulator/camera-types";
+import { renderPixelRatioFor } from "@/components/map-simulator/render-budget-utils";
 
 export function createMapSceneRenderers({
   container,

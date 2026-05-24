@@ -39,9 +39,9 @@ yarn-error.log*
 /.claude/
 /.venv/
 dev-server.*.log
- /papers/
- /notebooks/
- /scripts/__pycache__/
+/papers/
+/notebooks/
+/scripts/__pycache__/
 
 # python cache
 __pycache__/

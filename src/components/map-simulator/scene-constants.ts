@@ -81,10 +81,6 @@ export const TAXI_VIEW_CAMERA_BACK_OFFSET = -10.5;
 export const TAXI_VIEW_CAMERA_SIDE_OFFSET = 0.5;
 export const TAXI_VIEW_LOOK_AHEAD = 18;
 export const TAXI_CLICK_MOVE_THRESHOLD = 8;
-export const LOCAL_SCENARIO_FOCUS_DISTANCE = 34;
-export const LOCAL_SCENARIO_FOCUS_PITCH = 0.34;
-export const LOCAL_SCENARIO_FOCUS_CENTER_BLEND = 0.3;
-export const LOCAL_SCENARIO_FOCUS_YAW_OFFSET = -0.76;
 
 // Render cadence trades visual smoothness against browser budget in heavy scenes.
 export const SHOW_DONG_BOUNDARIES = false;

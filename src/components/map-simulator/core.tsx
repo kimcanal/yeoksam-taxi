@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type {
@@ -10,18 +9,6 @@ import type {
   Point,
   Polygon,
 } from "geojson";
-import {
-  formatKstDateTime,
-  type WeatherMode,
-} from "@/components/map-simulator/simulation-environment";
-import type {
-  CameraMode,
-  FpsMode,
-} from "@/components/map-simulator/camera-types";
-import {
-  DEFAULT_TAXI_COUNT,
-  DEFAULT_TRAFFIC_COUNT,
-} from "@/components/map-simulator/simulation-defaults";
 import {
   approachDirectionForHeading,
   assignCoordinatedSignalOffsets,
@@ -108,23 +95,8 @@ import {
   visitGeometryPositions,
 } from "@/components/map-simulator/map-geometry-utils";
 import {
-  ASSET_FETCH_TIMEOUT_MS,
-  AUTO_REFRESH_BAND_HYSTERESIS_RATIO,
-  AUTO_RENDER_HALF_REFRESH_THRESHOLD,
-  COMMON_REFRESH_RATE_BANDS,
-  DRIVE_PIXEL_RATIO,
-  DRIVE_RENDER_FPS,
-  FOLLOW_PIXEL_RATIO,
-  FOLLOW_RENDER_FPS,
-  HIDDEN_PIXEL_RATIO,
   LARGE_LOW_RISE_BUILDING_AREA_M2,
   LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M,
-  LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
-  LOCAL_SCENARIO_FOCUS_DISTANCE,
-  LOCAL_SCENARIO_FOCUS_PITCH,
-  LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
-  OVERVIEW_PIXEL_RATIO,
-  OVERVIEW_RENDER_FPS,
   ROAD_LAYER_Y,
   ROAD_NETWORK_EDGE_Y_OFFSET,
   ROAD_NETWORK_NODE_Y,
@@ -248,9 +220,6 @@ export {
   wrapAngle,
   writeRightVector,
 };
-export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
-export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
-export const TAXI_ASSET_IDLE_TIMEOUT_MS = 7_000;
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -619,27 +588,6 @@ export type FpsStats = {
   vehicles: number;
 };
 
-export type LocalScenarioPreset = {
-  id: string;
-  label: string;
-  detail: string;
-  summary: string;
-  presentationNote: string;
-  speakerNotes: string[];
-  taxis: number;
-  traffic: number;
-  minutes: number;
-  weather: WeatherMode;
-  focusLabel: string;
-  focusStationKeyword?: string;
-  camera?: {
-    distance?: number;
-    pitch?: number;
-    focusCenterBlend?: number;
-    yawOffset?: number;
-  };
-};
-
 export type SceneStatus = "loading" | "rendering" | "ready" | "error";
 
 export type SimulationData = {
@@ -695,27 +643,6 @@ export type Hotspot = {
   roadName: string | null;
 };
 
-export type SimulationAssetKey = keyof SimulationMeta["assets"];
-
-export const SIMULATION_ASSET_LABELS: Array<{
-  key: SimulationAssetKey;
-  label: string;
-}> = [
-  { key: "dongs", label: "행정동" },
-  { key: "nonRoad", label: "비도로" },
-  { key: "roads", label: "도로" },
-  { key: "buildings", label: "건물" },
-  { key: "transit", label: "대중교통" },
-  { key: "taxiStands", label: "택시승차대" },
-  { key: "trafficSignals", label: "신호등" },
-  { key: "roadNetwork", label: "도로 그래프" },
-];
-
-export function assetFileName(path: string) {
-  const segments = path.split("/").filter(Boolean);
-  return segments[segments.length - 1] ?? path;
-}
-
 export function markMeshResourceSharing(
   mesh: THREE.Mesh,
   {
@@ -740,36 +667,6 @@ export function disposeMaterialResources(material: THREE.Material) {
     materialWithTextures[key]?.dispose?.();
   });
   material.dispose();
-}
-
-export function beginSuppressingFbxLoaderWarnings() {
-  if (fbxLoaderWarnSuppressionDepth === 0) {
-    originalConsoleWarnForFbxLoader = console.warn;
-    console.warn = (...args: unknown[]) => {
-      const first = args[0];
-      if (
-        typeof first === "string" &&
-        first.startsWith("THREE.FBXLoader:")
-      ) {
-        return;
-      }
-      originalConsoleWarnForFbxLoader?.(...args);
-    };
-  }
-
-  fbxLoaderWarnSuppressionDepth += 1;
-}
-
-export function endSuppressingFbxLoaderWarnings() {
-  if (fbxLoaderWarnSuppressionDepth === 0) {
-    return;
-  }
-
-  fbxLoaderWarnSuppressionDepth -= 1;
-  if (fbxLoaderWarnSuppressionDepth === 0 && originalConsoleWarnForFbxLoader) {
-    console.warn = originalConsoleWarnForFbxLoader;
-    originalConsoleWarnForFbxLoader = null;
-  }
 }
 
 export function pedestrianBodyMaterialFor(color: number) {
@@ -1192,410 +1089,6 @@ let PEDESTRIAN_FEET_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let CALLER_SHADOW_MATERIAL: THREE.MeshBasicMaterial | null = null;
 let CALLER_SHOES_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let CALLER_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
-let fbxLoaderWarnSuppressionDepth = 0;
-let originalConsoleWarnForFbxLoader: typeof console.warn | null = null;
-
-export function panelBadgeClass(active: boolean) {
-  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium ${
-    active
-      ? "border-[#87cbb0]/22 bg-[#87cbb0]/10 text-[#d7efe6]"
-      : "border-white/10 bg-slate-950/70 text-slate-300"
-  }`;
-}
-
-export function panelPillToggleClass(selected: boolean) {
-  return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 transition ${
-    selected
-      ? "border-[#87cbb0]/28 bg-[#87cbb0]/12 text-[#e1f1eb]"
-      : "border-[#87cbb0]/12 bg-[#87cbb0]/[0.06] text-[#c6ddd5] hover:border-[#87cbb0]/22 hover:bg-[#87cbb0]/10"
-  }`;
-}
-
-export function HoverInfo({
-  title,
-  children,
-  align = "left",
-}: {
-  title: string;
-  children: ReactNode;
-  align?: "left" | "right";
-}) {
-  return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
-        aria-label={`${title} 도움말`}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-slate-900/80 text-[11px] font-semibold text-slate-300 transition hover:border-[#87cbb0]/35 hover:text-[#d7efe6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#87cbb0]/35"
-      >
-        ?
-      </button>
-      <span
-        className={`pointer-events-none absolute ${align === "right" ? "right-0" : "left-0"} top-full z-30 mt-2 w-[220px] sm:w-[240px] translate-y-1 rounded-2xl border border-white/10 bg-slate-950/96 px-3 py-3 text-left opacity-0 shadow-xl transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100`}
-      >
-        <span className="block text-[10px] uppercase tracking-[0.16em] text-[#99cbbd]/80">
-          {title}
-        </span>
-        <span className="mt-1 block text-[11px] leading-5 text-slate-300">
-          {children}
-        </span>
-      </span>
-    </span>
-  );
-}
-
-export const LOCAL_SCENARIO_PRESETS: LocalScenarioPreset[] = [
-  {
-    id: "baseline",
-    label: "기본 시연",
-    detail: "정오 기준 기본 설명 장면",
-    summary: "강남역 코어 9개 동 OSM 레이어를 가장 중립적으로 설명하는 기준 장면입니다.",
-    presentationNote:
-      "행정동 범위, 도로 그래프, 기본 택시 흐름을 차분하게 소개할 때 쓰기 좋습니다.",
-    speakerNotes: [
-      "9개 실제 행정동과 OSM 도로를 기반으로 한 기본 디지털 트윈 장면입니다.",
-      "운영 신호 예측 이전에 공간 구조와 기본 주행 흐름을 설명할 때 가장 안정적입니다.",
-    ],
-    taxis: DEFAULT_TAXI_COUNT,
-    traffic: DEFAULT_TRAFFIC_COUNT,
-    minutes: 12 * 60,
-    weather: "clear",
-    focusLabel: "강남역",
-    focusStationKeyword: "강남",
-    camera: {
-      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
-      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
-      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
-      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
-    },
-  },
-  {
-    id: "gangnam-peak",
-    label: "강남역 퇴근 피크",
-    detail: "퇴근 시간대 역세권 피크",
-    summary:
-      "퇴근 시간대 강남역 주변의 높은 이동 수요와 택시 대응을 설명하는 피크 장면입니다.",
-    presentationNote:
-      "수요 집중이나 운영 대응 이야기를 꺼낼 때 가장 설명력이 좋은 프리셋입니다.",
-    speakerNotes: [
-      "강남역 퇴근 피크를 가정해 도로 점유와 택시 대응을 더 빽빽하게 보여줍니다.",
-      "피크 시간대에 신호와 차량 흐름이 어떻게 읽히는지 설명하기 좋습니다.",
-    ],
-    taxis: 16,
-    traffic: 24,
-    minutes: 18 * 60 + 30,
-    weather: "clear",
-    focusLabel: "강남역",
-    focusStationKeyword: "강남",
-    camera: {
-      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
-      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
-      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
-      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
-    },
-  },
-  {
-    id: "rainy-evening",
-    label: "우천 피크",
-    detail: "비 오는 저녁 보수 주행",
-    summary:
-      "우천 조건에서 보수적으로 움직이는 택시와 더 무거워진 저녁 흐름을 보여주는 장면입니다.",
-    presentationNote:
-      "날씨가 시야와 이동 흐름에 어떻게 영향을 주는지 말할 때 자연스럽게 이어집니다.",
-    speakerNotes: [
-      "날씨를 붙이면 같은 도로망 위에서도 체감 흐름과 시각 밀도가 달라집니다.",
-      "우천 상황에서 저녁 수요를 어떻게 읽을지 보여주는 설명용 프리셋입니다.",
-    ],
-    taxis: 18,
-    traffic: 26,
-    minutes: 19 * 60,
-    weather: "heavy-rain",
-    focusLabel: "강남역",
-    focusStationKeyword: "강남",
-    camera: {
-      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
-      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
-      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
-      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
-    },
-  },
-  {
-    id: "late-night",
-    label: "심야 순환",
-    detail: "교통이 풀린 야간 순환",
-    summary:
-      "일반 교통이 줄어든 뒤 택시 순환성과 심야 분위기가 더 잘 읽히는 장면입니다.",
-    presentationNote:
-      "낮/퇴근 피크와 대비되는 안정적인 야간 상태를 보여주기에 적합합니다.",
-    speakerNotes: [
-      "심야에는 일반 교통이 줄어들어 택시 순환성과 장면 가독성이 더 또렷해집니다.",
-      "낮과 피크 시간대 대비용으로 보여주기 좋은 안정 상태 프리셋입니다.",
-    ],
-    taxis: 10,
-    traffic: 10,
-    minutes: 23 * 60 + 20,
-    weather: "cloudy",
-    focusLabel: "역삼역 권역",
-    focusStationKeyword: "역삼",
-    camera: {
-      distance: LOCAL_SCENARIO_FOCUS_DISTANCE,
-      pitch: LOCAL_SCENARIO_FOCUS_PITCH,
-      focusCenterBlend: LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
-      yawOffset: LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
-    },
-  },
-];
-
-export function taxiDisplayNumber(vehicleId: string) {
-  const matched = vehicleId.match(/(\d+)$/);
-  return matched ? Number(matched[1]) + 1 : null;
-}
-
-export function formatHotspotTaxiBadge(baseLabel: string, taxiNumbers: number[]) {
-  if (!taxiNumbers.length) {
-    return baseLabel;
-  }
-
-  const uniqueTaxiNumbers = [...new Set(taxiNumbers)].sort((left, right) => left - right);
-  const visibleTaxiNumbers = uniqueTaxiNumbers.slice(0, 3).join(", ");
-  const overflowCount = uniqueTaxiNumbers.length - 3;
-  return `${baseLabel} · 택시 ${visibleTaxiNumbers}${overflowCount > 0 ? ` +${overflowCount}` : ""}`;
-}
-
-export async function fetchJsonAsset<T>(
-  path: string,
-  countResolver: (data: T) => number,
-): Promise<{ data: T; meta: AssetMeta }> {
-  const controller = new AbortController();
-  const timeoutId = globalThis.setTimeout(() => {
-    controller.abort();
-  }, ASSET_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(path, {
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to load ${path}: ${response.status}`);
-    }
-
-    const data = (await response.json()) as T;
-    return {
-      data,
-      meta: {
-        path,
-        lastModified: formatKstDateTime(
-          response.headers.get("last-modified") ?? "",
-        ),
-        featureCount: countResolver(data),
-      },
-    };
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        `Timed out loading ${path} after ${Math.round(ASSET_FETCH_TIMEOUT_MS / 1000)}s`,
-      );
-    }
-    throw error;
-  } finally {
-    globalThis.clearTimeout(timeoutId);
-  }
-}
-
-export async function fetchGeoJsonAsset<T extends FeatureCollection>(
-  path: string,
-): Promise<{ data: T; meta: AssetMeta }> {
-  return fetchJsonAsset<T>(path, (data) =>
-    Array.isArray(data.features) ? data.features.length : 0,
-  );
-}
-
-export async function fetchOptionalGeoJsonAsset<T extends FeatureCollection>(
-  path: string,
-  label: string,
-) {
-  try {
-    return await fetchGeoJsonAsset<T>(path);
-  } catch (error) {
-    console.warn(`Skipping optional ${label} asset.`, error);
-    return null;
-  }
-}
-
-export async function fetchRoadNetworkAsset(path: string) {
-  try {
-    return await fetchJsonAsset<SerializedRoadNetwork>(
-      path,
-      (data) => data.stats.segmentCount,
-    );
-  } catch (error) {
-    console.warn("Falling back to client-side road-graph build.", error);
-    return null;
-  }
-}
-
-export function renderFpsCapFor(mode: CameraMode) {
-  switch (mode) {
-    case "overview":
-      return OVERVIEW_RENDER_FPS;
-    case "follow":
-    case "ride":
-      return FOLLOW_RENDER_FPS;
-    default:
-      return DRIVE_RENDER_FPS;
-  }
-}
-
-export function nearestRefreshRateBand(refreshRateEstimate: number) {
-  return COMMON_REFRESH_RATE_BANDS.reduce<number>(
-    (closest, candidate) =>
-      Math.abs(candidate - refreshRateEstimate) <
-        Math.abs(closest - refreshRateEstimate)
-        ? candidate
-        : closest,
-    COMMON_REFRESH_RATE_BANDS[0],
-  );
-}
-
-export function stabilizeRefreshRateBand(
-  refreshRateEstimate: number,
-  currentBand: number | null,
-) {
-  if (currentBand !== null) {
-    const keepTolerance = Math.max(
-      4,
-      currentBand * AUTO_REFRESH_BAND_HYSTERESIS_RATIO,
-    );
-    if (Math.abs(refreshRateEstimate - currentBand) <= keepTolerance) {
-      return currentBand;
-    }
-  }
-
-  return nearestRefreshRateBand(refreshRateEstimate);
-}
-
-export function autoRenderFpsFor(
-  mode: CameraMode,
-  refreshRateEstimate: number | null,
-) {
-  const baseCap = renderFpsCapFor(mode);
-  if (refreshRateEstimate === null) {
-    return baseCap;
-  }
-
-  if (refreshRateEstimate >= AUTO_RENDER_HALF_REFRESH_THRESHOLD) {
-    return Math.round(refreshRateEstimate / 2);
-  }
-
-  return Math.round(refreshRateEstimate);
-}
-
-export function resolveRenderCap(
-  mode: CameraMode,
-  fpsMode: FpsMode,
-  refreshRateEstimate: number | null,
-) {
-  switch (fpsMode) {
-    case "unlimited":
-      return null;
-    case "fixed60":
-      return 60;
-    default:
-      return autoRenderFpsFor(mode, refreshRateEstimate);
-  }
-}
-
-export function renderCapLabel(
-  cap: number | null,
-  isHidden: boolean,
-  fpsMode: FpsMode,
-) {
-  if (isHidden && cap !== null) {
-    return `${Math.round(cap)} FPS (백그라운드)`;
-  }
-
-  if (fpsMode === "unlimited" || cap === null) {
-    return "무제한";
-  }
-
-  return `${Math.round(cap)} FPS`;
-}
-
-export function fpsModeSummary(fpsMode: FpsMode) {
-  switch (fpsMode) {
-    case "fixed60":
-      return "보이는 렌더링을 60 FPS에 고정합니다.";
-    case "unlimited":
-      return "장치 한계에 닿을 때까지 보이는 렌더링 제한을 풀어둡니다.";
-    default:
-      return "자동 모드는 가장 가까운 주사율 대역에 맞춘 뒤, 100Hz 미만은 전체 주사율, 100Hz 이상은 절반 주사율을 목표로 잡습니다.";
-  }
-}
-
-export function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
-  if (isHidden) {
-    return HIDDEN_PIXEL_RATIO;
-  }
-
-  switch (mode) {
-    case "overview":
-      return OVERVIEW_PIXEL_RATIO;
-    case "follow":
-    case "ride":
-      return FOLLOW_PIXEL_RATIO;
-    default:
-      return DRIVE_PIXEL_RATIO;
-  }
-}
-
-export function precipitationDrawRatioFor(mode: CameraMode, isHidden: boolean) {
-  if (isHidden) {
-    return 0.35;
-  }
-
-  switch (mode) {
-    case "overview":
-      return 0.58;
-    case "drive":
-      return 0.82;
-    case "ride":
-      return 0.9;
-    default:
-      return 1;
-  }
-}
-
-export function labelVisibilityBudget(mode: CameraMode) {
-  switch (mode) {
-    case "overview":
-      return {
-        districtLimit: 9,
-        districtDistanceSq: 420 * 420,
-        optionalLimit: 16,
-        optionalDistanceSq: 250 * 250,
-      };
-    case "follow":
-      return {
-        districtLimit: 5,
-        districtDistanceSq: 250 * 250,
-        optionalLimit: 10,
-        optionalDistanceSq: 190 * 190,
-      };
-    case "ride":
-      return {
-        districtLimit: 3,
-        districtDistanceSq: 170 * 170,
-        optionalLimit: 5,
-        optionalDistanceSq: 130 * 130,
-      };
-    default:
-      return {
-        districtLimit: 4,
-        districtDistanceSq: 220 * 220,
-        optionalLimit: 8,
-        optionalDistanceSq: 170 * 170,
-      };
-  }
-}
 
 export function averagePoint(points: THREE.Vector3[]) {
   if (!points.length) {
@@ -3940,51 +3433,6 @@ export function buildTaxiStandHotspots(
       } satisfies Hotspot;
     })
     .filter(Boolean) as Hotspot[];
-}
-
-export async function loadVehicleAssetTemplate(
-  path: string,
-  timeoutMs = ASSET_FETCH_TIMEOUT_MS,
-) {
-  const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
-  const loader = new FBXLoader();
-
-  return new Promise<THREE.Group>((resolve, reject) => {
-    beginSuppressingFbxLoaderWarnings();
-    let settled = false;
-    let timeoutId = 0;
-
-    const finish = (callback: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      window.clearTimeout(timeoutId);
-      endSuppressingFbxLoaderWarnings();
-      callback();
-    };
-
-    timeoutId = window.setTimeout(() => {
-      finish(() => {
-        reject(new Error(`Timed out loading vehicle asset: ${path}`));
-      });
-    }, timeoutMs);
-
-    loader.load(
-      path,
-      (object) => {
-        finish(() => {
-          resolve(object);
-        });
-      },
-      undefined,
-      (error) => {
-        finish(() => {
-          reject(error);
-        });
-      },
-    );
-  });
 }
 
 export function normalizeVehicleAssetTemplate(

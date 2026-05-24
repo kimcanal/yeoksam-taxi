@@ -52,6 +52,25 @@ import {
   VEHICLE_SIMULATION_STEP,
 } from "@/components/map-simulator/scene-constants";
 import {
+  pitchControlValueFromPitch,
+  pitchFromControlValue,
+  yawControlValueFromYaw,
+  yawFromControlValue,
+} from "@/components/map-simulator/camera-control-utils";
+import {
+  labelVisibilityBudget,
+  precipitationDrawRatioFor,
+  renderPixelRatioFor,
+  resolveRenderCap,
+  stabilizeRefreshRateBand,
+} from "@/components/map-simulator/render-budget-utils";
+import {
+  KAKAO_TAXI_ASSET_PATH,
+  TAXI_ASSET_IDLE_TIMEOUT_MS,
+  TAXI_ASSET_LOAD_DELAY_MS,
+  loadVehicleAssetTemplate,
+} from "@/components/map-simulator/vehicle-asset-loader";
+import {
   BaseCameraMode,
   CameraMode,
   CameraPitchControlState,
@@ -64,7 +83,6 @@ import {
   Hotspot,
   HotspotMarkerMode,
   HotspotVisual,
-  KAKAO_TAXI_ASSET_PATH,
   LabelDistanceEntry,
   PedestrianVisual,
   RouteTemplate,
@@ -77,8 +95,6 @@ import {
   Stats,
   SceneStatus,
   SimulationData,
-  TAXI_ASSET_IDLE_TIMEOUT_MS,
-  TAXI_ASSET_LOAD_DELAY_MS,
   Vehicle,
   boundaryHintElement,
   buildRoadNetworkOverlay,
@@ -96,19 +112,13 @@ import {
   dongShapeFromRing,
   hotspotCallElement,
   labelElement,
-  labelVisibilityBudget,
-  loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
   offsetToRight,
-  precipitationDrawRatioFor,
   projectPoint,
-  renderPixelRatioFor,
-  resolveRenderCap,
   sampleRoute,
   setTaxiAppearance,
   shapesOfNonRoadFeature,
   signalState,
-  stabilizeRefreshRateBand,
   syncVehicleTransform,
   wrapAngle,
 } from "@/components/map-simulator/core";
@@ -387,29 +397,6 @@ export default function MapSimulatorSceneRuntime({
     const labelDistanceEntries: LabelDistanceEntry[] = [];
     let appliedPitchControlVersion = cameraPitchControlRef.current.version;
     let appliedYawControlVersion = cameraYawControlRef.current.version;
-
-    const pitchControlValueFromPitch = (pitch: number) =>
-      THREE.MathUtils.clamp(
-        ((pitch - CAMERA_MIN_PITCH) / (CAMERA_MAX_PITCH - CAMERA_MIN_PITCH)) *
-          100,
-        0,
-        100,
-      );
-
-    const pitchFromControlValue = (value: number) =>
-      THREE.MathUtils.lerp(
-        CAMERA_MIN_PITCH,
-        CAMERA_MAX_PITCH,
-        THREE.MathUtils.clamp(value / 100, 0, 1),
-      );
-    const yawControlValueFromYaw = (yaw: number) =>
-      THREE.MathUtils.clamp(
-        THREE.MathUtils.radToDeg((wrapAngle(yaw) + Math.PI * 2) % (Math.PI * 2)),
-        0,
-        359,
-      );
-    const yawFromControlValue = (value: number) =>
-      THREE.MathUtils.degToRad(THREE.MathUtils.clamp(value, 0, 359));
 
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
