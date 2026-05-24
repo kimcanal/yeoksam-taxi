@@ -76,6 +76,7 @@ import {
   createPedestrianGroup,
 } from "@/components/map-simulator/actor-group-factory";
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
+import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
   BaseCameraMode,
   CameraMode,
@@ -105,7 +106,6 @@ import {
   boundaryHintElement,
   buildRoadNetworkOverlay,
   copyVehicleMotionState,
-  createSubwayStationStructure,
   createVehicleMotionState,
   curbsideLaneOffset,
   dampAngle,
