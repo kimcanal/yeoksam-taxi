@@ -3,7 +3,7 @@ import { markMeshResourceSharing } from "@/components/map-simulator/object-resou
 import {
   type VehicleKind,
   type VehiclePalette,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import {
   sharedImportedTaxiClickTargetGeometry,
   sharedImportedTaxiShadowGeometry,

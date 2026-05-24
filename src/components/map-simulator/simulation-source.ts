@@ -18,7 +18,7 @@ import type {
   VehicleKind,
   VehiclePalette,
   VehiclePlanMode,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export type SimulationClock = {
   elapsedTimeSeconds: number;

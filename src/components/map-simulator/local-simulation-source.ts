@@ -47,7 +47,7 @@ import {
   type Stats,
   type Vehicle,
   type VehicleMotionState,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import {
   assignVehicleRoute,
   updateVehicleMotionState,

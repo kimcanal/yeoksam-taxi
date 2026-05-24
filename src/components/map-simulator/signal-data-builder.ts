@@ -27,7 +27,7 @@ import {
   type SignalData,
   type SignalDirection,
   type TrafficSignalFeatureCollection,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 function buildFallbackSignals(
   roads: RoadFeatureCollection,

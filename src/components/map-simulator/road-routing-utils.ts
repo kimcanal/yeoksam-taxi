@@ -22,7 +22,7 @@ import {
   type SignalData,
   type StopMarker,
   type TurnRestriction,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import { dominantAxis } from "@/components/map-simulator/signal-controller";
 
 function roadTravelCost(roadClass: RoadProperties["roadClass"]) {

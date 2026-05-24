@@ -15,7 +15,7 @@ import type {
   DongBoundarySegment,
   DongFeatureCollection,
   DongRegion,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
 

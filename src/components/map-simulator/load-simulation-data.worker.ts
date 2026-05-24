@@ -45,7 +45,7 @@ import {
   type TaxiStandFeatureCollection,
   type TrafficSignalFeatureCollection,
   type TransitFeatureCollection,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import { serializeSimulationData } from "@/components/map-simulator/simulation-data-serialization";
 import { fetchCachedJsonAsset } from "@/components/map-simulator/static-asset-cache";
 

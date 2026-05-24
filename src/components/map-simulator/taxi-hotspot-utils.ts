@@ -11,7 +11,7 @@ import {
   type RouteTemplate,
   type SignalData,
   type TaxiStandLandmark,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 function hotspotLabelForRoute(
   route: RouteTemplate,

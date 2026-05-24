@@ -12,7 +12,7 @@ import {
   type TaxiStandLandmark,
   type TransitFeatureCollection,
   type TransitLandmark,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 function filterTransitBySpacing(
   landmarks: TransitLandmark[],

@@ -1,13 +1,13 @@
 import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
 import { HYDRATION_SAFE_SIMULATION_CLOCK } from "@/components/map-simulator/simulation-environment";
+import type { CameraMode } from "@/components/map-simulator/camera-types";
 import type {
-  CameraMode,
   CircumstanceMode,
   FpsStats,
   SceneStatus,
   SimulationData,
   Stats,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
 import {
   createFieldSetter,

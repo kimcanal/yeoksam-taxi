@@ -12,7 +12,7 @@ import {
 import type {
   RouteTemplate,
   Vehicle,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export function setTaxiAppearance(vehicle: Vehicle) {
   if (vehicle.kind !== "taxi") {

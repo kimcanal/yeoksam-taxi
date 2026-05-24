@@ -93,14 +93,16 @@ import {
   HOTSPOT_IDLE_COLORS,
   HOTSPOT_PRESENTATION,
 } from "@/components/map-simulator/hotspot-presentation";
-import {
+import type {
   BaseCameraMode,
+  CameraFocusTarget,
   CameraMode,
   CameraPitchControlState,
-  CameraFocusTarget,
   CameraYawControlState,
-  DongBoundarySegment,
   FpsMode,
+} from "@/components/map-simulator/camera-types";
+import type {
+  DongBoundarySegment,
   Hotspot,
   HotspotMarkerMode,
   HotspotVisual,
@@ -117,19 +119,23 @@ import {
   SceneStatus,
   SimulationData,
   Vehicle,
+} from "@/components/map-simulator/map-simulator-types";
+import {
   copyVehicleMotionState,
   createVehicleMotionState,
   curbsideLaneOffset,
   dampAngle,
   distanceXZ,
   offsetToRight,
-  projectPoint,
   sampleRoute,
-  shapesOfNonRoadFeature,
-  signalState,
   wrapAngle,
-} from "@/components/map-simulator/core";
-import { dongShapeFromRing } from "@/components/map-simulator/map-geometry-utils";
+} from "@/components/map-simulator/route-motion-utils";
+import { signalState } from "@/components/map-simulator/signal-controller";
+import {
+  dongShapeFromRing,
+  projectPoint,
+  shapesOfNonRoadFeature,
+} from "@/components/map-simulator/map-geometry-utils";
 import {
   createMapSceneBase,
   createMapSceneLights,
