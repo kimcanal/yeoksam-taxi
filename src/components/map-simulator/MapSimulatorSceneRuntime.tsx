@@ -82,6 +82,7 @@ import {
   setTaxiAppearance,
   syncVehicleTransform,
 } from "@/components/map-simulator/vehicle-runtime-utils";
+import { dongContainsPoint } from "@/components/map-simulator/map-region-utils";
 import {
   boundaryHintElement,
   hotspotCallElement,
@@ -119,7 +120,6 @@ import {
   curbsideLaneOffset,
   dampAngle,
   distanceXZ,
-  dongContainsPoint,
   offsetToRight,
   projectPoint,
   sampleRoute,

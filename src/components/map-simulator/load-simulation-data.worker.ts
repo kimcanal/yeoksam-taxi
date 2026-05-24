@@ -1,15 +1,17 @@
 import { formatKstDateTime } from "@/components/map-simulator/simulation-environment";
 import { SHOW_DONG_BOUNDARIES } from "@/components/map-simulator/scene-constants";
 import {
+  buildBuildingMasses,
+  buildDongBoundarySegments,
+  buildDongRegions,
+} from "@/components/map-simulator/map-region-utils";
+import {
   DEFAULT_MAP_CENTER,
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
   EMPTY_TAXI_STAND_FEATURE_COLLECTION,
   EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
   MAX_TAXI_COUNT,
   MAX_TRAFFIC_COUNT,
-  buildBuildingMasses,
-  buildDongBoundarySegments,
-  buildDongRegions,
   buildLoopRoutes,
   buildProjectedRoadSegments,
   buildRoadGraph,
