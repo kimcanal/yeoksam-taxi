@@ -78,6 +78,11 @@ import {
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
+  boundaryHintElement,
+  hotspotCallElement,
+  labelElement,
+} from "@/components/map-simulator/scene-label-elements";
+import {
   BaseCameraMode,
   CameraMode,
   CameraPitchControlState,
@@ -103,7 +108,6 @@ import {
   SceneStatus,
   SimulationData,
   Vehicle,
-  boundaryHintElement,
   buildRoadNetworkOverlay,
   copyVehicleMotionState,
   createVehicleMotionState,
@@ -113,8 +117,6 @@ import {
   disposeObject3DResources,
   dongContainsPoint,
   dongShapeFromRing,
-  hotspotCallElement,
-  labelElement,
   offsetToRight,
   projectPoint,
   sampleRoute,
