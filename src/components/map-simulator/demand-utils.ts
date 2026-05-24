@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import poiConfig from "@/components/map-simulator/config/gangnam-pois.json";
-import type { SimulationData } from "@/components/map-simulator/core";
+import type { SimulationData } from "@/components/map-simulator/map-simulator-types";
 import { MAX_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
 import { projectPoint } from "@/components/map-simulator/map-geometry-utils";
 import {

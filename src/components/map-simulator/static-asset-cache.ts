@@ -1,4 +1,4 @@
-import type { AssetMeta } from "@/components/map-simulator/core";
+import type { AssetMeta } from "@/components/map-simulator/map-simulator-types";
 
 type CachedAssetRecord = {
   path: string;

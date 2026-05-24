@@ -1,4 +1,4 @@
-import type { SimulationData } from "@/components/map-simulator/core";
+import type { SimulationData } from "@/components/map-simulator/map-simulator-types";
 import { deserializeSimulationData } from "@/components/map-simulator/simulation-data-serialization";
 
 type LoadSimulationDataOptions = {

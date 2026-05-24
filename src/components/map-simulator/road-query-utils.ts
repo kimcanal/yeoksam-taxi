@@ -9,7 +9,7 @@ import type {
   RoadSegmentSpatialIndex,
   RouteNode,
   TurnMovement,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 const nearestRoadDelta = new THREE.Vector3();
 const nearestRoadOffset = new THREE.Vector3();

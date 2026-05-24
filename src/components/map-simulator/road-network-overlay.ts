@@ -4,7 +4,7 @@ import {
   ROAD_NETWORK_EDGE_Y_OFFSET,
   ROAD_NETWORK_NODE_Y,
 } from "@/components/map-simulator/scene-constants";
-import type { RoadGraph } from "@/components/map-simulator/core";
+import type { RoadGraph } from "@/components/map-simulator/map-simulator-types";
 
 export function buildRoadNetworkOverlay(graph: RoadGraph) {
   const group = new THREE.Group();

@@ -14,7 +14,7 @@ import type {
   VehicleMotionState,
   VehicleProximityBuckets,
   VehicleSimulationSample,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
   return Math.hypot(end.x - start.x, end.z - start.z);

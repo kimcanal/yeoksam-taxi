@@ -19,7 +19,7 @@ import type {
   SignalTimingPlan,
   SignalTurnDemand,
   StopMarker,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export function signalVectorForDirection(direction: SignalDirection) {
   switch (direction) {

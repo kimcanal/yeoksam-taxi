@@ -21,7 +21,7 @@ import type {
   RoadFeature,
   RoadFeatureCollection,
   RoadSegmentSpatialIndex,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export function geoKey(position: Position) {
   return `${position[0].toFixed(5)}:${position[1].toFixed(5)}`;

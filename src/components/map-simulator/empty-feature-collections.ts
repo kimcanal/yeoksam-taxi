@@ -2,7 +2,7 @@ import type {
   NonRoadFeatureCollection,
   TaxiStandFeatureCollection,
   TrafficSignalFeatureCollection,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
   type: "FeatureCollection",

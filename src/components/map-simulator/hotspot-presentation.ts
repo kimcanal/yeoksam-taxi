@@ -1,7 +1,7 @@
 import type {
   HotspotMarkerMode,
   HotspotPresentation,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export const HOTSPOT_PRESENTATION: Record<HotspotMarkerMode, HotspotPresentation> = {
   pickup: {

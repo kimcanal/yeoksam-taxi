@@ -1,4 +1,4 @@
-import type { SimulationData } from "@/components/map-simulator/core";
+import type { SimulationData } from "@/components/map-simulator/map-simulator-types";
 
 export type MapPoiFeatureRow = {
   poi_code: string;

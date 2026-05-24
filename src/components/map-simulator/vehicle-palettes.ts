@@ -1,4 +1,4 @@
-import type { VehiclePalette } from "@/components/map-simulator/core";
+import type { VehiclePalette } from "@/components/map-simulator/map-simulator-types";
 
 export const TRAFFIC_PALETTES: VehiclePalette[] = [
   { body: 0xf4f5f7, cabin: 0xdce7f0, sign: null },
