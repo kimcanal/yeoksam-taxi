@@ -71,6 +71,7 @@ import {
   loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
 } from "@/components/map-simulator/vehicle-asset-loader";
+import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import {
   BaseCameraMode,
   CameraMode,
@@ -103,7 +104,6 @@ import {
   createCallerGroup,
   createPedestrianGroup,
   createSubwayStationStructure,
-  createVehicleGroup,
   createVehicleMotionState,
   curbsideLaneOffset,
   dampAngle,
