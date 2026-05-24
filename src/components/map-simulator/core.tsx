@@ -207,6 +207,11 @@ export {
   wrapAngle,
   writeRightVector,
 };
+export {
+  EMPTY_NON_ROAD_FEATURE_COLLECTION,
+  EMPTY_TAXI_STAND_FEATURE_COLLECTION,
+  EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
+} from "@/components/map-simulator/empty-feature-collections";
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -599,22 +604,6 @@ export type SimulationData = {
   trafficRoutePool: RouteTemplate[];
   hotspotPool: Hotspot[];
   meta: SimulationMeta;
-};
-
-export const EMPTY_NON_ROAD_FEATURE_COLLECTION: NonRoadFeatureCollection = {
-  type: "FeatureCollection",
-  features: [],
-};
-
-export const EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION: TrafficSignalFeatureCollection =
-{
-  type: "FeatureCollection",
-  features: [],
-};
-
-export const EMPTY_TAXI_STAND_FEATURE_COLLECTION: TaxiStandFeatureCollection = {
-  type: "FeatureCollection",
-  features: [],
 };
 
 export type Hotspot = {

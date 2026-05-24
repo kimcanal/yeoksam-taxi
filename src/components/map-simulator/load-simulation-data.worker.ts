@@ -20,16 +20,22 @@ import {
   buildTaxiHotspots,
   buildTaxiStandHotspots,
 } from "@/components/map-simulator/taxi-hotspot-utils";
+import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/map-defaults";
 import {
-  DEFAULT_MAP_CENTER,
+  MAX_TAXI_COUNT,
+  MAX_TRAFFIC_COUNT,
+} from "@/components/map-simulator/simulation-defaults";
+import {
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
   EMPTY_TAXI_STAND_FEATURE_COLLECTION,
   EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
-  MAX_TAXI_COUNT,
-  MAX_TRAFFIC_COUNT,
+} from "@/components/map-simulator/empty-feature-collections";
+import {
   buildProjectedRoadSegments,
   buildRoadSegmentSpatialIndex,
   featureCollectionCenter,
+} from "@/components/map-simulator/map-geometry-utils";
+import {
   type BuildingFeatureCollection,
   type DongFeatureCollection,
   type NonRoadFeatureCollection,

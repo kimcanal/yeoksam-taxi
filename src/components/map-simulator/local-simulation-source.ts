@@ -15,6 +15,28 @@ import {
 } from "@/components/map-simulator/scene-constants";
 import { TRAFFIC_PALETTES } from "@/components/map-simulator/vehicle-palettes";
 import {
+  createSignalApproachDemand,
+  createSignalApproachDistance,
+  createSignalAxisOccupancy,
+  createSignalDirectionalOccupancy,
+  canVehicleProceed,
+  signalState,
+  signalDirectionForVector,
+  dominantAxisForHeading,
+  approachDirectionForHeading,
+  opposingSignalDirection,
+} from "@/components/map-simulator/signal-controller";
+import {
+  clampRouteDistance,
+  copyVehicleMotionState,
+  createNextStopState,
+  createVehicleMotionState,
+  resolveNextStop,
+  resolveNextStopInto,
+  routeSegmentIndexAtDistance,
+  vehicleProximityCellCoord,
+} from "@/components/map-simulator/route-motion-utils";
+import {
   type NextStopState,
   type SignalApproachDemand,
   type SignalApproachDistance,
@@ -25,24 +47,6 @@ import {
   type Stats,
   type Vehicle,
   type VehicleMotionState,
-  createNextStopState,
-  createSignalApproachDemand,
-  createSignalApproachDistance,
-  createSignalAxisOccupancy,
-  createSignalDirectionalOccupancy,
-  createVehicleMotionState,
-  clampRouteDistance,
-  copyVehicleMotionState,
-  canVehicleProceed,
-  resolveNextStop,
-  resolveNextStopInto,
-  routeSegmentIndexAtDistance,
-  signalState,
-  signalDirectionForVector,
-  dominantAxisForHeading,
-  approachDirectionForHeading,
-  opposingSignalDirection,
-  vehicleProximityCellCoord,
 } from "@/components/map-simulator/core";
 import {
   assignVehicleRoute,
