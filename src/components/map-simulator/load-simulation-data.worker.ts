@@ -5,6 +5,7 @@ import {
   buildDongBoundarySegments,
   buildDongRegions,
 } from "@/components/map-simulator/map-region-utils";
+import { buildSignals } from "@/components/map-simulator/signal-data-builder";
 import {
   DEFAULT_MAP_CENTER,
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
@@ -16,7 +17,6 @@ import {
   buildProjectedRoadSegments,
   buildRoadGraph,
   buildRoadSegmentSpatialIndex,
-  buildSignals,
   buildTaxiHotspots,
   buildTaxiStandHotspots,
   buildTaxiStandLandmarks,
