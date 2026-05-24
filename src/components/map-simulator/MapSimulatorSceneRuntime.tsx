@@ -76,6 +76,10 @@ import {
   createCallerGroup,
   createPedestrianGroup,
 } from "@/components/map-simulator/actor-group-factory";
+import {
+  buildDemandAnchors,
+  poiMarkerColor,
+} from "@/components/map-simulator/demand-anchor-utils";
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
@@ -136,6 +140,7 @@ import {
   projectPoint,
   shapesOfNonRoadFeature,
 } from "@/components/map-simulator/map-geometry-utils";
+import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
 import {
   createMapSceneBase,
   createMapSceneLights,
@@ -203,33 +208,6 @@ export type MapSimulatorSceneRuntimeProps = {
     yawControlValue: number;
   }) => void;
 };
-
-type MapPoiFeatureRow = {
-  poi_code: string;
-  poi_name: string;
-  coverage_dong: string | null;
-  category: string | null;
-  lon: number | null;
-  lat: number | null;
-  context_score: number;
-};
-
-type DemandAnchorKind = "poi" | "stand";
-
-type DemandAnchor = {
-  id: string;
-  label: string;
-  kind: DemandAnchorKind;
-  position: THREE.Vector3;
-  dongNames: string[];
-  score: number;
-};
-
-function poiMarkerColor(category: string | null | undefined) {
-  if (category === "station_context") return "#67e8f9";
-  if (category === "road_corridor_context") return "#93c5fd";
-  return "#bae6fd";
-}
 
 export default function MapSimulatorSceneRuntime({
   containerRef,
@@ -640,49 +618,12 @@ export default function MapSimulatorSceneRuntime({
     demandCorridorMesh.renderOrder = 43;
     scene.add(demandCorridorMesh);
 
-    const poiDemandAnchors = [...(poiFeatureRowsRef.current ?? [])]
-      .filter(
-        (poi) =>
-          Number.isFinite(poi.lon) &&
-          Number.isFinite(poi.lat),
-      )
-      .map((poi) => {
-        const projected = projectPoint(
-          [poi.lon as number, poi.lat as number],
-          simulationData.center,
-        );
-        const position = new THREE.Vector3(projected.x, 0, projected.z);
-        const inferredDongs = poi.coverage_dong
-          ? [poi.coverage_dong]
-          : dongRegions
-              .filter((dong) => dongContainsPoint(dong, position))
-              .map((dong) => dong.name);
-
-        return {
-          id: `poi-${poi.poi_code}`,
-          label: poi.poi_name,
-          kind: "poi" as const,
-          position,
-          dongNames: inferredDongs,
-          score: THREE.MathUtils.clamp(poi.context_score, 0.25, 1),
-        } satisfies DemandAnchor;
-      })
-      .filter((anchor) => anchor.dongNames.length > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 24);
-
-    const standDemandAnchors = taxiStandLandmarks
-      .map((stand) => ({
-        id: `stand-${stand.standId || stand.id}`,
-        label: stand.name,
-        kind: "stand" as const,
-        position: stand.position.clone().setY(0),
-        dongNames: [stand.dongName],
-        score: stand.isShelter ? 0.72 : 0.58,
-      }) satisfies DemandAnchor)
-      .slice(0, 24);
-
-    const demandAnchors = [...poiDemandAnchors, ...standDemandAnchors];
+    const demandAnchors = buildDemandAnchors({
+      poiFeatureRows: [...(poiFeatureRowsRef.current ?? [])],
+      taxiStandLandmarks,
+      dongRegions,
+      center: simulationData.center,
+    });
     const demandAnchorColumnMaterial = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
