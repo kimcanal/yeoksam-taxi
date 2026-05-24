@@ -668,42 +668,6 @@ export function disposeMaterialResources(material: THREE.Material) {
   material.dispose();
 }
 
-export function pedestrianBodyMaterialFor(color: number) {
-  let material = PEDESTRIAN_BODY_MATERIALS.get(color);
-  if (!material) {
-    material = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-    PEDESTRIAN_BODY_MATERIALS.set(color, material);
-  }
-  return material;
-}
-
-export function callerTorsoMaterialFor(color: number) {
-  let material = CALLER_TORSO_MATERIALS.get(color);
-  if (!material) {
-    material = new THREE.MeshStandardMaterial({ color, roughness: 0.82 });
-    CALLER_TORSO_MATERIALS.set(color, material);
-  }
-  return material;
-}
-
-export function callerArmMaterialFor(color: number) {
-  let material = CALLER_ARM_MATERIALS.get(color);
-  if (!material) {
-    material = new THREE.MeshStandardMaterial({ color, roughness: 0.84 });
-    CALLER_ARM_MATERIALS.set(color, material);
-  }
-  return material;
-}
-
-export function callerBottomMaterialFor(color: number) {
-  let material = CALLER_BOTTOM_MATERIALS.get(color);
-  if (!material) {
-    material = new THREE.MeshStandardMaterial({ color, roughness: 0.88 });
-    CALLER_BOTTOM_MATERIALS.set(color, material);
-  }
-  return material;
-}
-
 export function sharedVehicleTemplatePlaceholderMaterial() {
   VEHICLE_TEMPLATE_PLACEHOLDER_MATERIAL ??= new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -729,102 +693,6 @@ export function sharedImportedTrafficShadowGeometry() {
 export function sharedImportedTaxiClickTargetGeometry() {
   IMPORTED_TAXI_CLICK_TARGET_GEOMETRY ??= new THREE.BoxGeometry(3.2, 3.2, 6.8);
   return IMPORTED_TAXI_CLICK_TARGET_GEOMETRY;
-}
-
-export function sharedPedestrianBodyGeometry() {
-  PEDESTRIAN_BODY_GEOMETRY ??= new THREE.BoxGeometry(0.34, 0.82, 0.24);
-  return PEDESTRIAN_BODY_GEOMETRY;
-}
-
-export function sharedPedestrianHeadGeometry() {
-  PEDESTRIAN_HEAD_GEOMETRY ??= new THREE.SphereGeometry(0.18, 10, 10);
-  return PEDESTRIAN_HEAD_GEOMETRY;
-}
-
-export function sharedPedestrianFeetGeometry() {
-  PEDESTRIAN_FEET_GEOMETRY ??= new THREE.BoxGeometry(0.28, 0.12, 0.2);
-  return PEDESTRIAN_FEET_GEOMETRY;
-}
-
-export function sharedPedestrianHeadMaterial() {
-  PEDESTRIAN_HEAD_MATERIAL ??= new THREE.MeshStandardMaterial({
-    color: 0xf4d9c2,
-    roughness: 0.7,
-  });
-  return PEDESTRIAN_HEAD_MATERIAL;
-}
-
-export function sharedPedestrianFeetMaterial() {
-  PEDESTRIAN_FEET_MATERIAL ??= new THREE.MeshStandardMaterial({
-    color: 0x1a2331,
-    roughness: 0.92,
-  });
-  return PEDESTRIAN_FEET_MATERIAL;
-}
-
-export function sharedCallerShadowGeometry() {
-  CALLER_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(1.1, 0.72);
-  return CALLER_SHADOW_GEOMETRY;
-}
-
-export function sharedCallerShoesGeometry() {
-  CALLER_SHOES_GEOMETRY ??= new THREE.BoxGeometry(0.36, 0.12, 0.24);
-  return CALLER_SHOES_GEOMETRY;
-}
-
-export function sharedCallerLegsGeometry() {
-  CALLER_LEGS_GEOMETRY ??= new THREE.BoxGeometry(0.3, 0.52, 0.22);
-  return CALLER_LEGS_GEOMETRY;
-}
-
-export function sharedCallerTorsoGeometry() {
-  CALLER_TORSO_GEOMETRY ??= new THREE.BoxGeometry(0.48, 0.62, 0.28);
-  return CALLER_TORSO_GEOMETRY;
-}
-
-export function sharedCallerHeadGeometry() {
-  CALLER_HEAD_GEOMETRY ??= new THREE.BoxGeometry(0.3, 0.3, 0.3);
-  return CALLER_HEAD_GEOMETRY;
-}
-
-export function sharedCallerLeftArmGeometry() {
-  CALLER_LEFT_ARM_GEOMETRY ??= new THREE.BoxGeometry(0.14, 0.56, 0.14);
-  return CALLER_LEFT_ARM_GEOMETRY;
-}
-
-export function sharedCallerWaveArmGeometry() {
-  CALLER_WAVE_ARM_GEOMETRY ??= new THREE.BoxGeometry(0.14, 0.6, 0.14);
-  return CALLER_WAVE_ARM_GEOMETRY;
-}
-
-export function sharedCallerHailCubeGeometry() {
-  CALLER_HAIL_CUBE_GEOMETRY ??= new THREE.BoxGeometry(0.24, 0.24, 0.16);
-  return CALLER_HAIL_CUBE_GEOMETRY;
-}
-
-export function sharedCallerShadowMaterial() {
-  CALLER_SHADOW_MATERIAL ??= new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0.14,
-  });
-  return CALLER_SHADOW_MATERIAL;
-}
-
-export function sharedCallerShoesMaterial() {
-  CALLER_SHOES_MATERIAL ??= new THREE.MeshStandardMaterial({
-    color: 0x161c28,
-    roughness: 0.94,
-  });
-  return CALLER_SHOES_MATERIAL;
-}
-
-export function sharedCallerHeadMaterial() {
-  CALLER_HEAD_MATERIAL ??= new THREE.MeshStandardMaterial({
-    color: 0xf2d7bd,
-    roughness: 0.75,
-  });
-  return CALLER_HEAD_MATERIAL;
 }
 
 export type BuildingMass = {
@@ -1039,8 +907,6 @@ export const TRAFFIC_PALETTES: VehiclePalette[] = [
 // not require touching simulation logic.
 export const DONG_REGION_COLORS = [0x667983, 0x728274, 0x8f8068, 0x876f6a, 0x728193];
 export const HOTSPOT_IDLE_COLORS = [0x7a6b57, 0x62716c, 0x76645c];
-export const CALLER_TOP_PALETTES = [0x8a7d70, 0x6f7d8a, 0x6d8376, 0x97846a, 0x7a7387];
-export const CALLER_BOTTOM_PALETTES = [0x25292d, 0x2b3035, 0x31353a, 0x2a2e32];
 export const SUBWAY_STRUCTURE_ACCENTS = [0x78aaa0, 0x89b9ae, 0x6f978f];
 export const MATERIAL_TEXTURE_KEYS = [
   "map",
@@ -1068,26 +934,6 @@ let IMPORTED_TAXI_SIGN_GEOMETRY: THREE.BoxGeometry | null = null;
 let IMPORTED_TAXI_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let IMPORTED_TRAFFIC_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let IMPORTED_TAXI_CLICK_TARGET_GEOMETRY: THREE.BoxGeometry | null = null;
-let PEDESTRIAN_BODY_GEOMETRY: THREE.BoxGeometry | null = null;
-let PEDESTRIAN_HEAD_GEOMETRY: THREE.SphereGeometry | null = null;
-let PEDESTRIAN_FEET_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
-let CALLER_SHOES_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_LEGS_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_TORSO_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_HEAD_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_LEFT_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_WAVE_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
-let CALLER_HAIL_CUBE_GEOMETRY: THREE.BoxGeometry | null = null;
-export const PEDESTRIAN_BODY_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
-export const CALLER_TORSO_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
-export const CALLER_ARM_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
-export const CALLER_BOTTOM_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
-let PEDESTRIAN_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
-let PEDESTRIAN_FEET_MATERIAL: THREE.MeshStandardMaterial | null = null;
-let CALLER_SHADOW_MATERIAL: THREE.MeshBasicMaterial | null = null;
-let CALLER_SHOES_MATERIAL: THREE.MeshStandardMaterial | null = null;
-let CALLER_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
 
 export function averagePoint(points: THREE.Vector3[]) {
   if (!points.length) {
