@@ -27,17 +27,19 @@ import {
   opposingSignalDirection,
 } from "@/components/map-simulator/signal-controller";
 import {
+  addVehicleSampleToBucket,
   clampRouteDistance,
+  clearVehicleSampleBuckets,
   copyVehicleMotionState,
-  createNextStopState,
+  createVehicleSimulationSample,
   createVehicleMotionState,
   resolveNextStop,
   resolveNextStopInto,
   routeSegmentIndexAtDistance,
+  syncVehicleSampleBucket,
   vehicleProximityCellCoord,
 } from "@/components/map-simulator/route-motion-utils";
 import {
-  type NextStopState,
   type SignalApproachDemand,
   type SignalApproachDistance,
   type SignalAxisOccupancy,
@@ -47,6 +49,8 @@ import {
   type Stats,
   type Vehicle,
   type VehicleMotionState,
+  type VehicleProximityBuckets,
+  type VehicleSimulationSample,
 } from "@/components/map-simulator/map-simulator-types";
 import {
   assignVehicleRoute,
@@ -67,18 +71,8 @@ type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
   renderSeed: number;
 };
 
-type LocalVehicleSimulationSample = {
-  vehicle: LocalVehicle;
-  motion: VehicleMotionState;
-  nextStopState: NextStopState;
-  proximityCellX: number;
-  proximityCellZ: number;
-};
-
-type VehicleProximityBuckets = Map<
-  number,
-  Map<number, LocalVehicleSimulationSample[]>
->;
+type LocalVehicleSimulationSample = VehicleSimulationSample<LocalVehicle>;
+type LocalVehicleProximityBuckets = VehicleProximityBuckets<LocalVehicle>;
 
 const DEFAULT_CLOCK = {
   dateIso: "2026-01-01",
@@ -87,80 +81,6 @@ const DEFAULT_CLOCK = {
 };
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
-
-function createVehicleSimulationSample(
-  vehicle: LocalVehicle,
-): LocalVehicleSimulationSample {
-  return {
-    vehicle,
-    motion: vehicle.motion,
-    nextStopState: createNextStopState(),
-    proximityCellX: 0,
-    proximityCellZ: 0,
-  };
-}
-
-function addVehicleSampleToBucket(
-  buckets: VehicleProximityBuckets,
-  sample: LocalVehicleSimulationSample,
-  cellX = sample.proximityCellX,
-  cellZ = sample.proximityCellZ,
-) {
-  let column = buckets.get(cellX);
-  if (!column) {
-    column = new Map<number, LocalVehicleSimulationSample[]>();
-    buckets.set(cellX, column);
-  }
-
-  let bucket = column.get(cellZ);
-  if (!bucket) {
-    bucket = [];
-    column.set(cellZ, bucket);
-  }
-  bucket.push(sample);
-}
-
-function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
-  buckets.forEach((column) => {
-    column.forEach((bucket) => {
-      bucket.length = 0;
-    });
-  });
-}
-
-function syncVehicleSampleBucket(
-  buckets: VehicleProximityBuckets,
-  sample: LocalVehicleSimulationSample,
-) {
-  const nextCellX = vehicleProximityCellCoord(sample.motion.lanePosition.x);
-  const nextCellZ = vehicleProximityCellCoord(sample.motion.lanePosition.z);
-  if (
-    nextCellX === sample.proximityCellX &&
-    nextCellZ === sample.proximityCellZ
-  ) {
-    return;
-  }
-
-  const currentColumn = buckets.get(sample.proximityCellX);
-  const currentBucket = currentColumn?.get(sample.proximityCellZ);
-  if (currentBucket) {
-    const sampleIndex = currentBucket.indexOf(sample);
-    if (sampleIndex !== -1) {
-      currentBucket[sampleIndex] = currentBucket[currentBucket.length - 1]!;
-      currentBucket.pop();
-    }
-    if (!currentBucket.length) {
-      currentColumn?.delete(sample.proximityCellZ);
-      if (currentColumn && !currentColumn.size) {
-        buckets.delete(sample.proximityCellX);
-      }
-    }
-  }
-
-  sample.proximityCellX = nextCellX;
-  sample.proximityCellZ = nextCellZ;
-  addVehicleSampleToBucket(buckets, sample, nextCellX, nextCellZ);
-}
 
 function clonePose(source: VehicleMotionState): VehiclePoseSnapshot {
   return {
@@ -229,7 +149,7 @@ export function createLocalSimulationSource(): SimulationSource {
     string,
     SignalDirectionalOccupancy
   >();
-  const proximityBuckets: VehicleProximityBuckets = new globalThis.Map();
+  const proximityBuckets: LocalVehicleProximityBuckets = new globalThis.Map();
   const vehicleSimulationSamples: LocalVehicleSimulationSample[] = [];
 
   let signalById = new globalThis.Map<string, SignalData>();

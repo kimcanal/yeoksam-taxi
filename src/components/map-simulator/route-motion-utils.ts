@@ -149,9 +149,9 @@ export function createNextStopState(): NextStopState {
   };
 }
 
-export function createVehicleSimulationSample(
-  vehicle: Vehicle,
-): VehicleSimulationSample {
+export function createVehicleSimulationSample<
+  TVehicle extends { motion: VehicleMotionState },
+>(vehicle: TVehicle): VehicleSimulationSample<TVehicle> {
   return {
     vehicle,
     motion: vehicle.motion,
@@ -165,15 +165,17 @@ export function vehicleProximityCellCoord(value: number) {
   return Math.floor(value / VEHICLE_PROXIMITY_CELL_SIZE);
 }
 
-export function addVehicleSampleToBucket(
-  buckets: VehicleProximityBuckets,
-  sample: VehicleSimulationSample,
+export function addVehicleSampleToBucket<
+  TVehicle extends { motion: VehicleMotionState },
+>(
+  buckets: VehicleProximityBuckets<TVehicle>,
+  sample: VehicleSimulationSample<TVehicle>,
   cellX = sample.proximityCellX,
   cellZ = sample.proximityCellZ,
 ) {
   let column = buckets.get(cellX);
   if (!column) {
-    column = new Map<number, VehicleSimulationSample[]>();
+    column = new Map<number, VehicleSimulationSample<TVehicle>[]>();
     buckets.set(cellX, column);
   }
 
@@ -185,7 +187,9 @@ export function addVehicleSampleToBucket(
   bucket.push(sample);
 }
 
-export function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
+export function clearVehicleSampleBuckets<
+  TVehicle extends { motion: VehicleMotionState },
+>(buckets: VehicleProximityBuckets<TVehicle>) {
   buckets.forEach((column) => {
     column.forEach((bucket) => {
       bucket.length = 0;
@@ -193,9 +197,11 @@ export function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
   });
 }
 
-export function syncVehicleSampleBucket(
-  buckets: VehicleProximityBuckets,
-  sample: VehicleSimulationSample,
+export function syncVehicleSampleBucket<
+  TVehicle extends { motion: VehicleMotionState },
+>(
+  buckets: VehicleProximityBuckets<TVehicle>,
+  sample: VehicleSimulationSample<TVehicle>,
 ) {
   const nextCellX = vehicleProximityCellCoord(sample.motion.lanePosition.x);
   const nextCellZ = vehicleProximityCellCoord(sample.motion.lanePosition.z);

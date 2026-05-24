@@ -335,17 +335,21 @@ export type Vehicle = {
   renderMotion: VehicleMotionState;
 };
 
-export type VehicleSimulationSample = {
-  vehicle: Vehicle;
+export type VehicleSimulationSample<
+  TVehicle extends { motion: VehicleMotionState } = Vehicle,
+> = {
+  vehicle: TVehicle;
   motion: VehicleMotionState;
   nextStopState: NextStopState;
   proximityCellX: number;
   proximityCellZ: number;
 };
 
-export type VehicleProximityBuckets = Map<
+export type VehicleProximityBuckets<
+  TVehicle extends { motion: VehicleMotionState } = Vehicle,
+> = Map<
   number,
-  Map<number, VehicleSimulationSample[]>
+  Map<number, VehicleSimulationSample<TVehicle>[]>
 >;
 
 export type Stats = {
