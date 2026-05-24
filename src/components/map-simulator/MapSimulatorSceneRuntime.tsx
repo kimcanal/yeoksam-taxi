@@ -7,10 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import * as THREE from "three";
-import {
-  CSS2DObject,
-  CSS2DRenderer,
-} from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import {
   buildEnvironmentState,
   daylightFactor,
@@ -22,6 +19,7 @@ import {
   createVehicleTrailLayer,
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle-trail-renderer";
+import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
 import {
   CAMERA_DRAG_SENSITIVITY,
   CAMERA_LOOK_HEIGHT,
@@ -61,7 +59,6 @@ import {
   CameraYawControlState,
   DongBoundarySegment,
   FpsMode,
-  FpsStats,
   HOTSPOT_PRESENTATION,
   HOTSPOT_IDLE_COLORS,
   Hotspot,
@@ -115,24 +112,29 @@ import {
   syncVehicleTransform,
   wrapAngle,
 } from "@/components/map-simulator/core";
+import {
+  createMapSceneBase,
+  createMapSceneLights,
+  syncSunShadowBounds,
+} from "@/components/map-simulator/map-scene-base";
+import { createEnvironmentVisuals } from "@/components/map-simulator/map-scene-environment-visuals";
+import { createMapSceneRenderers } from "@/components/map-simulator/map-scene-renderers";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
   SignalSnapshot,
   SimulationConfig,
   SimulationSnapshot,
-  SimulationSource,
   VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
 
-type MapSimulatorSceneRuntimeProps = {
+export type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
   data: SimulationData | null;
   poiFeatureRowsRef: RefObject<MapPoiFeatureRow[]>;
   onPoiSelect?: (poiCode: string) => void;
   onDongSelect?: (dongName: string) => void;
-  simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
   appliedTrafficCountRef: MutableRefObject<number>;
   selectedDemandDongRef: MutableRefObject<string>;
@@ -184,7 +186,7 @@ type MapPoiFeatureRow = {
   coverage_dong: string | null;
   category: string | null;
   lon: number | null;
-  lat: number | number | null;
+  lat: number | null;
   context_score: number;
 };
 
@@ -211,7 +213,6 @@ export default function MapSimulatorSceneRuntime({
   poiFeatureRowsRef,
   onPoiSelect,
   onDongSelect,
-  simulationSource,
   appliedTaxiCountRef,
   appliedTrafficCountRef,
   selectedDemandDongRef,
@@ -255,68 +256,16 @@ export default function MapSimulatorSceneRuntime({
 
     const container = containerRef.current;
     const simulationData = data;
+    const simulationSource = createLocalSimulationSource();
     let sceneDisposed = false;
     let isPageHidden = document.visibilityState === "hidden";
-    const scene = new THREE.Scene();
-    const sceneFog = new THREE.Fog(0x07111b, 120, 360);
-    scene.background = new THREE.Color(0x07111b);
-    scene.fog = sceneFog;
+    const { scene, sceneFog, camera } = createMapSceneBase(container);
 
-    const camera = new THREE.PerspectiveCamera(
-      48,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1500,
-    );
-    camera.position.set(-120, 135, 150);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      powerPreference: "high-performance",
+    const { renderer, labelRenderer } = createMapSceneRenderers({
+      container,
+      cameraMode: cameraModeRef.current,
     });
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        renderPixelRatioFor(
-          cameraModeRef.current,
-          document.visibilityState === "hidden",
-        ),
-      ),
-    );
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
-    renderer.domElement.style.cursor = "grab";
-    renderer.domElement.style.touchAction = "none";
-    container.appendChild(renderer.domElement);
-
-    const labelRenderer = new CSS2DRenderer();
-    labelRenderer.setSize(container.clientWidth, container.clientHeight);
-    labelRenderer.domElement.style.position = "absolute";
-    labelRenderer.domElement.style.inset = "0";
-    labelRenderer.domElement.style.pointerEvents = "none";
-    container.appendChild(labelRenderer.domElement);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.68);
-    scene.add(ambientLight);
-    const hemisphereLight = new THREE.HemisphereLight(0xb6d5ff, 0x172333, 0.82);
-    scene.add(hemisphereLight);
-
-    const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
-    sun.position.set(110, 180, 80);
-    sun.castShadow = true;
-    sun.shadow.bias = -0.0005;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 10;
-    sun.shadow.camera.far = 420;
-    sun.shadow.camera.left = -180;
-    sun.shadow.camera.right = 180;
-    sun.shadow.camera.top = 180;
-    sun.shadow.camera.bottom = -180;
-    scene.add(sun);
-    scene.add(sun.target);
+    const { ambientLight, hemisphereLight, sun } = createMapSceneLights(scene);
 
     const buildingFeatures = data.buildingMasses;
     const dongRegions = data.dongRegions;
@@ -512,64 +461,7 @@ export default function MapSimulatorSceneRuntime({
 
     syncCamera();
 
-    const shadowSpan = Math.max(size.x, size.z) * 0.72;
-    sun.shadow.camera.far = Math.max(420, shadowSpan * 3.2);
-    sun.shadow.camera.left = -shadowSpan;
-    sun.shadow.camera.right = shadowSpan;
-    sun.shadow.camera.top = shadowSpan;
-    sun.shadow.camera.bottom = -shadowSpan;
-    sun.shadow.camera.updateProjectionMatrix();
-
-    const createPrecipitationLayer = (
-      count: number,
-      material: THREE.PointsMaterial,
-      minHeight: number,
-      maxHeight: number,
-    ) => {
-      const positions = new Float32Array(count * 3);
-      const seeds = new Float32Array(count);
-      const spanX = size.x + 180;
-      const spanZ = size.z + 180;
-      const minX = centerPoint.x - spanX / 2;
-      const maxX = centerPoint.x + spanX / 2;
-      const minZ = centerPoint.z - spanZ / 2;
-      const maxZ = centerPoint.z + spanZ / 2;
-
-      for (let index = 0; index < count; index += 1) {
-        const offset = index * 3;
-        positions[offset] = THREE.MathUtils.lerp(minX, maxX, Math.random());
-        positions[offset + 1] = THREE.MathUtils.lerp(
-          minHeight,
-          maxHeight,
-          Math.random(),
-        );
-        positions[offset + 2] = THREE.MathUtils.lerp(minZ, maxZ, Math.random());
-        seeds[index] = Math.random();
-      }
-
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(positions, 3),
-      );
-      geometry.setDrawRange(0, count);
-      const points = new THREE.Points(geometry, material);
-      points.visible = false;
-      scene.add(points);
-
-      return {
-        geometry,
-        material,
-        points,
-        seeds,
-        minHeight,
-        maxHeight,
-        minX,
-        maxX,
-        minZ,
-        maxZ,
-      };
-    };
+    syncSunShadowBounds(sun, size);
 
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x202327,
@@ -933,191 +825,26 @@ export default function MapSimulatorSceneRuntime({
     scene.add(nonRoadGroup);
     nonRoadGroupRef.current = nonRoadGroup;
 
-    const celestialRadius = Math.max(size.x, size.z) + 320;
-    const sunDiscMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffd9a8,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunDisc = new THREE.Mesh(
-      new THREE.SphereGeometry(9.4, 20, 20),
+    const {
+      celestialRadius,
       sunDiscMaterial,
-    );
-    scene.add(sunDisc);
-
-    const sunHaloMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffb66c,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(17.6, 20, 20),
+      sunDisc,
       sunHaloMaterial,
-    );
-    scene.add(sunHalo);
-
-    const sunsetGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff8b47,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunsetGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(27, 20, 20),
+      sunHalo,
       sunsetGlowMaterial,
-    );
-    scene.add(sunsetGlow);
-
-    const moonMaterial = new THREE.MeshBasicMaterial({
-      color: 0xe9f2ff,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const moon = new THREE.Mesh(
-      new THREE.SphereGeometry(6.6, 18, 18),
+      sunsetGlow,
       moonMaterial,
-    );
-    scene.add(moon);
-
-    const starPositions = new Float32Array(280 * 3);
-    for (let index = 0; index < 280; index += 1) {
-      const azimuth = Math.random() * Math.PI * 2;
-      const elevation = THREE.MathUtils.lerp(0.24, 1.14, Math.random());
-      const radius = celestialRadius + Math.random() * 120;
-      const offset = index * 3;
-      starPositions[offset] =
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius;
-      starPositions[offset + 1] = Math.sin(elevation) * radius * 0.82 + 110;
-      starPositions[offset + 2] =
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius;
-    }
-    const starsGeometry = new THREE.BufferGeometry();
-    starsGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(starPositions, 3),
-    );
-    const starsMaterial = new THREE.PointsMaterial({
-      color: 0xf4f8ff,
-      size: 1.9,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
-
-    const cloudPuffGeometry = new THREE.SphereGeometry(1, 14, 14);
-    const cloudMaterial = new THREE.MeshLambertMaterial({
-      color: 0xdfe8f2,
-      emissive: 0x243344,
-      emissiveIntensity: 0.05,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const cloudClusters = Array.from({ length: 5 }, (_, index) => {
-      const cluster = new THREE.Group();
-      const azimuth =
-        (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
-      const elevation = THREE.MathUtils.lerp(0.24, 0.5, (index % 5) / 5);
-      const radius =
-        celestialRadius * THREE.MathUtils.lerp(0.56, 0.72, (index % 4) / 4);
-      const anchor = new THREE.Vector3(
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
-        Math.sin(elevation) * radius * 0.76 + 72 + (index % 3) * 10,
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
-      );
-
-      [
-        { x: -7.5, y: 0.4, z: 0, sx: 7.2, sy: 2.8, sz: 3.6 },
-        { x: -2.2, y: 1.2, z: 1.1, sx: 6.1, sy: 2.5, sz: 3.1 },
-        { x: 3.8, y: 0.8, z: -0.4, sx: 7.8, sy: 3.1, sz: 3.7 },
-        { x: 8.4, y: 0.1, z: 0.7, sx: 5.8, sy: 2.2, sz: 2.8 },
-      ].forEach((puff) => {
-        const mesh = new THREE.Mesh(cloudPuffGeometry, cloudMaterial);
-        mesh.position.set(puff.x, puff.y, puff.z);
-        mesh.scale.set(puff.sx, puff.sy, puff.sz);
-        cluster.add(mesh);
-      });
-
-      cluster.position.copy(anchor);
-      scene.add(cluster);
-      return { cluster, anchor, phase: index * 0.9 };
-    });
-
-    const stormCloudMaterial = new THREE.MeshLambertMaterial({
-      color: 0x7a8da0,
-      emissive: 0x1e2a36,
-      emissiveIntensity: 0.08,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const stormCloudClusters = Array.from({ length: 4 }, (_, index) => {
-      const cluster = new THREE.Group();
-      const azimuth =
-        (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
-      const elevation = THREE.MathUtils.lerp(0.16, 0.28, (index % 3) / 3);
-      const radius =
-        celestialRadius * THREE.MathUtils.lerp(0.48, 0.62, (index % 4) / 4);
-      const anchor = new THREE.Vector3(
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
-        Math.sin(elevation) * radius * 0.62 + 56 + (index % 2) * 7,
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
-      );
-
-      [
-        { x: -10.5, y: 0.2, z: 0.5, sx: 10.8, sy: 3.8, sz: 5.2 },
-        { x: -3.2, y: 1.1, z: -1.2, sx: 9.6, sy: 3.4, sz: 4.7 },
-        { x: 5.4, y: 0.9, z: 0.3, sx: 11.2, sy: 4.2, sz: 5.6 },
-        { x: 13.2, y: 0.1, z: -0.4, sx: 8.2, sy: 3.1, sz: 4.4 },
-      ].forEach((puff) => {
-        const mesh = new THREE.Mesh(cloudPuffGeometry, stormCloudMaterial);
-        mesh.position.set(puff.x, puff.y, puff.z);
-        mesh.scale.set(puff.sx, puff.sy, puff.sz);
-        cluster.add(mesh);
-      });
-
-      cluster.position.copy(anchor);
-      cluster.visible = false;
-      scene.add(cluster);
-      return { cluster, anchor, phase: index * 1.2 };
-    });
-
-    const rainLayer = createPrecipitationLayer(
-      480,
-      new THREE.PointsMaterial({
-        color: 0xb8ddff,
-        size: 0.28,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-      }),
-      12,
-      76,
-    );
-    const snowLayer = createPrecipitationLayer(
-      360,
-      new THREE.PointsMaterial({
-        color: 0xffffff,
-        size: 0.68,
-        transparent: true,
-        opacity: 0.38,
-        depthWrite: false,
-      }),
-      10,
-      70,
-    );
+      moon,
+      starsGeometry,
+      starsMaterial,
+      cloudPuffGeometry,
+      cloudMaterial,
+      cloudClusters,
+      stormCloudMaterial,
+      stormCloudClusters,
+      rainLayer,
+      snowLayer,
+    } = createEnvironmentVisuals({ scene, mapSize: size, centerPoint });
     const rainPositions = rainLayer.geometry.attributes.position
       .array as Float32Array;
     const snowPositions = snowLayer.geometry.attributes.position
@@ -4946,7 +4673,6 @@ export default function MapSimulatorSceneRuntime({
     poiFeatureRowsRef,
     selectedDemandDongRef,
     selectedDemandScoreRef,
-    simulationSource,
     showLabelsRef,
     showNonRoadRef,
     showRoadNetworkRef,

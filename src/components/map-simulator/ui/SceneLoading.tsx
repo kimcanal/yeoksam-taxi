@@ -1,4 +1,4 @@
-import { PANEL_TOKEN_CLASS } from "@/components/map-simulator/core";
+import { PANEL_TOKEN_CLASS } from "@/components/map-simulator/panel-classes";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 
 type SceneLoadingProps = {
@@ -26,7 +26,7 @@ export function SceneLoading({
           <div className="h-9 w-9 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin" />
           <div>
             <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-              지도 불러오는 중
+              디지털 트윈 시뮬레이션
             </div>
             <div className="mt-1 text-lg font-semibold text-slate-50">
               {statusLabel}
@@ -36,7 +36,7 @@ export function SceneLoading({
 
         <div className="mt-4 rounded-2xl border border-white/12 bg-white/[0.08] px-4 py-3">
           <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-400">
-            <span>현재 단계</span>
+            <span>초기화 진행 상태</span>
             <span className="tabular-nums text-cyan-100">
               {loadingProgress}%
             </span>
@@ -55,15 +55,15 @@ export function SceneLoading({
 
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
           <span className={PANEL_TOKEN_CLASS}>
-            환경 {buildVersion.environmentLabel}
+            실행 환경: {buildVersion.environmentLabel}
           </span>
           <span className={PANEL_TOKEN_CLASS}>
-            브랜치 {buildVersion.branch}
+            버전: {buildVersion.branch}
           </span>
         </div>
 
         <div className="mt-4 text-xs leading-5 text-slate-500">
-          처음 접속 시 잠시 더 걸릴 수 있습니다.
+          초기 로딩 시 3D 맵 자산을 캐싱하는 과정이 수초 소요될 수 있습니다.
         </div>
       </div>
     </div>

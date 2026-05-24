@@ -8,7 +8,7 @@ import type {
   SimulationData,
   Stats,
 } from "@/components/map-simulator/core";
-import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/core";
+import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
 import {
   createFieldSetter,
   createStore,

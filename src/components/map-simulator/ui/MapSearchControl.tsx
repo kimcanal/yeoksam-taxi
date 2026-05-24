@@ -62,12 +62,12 @@ export function MapSearchControl({
           <Search className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-slate-950">
-              강남 수요 지도
+              강남·역삼 디지털 트윈
             </span>
             <span className="block truncate text-[11px] text-slate-500">
               {MAP_SCOPE_LABEL} · {formattedSimulationTime} ·{" "}
               {hasDemandData
-                ? `표현 ${appliedTaxiCount}대`
+                ? `시뮬레이션 ${appliedTaxiCount}대`
                 : selectedWeather.label}
             </span>
           </span>
@@ -116,9 +116,9 @@ export function MapSearchControl({
               </div>
             </div>
             <div className="rounded-xl bg-slate-100 px-3 py-2">
-              <div className="text-slate-500">데이터</div>
+              <div className="text-slate-500">데이터 소스</div>
               <div className="mt-0.5 font-semibold text-slate-900">
-                정적 지도
+                시나리오 프리셋
               </div>
             </div>
           </div>

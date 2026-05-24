@@ -9,27 +9,114 @@ import type {
   MultiPolygon,
   Point,
   Polygon,
-  Position,
 } from "geojson";
 import {
   formatKstDateTime,
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
+import type {
+  CameraMode,
+  FpsMode,
+} from "@/components/map-simulator/camera-types";
+import {
+  DEFAULT_TAXI_COUNT,
+  DEFAULT_TRAFFIC_COUNT,
+} from "@/components/map-simulator/simulation-defaults";
+import {
+  approachDirectionForHeading,
+  assignCoordinatedSignalOffsets,
+  buildSignalTimingPlan,
+  canVehicleProceed,
+  createSignalApproachDemand,
+  createSignalApproachDistance,
+  createSignalAxisOccupancy,
+  createSignalData,
+  createSignalDirectionalOccupancy,
+  createSignalTurnDemand,
+  dominantAxis,
+  dominantAxisForHeading,
+  normalizeSignalOffset,
+  opposingSignalDirection,
+  preferredSignalAxisForApproaches,
+  pushSignalPhase,
+  resetSignalApproachDemand,
+  resetSignalApproachDistance,
+  resetSignalAxisOccupancy,
+  resetSignalDirectionalOccupancy,
+  resetSignalTurnDemand,
+  signalAxisForDirection,
+  signalAxisPresence,
+  signalDirectionForVector,
+  SIGNAL_FLOW_CLEARANCE,
+  SIGNAL_FLOW_EW_GREEN,
+  SIGNAL_FLOW_EW_LEFT,
+  SIGNAL_FLOW_EW_YELLOW,
+  signalFlowForAxis,
+  SIGNAL_FLOW_NS_GREEN,
+  SIGNAL_FLOW_NS_LEFT,
+  SIGNAL_FLOW_NS_YELLOW,
+  SIGNAL_FLOW_PED_FLASH,
+  SIGNAL_FLOW_PED_WALK,
+  signalState,
+  signalVectorForDirection,
+} from "@/components/map-simulator/signal-controller";
+import {
+  addVehicleSampleToBucket,
+  buildCumulative,
+  buildSegmentHeadings,
+  buildSegmentLengthsFromCumulative,
+  clampRouteDistance,
+  clearVehicleSampleBuckets,
+  copyVehicleMotionState,
+  createNextStopState,
+  createRouteSample,
+  createVehicleMotionState,
+  createVehicleSimulationSample,
+  curbsideApproachBlend,
+  curbsideLaneOffset,
+  dampAngle,
+  distanceXZ,
+  normalizeDistance,
+  offsetToRight,
+  polygonAreaXZ,
+  resolveNextStop,
+  resolveNextStopInto,
+  routeDistanceAhead,
+  routeSegmentIndexAtDistance,
+  sampleRoute,
+  sampleRouteInto,
+  syncVehicleSampleBucket,
+  vehicleProximityCellCoord,
+  wrapAngle,
+  writeRightVector,
+} from "@/components/map-simulator/route-motion-utils";
+import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/map-defaults";
+import {
+  buildProjectedRoadSegments,
+  buildRoadSegmentSpatialIndex,
+  collectRoadSegmentCandidateIndices,
+  featureCollectionCenter,
+  geoKey,
+  lineStringsOfRoad,
+  outerRingOfBuilding,
+  outerRingsOfDong,
+  projectPoint,
+  roadSegmentCellCoord,
+  shapeFromPolygonCoordinates,
+  shapePointsFromCoordinates,
+  shapesOfNonRoadFeature,
+  visitGeometryPositions,
+} from "@/components/map-simulator/map-geometry-utils";
 import {
   ASSET_FETCH_TIMEOUT_MS,
   AUTO_REFRESH_BAND_HYSTERESIS_RATIO,
   AUTO_RENDER_HALF_REFRESH_THRESHOLD,
   COMMON_REFRESH_RATE_BANDS,
-  CURBSIDE_EDGE_INSET_MAX,
-  CURBSIDE_EDGE_INSET_MIN,
-  CURBSIDE_EXTRA_OFFSET_MAX,
   DRIVE_PIXEL_RATIO,
   DRIVE_RENDER_FPS,
   FOLLOW_PIXEL_RATIO,
   FOLLOW_RENDER_FPS,
   HIDDEN_PIXEL_RATIO,
-  HOTSPOT_SLOWDOWN_DISTANCE,
-  INTERSECTION_LEFT_TURN_GAP_DISTANCE,
   LARGE_LOW_RISE_BUILDING_AREA_M2,
   LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M,
   LOCAL_SCENARIO_FOCUS_CENTER_BLEND,
@@ -38,45 +125,132 @@ import {
   LOCAL_SCENARIO_FOCUS_YAW_OFFSET,
   OVERVIEW_PIXEL_RATIO,
   OVERVIEW_RENDER_FPS,
-  POSITION_SCALE,
   ROAD_LAYER_Y,
   ROAD_NETWORK_EDGE_Y_OFFSET,
   ROAD_NETWORK_NODE_Y,
-  ROAD_SEGMENT_INDEX_CELL_SIZE,
   ROAD_WIDTH_SCALE,
   SIGNAL_CLUSTER_DISTANCE,
-  SIGNAL_COORDINATION_BAND_SIZE,
-  SIGNAL_COORDINATION_PHASE_STEP,
-  SIGNAL_CYCLE,
   SIGNAL_NODE_SNAP_DISTANCE,
   SIGNAL_ROAD_SNAP_DISTANCE,
-  SIGNAL_WAVE_TRAVEL_SPEED,
   TAXI_ASSET_TARGET_LENGTH,
-  VEHICLE_PROXIMITY_CELL_SIZE,
   BUILDING_HEIGHT_SCALE,
 } from "@/components/map-simulator/scene-constants";
-export const DEFAULT_TAXI_COUNT = 8;
-export const DEFAULT_TRAFFIC_COUNT = 0;
-export const MIN_TAXI_COUNT = 4;
-export const MAX_TAXI_COUNT = 24;
-export const MIN_TRAFFIC_COUNT = 8;
-export const MAX_TRAFFIC_COUNT = 36;
-export const DEFAULT_MAP_CENTER = { lat: 37.5, lon: 127.0328 };
-export const DEFAULT_CAMERA_PITCH_CONTROL_VALUE = 44;
-export const DEFAULT_CAMERA_YAW_CONTROL_VALUE = 321;
+export { DEFAULT_MAP_CENTER };
+export {
+  DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
+  DEFAULT_CAMERA_YAW_CONTROL_VALUE,
+} from "@/components/map-simulator/camera-types";
+export type {
+  BaseCameraMode,
+  CameraFocusTarget,
+  CameraMode,
+  CameraPitchControlState,
+  CameraYawControlState,
+  FpsMode,
+} from "@/components/map-simulator/camera-types";
+export {
+  DEFAULT_TAXI_COUNT,
+  DEFAULT_TRAFFIC_COUNT,
+  MAX_TAXI_COUNT,
+  MAX_TRAFFIC_COUNT,
+  MIN_TAXI_COUNT,
+  MIN_TRAFFIC_COUNT,
+} from "@/components/map-simulator/simulation-defaults";
+export {
+  PANEL_ACCENT_CARD_CLASS,
+  PANEL_CARD_CLASS,
+  PANEL_CARD_COMPACT_CLASS,
+  PANEL_EYEBROW_CLASS,
+  PANEL_INSET_CLASS,
+  PANEL_INSET_PADDED_CLASS,
+  PANEL_SECTION_LABEL_CLASS,
+  PANEL_STATUS_TILE_CLASS,
+  PANEL_TOKEN_CLASS,
+  panelSelectableClass,
+} from "@/components/map-simulator/panel-classes";
+export {
+  approachDirectionForHeading,
+  addVehicleSampleToBucket,
+  assignCoordinatedSignalOffsets,
+  buildCumulative,
+  buildSignalTimingPlan,
+  buildSegmentHeadings,
+  buildSegmentLengthsFromCumulative,
+  buildProjectedRoadSegments,
+  buildRoadSegmentSpatialIndex,
+  canVehicleProceed,
+  clampRouteDistance,
+  clearVehicleSampleBuckets,
+  collectRoadSegmentCandidateIndices,
+  copyVehicleMotionState,
+  createNextStopState,
+  createRouteSample,
+  createSignalApproachDemand,
+  createSignalApproachDistance,
+  createSignalAxisOccupancy,
+  createSignalData,
+  createSignalDirectionalOccupancy,
+  createSignalTurnDemand,
+  createVehicleMotionState,
+  createVehicleSimulationSample,
+  curbsideApproachBlend,
+  curbsideLaneOffset,
+  dampAngle,
+  distanceXZ,
+  dominantAxis,
+  dominantAxisForHeading,
+  featureCollectionCenter,
+  geoKey,
+  lineStringsOfRoad,
+  normalizeDistance,
+  normalizeSignalOffset,
+  offsetToRight,
+  opposingSignalDirection,
+  outerRingOfBuilding,
+  outerRingsOfDong,
+  polygonAreaXZ,
+  preferredSignalAxisForApproaches,
+  projectPoint,
+  pushSignalPhase,
+  resolveNextStop,
+  resolveNextStopInto,
+  resetSignalApproachDemand,
+  resetSignalApproachDistance,
+  resetSignalAxisOccupancy,
+  resetSignalDirectionalOccupancy,
+  resetSignalTurnDemand,
+  roadSegmentCellCoord,
+  routeDistanceAhead,
+  routeSegmentIndexAtDistance,
+  sampleRoute,
+  sampleRouteInto,
+  shapeFromPolygonCoordinates,
+  shapePointsFromCoordinates,
+  shapesOfNonRoadFeature,
+  signalAxisForDirection,
+  signalAxisPresence,
+  signalDirectionForVector,
+  SIGNAL_FLOW_CLEARANCE,
+  SIGNAL_FLOW_EW_GREEN,
+  SIGNAL_FLOW_EW_LEFT,
+  SIGNAL_FLOW_EW_YELLOW,
+  signalFlowForAxis,
+  SIGNAL_FLOW_NS_GREEN,
+  SIGNAL_FLOW_NS_LEFT,
+  SIGNAL_FLOW_NS_YELLOW,
+  SIGNAL_FLOW_PED_FLASH,
+  SIGNAL_FLOW_PED_WALK,
+  signalState,
+  signalVectorForDirection,
+  syncVehicleSampleBucket,
+  vehicleProximityCellCoord,
+  visitGeometryPositions,
+  wrapAngle,
+  writeRightVector,
+};
 export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
 export const TAXI_ASSET_IDLE_TIMEOUT_MS = 7_000;
-
-export type CameraPitchControlState = {
-  value: number;
-  version: number;
-};
-
-export type CameraYawControlState = {
-  value: number;
-  version: number;
-};
 
 export type SignalAxis = "ns" | "ew";
 export type SignalDirection = "north" | "east" | "south" | "west";
@@ -369,8 +543,6 @@ export type VehicleMaterialHint = "body" | "glass" | "trim" | "metal" | "default
 
 export type VehicleKind = "taxi" | "traffic";
 export type VehiclePlanMode = "traffic" | "pickup" | "dropoff";
-export type BaseCameraMode = "drive" | "overview" | "follow";
-export type CameraMode = BaseCameraMode | "ride";
 export type CircumstanceMode = "live" | "specific";
 
 export type VehicleMotionState = RouteSample & {
@@ -434,8 +606,6 @@ export type Stats = {
   avgPickupWaitSeconds: number;
   avgRideSeconds: number;
 };
-
-export type FpsMode = "auto" | "fixed60" | "unlimited";
 
 export type FpsStats = {
   fps: number;
@@ -831,15 +1001,6 @@ export type TaxiStandLandmark = {
   isShelter: boolean;
 };
 
-export type CameraFocusTarget = {
-  x: number;
-  z: number;
-  distance: number;
-  pitch: number;
-  label: string;
-  yaw?: number;
-};
-
 export type NearestRoadContext = {
   closest: THREE.Vector3;
   heading: THREE.Vector3;
@@ -1033,30 +1194,6 @@ let CALLER_SHOES_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let CALLER_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let fbxLoaderWarnSuppressionDepth = 0;
 let originalConsoleWarnForFbxLoader: typeof console.warn | null = null;
-export const PANEL_EYEBROW_CLASS =
-  "mb-2 text-[11px] uppercase tracking-[0.28em] text-[#99cbbd]";
-export const PANEL_SECTION_LABEL_CLASS =
-  "text-xs uppercase tracking-[0.16em] text-[#99cbbd]/80";
-export const PANEL_CARD_CLASS =
-  "rounded-2xl border border-white/12 bg-white/[0.08] p-4 text-sm";
-export const PANEL_CARD_COMPACT_CLASS =
-  "rounded-2xl border border-white/12 bg-white/[0.08] p-3 text-sm";
-export const PANEL_ACCENT_CARD_CLASS =
-  "rounded-2xl border border-[#87cbb0]/18 bg-[#87cbb0]/[0.10] p-4 text-sm";
-export const PANEL_INSET_CLASS =
-  "rounded-2xl border border-white/10 bg-slate-950/78 px-3 py-2 text-xs leading-5 text-slate-400";
-export const PANEL_INSET_PADDED_CLASS =
-  "rounded-2xl border border-white/10 bg-slate-950/78 px-3 py-3";
-export const PANEL_TOKEN_CLASS =
-  "inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full border border-white/10 bg-slate-950/80 px-2 py-1 text-slate-100";
-export const PANEL_STATUS_TILE_CLASS =
-  "rounded-2xl border border-white/10 bg-slate-950/78 p-3";
-
-export function panelSelectableClass(selected: boolean) {
-  return selected
-    ? "border-[#87cbb0]/35 bg-[#87cbb0]/14 text-[#e3f2ed]"
-    : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-white/20 hover:text-white";
-}
 
 export function panelBadgeClass(active: boolean) {
   return `inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-medium ${
@@ -1458,1115 +1595,6 @@ export function labelVisibilityBudget(mode: CameraMode) {
         optionalDistanceSq: 170 * 170,
       };
   }
-}
-
-export function geoKey(position: Position) {
-  return `${position[0].toFixed(5)}:${position[1].toFixed(5)}`;
-}
-
-export function visitGeometryPositions(
-  geometry: LineString | MultiLineString | Polygon | MultiPolygon,
-  visit: (position: Position) => void,
-) {
-  if (geometry.type === "LineString") {
-    geometry.coordinates.forEach(visit);
-    return;
-  }
-
-  if (geometry.type === "MultiLineString" || geometry.type === "Polygon") {
-    geometry.coordinates.forEach((line) => line.forEach(visit));
-    return;
-  }
-
-  geometry.coordinates.forEach((polygon) =>
-    polygon.forEach((ring) => ring.forEach(visit)),
-  );
-}
-
-export function featureCollectionCenter(
-  featureCollection: FeatureCollection<
-    LineString | MultiLineString | Polygon | MultiPolygon
-  >,
-) {
-  let south = Number.POSITIVE_INFINITY;
-  let west = Number.POSITIVE_INFINITY;
-  let north = Number.NEGATIVE_INFINITY;
-  let east = Number.NEGATIVE_INFINITY;
-
-  featureCollection.features.forEach((feature) => {
-    visitGeometryPositions(feature.geometry, ([lon, lat]) => {
-      south = Math.min(south, lat);
-      west = Math.min(west, lon);
-      north = Math.max(north, lat);
-      east = Math.max(east, lon);
-    });
-  });
-
-  if (!Number.isFinite(south)) {
-    return DEFAULT_MAP_CENTER;
-  }
-
-  return {
-    lat: (south + north) / 2,
-    lon: (west + east) / 2,
-  };
-}
-
-export function projectPoint(
-  position: Position,
-  center: { lat: number; lon: number },
-) {
-  const latFactor = 110540 * POSITION_SCALE;
-  const lonFactor =
-    111320 * Math.cos((center.lat * Math.PI) / 180) * POSITION_SCALE;
-  return new THREE.Vector3(
-    (position[0] - center.lon) * lonFactor,
-    0,
-    -(position[1] - center.lat) * latFactor,
-  );
-}
-
-export function lineStringsOfRoad(
-  feature: RoadFeature,
-  center: { lat: number; lon: number },
-) {
-  if (feature.geometry.type === "LineString") {
-    return [
-      feature.geometry.coordinates.map((coordinate) => ({
-        key: geoKey(coordinate),
-        point: projectPoint(coordinate, center),
-      })),
-    ];
-  }
-
-  return feature.geometry.coordinates.map((line) =>
-    line.map((coordinate) => ({
-      key: geoKey(coordinate),
-      point: projectPoint(coordinate, center),
-    })),
-  );
-}
-
-export function buildProjectedRoadSegments(
-  roads: RoadFeatureCollection,
-  center: { lat: number; lon: number },
-) {
-  return roads.features.flatMap((feature) =>
-    lineStringsOfRoad(feature, center).flatMap((line) =>
-      line.slice(1).map((node, index) => ({
-        roadClass: feature.properties.roadClass,
-        width: feature.properties.width * ROAD_WIDTH_SCALE,
-        start: line[index].point,
-        end: node.point,
-        name: feature.properties.name,
-      })),
-    ),
-  );
-}
-
-export function roadSegmentCellCoord(value: number, cellSize: number) {
-  return Math.floor(value / cellSize);
-}
-
-export function buildRoadSegmentSpatialIndex(
-  roadSegments: ProjectedRoadSegment[],
-  cellSize = ROAD_SEGMENT_INDEX_CELL_SIZE,
-): RoadSegmentSpatialIndex {
-  const columns = new Map<number, Map<number, number[]>>();
-
-  for (let segmentIndex = 0; segmentIndex < roadSegments.length; segmentIndex += 1) {
-    const segment = roadSegments[segmentIndex]!;
-    const minX = Math.min(segment.start.x, segment.end.x);
-    const maxX = Math.max(segment.start.x, segment.end.x);
-    const minZ = Math.min(segment.start.z, segment.end.z);
-    const maxZ = Math.max(segment.start.z, segment.end.z);
-
-    const startCellX = roadSegmentCellCoord(minX, cellSize);
-    const endCellX = roadSegmentCellCoord(maxX, cellSize);
-    const startCellZ = roadSegmentCellCoord(minZ, cellSize);
-    const endCellZ = roadSegmentCellCoord(maxZ, cellSize);
-
-    for (let cellX = startCellX; cellX <= endCellX; cellX += 1) {
-      let column = columns.get(cellX);
-      if (!column) {
-        column = new Map<number, number[]>();
-        columns.set(cellX, column);
-      }
-
-      for (let cellZ = startCellZ; cellZ <= endCellZ; cellZ += 1) {
-        let bucket = column.get(cellZ);
-        if (!bucket) {
-          bucket = [];
-          column.set(cellZ, bucket);
-        }
-        bucket.push(segmentIndex);
-      }
-    }
-  }
-
-  return {
-    cellSize,
-    columns,
-  };
-}
-
-export function collectRoadSegmentCandidateIndices(
-  point: THREE.Vector3,
-  roadSegments: ProjectedRoadSegment[],
-  roadSegmentSpatialIndex: RoadSegmentSpatialIndex | null,
-  maxDistance: number,
-) {
-  if (!roadSegmentSpatialIndex || !Number.isFinite(maxDistance)) {
-    return null;
-  }
-
-  const cellRadius = Math.max(
-    1,
-    Math.ceil(maxDistance / roadSegmentSpatialIndex.cellSize) + 1,
-  );
-  const centerCellX = roadSegmentCellCoord(point.x, roadSegmentSpatialIndex.cellSize);
-  const centerCellZ = roadSegmentCellCoord(point.z, roadSegmentSpatialIndex.cellSize);
-  const seen = new Set<number>();
-
-  for (
-    let cellX = centerCellX - cellRadius;
-    cellX <= centerCellX + cellRadius;
-    cellX += 1
-  ) {
-    const column = roadSegmentSpatialIndex.columns.get(cellX);
-    if (!column) {
-      continue;
-    }
-
-    for (
-      let cellZ = centerCellZ - cellRadius;
-      cellZ <= centerCellZ + cellRadius;
-      cellZ += 1
-    ) {
-      const bucket = column.get(cellZ);
-      if (!bucket) {
-        continue;
-      }
-
-      for (let bucketIndex = 0; bucketIndex < bucket.length; bucketIndex += 1) {
-        const segmentIndex = bucket[bucketIndex]!;
-        if (segmentIndex >= 0 && segmentIndex < roadSegments.length) {
-          seen.add(segmentIndex);
-        }
-      }
-    }
-  }
-
-  return seen.size ? [...seen] : null;
-}
-
-export function outerRingOfBuilding(
-  feature: BuildingFeature,
-  center: { lat: number; lon: number },
-) {
-  const ring =
-    feature.geometry.type === "Polygon"
-      ? feature.geometry.coordinates[0]
-      : (feature.geometry.coordinates[0]?.[0] ?? []);
-
-  return ring.map((coordinate) => projectPoint(coordinate, center));
-}
-
-export function outerRingsOfDong(
-  feature: DongFeature,
-  center: { lat: number; lon: number },
-) {
-  if (feature.geometry.type === "Polygon") {
-    const ring = feature.geometry.coordinates[0] ?? [];
-    return ring.length
-      ? [ring.map((coordinate) => projectPoint(coordinate, center))]
-      : [];
-  }
-
-  return feature.geometry.coordinates
-    .map((polygon) => polygon[0] ?? [])
-    .filter((ring) => ring.length)
-    .map((ring) => ring.map((coordinate) => projectPoint(coordinate, center)));
-}
-
-export function shapePointsFromCoordinates(
-  ring: Position[],
-  center: { lat: number; lon: number },
-  clockwise: boolean,
-) {
-  const points = ring.map((coordinate) => {
-    const point = projectPoint(coordinate, center);
-    return new THREE.Vector2(point.x, -point.z);
-  });
-
-  if (
-    points.length > 1 &&
-    points[0].distanceTo(points[points.length - 1]) < 0.001
-  ) {
-    points.pop();
-  }
-
-  if (points.length < 3) {
-    return null;
-  }
-
-  if (THREE.ShapeUtils.isClockWise(points) !== clockwise) {
-    points.reverse();
-  }
-
-  return points;
-}
-
-export function shapeFromPolygonCoordinates(
-  rings: Position[][],
-  center: { lat: number; lon: number },
-) {
-  const outerPoints = shapePointsFromCoordinates(rings[0] ?? [], center, false);
-  if (!outerPoints) {
-    return null;
-  }
-
-  const shape = new THREE.Shape(outerPoints);
-  rings.slice(1).forEach((ring) => {
-    const holePoints = shapePointsFromCoordinates(ring, center, true);
-    if (!holePoints) {
-      return;
-    }
-    shape.holes.push(new THREE.Path(holePoints));
-  });
-
-  return shape;
-}
-
-export function shapesOfNonRoadFeature(
-  feature: NonRoadFeature,
-  center: { lat: number; lon: number },
-) {
-  if (feature.geometry.type === "Polygon") {
-    const shape = shapeFromPolygonCoordinates(
-      feature.geometry.coordinates,
-      center,
-    );
-    return shape ? [shape] : [];
-  }
-
-  return feature.geometry.coordinates
-    .map((polygon) => shapeFromPolygonCoordinates(polygon, center))
-    .filter(Boolean) as THREE.Shape[];
-}
-
-export function distanceXZ(start: THREE.Vector3, end: THREE.Vector3) {
-  return Math.hypot(end.x - start.x, end.z - start.z);
-}
-
-export function polygonAreaXZ(points: THREE.Vector3[]) {
-  let usablePoints = points;
-  if (usablePoints.length > 1) {
-    const first = usablePoints[0];
-    const last = usablePoints[usablePoints.length - 1];
-    if (first.distanceToSquared(last) < 0.0001) {
-      usablePoints = usablePoints.slice(0, -1);
-    }
-  }
-
-  if (usablePoints.length < 3) {
-    return 0;
-  }
-
-  let areaTwice = 0;
-  usablePoints.forEach((point, index) => {
-    const next = usablePoints[(index + 1) % usablePoints.length];
-    areaTwice += point.x * next.z - next.x * point.z;
-  });
-
-  return Math.abs(areaTwice) * 0.5;
-}
-
-export function buildCumulative(points: THREE.Vector3[]) {
-  const cumulative = [0];
-  for (let index = 1; index < points.length; index += 1) {
-    cumulative.push(
-      cumulative[index - 1] + distanceXZ(points[index - 1], points[index]),
-    );
-  }
-  return cumulative;
-}
-
-export function buildSegmentLengthsFromCumulative(cumulative: number[]) {
-  const segmentLengths: number[] = [];
-  for (let index = 0; index < cumulative.length - 1; index += 1) {
-    segmentLengths.push(cumulative[index + 1]! - cumulative[index]!);
-  }
-  return segmentLengths;
-}
-
-export function buildSegmentHeadings(points: THREE.Vector3[]) {
-  const segmentHeadings: THREE.Vector3[] = [];
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const heading = points[index + 1]!.clone().sub(points[index]!);
-    if (heading.lengthSq() < 0.0001) {
-      heading.set(0, 0, 1);
-    } else {
-      heading.normalize();
-    }
-    segmentHeadings.push(heading);
-  }
-  return segmentHeadings;
-}
-
-export function normalizeDistance(value: number, totalLength: number) {
-  if (totalLength <= 0) {
-    return 0;
-  }
-  return ((value % totalLength) + totalLength) % totalLength;
-}
-
-export function clampRouteDistance(route: RouteTemplate, value: number) {
-  if (route.isLoop) {
-    return normalizeDistance(value, route.totalLength);
-  }
-  return THREE.MathUtils.clamp(value, 0, route.totalLength);
-}
-
-export function routeDistanceAhead(
-  route: RouteTemplate,
-  current: number,
-  target: number,
-) {
-  if (route.isLoop) {
-    const normalizedCurrent = normalizeDistance(current, route.totalLength);
-    const normalizedTarget = normalizeDistance(target, route.totalLength);
-    if (normalizedTarget >= normalizedCurrent) {
-      return normalizedTarget - normalizedCurrent;
-    }
-    return route.totalLength - normalizedCurrent + normalizedTarget;
-  }
-
-  if (target < current) {
-    return Number.POSITIVE_INFINITY;
-  }
-  return target - current;
-}
-
-export function createRouteSample(): RouteSample {
-  return {
-    position: new THREE.Vector3(),
-    heading: new THREE.Vector3(0, 0, 1),
-    segmentIndex: 0,
-  };
-}
-
-export function createVehicleMotionState(): VehicleMotionState {
-  return {
-    ...createRouteSample(),
-    lanePosition: new THREE.Vector3(),
-    right: new THREE.Vector3(1, 0, 0),
-    yaw: 0,
-    nextStopIndex: 0,
-  };
-}
-
-export function copyVehicleMotionState(
-  target: VehicleMotionState,
-  source: VehicleMotionState,
-) {
-  target.position.copy(source.position);
-  target.heading.copy(source.heading);
-  target.segmentIndex = source.segmentIndex;
-  target.lanePosition.copy(source.lanePosition);
-  target.right.copy(source.right);
-  target.yaw = source.yaw;
-  target.nextStopIndex = source.nextStopIndex;
-  return target;
-}
-
-export function createNextStopState(): NextStopState {
-  return {
-    index: -1,
-    stop: null,
-    ahead: Number.POSITIVE_INFINITY,
-  };
-}
-
-export function createVehicleSimulationSample(
-  vehicle: Vehicle,
-): VehicleSimulationSample {
-  return {
-    vehicle,
-    motion: vehicle.motion,
-    nextStopState: createNextStopState(),
-    proximityCellX: 0,
-    proximityCellZ: 0,
-  };
-}
-
-export function vehicleProximityCellCoord(value: number) {
-  return Math.floor(value / VEHICLE_PROXIMITY_CELL_SIZE);
-}
-
-export function addVehicleSampleToBucket(
-  buckets: VehicleProximityBuckets,
-  sample: VehicleSimulationSample,
-  cellX = sample.proximityCellX,
-  cellZ = sample.proximityCellZ,
-) {
-  let column = buckets.get(cellX);
-  if (!column) {
-    column = new Map<number, VehicleSimulationSample[]>();
-    buckets.set(cellX, column);
-  }
-
-  let bucket = column.get(cellZ);
-  if (!bucket) {
-    bucket = [];
-    column.set(cellZ, bucket);
-  }
-  bucket.push(sample);
-}
-
-export function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
-  buckets.forEach((column) => {
-    column.forEach((bucket) => {
-      bucket.length = 0;
-    });
-  });
-}
-
-export function syncVehicleSampleBucket(
-  buckets: VehicleProximityBuckets,
-  sample: VehicleSimulationSample,
-) {
-  const nextCellX = vehicleProximityCellCoord(sample.motion.lanePosition.x);
-  const nextCellZ = vehicleProximityCellCoord(sample.motion.lanePosition.z);
-  if (
-    nextCellX === sample.proximityCellX &&
-    nextCellZ === sample.proximityCellZ
-  ) {
-    return;
-  }
-
-  const currentColumn = buckets.get(sample.proximityCellX);
-  const currentBucket = currentColumn?.get(sample.proximityCellZ);
-  if (currentBucket) {
-    const sampleIndex = currentBucket.indexOf(sample);
-    if (sampleIndex !== -1) {
-      currentBucket[sampleIndex] = currentBucket[currentBucket.length - 1];
-      currentBucket.pop();
-    }
-    if (!currentBucket.length) {
-      currentColumn?.delete(sample.proximityCellZ);
-      if (currentColumn && !currentColumn.size) {
-        buckets.delete(sample.proximityCellX);
-      }
-    }
-  }
-
-  sample.proximityCellX = nextCellX;
-  sample.proximityCellZ = nextCellZ;
-  addVehicleSampleToBucket(buckets, sample, nextCellX, nextCellZ);
-}
-
-export function routeSegmentIndexAtDistance(
-  route: RouteTemplate,
-  distance: number,
-  segmentIndexHint = 0,
-) {
-  if (route.nodes.length < 2 || route.totalLength <= 0) {
-    return 0;
-  }
-
-  const clampedDistance = clampRouteDistance(route, distance);
-  let segmentIndex = THREE.MathUtils.clamp(
-    segmentIndexHint,
-    0,
-    route.cumulative.length - 2,
-  );
-
-  while (
-    segmentIndex < route.cumulative.length - 2 &&
-    route.cumulative[segmentIndex + 1] < clampedDistance
-  ) {
-    segmentIndex += 1;
-  }
-
-  while (segmentIndex > 0 && route.cumulative[segmentIndex] > clampedDistance) {
-    segmentIndex -= 1;
-  }
-
-  return segmentIndex;
-}
-
-export function sampleRouteInto(
-  route: RouteTemplate,
-  distance: number,
-  target: RouteSample,
-  segmentIndexHint = 0,
-) {
-  if (route.nodes.length < 2 || route.totalLength <= 0) {
-    target.position.copy(route.nodes[0]?.point ?? new THREE.Vector3());
-    target.heading.set(0, 0, 1);
-    target.segmentIndex = 0;
-    return target;
-  }
-
-  const clampedDistance = clampRouteDistance(route, distance);
-  const segmentIndex = routeSegmentIndexAtDistance(
-    route,
-    clampedDistance,
-    segmentIndexHint,
-  );
-  const start = route.nodes[segmentIndex].point;
-  const end = route.nodes[segmentIndex + 1]?.point ?? start;
-  const segmentStart = route.cumulative[segmentIndex];
-  const segmentLength = Math.max(route.segmentLengths[segmentIndex] ?? 0, 0.0001);
-  const segmentHeading = route.segmentHeadings[segmentIndex];
-  if (segmentHeading) {
-    target.heading.copy(segmentHeading);
-  } else {
-    target.heading.copy(end).sub(start);
-    if (target.heading.lengthSq() < 0.0001) {
-      target.heading.set(0, 0, 1);
-    } else {
-      target.heading.normalize();
-    }
-  }
-
-  target.position
-    .copy(start)
-    .lerp(end, (clampedDistance - segmentStart) / segmentLength);
-  target.segmentIndex = segmentIndex;
-  return target;
-}
-
-export function writeRightVector(heading: THREE.Vector3, target: THREE.Vector3) {
-  target.set(heading.z, 0, -heading.x);
-  if (target.lengthSq() < 0.0001) {
-    target.set(1, 0, 0);
-  } else {
-    target.normalize();
-  }
-  return target;
-}
-
-export function resolveNextStopInto(
-  route: RouteTemplate,
-  currentDistance: number,
-  target: NextStopState,
-  startIndex = 0,
-) {
-  if (!route.stops.length) {
-    target.index = -1;
-    target.stop = null;
-    target.ahead = Number.POSITIVE_INFINITY;
-    return target;
-  }
-
-  if (!route.isLoop) {
-    let index = THREE.MathUtils.clamp(startIndex, 0, route.stops.length);
-    while (
-      index < route.stops.length &&
-      route.stops[index].distance < currentDistance - 0.001
-    ) {
-      index += 1;
-    }
-
-    if (index >= route.stops.length) {
-      target.index = route.stops.length;
-      target.stop = null;
-      target.ahead = Number.POSITIVE_INFINITY;
-      return target;
-    }
-
-    target.index = index;
-    target.stop = route.stops[index];
-    target.ahead = Math.max(0, route.stops[index].distance - currentDistance);
-    return target;
-  }
-
-  let bestIndex = THREE.MathUtils.clamp(startIndex, 0, route.stops.length - 1);
-  let bestAhead = routeDistanceAhead(
-    route,
-    currentDistance,
-    route.stops[bestIndex].distance,
-  );
-
-  for (let step = 0; step < route.stops.length - 1; step += 1) {
-    const candidateIndex = (bestIndex + 1) % route.stops.length;
-    const candidateAhead = routeDistanceAhead(
-      route,
-      currentDistance,
-      route.stops[candidateIndex].distance,
-    );
-    if (candidateAhead > bestAhead + 0.001) {
-      break;
-    }
-    bestIndex = candidateIndex;
-    bestAhead = candidateAhead;
-    if (bestAhead <= 0.001) {
-      break;
-    }
-  }
-
-  target.index = bestIndex;
-  target.stop = route.stops[bestIndex];
-  target.ahead = bestAhead;
-  return target;
-}
-
-export function resolveNextStop(
-  route: RouteTemplate,
-  currentDistance: number,
-  startIndex = 0,
-) {
-  return resolveNextStopInto(
-    route,
-    currentDistance,
-    createNextStopState(),
-    startIndex,
-  );
-}
-
-export function offsetToRight(
-  position: THREE.Vector3,
-  heading: THREE.Vector3,
-  offset: number,
-) {
-  const right = writeRightVector(heading, new THREE.Vector3());
-  return position.clone().addScaledVector(right, offset);
-}
-
-export function signalVectorForDirection(direction: SignalDirection) {
-  switch (direction) {
-    case "north":
-      return new THREE.Vector3(0, 0, -1);
-    case "south":
-      return new THREE.Vector3(0, 0, 1);
-    case "east":
-      return new THREE.Vector3(1, 0, 0);
-    default:
-      return new THREE.Vector3(-1, 0, 0);
-  }
-}
-
-export function curbsideLaneOffset(route: Pick<RouteTemplate, "roadWidth" | "laneOffset">) {
-  const edgeInset = THREE.MathUtils.clamp(
-    route.roadWidth * 0.16,
-    CURBSIDE_EDGE_INSET_MIN,
-    CURBSIDE_EDGE_INSET_MAX,
-  );
-  return THREE.MathUtils.clamp(
-    route.roadWidth * 0.5 - edgeInset,
-    route.laneOffset + 0.16,
-    route.laneOffset + CURBSIDE_EXTRA_OFFSET_MAX,
-  );
-}
-
-export function curbsideApproachBlend(vehicle: Vehicle) {
-  if (vehicle.kind !== "taxi" || vehicle.route.isLoop) {
-    return 0;
-  }
-  if (vehicle.serviceTimer > 0) {
-    return 1;
-  }
-
-  const destinationGap = Math.max(0, vehicle.route.totalLength - vehicle.distance);
-  if (destinationGap >= HOTSPOT_SLOWDOWN_DISTANCE) {
-    return 0;
-  }
-
-  return THREE.MathUtils.smoothstep(
-    1 - destinationGap / HOTSPOT_SLOWDOWN_DISTANCE,
-    0,
-    1,
-  );
-}
-
-export function wrapAngle(angle: number) {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
-}
-
-export function dampAngle(
-  current: number,
-  target: number,
-  lambda: number,
-  delta: number,
-) {
-  const gap = wrapAngle(target - current);
-  return wrapAngle(current + gap * (1 - Math.exp(-lambda * delta)));
-}
-
-export function sampleRoute(
-  route: RouteTemplate,
-  distance: number,
-  segmentIndexHint = 0,
-) {
-  return sampleRouteInto(
-    route,
-    distance,
-    createRouteSample(),
-    segmentIndexHint,
-  );
-}
-
-export function dominantAxis(start: THREE.Vector3, end: THREE.Vector3): SignalAxis {
-  return Math.abs(end.x - start.x) > Math.abs(end.z - start.z) ? "ew" : "ns";
-}
-
-export function signalDirectionForVector(vector: THREE.Vector3): SignalDirection {
-  if (Math.abs(vector.x) > Math.abs(vector.z)) {
-    return vector.x >= 0 ? "east" : "west";
-  }
-  return vector.z >= 0 ? "south" : "north";
-}
-
-export function signalAxisForDirection(direction: SignalDirection): SignalAxis {
-  return direction === "east" || direction === "west" ? "ew" : "ns";
-}
-
-export function approachDirectionForHeading(heading: THREE.Vector3): SignalDirection {
-  if (Math.abs(heading.x) > Math.abs(heading.z)) {
-    return heading.x >= 0 ? "west" : "east";
-  }
-  return heading.z >= 0 ? "north" : "south";
-}
-
-export function opposingSignalDirection(direction: SignalDirection): SignalDirection {
-  switch (direction) {
-    case "north":
-      return "south";
-    case "south":
-      return "north";
-    case "east":
-      return "west";
-    default:
-      return "east";
-  }
-}
-
-export function dominantAxisForHeading(heading: THREE.Vector3): SignalAxis {
-  return Math.abs(heading.x) > Math.abs(heading.z) ? "ew" : "ns";
-}
-
-export function normalizeSignalOffset(offset: number) {
-  return ((offset % SIGNAL_CYCLE) + SIGNAL_CYCLE) % SIGNAL_CYCLE;
-}
-
-export function createSignalTurnDemand(): SignalTurnDemand {
-  return {
-    left: 0,
-    straight: 0,
-    right: 0,
-  };
-}
-
-export function createSignalApproachDemand(): SignalApproachDemand {
-  return {
-    north: createSignalTurnDemand(),
-    east: createSignalTurnDemand(),
-    south: createSignalTurnDemand(),
-    west: createSignalTurnDemand(),
-  };
-}
-
-export function createSignalApproachDistance(): SignalApproachDistance {
-  return {
-    north: Number.POSITIVE_INFINITY,
-    east: Number.POSITIVE_INFINITY,
-    south: Number.POSITIVE_INFINITY,
-    west: Number.POSITIVE_INFINITY,
-  };
-}
-
-export function resetSignalAxisOccupancy(target: SignalAxisOccupancy) {
-  target.ns = 0;
-  target.ew = 0;
-  return target;
-}
-
-export function createSignalDirectionalOccupancy(): SignalDirectionalOccupancy {
-  return {
-    north: 0,
-    east: 0,
-    south: 0,
-    west: 0,
-  };
-}
-
-export function resetSignalDirectionalOccupancy(target: SignalDirectionalOccupancy) {
-  target.north = 0;
-  target.east = 0;
-  target.south = 0;
-  target.west = 0;
-  return target;
-}
-
-export function resetSignalTurnDemand(target: SignalTurnDemand) {
-  target.left = 0;
-  target.straight = 0;
-  target.right = 0;
-  return target;
-}
-
-export function resetSignalApproachDemand(target: SignalApproachDemand) {
-  resetSignalTurnDemand(target.north);
-  resetSignalTurnDemand(target.east);
-  resetSignalTurnDemand(target.south);
-  resetSignalTurnDemand(target.west);
-  return target;
-}
-
-export function resetSignalApproachDistance(target: SignalApproachDistance) {
-  target.north = Number.POSITIVE_INFINITY;
-  target.east = Number.POSITIVE_INFINITY;
-  target.south = Number.POSITIVE_INFINITY;
-  target.west = Number.POSITIVE_INFINITY;
-  return target;
-}
-
-export function createSignalAxisOccupancy(): SignalAxisOccupancy {
-  return {
-    ns: 0,
-    ew: 0,
-  };
-}
-
-export function signalFlowForAxis(
-  axis: SignalAxis,
-  phase: "green" | "yellow" | "left",
-) {
-  if (axis === "ns") {
-    if (phase === "green") {
-      return SIGNAL_FLOW_NS_GREEN;
-    }
-    if (phase === "yellow") {
-      return SIGNAL_FLOW_NS_YELLOW;
-    }
-    return SIGNAL_FLOW_NS_LEFT;
-  }
-
-  if (phase === "green") {
-    return SIGNAL_FLOW_EW_GREEN;
-  }
-  if (phase === "yellow") {
-    return SIGNAL_FLOW_EW_YELLOW;
-  }
-  return SIGNAL_FLOW_EW_LEFT;
-}
-
-export function pushSignalPhase(
-  sequence: SignalPhaseStep[],
-  duration: number,
-  flow: SignalFlow,
-) {
-  if (duration <= 0.001) {
-    return;
-  }
-  sequence.push({ duration, flow });
-}
-
-export function buildSignalTimingPlan(
-  approaches: SignalDirection[],
-  priorityAxis: SignalAxis,
-  hasProtectedLeft: boolean,
-): SignalTimingPlan {
-  const axisCounts = signalAxisPresence(approaches);
-  const majorApproachCount = priorityAxis === "ns" ? axisCounts.ns : axisCounts.ew;
-  const minorApproachCount = priorityAxis === "ns" ? axisCounts.ew : axisCounts.ns;
-  const yellowDuration = 1.1;
-  const clearanceDuration = 0.7;
-  const pedestrianWalkDuration = approaches.length >= 4 ? 2.4 : 2.1;
-  const pedestrianFlashDuration = approaches.length >= 4 ? 1.65 : 1.45;
-  const majorLeftDuration =
-    hasProtectedLeft && majorApproachCount > 1 ? 1.45 : 0;
-  const minorLeftDuration =
-    hasProtectedLeft && minorApproachCount > 1 ? 1.2 : 0;
-  const fixedDuration =
-    yellowDuration * 2 +
-    clearanceDuration * 2 +
-    pedestrianWalkDuration +
-    pedestrianFlashDuration +
-    majorLeftDuration +
-    minorLeftDuration;
-  const remainingFlowDuration = Math.max(8.6, SIGNAL_CYCLE - fixedDuration);
-  const majorGreenBias = THREE.MathUtils.clamp(
-    0.54 +
-    (majorApproachCount - minorApproachCount) * 0.05 +
-    (hasProtectedLeft ? 0.02 : 0),
-    0.54,
-    0.64,
-  );
-  const majorGreenDuration = Math.max(
-    4.8,
-    remainingFlowDuration * majorGreenBias,
-  );
-  const minorGreenDuration = Math.max(
-    4.2,
-    remainingFlowDuration - majorGreenDuration,
-  );
-  const cycleAdjustment =
-    SIGNAL_CYCLE -
-    (majorLeftDuration +
-      majorGreenDuration +
-      yellowDuration +
-      clearanceDuration +
-      minorLeftDuration +
-      minorGreenDuration +
-      yellowDuration +
-      clearanceDuration +
-      pedestrianWalkDuration +
-      pedestrianFlashDuration);
-  const minorAxis = priorityAxis === "ns" ? "ew" : "ns";
-  const sequence: SignalPhaseStep[] = [];
-  pushSignalPhase(
-    sequence,
-    majorLeftDuration,
-    signalFlowForAxis(priorityAxis, "left"),
-  );
-  pushSignalPhase(
-    sequence,
-    majorGreenDuration,
-    signalFlowForAxis(priorityAxis, "green"),
-  );
-  pushSignalPhase(
-    sequence,
-    yellowDuration,
-    signalFlowForAxis(priorityAxis, "yellow"),
-  );
-  pushSignalPhase(sequence, clearanceDuration, SIGNAL_FLOW_CLEARANCE);
-  pushSignalPhase(
-    sequence,
-    minorLeftDuration,
-    signalFlowForAxis(minorAxis, "left"),
-  );
-  pushSignalPhase(
-    sequence,
-    minorGreenDuration,
-    signalFlowForAxis(minorAxis, "green"),
-  );
-  pushSignalPhase(
-    sequence,
-    yellowDuration,
-    signalFlowForAxis(minorAxis, "yellow"),
-  );
-  pushSignalPhase(sequence, clearanceDuration, SIGNAL_FLOW_CLEARANCE);
-  pushSignalPhase(sequence, pedestrianWalkDuration, SIGNAL_FLOW_PED_WALK);
-  pushSignalPhase(
-    sequence,
-    pedestrianFlashDuration + cycleAdjustment,
-    SIGNAL_FLOW_PED_FLASH,
-  );
-  return { sequence };
-}
-
-export function createSignalData(
-  id: string,
-  key: string,
-  point: THREE.Vector3,
-  approaches: SignalDirection[],
-  hasProtectedLeft: boolean,
-  visualPoint: THREE.Vector3 = point,
-  approachYaws: Record<SignalDirection, number> = {
-    north: 0,
-    south: Math.PI,
-    east: Math.PI / 2,
-    west: -Math.PI / 2,
-  },
-): Omit<SignalData, "offset"> {
-  const priorityAxis = preferredSignalAxisForApproaches(approaches, point);
-  return {
-    id,
-    key,
-    point,
-    visualPoint,
-    approaches,
-    approachYaws,
-    hasProtectedLeft,
-    priorityAxis,
-    timingPlan: buildSignalTimingPlan(
-      approaches,
-      priorityAxis,
-      hasProtectedLeft,
-    ),
-  };
-}
-
-export function signalAxisPresence(approaches: SignalDirection[]) {
-  return approaches.reduce(
-    (counts, direction) => {
-      if (signalAxisForDirection(direction) === "ew") {
-        counts.ew += 1;
-      } else {
-        counts.ns += 1;
-      }
-      return counts;
-    },
-    { ns: 0, ew: 0 },
-  );
-}
-
-export function preferredSignalAxisForApproaches(
-  approaches: SignalDirection[],
-  point: THREE.Vector3,
-): SignalAxis {
-  const counts = signalAxisPresence(approaches);
-  if (counts.ns === counts.ew) {
-    return Math.abs(point.z) >= Math.abs(point.x) ? "ns" : "ew";
-  }
-  return counts.ns > counts.ew ? "ns" : "ew";
-}
-
-export function assignCoordinatedSignalOffsets(
-  signals: Array<Omit<SignalData, "offset">>,
-) {
-  const grouped = new Map<
-    string,
-    Array<{
-      signal: Omit<SignalData, "offset">;
-      axisPosition: number;
-      corridorBand: number;
-    }>
-  >();
-
-  signals.forEach((signal) => {
-    const priorityAxis = signal.priorityAxis;
-    const axisPosition =
-      priorityAxis === "ew" ? signal.point.x : signal.point.z;
-    const crossAxisPosition =
-      priorityAxis === "ew" ? signal.point.z : signal.point.x;
-    const corridorBand = Math.round(
-      crossAxisPosition / SIGNAL_COORDINATION_BAND_SIZE,
-    );
-    const groupKey = `${priorityAxis}:${corridorBand}`;
-    const group = grouped.get(groupKey) ?? [];
-    group.push({ signal, axisPosition, corridorBand });
-    grouped.set(groupKey, group);
-  });
-
-  const offsetBySignalKey = new Map<string, number>();
-  grouped.forEach((group, groupKey) => {
-    group.sort((left, right) => left.axisPosition - right.axisPosition);
-    const corridorSeed = normalizeSignalOffset(
-      group[0].corridorBand * SIGNAL_COORDINATION_PHASE_STEP +
-      (groupKey.startsWith("ew") ? SIGNAL_CYCLE * 0.33 : 0),
-    );
-    const corridorStart = group[0].axisPosition;
-
-    group.forEach((entry, index) => {
-      const progressionOffset =
-        -(entry.axisPosition - corridorStart) / SIGNAL_WAVE_TRAVEL_SPEED;
-      offsetBySignalKey.set(
-        entry.signal.key,
-        normalizeSignalOffset(
-          corridorSeed + progressionOffset + index * 0.08,
-        ),
-      );
-    });
-  });
-
-  return signals.map((signal) => ({
-    ...signal,
-    offset: offsetBySignalKey.get(signal.key) ?? 0,
-  }));
 }
 
 export function averagePoint(points: THREE.Vector3[]) {
@@ -4912,138 +3940,6 @@ export function buildTaxiStandHotspots(
       } satisfies Hotspot;
     })
     .filter(Boolean) as Hotspot[];
-}
-
-export const SIGNAL_FLOW_NS_GREEN: SignalFlow = {
-  phase: "ns_flow",
-  ns: "green",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_NS_YELLOW: SignalFlow = {
-  phase: "ns_yellow",
-  ns: "yellow",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_NS_LEFT: SignalFlow = {
-  phase: "ns_left",
-  ns: "red",
-  ew: "red",
-  nsLeft: true,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_EW_GREEN: SignalFlow = {
-  phase: "ew_flow",
-  ns: "red",
-  ew: "green",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_EW_YELLOW: SignalFlow = {
-  phase: "ew_yellow",
-  ns: "red",
-  ew: "yellow",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_EW_LEFT: SignalFlow = {
-  phase: "ew_left",
-  ns: "red",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: true,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_CLEARANCE: SignalFlow = {
-  phase: "clearance",
-  ns: "red",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "stop",
-};
-
-export const SIGNAL_FLOW_PED_WALK: SignalFlow = {
-  phase: "ped_walk",
-  ns: "red",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "walk",
-};
-
-export const SIGNAL_FLOW_PED_FLASH: SignalFlow = {
-  phase: "ped_flash",
-  ns: "red",
-  ew: "red",
-  nsLeft: false,
-  ewLeft: false,
-  pedestrian: "flash",
-};
-
-export function signalState(signal: SignalData, elapsedTime: number): SignalFlow {
-  const phase = normalizeSignalOffset(elapsedTime + signal.offset);
-  let elapsed = 0;
-  for (let index = 0; index < signal.timingPlan.sequence.length; index += 1) {
-    const step = signal.timingPlan.sequence[index]!;
-    elapsed += step.duration;
-    if (phase < elapsed) {
-      return step.flow;
-    }
-  }
-  return (
-    signal.timingPlan.sequence[signal.timingPlan.sequence.length - 1]?.flow ??
-    SIGNAL_FLOW_PED_FLASH
-  );
-}
-
-export function canVehicleProceed(
-  stop: StopMarker,
-  state: SignalFlow,
-  conflictingAxisOccupied: boolean,
-  opposingPriorityDemand = 0,
-  opposingPriorityDistance = Number.POSITIVE_INFINITY,
-) {
-  if (
-    state.phase === "clearance" ||
-    state.phase === "ped_walk" ||
-    state.phase === "ped_flash"
-  ) {
-    return false;
-  }
-  if (stop.turn === "left") {
-    if (stop.axis === "ns") {
-      return (
-        state.nsLeft ||
-        (state.ns === "green" &&
-          !conflictingAxisOccupied &&
-          (opposingPriorityDemand === 0 ||
-            opposingPriorityDistance > INTERSECTION_LEFT_TURN_GAP_DISTANCE))
-      );
-    }
-    return (
-      state.ewLeft ||
-      (state.ew === "green" &&
-        !conflictingAxisOccupied &&
-        (opposingPriorityDemand === 0 ||
-          opposingPriorityDistance > INTERSECTION_LEFT_TURN_GAP_DISTANCE))
-    );
-  }
-  return stop.axis === "ns" ? state.ns === "green" : state.ew === "green";
 }
 
 export async function loadVehicleAssetTemplate(
