@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { buildEnvironmentState, type WeatherMode } from "@/components/map-simulator/simulation-environment";
+import { buildEnvironmentState } from "@/components/map-simulator/simulation-environment";
 import {
   INTERSECTION_BOX_ENTRY_LOOKAHEAD,
   INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ,
@@ -48,7 +48,6 @@ import {
   type SignalFlow,
   type Stats,
   type Vehicle,
-  type VehicleMotionState,
   type VehicleProximityBuckets,
   type VehicleSimulationSample,
 } from "@/components/map-simulator/map-simulator-types";
@@ -56,14 +55,17 @@ import {
   assignVehicleRoute,
   updateVehicleMotionState,
 } from "@/components/map-simulator/vehicle-runtime-utils";
+import {
+  cloneVehiclePoseSnapshot,
+  createEmptySimulationSnapshot,
+  DEFAULT_SIMULATION_CLOCK,
+} from "@/components/map-simulator/simulation-source";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
   SignalSnapshot,
   SimulationConfig,
-  SimulationSnapshot,
   SimulationSource,
-  VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
 
@@ -74,62 +76,19 @@ type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
 type LocalVehicleSimulationSample = VehicleSimulationSample<LocalVehicle>;
 type LocalVehicleProximityBuckets = VehicleProximityBuckets<LocalVehicle>;
 
-const DEFAULT_CLOCK = {
-  dateIso: "2026-01-01",
-  minutes: 12 * 60,
-  weatherMode: "clear" as WeatherMode,
-};
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
-
-function clonePose(source: VehicleMotionState): VehiclePoseSnapshot {
-  return {
-    position: source.position.clone(),
-    lanePosition: source.lanePosition.clone(),
-    heading: source.heading.clone(),
-    right: source.right.clone(),
-    yaw: source.yaw,
-    segmentIndex: source.segmentIndex,
-    nextStopIndex: source.nextStopIndex,
-  };
-}
-
-function createEmptySnapshot(): SimulationSnapshot {
-  return {
-    clock: {
-      elapsedTimeSeconds: 0,
-      ...DEFAULT_CLOCK,
-    },
-    vehicles: [],
-    signals: [],
-    hotspots: [],
-    stats: {
-      taxis: 0,
-      traffic: 0,
-      waiting: 0,
-      signals: 0,
-      activeTrips: 0,
-      completedTrips: 0,
-      pedestrians: 0,
-      pickups: 0,
-      dropoffs: 0,
-      activeCalls: 0,
-      avgPickupWaitSeconds: 0,
-      avgRideSeconds: 0,
-    },
-  };
-}
 
 export function createLocalSimulationSource(): SimulationSource {
   let staticContext: SceneStaticContext | null = null;
   let configState: SimulationConfig = {
     taxiCount: 0,
     trafficCount: 0,
-    clock: DEFAULT_CLOCK,
+    clock: DEFAULT_SIMULATION_CLOCK,
   };
   let elapsedTimeSeconds = 0;
-  let latestStats = createEmptySnapshot().stats;
-  let latestSnapshot = createEmptySnapshot();
+  let latestStats = createEmptySimulationSnapshot().stats;
+  let latestSnapshot = createEmptySimulationSnapshot();
   let snapshotDirty = true;
   let activeVehicleSpeedMultiplier = 1;
   let statsAccumulator = 0;
@@ -707,8 +666,8 @@ export function createLocalSimulationSource(): SimulationSource {
       pickupHotspotId: vehicle.pickupHotspot?.id ?? null,
       dropoffHotspotId: vehicle.dropoffHotspot?.id ?? null,
       renderSeed: vehicle.renderSeed,
-      previousPose: clonePose(vehicle.previousMotion),
-      pose: clonePose(vehicle.motion),
+      previousPose: cloneVehiclePoseSnapshot(vehicle.previousMotion),
+      pose: cloneVehiclePoseSnapshot(vehicle.motion),
     }));
 
   const buildSignalSnapshots = (): SignalSnapshot[] => {
@@ -762,7 +721,7 @@ export function createLocalSimulationSource(): SimulationSource {
   return {
     id: "local-fallback",
     reset(nextConfig, nextStaticContext) {
-      const nextClock = nextConfig.clock ?? DEFAULT_CLOCK;
+      const nextClock = nextConfig.clock ?? DEFAULT_SIMULATION_CLOCK;
       const sameStaticContext = staticContext === nextStaticContext;
       const shouldRebuild =
         !sameStaticContext ||
