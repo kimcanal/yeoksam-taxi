@@ -83,6 +83,7 @@ import {
   hotspotCallElement,
   labelElement,
 } from "@/components/map-simulator/scene-label-elements";
+import { buildRoadNetworkOverlay } from "@/components/map-simulator/road-network-overlay";
 import {
   BaseCameraMode,
   CameraMode,
@@ -109,7 +110,6 @@ import {
   SceneStatus,
   SimulationData,
   Vehicle,
-  buildRoadNetworkOverlay,
   copyVehicleMotionState,
   createVehicleMotionState,
   curbsideLaneOffset,
