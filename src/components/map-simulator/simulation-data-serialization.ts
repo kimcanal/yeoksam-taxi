@@ -1,6 +1,6 @@
 import * as THREE from "three";
+import { deserializeRoadGraph } from "@/components/map-simulator/road-routing-utils";
 import {
-  deserializeRoadGraph,
   type BuildingMass,
   type DongBoundarySegment,
   type DongRegion,

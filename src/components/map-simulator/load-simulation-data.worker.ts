@@ -7,22 +7,24 @@ import {
 } from "@/components/map-simulator/map-region-utils";
 import { buildSignals } from "@/components/map-simulator/signal-data-builder";
 import {
+  buildLoopRoutes,
+  buildRoadGraph,
+  buildTrafficRoutes,
+  deserializeRoadGraph,
+} from "@/components/map-simulator/road-routing-utils";
+import {
   DEFAULT_MAP_CENTER,
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
   EMPTY_TAXI_STAND_FEATURE_COLLECTION,
   EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
   MAX_TAXI_COUNT,
   MAX_TRAFFIC_COUNT,
-  buildLoopRoutes,
   buildProjectedRoadSegments,
-  buildRoadGraph,
   buildRoadSegmentSpatialIndex,
   buildTaxiHotspots,
   buildTaxiStandHotspots,
   buildTaxiStandLandmarks,
-  buildTrafficRoutes,
   buildTransitLandmarks,
-  deserializeRoadGraph,
   featureCollectionCenter,
   type BuildingFeatureCollection,
   type DongFeatureCollection,
