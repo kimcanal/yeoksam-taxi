@@ -116,7 +116,6 @@ import {
   dampAngle,
   distanceXZ,
   dongContainsPoint,
-  dongShapeFromRing,
   offsetToRight,
   projectPoint,
   sampleRoute,
@@ -126,6 +125,7 @@ import {
   syncVehicleTransform,
   wrapAngle,
 } from "@/components/map-simulator/core";
+import { dongShapeFromRing } from "@/components/map-simulator/map-geometry-utils";
 import {
   createMapSceneBase,
   createMapSceneLights,

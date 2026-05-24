@@ -1032,23 +1032,6 @@ export function buildDongBoundarySegments(dongRegions: DongRegion[]) {
     );
 }
 
-export function dongShapeFromRing(ring: THREE.Vector3[]) {
-  const points = ring.map((point) => new THREE.Vector2(point.x, -point.z));
-  if (
-    points.length > 1 &&
-    points[0].distanceTo(points[points.length - 1]) < 0.001
-  ) {
-    points.pop();
-  }
-  if (points.length < 3) {
-    return null;
-  }
-  if (THREE.ShapeUtils.isClockWise(points)) {
-    points.reverse();
-  }
-  return new THREE.Shape(points);
-}
-
 export const nearestRoadDelta = new THREE.Vector3();
 export const nearestRoadOffset = new THREE.Vector3();
 export const nearestRoadClosest = new THREE.Vector3();
