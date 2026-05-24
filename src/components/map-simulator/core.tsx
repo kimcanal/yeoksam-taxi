@@ -2596,7 +2596,12 @@ export function classifyTurn(
   return cross > 0 ? "right" : "left";
 }
 
-export function colorForBuilding(height: number) {
+export function colorForBuilding(height: number, kind?: string | null) {
+  if (kind === "apartments" || kind === "residential") return 0xc9c2b4;
+  if (kind === "commercial" || kind === "retail") return 0x92aebf;
+  if (kind === "school" || kind === "university") return 0xcdb49d;
+  if (kind === "hospital" || kind === "clinic") return 0xcee3ec;
+
   if (height >= 45) return 0x8f99a5;
   if (height >= 25) return 0x76808a;
   return 0x5d6670;
@@ -3434,7 +3439,7 @@ export function buildBuildingMasses(
         width,
         depth,
         rotationY,
-        color: colorForBuilding(heightMeters),
+        color: colorForBuilding(heightMeters, feature.properties.kind),
       } satisfies BuildingMass;
     })
     .filter(Boolean) as BuildingMass[];

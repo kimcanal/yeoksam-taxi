@@ -105,7 +105,6 @@ import {
   offsetToRight,
   precipitationDrawRatioFor,
   projectPoint,
-  renderCapLabel,
   renderPixelRatioFor,
   resolveRenderCap,
   sampleRoute,
@@ -132,12 +131,14 @@ type MapSimulatorSceneRuntimeProps = {
   data: SimulationData | null;
   poiFeatureRowsRef: RefObject<MapPoiFeatureRow[]>;
   onPoiSelect?: (poiCode: string) => void;
+  onDongSelect?: (dongName: string) => void;
   simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
   appliedTrafficCountRef: MutableRefObject<number>;
   selectedDemandDongRef: MutableRefObject<string>;
   hasDemandDataRef: MutableRefObject<boolean>;
   selectedDemandScoreRef: MutableRefObject<number | null>;
+  dongDemandScoresRef: MutableRefObject<Record<string, number>>;
   currentFiveMinuteDemandRef: MutableRefObject<number>;
   currentDemandVisualUnitsRef: MutableRefObject<number>;
   cameraModeRef: MutableRefObject<CameraMode>;
@@ -149,7 +150,6 @@ type MapSimulatorSceneRuntimeProps = {
   transitGroupRef: MutableRefObject<THREE.Group | null>;
   hoverRefreshRequestRef: MutableRefObject<number>;
   labelRefreshRequestRef: MutableRefObject<number>;
-  showFpsRef: MutableRefObject<boolean>;
   fpsModeRef: MutableRefObject<FpsMode>;
   showNonRoadRef: MutableRefObject<boolean>;
   nonRoadGroupRef: MutableRefObject<THREE.Group | null>;
@@ -165,7 +165,6 @@ type MapSimulatorSceneRuntimeProps = {
   setStatusDetail: Dispatch<SetStateAction<string>>;
   setLoadingProgress: Dispatch<SetStateAction<number>>;
   setStats: Dispatch<SetStateAction<Stats>>;
-  setFpsStats: Dispatch<SetStateAction<FpsStats>>;
   setFollowTaxiId: Dispatch<SetStateAction<string>>;
   setCameraMode: Dispatch<SetStateAction<CameraMode>>;
   onCameraFocusChange?: (focus: {
@@ -185,7 +184,7 @@ type MapPoiFeatureRow = {
   coverage_dong: string | null;
   category: string | null;
   lon: number | null;
-  lat: number | null;
+  lat: number | number | null;
   context_score: number;
 };
 
@@ -211,12 +210,14 @@ export default function MapSimulatorSceneRuntime({
   data,
   poiFeatureRowsRef,
   onPoiSelect,
+  onDongSelect,
   simulationSource,
   appliedTaxiCountRef,
   appliedTrafficCountRef,
   selectedDemandDongRef,
   hasDemandDataRef,
   selectedDemandScoreRef,
+  dongDemandScoresRef,
   currentFiveMinuteDemandRef,
   currentDemandVisualUnitsRef,
   cameraModeRef,
@@ -228,7 +229,6 @@ export default function MapSimulatorSceneRuntime({
   transitGroupRef,
   hoverRefreshRequestRef,
   labelRefreshRequestRef,
-  showFpsRef,
   fpsModeRef,
   showNonRoadRef,
   nonRoadGroupRef,
@@ -244,7 +244,6 @@ export default function MapSimulatorSceneRuntime({
   setStatusDetail,
   setLoadingProgress,
   setStats,
-  setFpsStats,
   setFollowTaxiId,
   setCameraMode,
   onCameraFocusChange,
@@ -285,8 +284,8 @@ export default function MapSimulatorSceneRuntime({
       ),
     );
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = false;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.02;
     renderer.domElement.style.cursor = "grab";
@@ -307,8 +306,9 @@ export default function MapSimulatorSceneRuntime({
 
     const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
     sun.position.set(110, 180, 80);
-    sun.castShadow = false;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.castShadow = true;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 10;
     sun.shadow.camera.far = 420;
     sun.shadow.camera.left = -180;
@@ -384,6 +384,7 @@ export default function MapSimulatorSceneRuntime({
     const transitPointerHits: THREE.Intersection[] = [];
     const poiPointerHits: THREE.Intersection[] = [];
     const boundaryPointerHits: THREE.Intersection[] = [];
+    const dongFloorPointerHits: THREE.Intersection[] = [];
     const cameraOffset = new THREE.Vector3();
     const touchPanForwardDirection = new THREE.Vector3();
     const touchPanRightDirection = new THREE.Vector3();
@@ -615,6 +616,7 @@ export default function MapSimulatorSceneRuntime({
         fill.rotation.x = -Math.PI / 2;
         fill.position.y = 0.018;
         fill.renderOrder = 2;
+        fill.userData.dongName = dong.name;
         dongFloorGroup.add(fill);
 
         const demandMaterial = new THREE.MeshBasicMaterial({
@@ -1149,6 +1151,10 @@ export default function MapSimulatorSceneRuntime({
     const vehicles: Vehicle[] = [];
     const taxiVehicles: Vehicle[] = [];
     const trafficVehicles: Vehicle[] = [];
+    const simulationTrailPoints: VehicleTrailPoint[] = [];
+    const taxiTrailColorFor = (vehicle: Vehicle) =>
+      vehicle.isOccupied ? 0xfb7185 : 0x22d3ee;
+    let refreshRateBand: number | null = null;
     const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const vehicleById = new Map<string, Vehicle>();
@@ -1601,10 +1607,22 @@ export default function MapSimulatorSceneRuntime({
         demandAnchorRingMesh.instanceColor.needsUpdate = true;
       }
       demandFloorMaterialsByName.forEach((materials, dongName) => {
-        const isActive = isVisible && dongName === selectedDongName;
+        const score = dongDemandScoresRef.current[dongName] ?? 0;
+        const isActive = isVisible && score > 0.05;
         materials.forEach((material) => {
-          material.color.copy(demandLayerColor);
-          material.opacity = isActive ? 0.13 + demandScore * 0.22 : 0;
+          const lowColor = new THREE.Color(0x38bdf8);
+          const midColor = new THREE.Color(0xfacc15);
+          const highColor = new THREE.Color(0xf43f5e);
+          
+          const heatmapColor = new THREE.Color();
+          if (score < 0.5) {
+             heatmapColor.lerpColors(lowColor, midColor, score * 2);
+          } else {
+             heatmapColor.lerpColors(midColor, highColor, (score - 0.5) * 2);
+          }
+          
+          material.color.copy(heatmapColor);
+          material.opacity = isActive ? 0.08 + score * 0.25 : 0;
         });
       });
 
@@ -1903,11 +1921,16 @@ export default function MapSimulatorSceneRuntime({
       buildingMaterial,
       buildingFeatures.length,
     );
+    buildingMesh.castShadow = true;
+    buildingMesh.receiveShadow = true;
+    
     const buildingRoofMesh = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
       buildingRoofMaterial,
       buildingFeatures.length,
     );
+    buildingRoofMesh.castShadow = true;
+    buildingRoofMesh.receiveShadow = true;
 
     buildingFeatures.forEach((building, index) => {
       dummy.position.set(
@@ -2029,22 +2052,6 @@ export default function MapSimulatorSceneRuntime({
 
       activeHighlightedDongNames = [...activeDongs];
       markLabelVisibilityDirty();
-      districtLabelElements.forEach((element, dongName) => {
-        const isActive = activeDongs.has(dongName);
-        element.style.background = isActive
-          ? "rgba(18,84,45,0.97)"
-          : "rgba(5,48,67,0.96)";
-        element.style.borderColor = isActive
-          ? "rgba(162,255,187,0.5)"
-          : "rgba(255,255,255,0.12)";
-        element.style.color = isActive ? "#f2fff5" : "#d5f6ff";
-        element.style.boxShadow = isActive
-          ? "0 0 0 1px rgba(162,255,187,0.12), 0 10px 24px rgba(0,0,0,0.32)"
-          : "0 8px 18px rgba(0,0,0,0.25)";
-        element.style.transform = isActive
-          ? "translateY(-1px) scale(1.03)"
-          : "none";
-      });
     };
 
     const syncLabelVisibility = (mode: CameraMode) => {
@@ -2182,6 +2189,23 @@ export default function MapSimulatorSceneRuntime({
     const findPoiCodeFromPointer = () => {
       raycaster.setFromCamera(pointerNdc, camera);
       return resolvePoiCodeFromPointerRay();
+    };
+
+    const resolveDongNameFromPointerRay = () => {
+      dongFloorPointerHits.length = 0;
+      raycaster.intersectObjects(
+        dongFloorGroup.children,
+        false,
+        dongFloorPointerHits,
+      );
+      const hit = dongFloorPointerHits[0];
+      const dongName = hit?.object.userData?.dongName as string | undefined;
+      return dongName ?? null;
+    };
+
+    const findDongFromPointer = () => {
+      raycaster.setFromCamera(pointerNdc, camera);
+      return resolveDongNameFromPointerRay();
     };
 
     const enterRideMode = (vehicle: Vehicle) => {
@@ -2561,7 +2585,6 @@ export default function MapSimulatorSceneRuntime({
         });
 
         mastLayout.forEach(({ axis, offset, yaw }) => {
-          // Pole at the curb
           dummy.position.copy(signal.visualPoint).add(offset);
           dummy.position.y = 1.675;
           dummy.rotation.set(0, yaw, 0);
@@ -2569,8 +2592,7 @@ export default function MapSimulatorSceneRuntime({
           dummy.updateMatrix();
           signalPoleMesh.setMatrixAt(mastIndex, dummy.matrix);
 
-          // Head suspended over the road
-          const headLocalOffset = new THREE.Vector3(-1.8, 0, 0); // Shift left into the road
+          const headLocalOffset = new THREE.Vector3(-1.8, 0, 0);
           const headWorldOffset = headLocalOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
           
           dummy.position.add(headWorldOffset);
@@ -2583,7 +2605,6 @@ export default function MapSimulatorSceneRuntime({
           const mast = new THREE.Group();
           mast.position.copy(offset).add(headWorldOffset);
           mast.rotation.y = yaw;
-          // Note: Pole and Head are now handled by InstancedMesh
 
           const red = new THREE.Mesh(
             new THREE.SphereGeometry(0.11, 12, 12),
@@ -3136,19 +3157,6 @@ export default function MapSimulatorSceneRuntime({
     let lastCappedRenderTimestamp = 0;
     let lastCapSignature = "";
     let refreshRateEstimate = 0;
-    let refreshRateBand: number | null = null;
-    let fpsSampleElapsed = 0;
-    let fpsFrameCount = 0;
-    let simulationCpuSampleMs = 0;
-    let signalCpuSampleMs = 0;
-    let vehicleCpuSampleMs = 0;
-    let overlayCpuSampleMs = 0;
-    let renderCpuSampleMs = 0;
-    let simulationStepSampleCount = 0;
-    const simulationTrailPoints: VehicleTrailPoint[] = [];
-
-    const taxiTrailColorFor = (vehicle: Vehicle) =>
-      vehicle.isOccupied ? 0xfb7185 : 0x22d3ee;
 
     function applyEnvironment(
       dateIso: string,
@@ -4252,6 +4260,12 @@ export default function MapSimulatorSceneRuntime({
           const clickedTaxi = findTaxiFromPointer();
           if (clickedTaxi) {
             enterRideMode(clickedTaxi);
+            return;
+          }
+
+          const clickedDong = findDongFromPointer();
+          if (clickedDong) {
+            onDongSelect?.(clickedDong);
           }
         }
         return;
@@ -4273,6 +4287,12 @@ export default function MapSimulatorSceneRuntime({
         const clickedTaxi = findTaxiFromPointer();
         if (clickedTaxi) {
           enterRideMode(clickedTaxi);
+          return;
+        }
+
+        const clickedDong = findDongFromPointer();
+        if (clickedDong) {
+          onDongSelect?.(clickedDong);
         }
       }
     };
@@ -4484,7 +4504,6 @@ export default function MapSimulatorSceneRuntime({
         VEHICLE_SIMULATION_STEP * MAX_VEHICLE_SIMULATION_STEPS,
       );
       let vehicleSimulationSteps = 0;
-      const vehicleCpuStart = performance.now();
       while (
         vehicleSimulationAccumulator >= VEHICLE_SIMULATION_STEP &&
         vehicleSimulationSteps < MAX_VEHICLE_SIMULATION_STEPS
@@ -4514,14 +4533,10 @@ export default function MapSimulatorSceneRuntime({
         vehicleInterpolationAlpha,
       );
       syncSimulationTrails(frameTimestamp);
-      simulationStepSampleCount += vehicleSimulationSteps;
-      vehicleCpuSampleMs += performance.now() - vehicleCpuStart;
-      const signalCpuStart = performance.now();
       updateSignalVisuals(
         simulationSnapshot.signals,
         simulationSnapshot.clock.elapsedTimeSeconds,
       );
-      signalCpuSampleMs += performance.now() - signalCpuStart;
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
@@ -4729,7 +4744,6 @@ export default function MapSimulatorSceneRuntime({
         }
       }
 
-      const overlayCpuStart = performance.now();
       updateDemandMapLayer(simulationSnapshot.clock.elapsedTimeSeconds);
       updateHotspotVisuals(
         simulationSnapshot.hotspots,
@@ -4757,85 +4771,6 @@ export default function MapSimulatorSceneRuntime({
           cluster.position.y =
             anchor.y + Math.sin(elapsedTime * 0.033 + phase) * 0.6;
         });
-      }
-      overlayCpuSampleMs += performance.now() - overlayCpuStart;
-      simulationCpuSampleMs =
-        signalCpuSampleMs + vehicleCpuSampleMs + overlayCpuSampleMs;
-      fpsFrameCount += 1;
-      fpsSampleElapsed += delta;
-      if (fpsSampleElapsed >= 0.45) {
-        const nextCapLabel = renderCapLabel(
-          activeRenderCap,
-          isPageHidden,
-          fpsModeRef.current,
-        );
-        const nextFps = Math.max(1, Math.round(fpsFrameCount / fpsSampleElapsed));
-        if (showFpsRef.current) {
-          const nextSimulationMs =
-            Math.round(
-              (simulationCpuSampleMs / Math.max(1, fpsFrameCount)) * 100,
-            ) / 100;
-          const nextSignalMs =
-            Math.round((signalCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
-            100;
-          const nextVehicleMs =
-            Math.round((vehicleCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
-            100;
-          const nextOverlayMs =
-            Math.round((overlayCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
-            100;
-          const nextRenderMs =
-            Math.round((renderCpuSampleMs / Math.max(1, fpsFrameCount)) * 100) /
-            100;
-          const nextSimulationHz = Math.round(
-            simulationStepSampleCount / fpsSampleElapsed,
-          );
-          const nextVehicles = vehicles.length;
-          setFpsStats((current) =>
-            current.fps === nextFps &&
-              current.capLabel === nextCapLabel &&
-              current.simulationMs === nextSimulationMs &&
-              current.signalMs === nextSignalMs &&
-              current.vehicleMs === nextVehicleMs &&
-              current.overlayMs === nextOverlayMs &&
-              current.renderMs === nextRenderMs &&
-              current.simulationHz === nextSimulationHz &&
-              current.vehicles === nextVehicles
-              ? current
-              : {
-                fps: nextFps,
-                capLabel: nextCapLabel,
-                simulationMs: nextSimulationMs,
-                signalMs: nextSignalMs,
-                vehicleMs: nextVehicleMs,
-                overlayMs: nextOverlayMs,
-                renderMs: nextRenderMs,
-                simulationHz: nextSimulationHz,
-                vehicles: nextVehicles,
-              },
-          );
-        } else {
-          setFpsStats((current) =>
-            current.fps === nextFps &&
-              current.capLabel === nextCapLabel &&
-              current.vehicles === vehicles.length
-              ? current
-              : {
-                ...current,
-                fps: nextFps,
-                capLabel: nextCapLabel,
-                vehicles: vehicles.length,
-              },
-          );
-        }
-        fpsFrameCount = 0;
-        fpsSampleElapsed = 0;
-        simulationCpuSampleMs = 0;
-        signalCpuSampleMs = 0;
-        vehicleCpuSampleMs = 0;
-        overlayCpuSampleMs = 0;
-        renderCpuSampleMs = 0;
-        simulationStepSampleCount = 0;
       }
       starsMaterial.opacity =
         activeStarOpacity * (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
@@ -4883,7 +4818,6 @@ export default function MapSimulatorSceneRuntime({
         hoverNeedsUpdate = false;
         hoverRefreshAccumulator = 0;
       }
-      const renderCpuStart = performance.now();
       renderer.render(scene, camera);
       labelRenderAccumulator += delta;
       if (
@@ -4895,7 +4829,6 @@ export default function MapSimulatorSceneRuntime({
         labelRenderPending = false;
         labelRenderAccumulator = 0;
       }
-      renderCpuSampleMs += performance.now() - renderCpuStart;
     };
 
     finalizeVehicleLayerSetup();
@@ -5014,7 +4947,6 @@ export default function MapSimulatorSceneRuntime({
     selectedDemandDongRef,
     selectedDemandScoreRef,
     simulationSource,
-    showFpsRef,
     showLabelsRef,
     showNonRoadRef,
     showRoadNetworkRef,
