@@ -80,13 +80,13 @@ import {
   buildDemandAnchors,
   poiMarkerColor,
 } from "@/components/map-simulator/demand-anchor-utils";
+import { buildDemandCorridorSegments } from "@/components/map-simulator/demand-corridor-utils";
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
   setTaxiAppearance,
   syncVehicleTransform,
 } from "@/components/map-simulator/vehicle-runtime-utils";
-import { dongContainsPoint } from "@/components/map-simulator/map-region-utils";
 import {
   boundaryHintElement,
   hotspotCallElement,
@@ -570,27 +570,10 @@ export default function MapSimulatorSceneRuntime({
     demandBadgeLabel.visible = false;
     demandPulseGroup.add(demandBadgeLabel);
 
-    const demandCorridorSegments = roadSegments
-      .filter((segment) => segment.roadClass !== "local")
-      .map((segment, index) => {
-        const length = distanceXZ(segment.start, segment.end);
-        const center = segment.start.clone().lerp(segment.end, 0.5);
-        return {
-          segment,
-          index,
-          center,
-          length,
-          angle: Math.atan2(
-            segment.end.x - segment.start.x,
-            segment.end.z - segment.start.z,
-          ),
-          dongNames: dongRegions
-            .filter((dong) => dongContainsPoint(dong, center))
-            .map((dong) => dong.name),
-        };
-      })
-      .filter((entry) => entry.length >= 14 && entry.dongNames.length > 0)
-      .slice(0, 520);
+    const demandCorridorSegments = buildDemandCorridorSegments(
+      roadSegments,
+      dongRegions,
+    );
     const demandCorridorMaterial = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
