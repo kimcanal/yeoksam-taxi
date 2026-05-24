@@ -71,6 +71,7 @@ import {
   loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
 } from "@/components/map-simulator/vehicle-asset-loader";
+import { disposeObject3DResources } from "@/components/map-simulator/object-resource-utils";
 import {
   createCallerGroup,
   createPedestrianGroup,
@@ -114,7 +115,6 @@ import {
   curbsideLaneOffset,
   dampAngle,
   distanceXZ,
-  disposeObject3DResources,
   dongContainsPoint,
   dongShapeFromRing,
   offsetToRight,

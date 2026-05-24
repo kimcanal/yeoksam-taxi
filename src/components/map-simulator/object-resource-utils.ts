@@ -47,3 +47,27 @@ export function disposeMaterialResources(material: THREE.Material) {
   });
   material.dispose();
 }
+
+export function disposeObject3DResources(object: THREE.Object3D) {
+  object.traverse((child) => {
+    const resourceHolder = child as THREE.Object3D & {
+      geometry?: { dispose?: () => void };
+      material?: THREE.Material | THREE.Material[];
+    };
+    if (!resourceHolder.userData.skipGeometryDispose) {
+      resourceHolder.geometry?.dispose?.();
+    }
+    if (resourceHolder.userData.skipMaterialDispose) {
+      return;
+    }
+    if (Array.isArray(resourceHolder.material)) {
+      resourceHolder.material.forEach((material) => {
+        if (material instanceof THREE.Material) {
+          disposeMaterialResources(material);
+        }
+      });
+    } else if (resourceHolder.material instanceof THREE.Material) {
+      disposeMaterialResources(resourceHolder.material);
+    }
+  });
+}

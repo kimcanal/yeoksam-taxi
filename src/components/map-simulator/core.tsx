@@ -106,7 +106,6 @@ import {
   SIGNAL_ROAD_SNAP_DISTANCE,
   BUILDING_HEIGHT_SCALE,
 } from "@/components/map-simulator/scene-constants";
-import { disposeMaterialResources } from "@/components/map-simulator/object-resource-utils";
 export { DEFAULT_MAP_CENTER };
 export {
   DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
@@ -2275,32 +2274,6 @@ export function buildRoadNetworkOverlay(graph: RoadGraph) {
   addNodePoints(nodePositions.intersection, 0xfff1a5, 1.9, 0.92, 95);
 
   return group;
-}
-
-export function disposeObject3DResources(object: THREE.Object3D) {
-  object.traverse((child) => {
-    const resourceHolder = child as THREE.Object3D & {
-      geometry?: { dispose?: () => void };
-      material?: THREE.Material | THREE.Material[];
-    };
-    if (!resourceHolder.userData.skipGeometryDispose) {
-      resourceHolder.geometry?.dispose?.();
-    }
-    if (resourceHolder.userData.skipMaterialDispose) {
-      return;
-    }
-    if (Array.isArray(resourceHolder.material)) {
-      resourceHolder.material.forEach((material) => {
-        if (material instanceof THREE.Material) {
-          disposeMaterialResources(material);
-        }
-      });
-    } else {
-      if (resourceHolder.material instanceof THREE.Material) {
-        disposeMaterialResources(resourceHolder.material);
-      }
-    }
-  });
 }
 
 export function turnStateKey(nodeKey: string, incomingEdgeId: string | null) {
