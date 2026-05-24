@@ -3,8 +3,8 @@ import {
   curbsideLaneOffset,
   offsetToRight,
 } from "@/components/map-simulator/route-motion-utils";
+import { classifyTurn } from "@/components/map-simulator/road-query-utils";
 import {
-  classifyTurn,
   type BuildingMass,
   type Hotspot,
   type RoadGraph,

@@ -4,6 +4,8 @@ import { distanceXZ } from "@/components/map-simulator/route-motion-utils";
 import {
   nearestRoadContext,
   roadRank,
+} from "@/components/map-simulator/road-query-utils";
+import {
   type ProjectedRoadSegment,
   type RoadSegmentSpatialIndex,
   type TaxiStandFeatureCollection,

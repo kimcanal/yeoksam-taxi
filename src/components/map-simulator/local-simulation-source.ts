@@ -13,8 +13,8 @@ import {
   VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
   VEHICLE_PROXIMITY_CELL_SIZE,
 } from "@/components/map-simulator/scene-constants";
+import { TRAFFIC_PALETTES } from "@/components/map-simulator/vehicle-palettes";
 import {
-  TRAFFIC_PALETTES,
   type NextStopState,
   type SignalApproachDemand,
   type SignalApproachDistance,

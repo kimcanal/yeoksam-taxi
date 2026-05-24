@@ -90,6 +90,10 @@ import {
 } from "@/components/map-simulator/scene-label-elements";
 import { buildRoadNetworkOverlay } from "@/components/map-simulator/road-network-overlay";
 import {
+  HOTSPOT_IDLE_COLORS,
+  HOTSPOT_PRESENTATION,
+} from "@/components/map-simulator/hotspot-presentation";
+import {
   BaseCameraMode,
   CameraMode,
   CameraPitchControlState,
@@ -97,8 +101,6 @@ import {
   CameraYawControlState,
   DongBoundarySegment,
   FpsMode,
-  HOTSPOT_PRESENTATION,
-  HOTSPOT_IDLE_COLORS,
   Hotspot,
   HotspotMarkerMode,
   HotspotVisual,

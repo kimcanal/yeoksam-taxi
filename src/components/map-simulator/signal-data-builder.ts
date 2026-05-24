@@ -18,6 +18,8 @@ import {
   nearestRoadContext,
   nearbyRoadSegments,
   roadRank,
+} from "@/components/map-simulator/road-query-utils";
+import {
   type ProjectedRoadSegment,
   type RoadFeatureCollection,
   type RoadGraph,

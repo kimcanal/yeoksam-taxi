@@ -10,6 +10,8 @@ import { ROAD_WIDTH_SCALE } from "@/components/map-simulator/scene-constants";
 import {
   classifyTurn,
   roadRank,
+} from "@/components/map-simulator/road-query-utils";
+import {
   type GraphEdge,
   type RoadFeatureCollection,
   type RoadProperties,
