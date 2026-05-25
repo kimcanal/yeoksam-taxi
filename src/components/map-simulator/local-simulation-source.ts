@@ -59,7 +59,7 @@ import {
   cloneVehiclePoseSnapshot,
   createEmptySimulationSnapshot,
   DEFAULT_SIMULATION_CLOCK,
-} from "@/components/map-simulator/simulation-source";
+} from "@/components/map-simulator/simulation-snapshot-utils";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
