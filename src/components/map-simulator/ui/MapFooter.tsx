@@ -1,5 +1,6 @@
-const DEMAND_SLOT_ALLOCATION_LABEL = "단기 예측";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+
+const DEMAND_SLOT_ALLOCATION_LABEL = "단기 예측";
 
 type MapFooterProps = {
   isSidebarVisible: boolean;

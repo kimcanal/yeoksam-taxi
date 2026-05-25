@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import { Minimize2, Maximize2, Gauge, Menu } from "lucide-react";
 
 export function mapToolButtonClass(active: boolean) {
@@ -13,7 +14,7 @@ type MapToolbarProps = {
   isMapFocusMode: boolean;
   toggleMapFocusMode: () => void;
   showFps: boolean;
-  setShowFps: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowFps: Dispatch<SetStateAction<boolean>>;
   isSidebarVisible: boolean;
   toggleSidebar: () => void;
 };
