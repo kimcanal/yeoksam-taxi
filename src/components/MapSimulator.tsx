@@ -34,17 +34,16 @@ import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { MapFooter } from "@/components/map-simulator/ui/MapFooter";
 import { MapSearchControl } from "@/components/map-simulator/ui/MapSearchControl";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
-import { QuadTree } from "@/components/map-simulator/spatial-quadtree";
 import { useDemandForecast } from "@/components/map-simulator/use-demand-forecast";
 import {
   DEMAND_VISUAL_UNIT_CALLS,
   buildDemandMiniMapData,
   buildStaticPoiFeatureRows,
 } from "@/components/map-simulator/demand-utils";
-import type {
-  IndexedMapPoiFeatureRow,
-  MapPoiFeatureRow,
-} from "@/components/map-simulator/demand-types";
+import {
+  buildPoiSpatialIndex,
+  visiblePoiRowsForCamera,
+} from "@/components/map-simulator/poi-render-utils";
 import {
   DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
   DEFAULT_CAMERA_YAW_CONTROL_VALUE,
@@ -81,13 +80,6 @@ const DemandSidebar = dynamic<DemandSidebarProps>(
     loading: () => null,
   },
 );
-
-function poiRenderRadius(cameraMode: CameraMode) {
-  if (cameraMode === "overview") return 320;
-  if (cameraMode === "follow") return 180;
-  if (cameraMode === "ride") return 140;
-  return 220;
-}
 
 export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -199,47 +191,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     if (!data) {
       return null;
     }
-
-    const indexedRows = mapPoiFeatureRows
-      .filter((poi) => Number.isFinite(poi.lon) && Number.isFinite(poi.lat))
-      .map((poi) => {
-        const projected = projectPoint(
-          [poi.lon as number, poi.lat as number],
-          data.center,
-        );
-        return {
-          ...poi,
-          projectedX: projected.x,
-          projectedZ: projected.z,
-        } satisfies IndexedMapPoiFeatureRow;
-      });
-
-    if (!indexedRows.length) {
-      return null;
-    }
-
-    const minX = Math.min(...indexedRows.map((poi) => poi.projectedX));
-    const maxX = Math.max(...indexedRows.map((poi) => poi.projectedX));
-    const minY = Math.min(...indexedRows.map((poi) => poi.projectedZ));
-    const maxY = Math.max(...indexedRows.map((poi) => poi.projectedZ));
-    const tree = new QuadTree<IndexedMapPoiFeatureRow>({
-      minX: minX - 1,
-      minY: minY - 1,
-      maxX: maxX + 1,
-      maxY: maxY + 1,
-    });
-    indexedRows.forEach((poi) => {
-      tree.insert({
-        x: poi.projectedX,
-        y: poi.projectedZ,
-        value: poi,
-      });
-    });
-
-    return {
-      tree,
-      byCode: new Map(indexedRows.map((poi) => [poi.poi_code, poi] as const)),
-    };
+    return buildPoiSpatialIndex(mapPoiFeatureRows, data.center);
   }, [data, mapPoiFeatureRows]);
   const activePoiCode = mapPoiFeatureRows.some(
     (poi) => poi.poi_code === selectedPoiCode,
@@ -247,38 +199,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     ? selectedPoiCode
     : mapPoiFeatureRows[0]?.poi_code ?? "";
   const scenePoiFeatureRows = useMemo(() => {
-    if (!poiSpatialIndex) {
-      return mapPoiFeatureRows;
-    }
-
-    const radius = poiRenderRadius(cameraMode);
-    const focus = miniMapFocus ?? {
-      x: 0,
-      z: 0,
-      label: "",
-      headingX: 0,
-      headingZ: 0,
-      pitchControlValue: DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
-      yawControlValue: DEFAULT_CAMERA_YAW_CONTROL_VALUE,
-    };
-    const nearbyRows = poiSpatialIndex.tree
-      .query({
-        minX: focus.x - radius,
-        minY: focus.z - radius,
-        maxX: focus.x + radius,
-        maxY: focus.z + radius,
-      })
-      .map((entry) => entry.value);
-    const selectedPoi = poiSpatialIndex.byCode.get(activePoiCode);
-    const deduped = new Map<string, MapPoiFeatureRow>();
-    nearbyRows.forEach((poi) => deduped.set(poi.poi_code, poi));
-    if (selectedPoi) {
-      deduped.set(selectedPoi.poi_code, selectedPoi);
-    }
-
-    return [...deduped.values()]
-      .sort((left, right) => right.context_score - left.context_score)
-      .slice(0, 24);
+    return visiblePoiRowsForCamera({
+      rows: mapPoiFeatureRows,
+      spatialIndex: poiSpatialIndex,
+      activePoiCode,
+      cameraMode,
+      miniMapFocus,
+    });
   }, [
     activePoiCode,
     cameraMode,
