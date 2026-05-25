@@ -81,6 +81,10 @@ import {
   poiMarkerColor,
 } from "@/components/map-simulator/demand-anchor-utils";
 import { buildDemandCorridorSegments } from "@/components/map-simulator/demand-corridor-utils";
+import {
+  applyVehicleSnapshot,
+  createVehicleFromSnapshot,
+} from "@/components/map-simulator/vehicle-snapshot-runtime";
 import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
 import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
 import {
@@ -125,8 +129,6 @@ import type {
   Vehicle,
 } from "@/components/map-simulator/map-simulator-types";
 import {
-  copyVehicleMotionState,
-  createVehicleMotionState,
   curbsideLaneOffset,
   dampAngle,
   distanceXZ,
@@ -154,7 +156,6 @@ import type {
   SignalSnapshot,
   SimulationConfig,
   SimulationSnapshot,
-  VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
 
@@ -880,94 +881,6 @@ export default function MapSimulatorSceneRuntime({
       }
     };
 
-    const writeMotionFromPose = (
-      target: Vehicle["motion"],
-      pose: VehiclePoseSnapshot,
-    ) => {
-      target.position.copy(pose.position);
-      target.lanePosition.copy(pose.lanePosition);
-      target.heading.copy(pose.heading);
-      target.right.copy(pose.right);
-      target.yaw = pose.yaw;
-      target.segmentIndex = pose.segmentIndex;
-      target.nextStopIndex = pose.nextStopIndex;
-    };
-
-    const fallbackRouteForKind = (kind: VehicleSnapshot["kind"]) =>
-      kind === "taxi"
-        ? taxiRoutePool[0] ?? trafficRoutePool[0] ?? loopRoutes[0]
-        : trafficRoutePool[0] ?? taxiRoutePool[0] ?? loopRoutes[0];
-
-    const resolveRouteForSnapshot = (vehicleSnapshot: VehicleSnapshot) =>
-      routeById.get(vehicleSnapshot.routeId) ??
-      fallbackRouteForKind(vehicleSnapshot.kind);
-
-    const createVehicleFromSnapshot = (
-      vehicleSnapshot: VehicleSnapshot,
-    ) => {
-      const route = resolveRouteForSnapshot(vehicleSnapshot);
-      if (!route) {
-        return null;
-      }
-
-      const { group, bodyMaterial, signMaterial, clickTarget } =
-        createVehicleGroup(
-          vehicleSnapshot.kind,
-          vehicleSnapshot.palette,
-          vehicleSnapshot.kind === "taxi" ? { taxiAssetTemplate } : undefined,
-        );
-      scene.add(group);
-
-      const vehicle: Vehicle = {
-        id: vehicleSnapshot.id,
-        kind: vehicleSnapshot.kind,
-        route,
-        group,
-        bodyMaterial,
-        signMaterial,
-        baseSpeed: vehicleSnapshot.baseSpeed,
-        speed: vehicleSnapshot.speed,
-        distance: 0,
-        safeGap: vehicleSnapshot.safeGap,
-        length: vehicleSnapshot.length,
-        currentSignalId: null,
-        roadName: vehicleSnapshot.roadName,
-        palette: vehicleSnapshot.palette,
-        isOccupied: vehicleSnapshot.isOccupied,
-        pickupHotspot:
-          (vehicleSnapshot.pickupHotspotId
-            ? hotspotById.get(vehicleSnapshot.pickupHotspotId)
-            : null) ?? null,
-        dropoffHotspot:
-          (vehicleSnapshot.dropoffHotspotId
-            ? hotspotById.get(vehicleSnapshot.dropoffHotspotId)
-            : null) ?? null,
-        jobAssignedAt: 0,
-        pickupStartedAt: null,
-        serviceTimer: 0,
-        planMode: vehicleSnapshot.planMode,
-        previousMotion: createVehicleMotionState(),
-        motion: createVehicleMotionState(),
-        renderMotion: createVehicleMotionState(),
-      };
-
-      group.userData.vehicleId = vehicle.id;
-      group.traverse((child) => {
-        child.userData.vehicleId = vehicle.id;
-      });
-      if (clickTarget && vehicle.kind === "taxi") {
-        taxiClickTargets.push(clickTarget);
-      }
-
-      writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
-      writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
-      copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
-      setTaxiAppearance(vehicle);
-      syncVehicleTransform(vehicle, 1);
-      vehicleById.set(vehicle.id, vehicle);
-      return vehicle;
-    };
-
     const upgradeTaxiVehicleMeshes = () => {
       if (!taxiAssetTemplate || !taxiVehicles.length) {
         return;
@@ -1036,10 +949,23 @@ export default function MapSimulatorSceneRuntime({
         activeVehicleIdentitySignature = nextIdentitySignature;
 
         vehicleSnapshots.forEach((vehicleSnapshot) => {
-          const vehicle = createVehicleFromSnapshot(vehicleSnapshot);
+          const vehicle = createVehicleFromSnapshot({
+            vehicleSnapshot,
+            scene,
+            routeById,
+            taxiRoutePool,
+            trafficRoutePool,
+            loopRoutes,
+            hotspotById,
+            taxiAssetTemplate,
+            onTaxiClickTarget: (clickTarget) => {
+              taxiClickTargets.push(clickTarget);
+            },
+          });
           if (!vehicle) {
             return;
           }
+          vehicleById.set(vehicle.id, vehicle);
           vehicles.push(vehicle);
           if (vehicle.kind === "taxi") {
             taxiVehicles.push(vehicle);
@@ -1076,27 +1002,16 @@ export default function MapSimulatorSceneRuntime({
           return;
         }
 
-        vehicle.route = resolveRouteForSnapshot(vehicleSnapshot) ?? vehicle.route;
-        vehicle.baseSpeed = vehicleSnapshot.baseSpeed;
-        vehicle.speed = vehicleSnapshot.speed;
-        vehicle.safeGap = vehicleSnapshot.safeGap;
-        vehicle.length = vehicleSnapshot.length;
-        vehicle.roadName = vehicleSnapshot.roadName;
-        vehicle.palette = vehicleSnapshot.palette;
-        vehicle.planMode = vehicleSnapshot.planMode;
-        vehicle.isOccupied = vehicleSnapshot.isOccupied;
-        vehicle.pickupHotspot =
-          (vehicleSnapshot.pickupHotspotId
-            ? hotspotById.get(vehicleSnapshot.pickupHotspotId)
-            : null) ?? null;
-        vehicle.dropoffHotspot =
-          (vehicleSnapshot.dropoffHotspotId
-            ? hotspotById.get(vehicleSnapshot.dropoffHotspotId)
-            : null) ?? null;
-        writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
-        writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
-        setTaxiAppearance(vehicle);
-        syncVehicleTransform(vehicle, interpolationAlpha);
+        applyVehicleSnapshot({
+          vehicle,
+          vehicleSnapshot,
+          routeById,
+          taxiRoutePool,
+          trafficRoutePool,
+          loopRoutes,
+          hotspotById,
+          interpolationAlpha,
+        });
       });
 
       syncSelectedTaxi();
