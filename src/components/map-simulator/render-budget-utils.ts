@@ -8,9 +8,11 @@ import {
   COMMON_REFRESH_RATE_BANDS,
   DRIVE_PIXEL_RATIO,
   DRIVE_RENDER_FPS,
+  ENABLE_HARDWARE_ANTIALIAS,
   FOLLOW_PIXEL_RATIO,
   FOLLOW_RENDER_FPS,
   HIDDEN_PIXEL_RATIO,
+  MAX_RENDER_DEVICE_PIXEL_RATIO,
   OVERVIEW_PIXEL_RATIO,
   OVERVIEW_RENDER_FPS,
 } from "@/components/map-simulator/scene-constants";
@@ -100,6 +102,32 @@ export function renderPixelRatioFor(mode: CameraMode, isHidden: boolean) {
     default:
       return DRIVE_PIXEL_RATIO;
   }
+}
+
+export function resolvedRendererPixelRatioFor(
+  mode: CameraMode,
+  isHidden: boolean,
+  devicePixelRatio: number,
+) {
+  return Math.min(
+    Math.max(devicePixelRatio, 1),
+    MAX_RENDER_DEVICE_PIXEL_RATIO,
+    renderPixelRatioFor(mode, isHidden),
+  );
+}
+
+export function shouldUseHardwareAntialias({
+  devicePixelRatio,
+  viewportPixels,
+}: {
+  devicePixelRatio: number;
+  viewportPixels: number;
+}) {
+  return (
+    ENABLE_HARDWARE_ANTIALIAS &&
+    devicePixelRatio <= 1.1 &&
+    viewportPixels <= 1_300_000
+  );
 }
 
 export function precipitationDrawRatioFor(

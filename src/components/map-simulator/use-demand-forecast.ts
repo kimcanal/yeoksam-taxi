@@ -16,7 +16,7 @@ import type {
 } from "@/components/map-simulator/demand-types";
 
 const DEMAND_API_ENDPOINT =
-  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
+  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() || "/api/demand";
 
 export function useDemandForecast({
   simulationDate,
@@ -62,10 +62,6 @@ export function useDemandForecast({
   const selectedDemandHour = Math.floor(normalizedSimulationTimeMinutes / 60);
 
   useEffect(() => {
-    if (!DEMAND_API_ENDPOINT) {
-      return;
-    }
-
     const controller = new AbortController();
     const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
     url.searchParams.set("dong", selectedDongName);

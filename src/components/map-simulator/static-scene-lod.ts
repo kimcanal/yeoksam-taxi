@@ -124,6 +124,7 @@ function createRoadMesh(
   });
 
   mesh.instanceMatrix.needsUpdate = true;
+  mesh.receiveShadow = true;
   mesh.renderOrder =
     roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
   return mesh;

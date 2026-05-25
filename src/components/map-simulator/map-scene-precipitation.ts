@@ -72,3 +72,91 @@ export function createPrecipitationLayer({
     maxZ,
   };
 }
+
+export function updatePrecipitationVisuals({
+  activeRainSeedCount,
+  activeSnowSeedCount,
+  delta,
+  elapsedTime,
+  rainLayer,
+  snowLayer,
+}: {
+  activeRainSeedCount: number;
+  activeSnowSeedCount: number;
+  delta: number;
+  elapsedTime: number;
+  rainLayer: PrecipitationLayer;
+  snowLayer: PrecipitationLayer;
+}) {
+  const rainPositions = rainLayer.geometry.attributes.position
+    .array as Float32Array;
+  const snowPositions = snowLayer.geometry.attributes.position
+    .array as Float32Array;
+
+  if (rainLayer.points.visible) {
+    for (let index = 0; index < activeRainSeedCount; index += 1) {
+      const offset = index * 3;
+      rainPositions[offset] += delta * 0.5;
+      rainPositions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
+      rainPositions[offset + 2] += delta * 1.8;
+
+      if (rainPositions[offset] > rainLayer.maxX) {
+        rainPositions[offset] = rainLayer.minX;
+      }
+      if (rainPositions[offset + 2] > rainLayer.maxZ) {
+        rainPositions[offset + 2] = rainLayer.minZ;
+      }
+      if (rainPositions[offset + 1] < rainLayer.minHeight) {
+        rainPositions[offset] = THREE.MathUtils.lerp(
+          rainLayer.minX,
+          rainLayer.maxX,
+          Math.random(),
+        );
+        rainPositions[offset + 1] = rainLayer.maxHeight;
+        rainPositions[offset + 2] = THREE.MathUtils.lerp(
+          rainLayer.minZ,
+          rainLayer.maxZ,
+          Math.random(),
+        );
+      }
+    }
+    rainLayer.geometry.attributes.position.needsUpdate = true;
+  }
+
+  if (snowLayer.points.visible) {
+    for (let index = 0; index < activeSnowSeedCount; index += 1) {
+      const offset = index * 3;
+      const sway =
+        Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) *
+        0.52;
+      snowPositions[offset] += sway * delta;
+      snowPositions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
+      snowPositions[offset + 2] +=
+        delta * (1.1 + snowLayer.seeds[index] * 0.8);
+
+      if (snowPositions[offset] > snowLayer.maxX) {
+        snowPositions[offset] = snowLayer.minX;
+      }
+      if (snowPositions[offset] < snowLayer.minX) {
+        snowPositions[offset] = snowLayer.maxX;
+      }
+      if (snowPositions[offset + 2] > snowLayer.maxZ) {
+        snowPositions[offset + 2] = snowLayer.minZ;
+      }
+      if (snowPositions[offset + 1] < snowLayer.minHeight) {
+        snowPositions[offset] = THREE.MathUtils.lerp(
+          snowLayer.minX,
+          snowLayer.maxX,
+          Math.random(),
+        );
+        snowPositions[offset + 1] = snowLayer.maxHeight;
+        snowPositions[offset + 2] = THREE.MathUtils.lerp(
+          snowLayer.minZ,
+          snowLayer.maxZ,
+          Math.random(),
+        );
+      }
+    }
+    snowLayer.geometry.attributes.position.needsUpdate = true;
+  }
+}

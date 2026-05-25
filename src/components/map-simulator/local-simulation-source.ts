@@ -10,10 +10,7 @@ import {
   SIGNAL_RADIUS_SQ,
   SIMULATION_STATS_UPDATE_INTERVAL,
   TRAFFIC_ROUTE_REENTRY_DISTANCE,
-  VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
-  VEHICLE_PROXIMITY_CELL_SIZE,
 } from "@/components/map-simulator/scene-constants";
-import { TRAFFIC_PALETTES } from "@/components/map-simulator/vehicle-palettes";
 import {
   createSignalApproachDemand,
   createSignalApproachDistance,
@@ -32,13 +29,21 @@ import {
   clearVehicleSampleBuckets,
   copyVehicleMotionState,
   createVehicleSimulationSample,
-  createVehicleMotionState,
-  resolveNextStop,
   resolveNextStopInto,
-  routeSegmentIndexAtDistance,
   syncVehicleSampleBucket,
   vehicleProximityCellCoord,
 } from "@/components/map-simulator/route-motion-utils";
+import { limitSpeedForNearbyVehicles } from "@/components/map-simulator/local-proximity-checker";
+import {
+  castLocalVehicleForMotion,
+  type LocalVehicle,
+  type LocalVehicleProximityBuckets,
+  type LocalVehicleSimulationSample,
+} from "@/components/map-simulator/local-simulation-types";
+import {
+  createLocalTaxiVehicle,
+  createLocalTrafficVehicle,
+} from "@/components/map-simulator/local-vehicle-factory";
 import {
   type SignalApproachDemand,
   type SignalApproachDistance,
@@ -47,9 +52,6 @@ import {
   type SignalDirectionalOccupancy,
   type SignalFlow,
   type Stats,
-  type Vehicle,
-  type VehicleProximityBuckets,
-  type VehicleSimulationSample,
 } from "@/components/map-simulator/map-simulator-types";
 import {
   assignVehicleRoute,
@@ -68,13 +70,6 @@ import type {
   SimulationSource,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
-
-type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
-  renderSeed: number;
-};
-
-type LocalVehicleSimulationSample = VehicleSimulationSample<LocalVehicle>;
-type LocalVehicleProximityBuckets = VehicleProximityBuckets<LocalVehicle>;
 
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
@@ -195,9 +190,6 @@ export function createLocalSimulationSource(): SimulationSource {
     resetMetrics();
   };
 
-  const castVehicleForMotion = (vehicle: LocalVehicle) =>
-    vehicle as unknown as Vehicle;
-
   const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
     const taxiRoutePool =
       staticContext?.trafficRoutePool.length
@@ -211,46 +203,12 @@ export function createLocalSimulationSource(): SimulationSource {
     clearVehicleLayer();
 
     for (let index = 0; index < nextTaxiCount; index += 1) {
-      const vehicleId = `taxi-${index}`;
       const route = taxiRoutePool[index % taxiRoutePool.length]!;
-
-      const vehicle: LocalVehicle = {
-        id: vehicleId,
-        kind: "taxi",
+      const vehicle = createLocalTaxiVehicle({
+        index,
+        totalCount: nextTaxiCount,
         route,
-        baseSpeed: 7.1 + (index % 4) * 0.55,
-        speed: 0,
-        distance: (route.totalLength / Math.max(nextTaxiCount, 1)) * index,
-        safeGap: 7.8,
-        length: 4.6,
-        currentSignalId: null,
-        roadName: route.name,
-        palette: {
-          body: 0xffcc4d,
-          cabin: 0x1e252e,
-          sign: 0xffd970,
-        },
-        isOccupied: false,
-        pickupHotspot: null,
-        dropoffHotspot: null,
-        jobAssignedAt: 0,
-        pickupStartedAt: null,
-        serviceTimer: 0,
-        planMode: "traffic",
-        previousMotion: createVehicleMotionState(),
-        motion: createVehicleMotionState(),
-        renderMotion: createVehicleMotionState(),
-        renderSeed: index,
-      };
-      vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
-        route,
-        vehicle.distance,
-        0,
-      );
-      vehicle.motion.nextStopIndex = resolveNextStop(route, vehicle.distance, 0).index;
-      updateVehicleMotionState(castVehicleForMotion(vehicle));
-      copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
-      copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
+      });
       vehicles.push(vehicle);
       taxiVehicles.push(vehicle);
       taxiById.set(vehicle.id, vehicle);
@@ -259,43 +217,11 @@ export function createLocalSimulationSource(): SimulationSource {
     for (let index = 0; index < nextTrafficCount; index += 1) {
       const route =
         staticContext.trafficRoutePool[index % staticContext.trafficRoutePool.length]!;
-      const vehicle: LocalVehicle = {
-        id: `traffic-${index}`,
-        kind: "traffic",
+      const vehicle = createLocalTrafficVehicle({
+        index,
+        totalCount: nextTrafficCount,
         route,
-        baseSpeed: 5.6 + (index % 5) * 0.4,
-        speed: 0,
-        distance: (route.totalLength / Math.max(nextTrafficCount, 1)) * index,
-        safeGap: 6.4,
-        length: 4.2,
-        currentSignalId: null,
-        roadName: route.name,
-        palette: TRAFFIC_PALETTES[index % TRAFFIC_PALETTES.length]!,
-        isOccupied: false,
-        pickupHotspot: null,
-        dropoffHotspot: null,
-        jobAssignedAt: 0,
-        pickupStartedAt: null,
-        serviceTimer: 0,
-        planMode: "traffic",
-        previousMotion: createVehicleMotionState(),
-        motion: createVehicleMotionState(),
-        renderMotion: createVehicleMotionState(),
-        renderSeed: index,
-      };
-      vehicle.motion.segmentIndex = routeSegmentIndexAtDistance(
-        route,
-        vehicle.distance,
-        0,
-      );
-      vehicle.motion.nextStopIndex = resolveNextStop(
-        route,
-        vehicle.distance,
-        0,
-      ).index;
-      updateVehicleMotionState(castVehicleForMotion(vehicle));
-      copyVehicleMotionState(vehicle.previousMotion, vehicle.motion);
-      copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
+      });
       vehicles.push(vehicle);
       trafficVehicles.push(vehicle);
     }
@@ -465,81 +391,12 @@ export function createLocalSimulationSource(): SimulationSource {
       }
 
       if (!holdPosition) {
-        const maxInteractionDistance =
-          vehicle.safeGap + VEHICLE_FOLLOW_LOOKAHEAD_BUFFER;
-        const searchCellRadius = Math.max(
-          1,
-          Math.ceil(maxInteractionDistance / VEHICLE_PROXIMITY_CELL_SIZE),
-        );
-        const currentCellX = vehicleProximityCellCoord(
-          current.motion.lanePosition.x,
-        );
-        const currentCellZ = vehicleProximityCellCoord(
-          current.motion.lanePosition.z,
-        );
-
-        searchNearbyVehicles: for (
-          let cellX = currentCellX - searchCellRadius;
-          cellX <= currentCellX + searchCellRadius;
-          cellX += 1
-        ) {
-          for (
-            let cellZ = currentCellZ - searchCellRadius;
-            cellZ <= currentCellZ + searchCellRadius;
-            cellZ += 1
-          ) {
-            const bucket = proximityBuckets.get(cellX)?.get(cellZ);
-            if (!bucket) {
-              continue;
-            }
-
-            for (let bucketIndex = 0; bucketIndex < bucket.length; bucketIndex += 1) {
-              const other = bucket[bucketIndex]!;
-              if (other.vehicle === vehicle) {
-                continue;
-              }
-
-              const alignment = current.motion.heading.dot(other.motion.heading);
-              if (alignment < 0.35) {
-                continue;
-              }
-
-              const deltaX =
-                other.motion.lanePosition.x - current.motion.lanePosition.x;
-              const deltaZ =
-                other.motion.lanePosition.z - current.motion.lanePosition.z;
-              const longitudinal =
-                deltaX * current.motion.heading.x +
-                deltaZ * current.motion.heading.z;
-              if (
-                longitudinal <= 0 ||
-                longitudinal > maxInteractionDistance
-              ) {
-                continue;
-              }
-
-              const lateral = Math.abs(
-                deltaX * current.motion.right.x + deltaZ * current.motion.right.z,
-              );
-              const laneTolerance =
-                Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) *
-                0.48;
-              if (lateral > laneTolerance) {
-                continue;
-              }
-
-              const gapLimit = Math.max(
-                0,
-                (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1,
-              );
-              targetSpeed = Math.min(targetSpeed, gapLimit);
-              if (targetSpeed <= 0.001) {
-                targetSpeed = 0;
-                break searchNearbyVehicles;
-              }
-            }
-          }
-        }
+        targetSpeed = limitSpeedForNearbyVehicles({
+          vehicle,
+          current,
+          targetSpeed,
+          proximityBuckets,
+        });
       }
 
       if (
@@ -609,7 +466,11 @@ export function createLocalSimulationSource(): SimulationSource {
                 nextRoute.totalLength * 0.12,
                 TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
               );
-              assignVehicleRoute(castVehicleForMotion(vehicle), nextRoute, entryDistance);
+              assignVehicleRoute(
+                castLocalVehicleForMotion(vehicle),
+                nextRoute,
+                entryDistance,
+              );
               nextStopState = resolveNextStopInto(
                 vehicle.route,
                 vehicle.distance,
@@ -632,7 +493,7 @@ export function createLocalSimulationSource(): SimulationSource {
           vehicle.route,
           holdPosition ? vehicle.distance : vehicle.distance + vehicle.speed * deltaSeconds,
         );
-        updateVehicleMotionState(castVehicleForMotion(vehicle));
+        updateVehicleMotionState(castLocalVehicleForMotion(vehicle));
       }
 
       syncVehicleSampleBucket(proximityBuckets, current);

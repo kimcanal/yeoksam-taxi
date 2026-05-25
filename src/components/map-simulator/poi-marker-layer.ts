@@ -38,7 +38,7 @@ export function createPoiMarkerLayer({
     const accent = new THREE.Color(poiMarkerColor(poi.category));
     const marker = new THREE.Group();
     marker.name = `poi-marker-${poi.poi_code}`;
-    marker.position.set(projected.x, 0.24, projected.z);
+    marker.position.set(projected.x, 0.08, projected.z);
 
     const hitTarget = new THREE.Mesh(hitGeometry, hitMaterial);
     hitTarget.name = `poi-hit-${poi.poi_code}`;

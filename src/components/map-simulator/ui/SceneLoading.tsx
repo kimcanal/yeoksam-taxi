@@ -26,7 +26,7 @@ export function SceneLoading({
           <div className="h-9 w-9 rounded-full border-2 border-white/15 border-t-cyan-400 animate-spin" />
           <div>
             <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-              디지털 트윈 시뮬레이션
+              강남·역삼 디지털 트윈
             </div>
             <div className="mt-1 text-lg font-semibold text-slate-50">
               {statusLabel}

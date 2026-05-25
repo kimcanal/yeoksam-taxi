@@ -2,14 +2,18 @@ import * as THREE from "three";
 import type {
   RouteTemplate,
   SignalData,
+  SignalFlow,
   SignalLampVisual,
   SignalVisual,
 } from "@/components/map-simulator/map-simulator-types";
+import type { SignalSnapshot } from "@/components/map-simulator/simulation-source";
 import {
   CROSSWALK_STEP,
   CROSSWALK_STRIPE_COUNT,
   CROSSWALK_WIDTH,
+  ROAD_MARKING_Y,
 } from "@/components/map-simulator/scene-constants";
+import { signalState } from "@/components/map-simulator/signal-controller";
 import {
   offsetToRight,
   sampleRoute,
@@ -200,6 +204,10 @@ export function createTrafficSignalLayer({
     emissive: 0x15181c,
     emissiveIntensity: 0.02,
     roughness: 0.9,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -5,
+    polygonOffsetUnits: -5,
   });
   const crosswalkStripes = signalVisuals.flatMap((signal) => {
     const stripeOffset = (CROSSWALK_STRIPE_COUNT - 1) * 0.5;
@@ -208,7 +216,14 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .add(new THREE.Vector3(0, 0.03, (index - stripeOffset) * CROSSWALK_STEP)),
+          .setY(ROAD_MARKING_Y + 0.006)
+          .add(
+            new THREE.Vector3(
+              0,
+              0,
+              (index - stripeOffset) * CROSSWALK_STEP,
+            ),
+          ),
         angle: 0,
         width: CROSSWALK_WIDTH,
         depth: 0.34,
@@ -219,7 +234,14 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .add(new THREE.Vector3((index - stripeOffset) * CROSSWALK_STEP, 0.03, 0)),
+          .setY(ROAD_MARKING_Y + 0.006)
+          .add(
+            new THREE.Vector3(
+              (index - stripeOffset) * CROSSWALK_STEP,
+              0,
+              0,
+            ),
+          ),
         angle: Math.PI / 2,
         width: CROSSWALK_WIDTH,
         depth: 0.34,
@@ -248,6 +270,10 @@ export function createTrafficSignalLayer({
     emissive: 0x181c22,
     emissiveIntensity: 0.03,
     roughness: 0.82,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -5,
+    polygonOffsetUnits: -5,
   });
   const stopLineMarkers = loopRoutes
     .filter((route) => route.roadClass !== "local")
@@ -265,7 +291,7 @@ export function createTrafficSignalLayer({
       sample.heading,
       marker.route.laneOffset,
     );
-    dummy.position.set(lanePosition.x, 0.18, lanePosition.z);
+    dummy.position.set(lanePosition.x, ROAD_MARKING_Y + 0.012, lanePosition.z);
     dummy.rotation.set(0, Math.atan2(sample.heading.x, sample.heading.z), 0);
     dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);
     dummy.updateMatrix();
@@ -280,4 +306,77 @@ export function createTrafficSignalLayer({
     crosswalkMaterial,
     stopLineMaterial,
   };
+}
+
+export function updateTrafficSignalVisuals({
+  elapsedTime,
+  frameSignalStates,
+  signalSnapshots,
+  signalVisuals,
+}: {
+  elapsedTime: number;
+  frameSignalStates: Map<string, SignalFlow>;
+  signalSnapshots: SignalSnapshot[];
+  signalVisuals: SignalVisual[];
+}) {
+  if (!signalVisuals.length) {
+    frameSignalStates.clear();
+    return;
+  }
+
+  const signalSnapshotById = new globalThis.Map(
+    signalSnapshots.map(
+      (signalSnapshot) => [signalSnapshot.id, signalSnapshot] as const,
+    ),
+  );
+  frameSignalStates.clear();
+  signalVisuals.forEach((signal) => {
+    const signalSnapshot = signalSnapshotById.get(signal.id);
+    const state = signalSnapshot?.flow ?? signalState(signal, elapsedTime);
+    const pedestrianFlashVisible =
+      state.pedestrian === "flash" && Math.sin(elapsedTime * 12) > 0;
+    frameSignalStates.set(signal.id, state);
+
+    const visualSignature = `${state.phase}:${pedestrianFlashVisible ? "flash-on" : "flash-off"}`;
+    if (visualSignature === signal.lastVisualSignature) {
+      return;
+    }
+    signal.lastVisualSignature = visualSignature;
+
+    signal.reds.forEach(({ mesh, axis }) => {
+      (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+        (axis === "ns" ? state.ns : state.ew) === "red" ? 0xff2d55 : 0x240608,
+      );
+    });
+    signal.yellows.forEach(({ mesh, axis }) => {
+      (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+        (axis === "ns" ? state.ns : state.ew) === "yellow"
+          ? 0xffc247
+          : 0x2a1806,
+      );
+    });
+    signal.greens.forEach(({ mesh, axis }) => {
+      (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+        (axis === "ns" ? state.ns : state.ew) === "green"
+          ? 0x3cf07b
+          : 0x08190d,
+      );
+    });
+    signal.leftArrows.forEach(({ mesh, axis }) => {
+      (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+        mesh.visible && (axis === "ns" ? state.nsLeft : state.ewLeft)
+          ? 0x54f49d
+          : 0x08190d,
+      );
+    });
+    signal.pedestrianLamps.forEach(({ mesh }) => {
+      (mesh.material as THREE.MeshStandardMaterial).emissive.setHex(
+        state.pedestrian === "walk"
+          ? 0xf6f7ff
+          : pedestrianFlashVisible
+            ? 0xf9c756
+            : 0x111721,
+      );
+    });
+  });
 }

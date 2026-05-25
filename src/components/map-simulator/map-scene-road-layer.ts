@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import type { ProjectedRoadSegment } from "@/components/map-simulator/map-simulator-types";
-import { ROAD_LAYER_Y } from "@/components/map-simulator/scene-constants";
+import {
+  ROAD_LAYER_Y,
+  ROAD_MARKING_Y,
+  ROAD_SHEEN_Y_OFFSET,
+  ROAD_SURFACE_THICKNESS,
+} from "@/components/map-simulator/scene-constants";
 import { distanceXZ } from "@/components/map-simulator/route-motion-utils";
 
 const ROAD_CLASSES = ["arterial", "connector", "local"] as const;
@@ -19,28 +24,28 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
 
   const roadMaterials = {
     arterial: new THREE.MeshStandardMaterial({
-      color: 0x626d77,
-      roughness: 0.94,
-      metalness: 0.01,
-      emissive: 0x0d1720,
-      emissiveIntensity: 0.05,
+      color: 0x8fa0ad,
+      roughness: 0.88,
+      metalness: 0.02,
+      emissive: 0x111e29,
+      emissiveIntensity: 0.06,
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
     }),
     connector: new THREE.MeshStandardMaterial({
-      color: 0x4e5861,
-      roughness: 0.95,
+      color: 0x6b7d89,
+      roughness: 0.92,
       metalness: 0.01,
-      emissive: 0x0b131b,
-      emissiveIntensity: 0.035,
+      emissive: 0x0c1620,
+      emissiveIntensity: 0.04,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
     }),
     local: new THREE.MeshStandardMaterial({
-      color: 0x343c44,
-      roughness: 0.98,
+      color: 0x465261,
+      roughness: 0.97,
       metalness: 0.01,
       polygonOffset: true,
       polygonOffsetFactor: 0,
@@ -54,12 +59,19 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
     roughness: 0.16,
     metalness: 0.1,
     depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
   const laneMarkerMaterial = new THREE.MeshStandardMaterial({
     color: 0xf3e9cf,
     emissive: 0x4c412d,
     emissiveIntensity: 0.06,
     roughness: 0.82,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -6,
+    polygonOffsetUnits: -6,
   });
 
   const roadSegmentsByClass: Record<
@@ -80,7 +92,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
   ROAD_CLASSES.forEach((roadClass) => {
     const segments = roadSegmentsByClass[roadClass];
     const mesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 0.25, 1),
+      new THREE.BoxGeometry(1, ROAD_SURFACE_THICKNESS, 1),
       roadMaterials[roadClass],
       segments.length,
     );
@@ -96,6 +108,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
     });
 
     mesh.instanceMatrix.needsUpdate = true;
+    mesh.receiveShadow = true;
     mesh.renderOrder =
       roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
     roadLayer.add(mesh);
@@ -118,7 +131,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
     const widthScale = segment.roadClass === "arterial" ? 0.62 : 0.54;
     dummy.position.set(
       center.x,
-      ROAD_LAYER_Y[segment.roadClass] + 0.036,
+      ROAD_LAYER_Y[segment.roadClass] + ROAD_SHEEN_Y_OFFSET,
       center.z,
     );
     dummy.rotation.set(0, roadAngle(segment), 0);
@@ -166,7 +179,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
   );
 
   laneMarkers.forEach((marker, index) => {
-    dummy.position.set(marker.center.x, 0.16, marker.center.z);
+    dummy.position.set(marker.center.x, ROAD_MARKING_Y, marker.center.z);
     dummy.rotation.set(0, marker.angle, 0);
     dummy.scale.set(1, 1, marker.length);
     dummy.updateMatrix();

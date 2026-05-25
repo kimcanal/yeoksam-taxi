@@ -49,25 +49,59 @@ export function disposeMaterialResources(material: THREE.Material) {
 }
 
 export function disposeObject3DResources(object: THREE.Object3D) {
+  disposeHierarchy(object);
+}
+
+export function disposeHierarchy(object: THREE.Object3D) {
+  const disposedGeometries = new WeakSet<object>();
+  const disposedMaterials = new WeakSet<THREE.Material>();
+  const disposedTextures = new WeakSet<THREE.Texture>();
+
   object.traverse((child) => {
     const resourceHolder = child as THREE.Object3D & {
       geometry?: { dispose?: () => void };
       material?: THREE.Material | THREE.Material[];
     };
-    if (!resourceHolder.userData.skipGeometryDispose) {
-      resourceHolder.geometry?.dispose?.();
+    const geometry = resourceHolder.geometry;
+    if (
+      geometry &&
+      !resourceHolder.userData.skipGeometryDispose &&
+      !disposedGeometries.has(geometry)
+    ) {
+      geometry.dispose?.();
+      disposedGeometries.add(geometry);
     }
     if (resourceHolder.userData.skipMaterialDispose) {
       return;
     }
+    const disposeMaterial = (material: THREE.Material) => {
+      if (disposedMaterials.has(material)) {
+        return;
+      }
+
+      const materialWithTextures = material as THREE.Material &
+        Partial<
+          Record<(typeof MATERIAL_TEXTURE_KEYS)[number], THREE.Texture | null>
+        >;
+      MATERIAL_TEXTURE_KEYS.forEach((key) => {
+        const texture = materialWithTextures[key];
+        if (texture && !disposedTextures.has(texture)) {
+          texture.dispose();
+          disposedTextures.add(texture);
+        }
+      });
+      material.dispose();
+      disposedMaterials.add(material);
+    };
+
     if (Array.isArray(resourceHolder.material)) {
       resourceHolder.material.forEach((material) => {
         if (material instanceof THREE.Material) {
-          disposeMaterialResources(material);
+          disposeMaterial(material);
         }
       });
     } else if (resourceHolder.material instanceof THREE.Material) {
-      disposeMaterialResources(resourceHolder.material);
+      disposeMaterial(resourceHolder.material);
     }
   });
 }

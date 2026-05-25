@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import {
+  ENABLE_REALTIME_SHADOWS,
+  SHADOW_MAP_SIZE,
+} from "@/components/map-simulator/scene-constants";
 
 export type MapSceneBase = {
   scene: THREE.Scene;
@@ -38,9 +42,11 @@ export function createMapSceneLights(scene: THREE.Scene): MapSceneLights {
 
   const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
   sun.position.set(110, 180, 80);
-  sun.castShadow = true;
-  sun.shadow.bias = -0.0005;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = ENABLE_REALTIME_SHADOWS;
+  sun.shadow.bias = -0.00018;
+  sun.shadow.normalBias = 0.035;
+  sun.shadow.radius = 2.2;
+  sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
   sun.shadow.camera.near = 10;
   sun.shadow.camera.far = 420;
   sun.shadow.camera.left = -180;

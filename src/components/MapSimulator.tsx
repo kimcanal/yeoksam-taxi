@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import dynamic from "next/dynamic";
 import * as THREE from "three";
@@ -114,6 +115,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const showTransit = true;
   const showRoadNetwork = false;
   const fpsMode: FpsMode = "fixed60";
+  const layoutStyle = {
+    "--demand-sidebar-width": "clamp(400px, 38vw, 500px)",
+  } as CSSProperties;
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
@@ -244,8 +248,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const formattedSimulationDate = formatDateLabel(simulationDate);
   const isSidebarVisible = !isSidebarCollapsed;
   const mapCanvasClass = isSidebarVisible
-    ? "h-full w-full border-r border-white/10 lg:w-[62vw] xl:w-[calc(100%-500px)]"
-    : "h-full w-full";
+    ? "h-full w-full border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
+    : "h-full w-full transition-[margin,width] duration-300 ease-in-out";
   useEffect(() => {
     if (isSidebarVisible && isScenarioControlsExpanded) {
       setIsScenarioControlsExpanded(false);
@@ -282,7 +286,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#060d16]">
-      <section className="relative h-full overflow-hidden">
+      <section className="relative h-full overflow-hidden" style={layoutStyle}>
         <div
           ref={containerRef}
           className={mapCanvasClass}
@@ -299,7 +303,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             selectedDemandDongRef={demandState.refs.selectedDemandDongRef}
             hasDemandDataRef={demandState.refs.hasDemandDataRef}
             selectedDemandScoreRef={demandState.refs.selectedDemandScoreRef}
-            dongDemandScoresRef={demandState.refs.dongDemandScoresRef}
             currentFiveMinuteDemandRef={demandState.refs.currentFiveMinuteDemandRef}
             currentDemandVisualUnitsRef={
               demandState.refs.currentDemandVisualUnitsRef
@@ -376,38 +379,39 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
 
 
-        {isSidebarVisible ? (
-          <button
-            type="button"
-            aria-label="정보 패널 닫기"
-            onClick={toggleSidebar}
-            className="absolute inset-0 z-10 bg-slate-950/56 lg:hidden"
-          />
-        ) : null}
+        <button
+          type="button"
+          aria-label="정보 패널 닫기"
+          aria-hidden={!isSidebarVisible}
+          tabIndex={isSidebarVisible ? 0 : -1}
+          onClick={toggleSidebar}
+          className={`absolute inset-0 z-10 bg-slate-950/56 transition-opacity duration-300 ease-in-out lg:hidden ${
+            isSidebarVisible
+              ? "pointer-events-auto opacity-100"
+              : "pointer-events-none opacity-0"
+          }`}
+        />
 
-        {isSidebarVisible ? (
-          <DemandSidebar
-            selectedDongName={demandState.selectedDongName}
-            setSelectedDongName={demandState.setSelectedDongName}
-            selectedWeekday={demandState.selectedWeekday}
-            setSelectedWeekday={demandState.setSelectedWeekday}
-            demandFetchBadgeText={demandState.demandFetchBadgeText}
-            demandFetchBadgeClass={demandState.demandFetchBadgeClass}
-            hasDemandData={demandState.hasDemandData}
-            selectedPeakDemand={demandState.selectedPeakDemand}
-            selectedDemandIntensityLabel={
-              demandState.selectedDemandIntensityLabel
-            }
-            currentDemandSlot={demandState.currentDemandSlot}
-            currentFiveMinuteDemand={demandState.currentFiveMinuteDemand}
-            appliedTaxiCount={demandState.appliedTaxiCount}
-            demandChart={demandState.demandChart}
-            selectedAverageDemand={demandState.selectedAverageDemand}
-            demandMiniMap={demandState.demandMiniMap}
-            mapPoiFeatureRows={mapPoiFeatureRows}
-            onPoiSelect={handlePoiSelect}
-          />
-        ) : null}
+        <DemandSidebar
+          isVisible={isSidebarVisible}
+          selectedDongName={demandState.selectedDongName}
+          setSelectedDongName={demandState.setSelectedDongName}
+          selectedWeekday={demandState.selectedWeekday}
+          setSelectedWeekday={demandState.setSelectedWeekday}
+          demandFetchBadgeText={demandState.demandFetchBadgeText}
+          demandFetchBadgeClass={demandState.demandFetchBadgeClass}
+          hasDemandData={demandState.hasDemandData}
+          selectedPeakDemand={demandState.selectedPeakDemand}
+          selectedDemandIntensityLabel={demandState.selectedDemandIntensityLabel}
+          currentDemandSlot={demandState.currentDemandSlot}
+          currentFiveMinuteDemand={demandState.currentFiveMinuteDemand}
+          appliedTaxiCount={demandState.appliedTaxiCount}
+          demandChart={demandState.demandChart}
+          selectedAverageDemand={demandState.selectedAverageDemand}
+          demandMiniMap={demandState.demandMiniMap}
+          mapPoiFeatureRows={mapPoiFeatureRows}
+          onPoiSelect={handlePoiSelect}
+        />
 
       </section>
     </div>

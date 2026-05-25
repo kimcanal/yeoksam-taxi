@@ -7,12 +7,15 @@ export const ROAD_LAYER_Y = {
   connector: 0.121,
   arterial: 0.126,
 } as const;
+export const ROAD_SURFACE_THICKNESS = 0.035;
+export const ROAD_SHEEN_Y_OFFSET = 0.065;
+export const ROAD_MARKING_Y = 0.205;
 export const NON_ROAD_LAYER_Y = {
   facility: 0.048,
   green: 0.056,
   pedestrian: 0.064,
   parking: 0.072,
-  water: 0.08,
+  water: 0.005,
 } as const;
 export const ROAD_NETWORK_EDGE_Y_OFFSET = 0.42;
 export const ROAD_NETWORK_NODE_Y = 0.72;
@@ -98,7 +101,11 @@ export const COMMON_REFRESH_RATE_BANDS = [
 ] as const;
 export const AUTO_RENDER_HALF_REFRESH_THRESHOLD = 100;
 export const AUTO_REFRESH_BAND_HYSTERESIS_RATIO = 0.1;
-export const DRIVE_PIXEL_RATIO = 1.2;
-export const FOLLOW_PIXEL_RATIO = 1.2;
-export const OVERVIEW_PIXEL_RATIO = 1.05;
-export const HIDDEN_PIXEL_RATIO = 0.6;
+export const ENABLE_HARDWARE_ANTIALIAS = true;
+export const ENABLE_REALTIME_SHADOWS = true;
+export const SHADOW_MAP_SIZE = 1024;
+export const MAX_RENDER_DEVICE_PIXEL_RATIO = 1;
+export const DRIVE_PIXEL_RATIO = 1;
+export const FOLLOW_PIXEL_RATIO = 1;
+export const OVERVIEW_PIXEL_RATIO = 0.95;
+export const HIDDEN_PIXEL_RATIO = 0.5;

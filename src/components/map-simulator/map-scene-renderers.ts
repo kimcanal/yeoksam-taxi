@@ -3,7 +3,10 @@ import {
   CSS2DRenderer,
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { CameraMode } from "@/components/map-simulator/camera-types";
-import { renderPixelRatioFor } from "@/components/map-simulator/render-budget-utils";
+import {
+  resolvedRendererPixelRatioFor,
+} from "@/components/map-simulator/render-budget-utils";
+import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene-constants";
 
 export function createMapSceneRenderers({
   container,
@@ -12,21 +15,20 @@ export function createMapSceneRenderers({
   container: HTMLDivElement;
   cameraMode: CameraMode;
 }) {
+  const devicePixelRatio = window.devicePixelRatio || 1;
   const renderer = new THREE.WebGLRenderer({
-    antialias: false,
+    antialias: true,
     powerPreference: "high-performance",
   });
   renderer.setPixelRatio(
-    Math.min(
-      window.devicePixelRatio,
-      renderPixelRatioFor(
-        cameraMode,
-        document.visibilityState === "hidden",
-      ),
+    resolvedRendererPixelRatioFor(
+      cameraMode,
+      document.visibilityState === "hidden",
+      devicePixelRatio,
     ),
   );
   renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = ENABLE_REALTIME_SHADOWS;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.02;
