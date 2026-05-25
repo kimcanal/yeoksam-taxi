@@ -101,6 +101,7 @@ import {
   HOTSPOT_IDLE_COLORS,
   HOTSPOT_PRESENTATION,
 } from "@/components/map-simulator/hotspot-presentation";
+import { statsEqual } from "@/components/map-simulator/stats-utils";
 import type {
   BaseCameraMode,
   CameraFocusTarget,
@@ -851,22 +852,8 @@ export default function MapSimulatorSceneRuntime({
       traffic: appliedTrafficCountRef.current,
     };
 
-    const statsMatch = (left: Stats, right: Stats) =>
-      left.taxis === right.taxis &&
-      left.traffic === right.traffic &&
-      left.waiting === right.waiting &&
-      left.signals === right.signals &&
-      left.activeTrips === right.activeTrips &&
-      left.completedTrips === right.completedTrips &&
-      left.pedestrians === right.pedestrians &&
-      left.pickups === right.pickups &&
-      left.dropoffs === right.dropoffs &&
-      left.activeCalls === right.activeCalls &&
-      left.avgPickupWaitSeconds === right.avgPickupWaitSeconds &&
-      left.avgRideSeconds === right.avgRideSeconds;
-
     const commitStatsSnapshot = (nextStats: Stats) => {
-      setStats((current) => (statsMatch(current, nextStats) ? current : nextStats));
+      setStats((current) => (statsEqual(current, nextStats) ? current : nextStats));
     };
 
     const syncSelectedTaxi = () => {
