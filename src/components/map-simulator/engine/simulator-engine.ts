@@ -379,9 +379,10 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       mapSize: size,
       poiFeatureRows: [...(poiFeatureRowsRef.current ?? [])],
     });
-    const { ground, groundMaterial, gridHelper, demandVisualLayer } = mapSceneGeometry;
+    const { ground, groundMaterial, gridHelper, maskMesh, demandVisualLayer } = mapSceneGeometry;
     scene.add(ground);
     scene.add(gridHelper);
+    scene.add(maskMesh);
 
     const dongFloorGroup = demandVisualLayer.dongFloorGroup;
     scene.add(demandVisualLayer.group);

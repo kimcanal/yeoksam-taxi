@@ -62,6 +62,45 @@ export function createMapSceneGeometry({
     wallHeight: dongBoundaryWallHeight,
   });
 
+  // Create an inverted mask to hide areas outside the target dongs
+  const outerShape = new THREE.Shape();
+  const worldSize = 20000;
+  outerShape.moveTo(-worldSize, -worldSize);
+  outerShape.lineTo(worldSize, -worldSize);
+  outerShape.lineTo(worldSize, worldSize);
+  outerShape.lineTo(-worldSize, worldSize);
+  outerShape.lineTo(-worldSize, -worldSize);
+
+  data.dongRegions.forEach((dong) => {
+    dong.rings.forEach((ring) => {
+      const holePath = new THREE.Path();
+      if (ring.length > 0) {
+        holePath.moveTo(ring[0].x, ring[0].z);
+        for (let i = 1; i < ring.length; i++) {
+          holePath.lineTo(ring[i].x, ring[i].z);
+        }
+        outerShape.holes.push(holePath);
+      }
+    });
+  });
+
+  const maskGeometry = new THREE.ExtrudeGeometry(outerShape, {
+    depth: 60,
+    bevelEnabled: false,
+  });
+  
+  const maskMaterial = new THREE.MeshBasicMaterial({
+    color: 0x0a1420, // Match the dark background aesthetic
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.95,
+  });
+
+  const maskMesh = new THREE.Mesh(maskGeometry, maskMaterial);
+  maskMesh.rotation.x = -Math.PI / 2; // Lay flat: Extrusion depth points to -Y
+  maskMesh.position.y = 50; // Cover from Y=50 down to Y=-10
+  maskMesh.renderOrder = 40;
+
   const staticRoadLayer = createStaticRoadLayer(data.projectedRoadSegments);
   const buildingMassLayer = createBuildingMassLayer(data.buildingMasses);
 
@@ -69,6 +108,7 @@ export function createMapSceneGeometry({
     ground,
     groundMaterial,
     gridHelper,
+    maskMesh,
     demandVisualLayer,
     nonRoadGroup,
     dongBoundaryLayer,
