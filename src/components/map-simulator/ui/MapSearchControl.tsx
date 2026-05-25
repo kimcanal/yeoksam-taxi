@@ -66,14 +66,12 @@ export function MapSearchControl({
   return (
     <div
       data-ui-panel="map-search-control"
-      className={`absolute left-3 right-3 top-3 z-30 max-w-[430px] lg:left-4 lg:right-auto ${
-        isSidebarVisible ? "lg:max-w-[calc(62vw-2rem)]" : ""
-      }`}
+      className="absolute left-3 right-3 top-3 z-30 max-w-[430px] lg:left-auto lg:right-4"
     >
       <div className="flex h-14 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2.5 text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.20)]">
         <button
           type="button"
-          aria-label="지도 조건 열기"
+          aria-label="시뮬레이션 설정 열기"
           aria-expanded={isScenarioControlsExpanded}
           onClick={toggleScenarioControls}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
@@ -86,8 +84,8 @@ export function MapSearchControl({
             <span className="block truncate text-[11px] text-slate-500">
               {MAP_SCOPE_LABEL} · {formattedSimulationTime} ·{" "}
               {hasDemandData
-                ? `택시 ${appliedTaxiCount}대 · 일반 ${appliedTrafficCount}대`
-                : `${selectedWeather.label} · 일반 ${appliedTrafficCount}대`}
+                ? `택시 ${appliedTaxiCount}대 · 차량 ${appliedTrafficCount}대`
+                : `${selectedWeather.label} · 차량 ${appliedTrafficCount}대`}
             </span>
           </span>
         </button>
@@ -110,11 +108,15 @@ export function MapSearchControl({
         </button>
       </div>
 
-      {isScenarioControlsExpanded ? (
-        <div
-          data-ui-panel="map-condition-drawer"
-          className="mt-2 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,0.18)]"
-        >
+      <div
+        data-ui-panel="map-condition-drawer"
+        aria-hidden={!isScenarioControlsExpanded}
+        className={`mt-2 origin-top rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-[0_12px_34px_rgba(15,23,42,0.18)] transition-[opacity,transform] duration-200 ease-out ${
+          isScenarioControlsExpanded
+            ? "pointer-events-auto scale-100 opacity-100"
+            : "pointer-events-none scale-95 opacity-0"
+        }`}
+      >
           <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
             <div className="rounded-xl bg-slate-100 px-3 py-2">
               <div className="text-slate-500">날짜</div>
@@ -220,8 +222,7 @@ export function MapSearchControl({
               />
             </div>
           </label>
-        </div>
-      ) : null}
+      </div>
     </div>
   );
 }

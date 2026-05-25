@@ -13,9 +13,9 @@ export function createDongBoundaryLayer({
   group.name = "dong-boundary-layer";
 
   const glowMaterial = new THREE.MeshBasicMaterial({
-    color: 0x6dbb9b,
+    color: 0xc4722a,
     transparent: true,
-    opacity: 0.28,
+    opacity: 0.18,
     depthWrite: false,
   });
   const glowMesh = new THREE.InstancedMesh(
@@ -30,7 +30,7 @@ export function createDongBoundaryLayer({
     dummy.scale.set(2.1, 1, segment.length + 1.1);
     dummy.updateMatrix();
     glowMesh.setMatrixAt(index, dummy.matrix);
-    glowMesh.setColorAt(index, new THREE.Color(0x87cbb0));
+    glowMesh.setColorAt(index, new THREE.Color(0xd4834a));
   });
 
   glowMesh.instanceMatrix.needsUpdate = true;
@@ -41,9 +41,9 @@ export function createDongBoundaryLayer({
   group.add(glowMesh);
 
   const lineMaterial = new THREE.MeshBasicMaterial({
-    color: 0x87d2b0,
+    color: 0xe8904a,
     transparent: true,
-    opacity: 0.88,
+    opacity: 0.82,
   });
   const lineMesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 0.05, 1),
@@ -57,7 +57,7 @@ export function createDongBoundaryLayer({
     dummy.scale.set(1.28, 1.4, segment.length + 0.44);
     dummy.updateMatrix();
     lineMesh.setMatrixAt(index, dummy.matrix);
-    lineMesh.setColorAt(index, new THREE.Color(0x91d6b5));
+    lineMesh.setColorAt(index, new THREE.Color(0xe8904a));
   });
 
   lineMesh.instanceMatrix.needsUpdate = true;
@@ -68,7 +68,7 @@ export function createDongBoundaryLayer({
   group.add(lineMesh);
 
   const wallMaterial = new THREE.MeshBasicMaterial({
-    color: 0x87cbb0,
+    color: 0xc4722a,
     transparent: true,
     opacity: 0.001,
     depthWrite: false,
@@ -85,7 +85,7 @@ export function createDongBoundaryLayer({
     dummy.scale.set(0.42, wallHeight, segment.length + 0.16);
     dummy.updateMatrix();
     wallMesh.setMatrixAt(index, dummy.matrix);
-    wallMesh.setColorAt(index, new THREE.Color(0x8bffb7));
+    wallMesh.setColorAt(index, new THREE.Color(0xe89050));
   });
 
   wallMesh.instanceMatrix.needsUpdate = true;

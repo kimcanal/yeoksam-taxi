@@ -113,7 +113,7 @@ export function DemandChart({
           </svg>
         ) : (
           <div className="flex h-[164px] items-center justify-center px-5 text-center text-xs leading-5 text-slate-500">
-            백엔드 수요 API가 연결되면 선택한 동의 0-23시 그래프가 표시됩니다.
+            수요 데이터가 수신되면 선택한 행정동의 시간대별 그래프가 표시됩니다.
           </div>
         )}
       </div>
@@ -122,7 +122,7 @@ export function DemandChart({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-4 rounded-full bg-cyan-300" />
-            1시간 수요
+            시간당 예측
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-0 w-4 border-t border-dashed border-rose-300" />
@@ -132,7 +132,7 @@ export function DemandChart({
         <span className="tabular-nums">
           {hasDemandData
             ? `평균 ${selectedAverageDemand.toLocaleString("ko-KR")}`
-            : "백엔드 응답 대기"}
+            : "데이터 수신 대기 중"}
         </span>
       </div>
     </>

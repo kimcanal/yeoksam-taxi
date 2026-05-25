@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Minimize2, Maximize2, Gauge, Menu } from "lucide-react";
+import { Minimize2, Maximize2, Gauge, Menu, X } from "lucide-react";
 
 export function mapToolButtonClass(active: boolean) {
   return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
@@ -65,39 +65,44 @@ export function MapToolbar({
         </button>
       </div>
 
-      {!isSidebarVisible ? (
-        <div
-          data-ui-panel="mobile-map-toolbar"
-          className="absolute bottom-3 left-3 right-3 z-20 flex items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/95 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden"
+      <div
+        data-ui-panel="mobile-map-toolbar"
+        className={`absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/95 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden ${
+          isSidebarVisible ? "z-30" : "z-20"
+        }`}
+      >
+        <button
+          type="button"
+          data-ui-control="mobile-map-focus-toggle"
+          aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
+          aria-pressed={isMapFocusMode}
+          onClick={toggleMapFocusMode}
+          className={`${mapToolButtonClass(isMapFocusMode)} flex-1 justify-center`}
         >
-          <button
-            type="button"
-            data-ui-control="mobile-map-focus-toggle"
-            aria-label={isMapFocusMode ? "지도 집중 모드 해제" : "지도 집중 모드"}
-            aria-pressed={isMapFocusMode}
-            onClick={toggleMapFocusMode}
-            className={`${mapToolButtonClass(isMapFocusMode)} flex-1 justify-center`}
-          >
-            {isMapFocusMode ? (
-              <Minimize2 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Maximize2 className="h-4 w-4" aria-hidden="true" />
-            )}
-            <span>{isMapFocusMode ? "해제" : "집중"}</span>
-          </button>
+          {isMapFocusMode ? (
+            <Minimize2 className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          )}
+          <span>{isMapFocusMode ? "해제" : "집중"}</span>
+        </button>
 
-          <button
-            type="button"
-            data-ui-control="mobile-sidebar-toggle"
-            aria-label="정보 패널 열기"
-            onClick={toggleSidebar}
-            className={`${mapToolButtonClass(false)} flex-1 justify-center`}
-          >
+        <button
+          type="button"
+          data-ui-control="mobile-sidebar-toggle"
+          aria-label={isSidebarVisible ? "정보 패널 닫기" : "정보 패널 열기"}
+          aria-expanded={isSidebarVisible}
+          onClick={toggleSidebar}
+          className={`${mapToolButtonClass(false)} flex-1 justify-center`}
+        >
+          {isSidebarVisible ? (
+            <X className="h-4 w-4" aria-hidden="true" />
+          ) : (
             <Menu className="h-4 w-4" aria-hidden="true" />
-            <span>정보</span>
-          </button>
-        </div>
-      ) : null}
+          )}
+          <span>{isSidebarVisible ? "닫기" : "정보"}</span>
+        </button>
+      </div>
     </>
   );
 }

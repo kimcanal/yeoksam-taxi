@@ -11,6 +11,7 @@ export type StoreApi<State extends object> = {
       | Partial<State>
       | ((current: State) => Partial<State> | State),
   ) => void;
+  setField: <Key extends keyof State>(key: Key, value: State[Key]) => void;
   subscribe: (listener: () => void) => () => void;
   useStore: <Selected>(selector: (state: State) => Selected) => Selected;
 };
@@ -48,6 +49,18 @@ export function createStore<State extends object>(
     listeners.forEach((listener) => listener());
   };
 
+  const setField: StoreApi<State>["setField"] = (key, value) => {
+    if (Object.is(state[key], value)) {
+      return;
+    }
+
+    state = {
+      ...state,
+      [key]: value,
+    };
+    listeners.forEach((listener) => listener());
+  };
+
   const subscribe = (listener: () => void) => {
     listeners.add(listener);
     return () => {
@@ -65,6 +78,7 @@ export function createStore<State extends object>(
   return {
     getState,
     setState,
+    setField,
     subscribe,
     useStore,
   };
@@ -75,8 +89,7 @@ export function createFieldSetter<State extends object, Key extends keyof State>
   key: Key,
 ): Dispatch<SetStateAction<State[Key]>> {
   return (next) => {
-    store.setState((current) => ({
-      [key]: applySetStateAction(current[key], next),
-    } as unknown as Partial<State>));
+    const current = store.getState();
+    store.setField(key, applySetStateAction(current[key], next));
   };
 }

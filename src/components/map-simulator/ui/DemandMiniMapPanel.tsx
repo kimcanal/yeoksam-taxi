@@ -24,11 +24,26 @@ export function DemandMiniMapPanel({
   mapPoiFeatureRows,
   onPoiSelect,
 }: DemandMiniMapPanelProps) {
+  let fovPath = "";
+  if (demandMiniMap?.focusHeading) {
+    const { x1, y1, x2, y2 } = demandMiniMap.focusHeading;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+    const fov = Math.PI / 3.5;
+    const dist = Math.hypot(dx, dy) * 1.8;
+    const px1 = x1 + Math.cos(angle - fov / 2) * dist;
+    const py1 = y1 + Math.sin(angle - fov / 2) * dist;
+    const px2 = x1 + Math.cos(angle + fov / 2) * dist;
+    const py2 = y1 + Math.sin(angle + fov / 2) * dist;
+    fovPath = `M ${x1} ${y1} L ${px1} ${py1} A ${dist} ${dist} 0 0 1 ${px2} ${py2} Z`;
+  }
+
   return (
     <div className={`mt-3 ${PANEL_ACCENT_CARD_CLASS} p-4`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className={PANEL_SECTION_LABEL_CLASS}>미니맵</div>
+          <div className={PANEL_SECTION_LABEL_CLASS}>수요 현황 지도</div>
         </div>
         <div className="text-right text-[11px] text-slate-500">
           선택 동
@@ -84,15 +99,10 @@ export function DemandMiniMapPanel({
                   fill="url(#demandFocusGlow)"
                 />
                 {demandMiniMap.focusHeading ? (
-                  <line
-                    x1={demandMiniMap.focusHeading.x1}
-                    y1={demandMiniMap.focusHeading.y1}
-                    x2={demandMiniMap.focusHeading.x2}
-                    y2={demandMiniMap.focusHeading.y2}
-                    stroke="#e0f2fe"
-                    strokeWidth="0.62"
-                    strokeLinecap="round"
-                    opacity="0.78"
+                  <path
+                    d={fovPath}
+                    fill="url(#demandFocusGlow)"
+                    opacity="0.85"
                   />
                 ) : null}
                 <circle
@@ -129,7 +139,7 @@ export function DemandMiniMapPanel({
                 key={poi.code}
                 role="button"
                 tabIndex={0}
-                aria-label={`${poi.name} POI 선택`}
+                aria-label={`${poi.name} 선택`}
                 className="cursor-pointer outline-none"
                 onClick={() => onPoiSelect(poi.code)}
                 onKeyDown={(event) => {
@@ -206,24 +216,26 @@ export function DemandMiniMapPanel({
           </svg>
         ) : (
           <div className="flex aspect-square items-center justify-center text-xs text-slate-400 font-medium animate-pulse">
-            수요 지도 맵 레이어 초기화 중...
+            수요 지도 초기화 중…
           </div>
         )}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px] text-slate-400 sm:grid-cols-3 lg:grid-cols-5">
-        {[
-          ["매우 낮음", "bg-slate-400/20"],
-          ["낮음", "bg-teal-300/35"],
-          ["중간", "bg-yellow-300/55"],
-          ["높음", "bg-orange-400/65"],
-          ["매우 높음", "bg-rose-500/75"],
-        ].map(([label, colorClass]) => (
-          <div key={label} className="flex items-center gap-1">
-            <span className={`h-2.5 w-2.5 rounded-full ${colorClass}`} />
-            <span>{label}</span>
-          </div>
-        ))}
+      <div className="mt-2 space-y-1">
+        <div
+          className="h-2 w-full rounded-full"
+          style={{
+            background:
+              "linear-gradient(to right, rgba(148,163,184,0.25), rgba(45,212,191,0.55), rgba(250,204,21,0.65), rgba(251,146,60,0.75), rgba(244,63,94,0.85))",
+          }}
+        />
+        <div className="flex justify-between text-[9px] text-slate-500">
+          <span>매우 낮음</span>
+          <span>낮음</span>
+          <span>중간</span>
+          <span>높음</span>
+          <span>매우 높음</span>
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
         <span className="inline-flex items-center gap-1.5">

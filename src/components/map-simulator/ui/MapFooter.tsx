@@ -18,11 +18,13 @@ export function MapFooter({
   return (
     <footer
       data-ui-panel="map-footer"
-      className={`pointer-events-none absolute bottom-3 left-16 z-20 hidden max-w-[calc(100vw-5rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/90 px-3 py-2 text-[10px] font-medium text-slate-300 shadow-2xl shadow-black/25 backdrop-blur-md sm:flex ${
-        isSidebarVisible ? "lg:max-w-[calc(62vw-2rem)]" : ""
+      className={`pointer-events-none absolute bottom-3 left-0 z-20 hidden max-w-[calc(100vw-5rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/90 px-3 py-2 text-[10px] font-medium text-slate-300 shadow-2xl shadow-black/25 backdrop-blur-md transition-[margin,max-width] duration-300 ease-in-out sm:flex ${
+        isSidebarVisible
+          ? "ml-16 lg:ml-[var(--demand-sidebar-width)] lg:max-w-[calc(100vw-var(--demand-sidebar-width)-2rem)]"
+          : "ml-16 lg:ml-16"
       }`}
     >
-      <span className="font-semibold text-slate-100">Yeoksam Taxi Digital Twin</span>
+      <span className="font-semibold text-slate-100">역삼 택시 디지털 트윈</span>
       <span className="h-3 w-px bg-white/14" />
       <span>{demandFetchBadgeText}</span>
       <span className="h-3 w-px bg-white/14" />

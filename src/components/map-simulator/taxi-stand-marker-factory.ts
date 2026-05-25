@@ -71,7 +71,7 @@ export function createTaxiStandMarker(
     }),
   );
   curbHalo.rotation.x = Math.PI / 2;
-  curbHalo.position.y = 0.05;
+  curbHalo.position.y = 0.075;
   group.add(curbHalo);
 
   return group;

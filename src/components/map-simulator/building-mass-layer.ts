@@ -12,13 +12,13 @@ export function createBuildingMassLayer(buildings: BuildingMass[]) {
     emissiveIntensity: 0.025,
   });
   const buildingRoofMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf3f6f8,
-    emissive: 0x0f1520,
-    emissiveIntensity: 0.04,
+    color: 0xdce8f0,
+    emissive: 0x1a2a3a,
+    emissiveIntensity: 0.12,
     transparent: true,
-    opacity: 0.18,
-    roughness: 0.72,
-    metalness: 0.06,
+    opacity: 0.52,
+    roughness: 0.62,
+    metalness: 0.08,
     depthWrite: false,
   });
 
