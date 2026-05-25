@@ -12,6 +12,48 @@ import {
 export const KAKAO_TAXI_ASSET_PATH = "/assets/kakao-taxi/Sonata_Taxi_01.fbx";
 export const TAXI_ASSET_LOAD_DELAY_MS = 1_800;
 export const TAXI_ASSET_IDLE_TIMEOUT_MS = 7_000;
+export const TRAFFIC_ASSET_LOAD_DELAY_MS = 2_300;
+export const TRAFFIC_ASSET_IDLE_TIMEOUT_MS = 9_000;
+
+export const TRAFFIC_VEHICLE_MODEL_KEYS = [
+  "porter",
+  "sportage",
+  "compact",
+  "van",
+] as const;
+export type TrafficVehicleModelKey = (typeof TRAFFIC_VEHICLE_MODEL_KEYS)[number];
+
+const TRAFFIC_VEHICLE_RENDER_SEQUENCE = [
+  "porter",
+  "sportage",
+  "compact",
+  "sportage",
+  "porter",
+  "van",
+] as const satisfies readonly TrafficVehicleModelKey[];
+
+export const KAKAO_TRAFFIC_ASSET_SPECS = [
+  {
+    key: "porter",
+    path: "/assets/kakao-traffic/Porter_01.fbx",
+    targetLength: 4.55,
+  },
+  {
+    key: "sportage",
+    path: "/assets/kakao-traffic/Sportage_01.fbx",
+    targetLength: 4.32,
+  },
+] as const satisfies readonly {
+  key: TrafficVehicleModelKey;
+  path: string;
+  targetLength: number;
+}[];
+
+export function trafficVehicleModelKeyForSeed(seed: number): TrafficVehicleModelKey {
+  const index =
+    Math.abs(Math.trunc(seed)) % TRAFFIC_VEHICLE_RENDER_SEQUENCE.length;
+  return TRAFFIC_VEHICLE_RENDER_SEQUENCE[index]!;
+}
 
 let fbxLoaderWarnSuppressionDepth = 0;
 let originalConsoleWarnForFbxLoader: typeof console.warn | null = null;
@@ -143,4 +185,11 @@ export function normalizeVehicleAssetTemplate(
 
 export function normalizeTaxiAssetTemplate(source: THREE.Group) {
   return normalizeVehicleAssetTemplate(source, TAXI_ASSET_TARGET_LENGTH);
+}
+
+export function normalizeTrafficAssetTemplate(
+  source: THREE.Group,
+  targetLength: number,
+) {
+  return normalizeVehicleAssetTemplate(source, targetLength);
 }

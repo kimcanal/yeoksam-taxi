@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -10,7 +9,6 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import * as THREE from "three";
-import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
@@ -18,11 +16,8 @@ import {
   format24Hour,
   formatDateLabel,
   normalizeDayMinutes,
-  type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
-import { loadSimulationData } from "@/components/map-simulator/load-simulation-data";
 import type { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/MapSimulatorSceneRuntime";
-import { useSyncRef } from "@/components/map-simulator/use-sync-ref";
 import {
   sceneSetters,
   sceneStore,
@@ -34,27 +29,14 @@ import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { MapFooter } from "@/components/map-simulator/ui/MapFooter";
 import { MapSearchControl } from "@/components/map-simulator/ui/MapSearchControl";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
-import { useDemandForecast } from "@/components/map-simulator/use-demand-forecast";
-import {
-  DEMAND_VISUAL_UNIT_CALLS,
-  buildDemandMiniMapData,
-  buildStaticPoiFeatureRows,
-} from "@/components/map-simulator/demand-utils";
-import {
-  buildPoiSpatialIndex,
-  visiblePoiRowsForCamera,
-} from "@/components/map-simulator/poi-render-utils";
-import {
-  DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
-  DEFAULT_CAMERA_YAW_CONTROL_VALUE,
-  type BaseCameraMode,
-  type CameraFocusTarget,
-  type CameraMode,
-  type CameraPitchControlState,
-  type CameraYawControlState,
-  type FpsMode,
-} from "@/components/map-simulator/camera-types";
+import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/demand-utils";
+import type { FpsMode } from "@/components/map-simulator/camera-types";
 import { projectPoint } from "@/components/map-simulator/map-geometry-utils";
+import { useMapDemandState } from "@/components/map-simulator/use-map-demand-state";
+import { useMapPoiState } from "@/components/map-simulator/use-map-poi-state";
+import { useMapSceneRuntimeRefs } from "@/components/map-simulator/use-map-scene-runtime-refs";
+import { useSimulationDataLoader } from "@/components/map-simulator/use-simulation-data-loader";
+import { trafficCountForLoadPercent } from "@/components/map-simulator/simulation-defaults";
 
 type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
@@ -92,6 +74,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     (state) => state.simulationTimeMinutes,
   );
   const weatherMode = sceneStore.useStore((state) => state.weatherMode);
+  const trafficLoadPercent = sceneStore.useStore(
+    (state) => state.trafficLoadPercent,
+  );
   const cameraMode = sceneStore.useStore((state) => state.cameraMode);
   const miniMapFocus = sceneStore.useStore((state) => state.miniMapFocus);
   const followTaxiId = sceneStore.useStore((state) => state.followTaxiId);
@@ -113,6 +98,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setSimulationDate,
     setSimulationTimeMinutes,
     setWeatherMode,
+    setTrafficLoadPercent,
     setCameraMode,
     setMiniMapFocus,
     setFollowTaxiId,
@@ -124,130 +110,25 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setIsScenarioControlsExpanded,
   } = uiSetters;
   const showLabels = false;
-  const showNonRoad = false;
+  const showNonRoad = true;
   const showTransit = true;
   const showRoadNetwork = false;
   const fpsMode: FpsMode = "fixed60";
   const normalizedSimulationTimeMinutes = normalizeDayMinutes(
     simulationTimeMinutes,
   );
+  const appliedTrafficCount = trafficCountForLoadPercent(trafficLoadPercent);
+
   const {
-    selectedDongName,
-    setSelectedDongName,
-    selectedWeekday,
-    setSelectedWeekday,
-    currentDemandSlot,
-    currentDemandVisualUnits,
-    currentFiveMinuteDemand,
-    appliedTaxiCount,
-    hasDemandData,
-    demandChart,
-    selectedAverageDemand,
-    selectedPeakDemand,
-    selectedDemandScore,
-    selectedDemandIntensityLabel,
-    demandFetchBadgeText,
-    demandFetchBadgeClass,
-    setSimulationDateWeekday,
-  } = useDemandForecast({
-    simulationDate,
-    normalizedSimulationTimeMinutes,
-  });
-  const appliedTrafficCount = 0;
-  const appliedTaxiCountRef = useSyncRef(appliedTaxiCount);
-  const appliedTrafficCountRef = useSyncRef(appliedTrafficCount);
-  const simulationDateRef = useSyncRef(simulationDate);
-  const simulationTimeRef = useSyncRef(simulationTimeMinutes);
-  const weatherModeRef = useSyncRef<WeatherMode>(weatherMode);
-  const cameraModeRef = useSyncRef<CameraMode>(cameraMode);
-  const followTaxiIdRef = useSyncRef(followTaxiId);
-  const rideExitModeRef = useRef<BaseCameraMode>("drive");
-  const cameraPitchControlRef = useRef<CameraPitchControlState>({
-    value: DEFAULT_CAMERA_PITCH_CONTROL_VALUE,
-    version: 0,
-  });
-  const cameraYawControlRef = useRef<CameraYawControlState>({
-    value: DEFAULT_CAMERA_YAW_CONTROL_VALUE,
-    version: 0,
-  });
-  const showLabelsRef = useSyncRef(showLabels);
-  const optionalLabelObjectsRef = useRef<CSS2DObject[]>([]);
-  const showTransitRef = useSyncRef(showTransit);
-  const transitGroupRef = useRef<THREE.Group | null>(null);
-  const hoverRefreshRequestRef = useRef(0);
-  const labelRefreshRequestRef = useRef(0);
-  const fpsModeRef = useSyncRef<FpsMode>(fpsMode);
-  const showNonRoadRef = useSyncRef(showNonRoad);
-  const nonRoadGroupRef = useRef<THREE.Group | null>(null);
-  const showRoadNetworkRef = useSyncRef(showRoadNetwork);
-  const roadNetworkGroupRef = useRef<THREE.Group | null>(null);
-  const cameraFocusTargetRef = useRef<CameraFocusTarget | null>(null);
-
-  const mapPoiFeatureRows = useMemo(
-    () => buildStaticPoiFeatureRows(),
-    [],
-  );
-  const poiSpatialIndex = useMemo(() => {
-    if (!data) {
-      return null;
-    }
-    return buildPoiSpatialIndex(mapPoiFeatureRows, data.center);
-  }, [data, mapPoiFeatureRows]);
-  const activePoiCode = mapPoiFeatureRows.some(
-    (poi) => poi.poi_code === selectedPoiCode,
-  )
-    ? selectedPoiCode
-    : mapPoiFeatureRows[0]?.poi_code ?? "";
-  const scenePoiFeatureRows = useMemo(() => {
-    return visiblePoiRowsForCamera({
-      rows: mapPoiFeatureRows,
-      spatialIndex: poiSpatialIndex,
-      activePoiCode,
-      cameraMode,
-      miniMapFocus,
-    });
-  }, [
     activePoiCode,
-    cameraMode,
     mapPoiFeatureRows,
+    scenePoiFeatureRowsRef,
+  } = useMapPoiState({
+    data,
+    selectedPoiCode,
+    cameraMode,
     miniMapFocus,
-    poiSpatialIndex,
-  ]);
-  const scenePoiFeatureRowsRef = useSyncRef(scenePoiFeatureRows);
-
-  const markSceneRendering = useCallback((detail: string) => {
-    setStatus("rendering");
-    setStatusDetail(detail);
-  }, [setStatus, setStatusDetail]);
-
-  const markSceneError = useCallback((detail: string) => {
-    setStatus("error");
-    setStatusDetail(detail);
-  }, [setStatus, setStatusDetail]);
-
-  useEffect(() => {
-    labelRefreshRequestRef.current += 1;
-  }, [showLabels]);
-
-  useEffect(() => {
-    if (transitGroupRef.current) {
-      transitGroupRef.current.visible = showTransit;
-    }
-    hoverRefreshRequestRef.current += 1;
-    labelRefreshRequestRef.current += 1;
-  }, [showTransit]);
-
-  useEffect(() => {
-    if (nonRoadGroupRef.current) {
-      nonRoadGroupRef.current.visible = showNonRoad;
-    }
-  }, [showNonRoad]);
-
-  useEffect(() => {
-    if (roadNetworkGroupRef.current) {
-      roadNetworkGroupRef.current.visible = showRoadNetwork;
-    }
-  }, [showRoadNetwork]);
+  });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
@@ -259,57 +140,12 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-
-    void loadSimulationData({
-      signal: controller.signal,
-      onAssetProgress: (loaded, total) => {
-        if (!cancelled) {
-          setLoadingProgress(Math.round((loaded / total) * 42));
-        }
-      },
-      onStageChange: (detail, progress) => {
-        if (!cancelled) {
-          setStatusDetail(detail);
-          setLoadingProgress(progress);
-        }
-      },
-    })
-      .then((nextData) => {
-        if (cancelled) {
-          return;
-        }
-
-        setLoadingProgress(72);
-        markSceneRendering("3D 장면과 차량 레이어 구성 중");
-        requestAnimationFrame(() => {
-          if (!cancelled) {
-            startTransition(() => {
-              setData(nextData);
-            });
-          }
-        });
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error(error);
-          markSceneError("자산 또는 초기 장면 준비에 실패했습니다");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [
-    markSceneError,
-    markSceneRendering,
+  useSimulationDataLoader({
     setData,
-    setLoadingProgress,
+    setStatus,
     setStatusDetail,
-  ]);
+    setLoadingProgress,
+  });
 
   const scenarioMapCenter = useMemo(() => {
     const segments = data?.projectedRoadSegments;
@@ -340,47 +176,30 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const selectedWeather =
     WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
     WEATHER_OPTIONS[0];
-  const selectedDemandDongRef = useSyncRef(selectedDongName);
-  const hasDemandDataRef = useSyncRef(hasDemandData);
-  const selectedDemandScoreRef = useSyncRef(selectedDemandScore);
-  const dongDemandScores = useMemo(() => {
-    const scores: Record<string, number> = {};
-    if (!data?.dongRegions) return scores;
-    const hour = Math.floor(normalizedSimulationTimeMinutes / 60);
-    // [Mock] 백엔드 API 연동 전까지 화면의 히트맵 시각화를 테스트하기 위한 가상의 점수입니다.
-    // 프론트엔드 자체적인 통계/예측 연산이 아님을 백엔드 팀에 명시합니다.
-    data.dongRegions.forEach((dong, i) => {
-      if (dong.name === selectedDongName) {
-        scores[dong.name] = selectedDemandScore ?? 0;
-      } else {
-        scores[dong.name] = (Math.sin(hour * 0.5 + i) + 1) / 2;
-      }
-    });
-    return scores;
-  }, [data, normalizedSimulationTimeMinutes, selectedDongName, selectedDemandScore]);
-  const dongDemandScoresRef = useSyncRef(dongDemandScores);
-
-  const currentFiveMinuteDemandRef = useSyncRef(currentFiveMinuteDemand);
-  const currentDemandVisualUnitsRef = useSyncRef(currentDemandVisualUnits);
-  const demandMiniMap = useMemo(() => {
-    return buildDemandMiniMapData({
-      data,
-      mapPoiFeatureRows,
-      miniMapFocus,
-      scenarioMapCenter,
-      activePoiCode,
-      selectedDongName,
-      dongDemandScores,
-    });
-  }, [
+  const demandState = useMapDemandState({
     data,
     mapPoiFeatureRows,
     miniMapFocus,
     scenarioMapCenter,
     activePoiCode,
-    selectedDongName,
-    dongDemandScores,
-  ]);
+    simulationDate,
+    normalizedSimulationTimeMinutes,
+  });
+  const runtimeRefs = useMapSceneRuntimeRefs({
+    appliedTaxiCount: demandState.appliedTaxiCount,
+    appliedTrafficCount,
+    cameraMode,
+    followTaxiId,
+    fpsMode,
+    showLabels,
+    showNonRoad,
+    showRoadNetwork,
+    showTransit,
+    simulationDate,
+    simulationTimeMinutes,
+    weatherMode,
+  });
+  const { setCameraControlValues, setCameraFocusTarget } = runtimeRefs;
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
@@ -398,31 +217,29 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         [poi.lon as number, poi.lat as number],
         data.center,
       );
-      cameraFocusTargetRef.current = {
+      setCameraFocusTarget({
         x: projected.x,
         z: projected.z,
         distance: 78,
         pitch: 0.68,
         label: poi.poi_name,
-      };
+      });
       setCameraMode("drive");
     }
   }, [
     data,
     isMobileLayout,
     mapPoiFeatureRows,
+    setCameraFocusTarget,
     setCameraMode,
     setIsSidebarCollapsed,
     setIsScenarioControlsExpanded,
     setSelectedPoiCode,
   ]);
   const handleCameraFocusChange = useCallback((focus: MiniMapFocus) => {
-    const nextPitchValue = Math.round(focus.pitchControlValue);
-    const nextYawValue = Math.round(focus.yawControlValue);
-    cameraPitchControlRef.current.value = nextPitchValue;
-    cameraYawControlRef.current.value = nextYawValue;
+    setCameraControlValues(focus);
     setMiniMapFocus(focus);
-  }, [setMiniMapFocus]);
+  }, [setCameraControlValues, setMiniMapFocus]);
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const formattedSimulationDate = formatDateLabel(simulationDate);
   const isSidebarVisible = !isSidebarCollapsed;
@@ -460,7 +277,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
   function handleSimulationDateChange(date: string) {
     setSimulationDate(date);
-    setSimulationDateWeekday(date);
+    demandState.setSimulationDateWeekday(date);
   }
 
   return (
@@ -476,35 +293,37 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
             data={data}
             poiFeatureRowsRef={scenePoiFeatureRowsRef}
             onPoiSelect={handlePoiSelect}
-            onDongSelect={setSelectedDongName}
-            appliedTaxiCountRef={appliedTaxiCountRef}
-            appliedTrafficCountRef={appliedTrafficCountRef}
-            selectedDemandDongRef={selectedDemandDongRef}
-            hasDemandDataRef={hasDemandDataRef}
-            selectedDemandScoreRef={selectedDemandScoreRef}
-            dongDemandScoresRef={dongDemandScoresRef}
-            currentFiveMinuteDemandRef={currentFiveMinuteDemandRef}
-            currentDemandVisualUnitsRef={currentDemandVisualUnitsRef}
-            cameraModeRef={cameraModeRef}
-            followTaxiIdRef={followTaxiIdRef}
-            rideExitModeRef={rideExitModeRef}
-            showLabelsRef={showLabelsRef}
-            optionalLabelObjectsRef={optionalLabelObjectsRef}
-            showTransitRef={showTransitRef}
-            transitGroupRef={transitGroupRef}
-            hoverRefreshRequestRef={hoverRefreshRequestRef}
-            labelRefreshRequestRef={labelRefreshRequestRef}
-            fpsModeRef={fpsModeRef}
-            showNonRoadRef={showNonRoadRef}
-            nonRoadGroupRef={nonRoadGroupRef}
-            showRoadNetworkRef={showRoadNetworkRef}
-            roadNetworkGroupRef={roadNetworkGroupRef}
-            cameraFocusTargetRef={cameraFocusTargetRef}
-            simulationDateRef={simulationDateRef}
-            simulationTimeRef={simulationTimeRef}
-            weatherModeRef={weatherModeRef}
-            cameraPitchControlRef={cameraPitchControlRef}
-            cameraYawControlRef={cameraYawControlRef}
+            onDongSelect={demandState.setSelectedDongName}
+            appliedTaxiCountRef={runtimeRefs.appliedTaxiCountRef}
+            appliedTrafficCountRef={runtimeRefs.appliedTrafficCountRef}
+            selectedDemandDongRef={demandState.refs.selectedDemandDongRef}
+            hasDemandDataRef={demandState.refs.hasDemandDataRef}
+            selectedDemandScoreRef={demandState.refs.selectedDemandScoreRef}
+            dongDemandScoresRef={demandState.refs.dongDemandScoresRef}
+            currentFiveMinuteDemandRef={demandState.refs.currentFiveMinuteDemandRef}
+            currentDemandVisualUnitsRef={
+              demandState.refs.currentDemandVisualUnitsRef
+            }
+            cameraModeRef={runtimeRefs.cameraModeRef}
+            followTaxiIdRef={runtimeRefs.followTaxiIdRef}
+            rideExitModeRef={runtimeRefs.rideExitModeRef}
+            showLabelsRef={runtimeRefs.showLabelsRef}
+            optionalLabelObjectsRef={runtimeRefs.optionalLabelObjectsRef}
+            showTransitRef={runtimeRefs.showTransitRef}
+            transitGroupRef={runtimeRefs.transitGroupRef}
+            hoverRefreshRequestRef={runtimeRefs.hoverRefreshRequestRef}
+            labelRefreshRequestRef={runtimeRefs.labelRefreshRequestRef}
+            fpsModeRef={runtimeRefs.fpsModeRef}
+            showNonRoadRef={runtimeRefs.showNonRoadRef}
+            nonRoadGroupRef={runtimeRefs.nonRoadGroupRef}
+            showRoadNetworkRef={runtimeRefs.showRoadNetworkRef}
+            roadNetworkGroupRef={runtimeRefs.roadNetworkGroupRef}
+            cameraFocusTargetRef={runtimeRefs.cameraFocusTargetRef}
+            simulationDateRef={runtimeRefs.simulationDateRef}
+            simulationTimeRef={runtimeRefs.simulationTimeRef}
+            weatherModeRef={runtimeRefs.weatherModeRef}
+            cameraPitchControlRef={runtimeRefs.cameraPitchControlRef}
+            cameraYawControlRef={runtimeRefs.cameraYawControlRef}
             setStatus={setStatus}
             setStatusDetail={setStatusDetail}
             setLoadingProgress={setLoadingProgress}
@@ -521,8 +340,10 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           toggleScenarioControls={toggleScenarioControls}
           formattedSimulationTime={formattedSimulationTime}
           formattedSimulationDate={formattedSimulationDate}
-          hasDemandData={hasDemandData}
-          appliedTaxiCount={appliedTaxiCount}
+          hasDemandData={demandState.hasDemandData}
+          appliedTaxiCount={demandState.appliedTaxiCount}
+          appliedTrafficCount={appliedTrafficCount}
+          trafficLoadPercent={trafficLoadPercent}
           selectedWeather={selectedWeather}
           toggleSidebar={toggleSidebar}
           simulationDate={simulationDate}
@@ -531,12 +352,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           setSimulationTimeMinutes={setSimulationTimeMinutes}
           weatherMode={weatherMode}
           setWeatherMode={setWeatherMode}
+          setTrafficLoadPercent={setTrafficLoadPercent}
         />
 
         {!isSceneBusy ? (
           <MapFooter
             isSidebarVisible={isSidebarVisible}
-            demandFetchBadgeText={demandFetchBadgeText}
+            demandFetchBadgeText={demandState.demandFetchBadgeText}
             demandVisualUnitCalls={DEMAND_VISUAL_UNIT_CALLS}
             buildVersion={buildVersion}
           />
@@ -565,21 +387,23 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
 
         {isSidebarVisible ? (
           <DemandSidebar
-            selectedDongName={selectedDongName}
-            setSelectedDongName={setSelectedDongName}
-            selectedWeekday={selectedWeekday}
-            setSelectedWeekday={setSelectedWeekday}
-            demandFetchBadgeText={demandFetchBadgeText}
-            demandFetchBadgeClass={demandFetchBadgeClass}
-            hasDemandData={hasDemandData}
-            selectedPeakDemand={selectedPeakDemand}
-            selectedDemandIntensityLabel={selectedDemandIntensityLabel}
-            currentDemandSlot={currentDemandSlot}
-            currentFiveMinuteDemand={currentFiveMinuteDemand}
-            appliedTaxiCount={appliedTaxiCount}
-            demandChart={demandChart}
-            selectedAverageDemand={selectedAverageDemand}
-            demandMiniMap={demandMiniMap}
+            selectedDongName={demandState.selectedDongName}
+            setSelectedDongName={demandState.setSelectedDongName}
+            selectedWeekday={demandState.selectedWeekday}
+            setSelectedWeekday={demandState.setSelectedWeekday}
+            demandFetchBadgeText={demandState.demandFetchBadgeText}
+            demandFetchBadgeClass={demandState.demandFetchBadgeClass}
+            hasDemandData={demandState.hasDemandData}
+            selectedPeakDemand={demandState.selectedPeakDemand}
+            selectedDemandIntensityLabel={
+              demandState.selectedDemandIntensityLabel
+            }
+            currentDemandSlot={demandState.currentDemandSlot}
+            currentFiveMinuteDemand={demandState.currentFiveMinuteDemand}
+            appliedTaxiCount={demandState.appliedTaxiCount}
+            demandChart={demandState.demandChart}
+            selectedAverageDemand={demandState.selectedAverageDemand}
+            demandMiniMap={demandState.demandMiniMap}
             mapPoiFeatureRows={mapPoiFeatureRows}
             onPoiSelect={handlePoiSelect}
           />

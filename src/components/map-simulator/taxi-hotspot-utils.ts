@@ -12,6 +12,10 @@ import {
   type SignalData,
   type TaxiStandLandmark,
 } from "@/components/map-simulator/map-simulator-types";
+import {
+  nearestTaxiStandRouteProjection,
+  sideSignForProjection,
+} from "@/components/map-simulator/taxi-stand-route-utils";
 
 function hotspotLabelForRoute(
   route: RouteTemplate,
@@ -149,6 +153,7 @@ export function buildTaxiHotspots(
         nodeKey: route.nodes[nodeIndex].key,
         routeId: route.id,
         distance: route.cumulative[nodeIndex],
+        sideSign: 1,
         position: lanePosition.clone().setY(0.14),
         point: lanePosition.clone(),
         label: hotspotLabelForRoute(
@@ -167,55 +172,44 @@ export function buildTaxiStandHotspots(
   taxiStandLandmarks: TaxiStandLandmark[],
   routes: RouteTemplate[],
 ) {
-  const usedNodeKeys = new Set<string>();
+  const usedStopKeys = new Set<string>();
 
   return taxiStandLandmarks
     .map((stand, standIndex) => {
-      let best:
-        | {
-          route: RouteTemplate;
-          nodeIndex: number;
-          distanceSq: number;
-          reusesNode: boolean;
-        }
-        | null = null;
-
-      for (const route of routes) {
-        for (const [nodeIndex, node] of route.nodes.entries()) {
-          const reusesNode = usedNodeKeys.has(node.key);
-          const distanceSq = node.point.distanceToSquared(stand.position);
-          const score = distanceSq + (reusesNode ? 1600 : 0);
-          const bestScore = best
-            ? best.distanceSq + (best.reusesNode ? 1600 : 0)
-            : Number.POSITIVE_INFINITY;
-
-          if (score < bestScore) {
-            best = {
-              route,
-              nodeIndex,
-              distanceSq,
-              reusesNode,
-            };
-          }
-        }
-      }
-
-      if (!best) {
+      const projection = nearestTaxiStandRouteProjection(
+        stand.position,
+        routes,
+        usedStopKeys,
+      );
+      if (!projection) {
         return null;
       }
 
-      const node = best.route.nodes[best.nodeIndex]!;
-      usedNodeKeys.add(node.key);
+      usedStopKeys.add(projection.stopKey);
+      const sideSign = sideSignForProjection(stand.position, projection);
+      const lanePosition = offsetToRight(
+        projection.closest,
+        projection.heading,
+        curbsideLaneOffset(projection.route) * sideSign,
+      ).setY(0.14);
+      const startNode = projection.route.nodes[projection.segmentIndex]!;
+      const endNode = projection.route.nodes[projection.segmentIndex + 1]!;
+      const nodeKey =
+        projection.closest.distanceToSquared(startNode.point) <=
+        projection.closest.distanceToSquared(endNode.point)
+          ? startNode.key
+          : endNode.key;
 
       return {
         id: `taxi-stand-hotspot-${stand.standId || standIndex}`,
-        nodeKey: node.key,
-        routeId: best.route.id,
-        distance: best.route.cumulative[best.nodeIndex] ?? 0,
-        position: stand.position.clone(),
-        point: stand.position.clone(),
+        nodeKey,
+        routeId: projection.route.id,
+        distance: projection.routeDistance,
+        sideSign,
+        position: lanePosition.clone(),
+        point: lanePosition.clone(),
         label: stand.name || "택시승차대",
-        roadName: stand.roadAddress || best.route.name,
+        roadName: stand.roadAddress || projection.route.name,
       } satisfies Hotspot;
     })
     .filter(Boolean) as Hotspot[];

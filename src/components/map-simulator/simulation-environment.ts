@@ -423,25 +423,25 @@ export function buildEnvironmentState(
     weatherMode === "heavy-snow"
       ? 0xf1f5f9
       : weatherMode === "heavy-rain"
-        ? 0xe2e8f0
-        : 0xf8fafc; /* Clean Off-white Ground */
+        ? 0x9aa7b3
+        : 0xb9c2ba;
   const roadBaseColors =
     weatherMode === "heavy-snow"
       ? {
-        arterial: 0xffffff,
-        connector: 0xf1f5f9,
-        local: 0xe2e8f0,
+        arterial: 0xc6ccd2,
+        connector: 0xb7c0c9,
+        local: 0xa6b0ba,
       }
       : weatherMode === "heavy-rain"
         ? {
-          arterial: 0xccddee,
-          connector: 0xbbccdd,
-          local: 0xaabbcc,
+          arterial: 0x46515d,
+          connector: 0x3e4852,
+          local: 0x343d47,
         }
         : {
-          arterial: 0xffffff, /* Bright White Roads */
-          connector: 0xf1f5f9,
-          local: 0xe2e8f0,
+          arterial: 0x59636d,
+          connector: 0x4f5963,
+          local: 0x424b55,
         };
   const lightingPreset =
     weatherMode === "clear"
@@ -507,27 +507,27 @@ export function buildEnvironmentState(
     0,
     0.74,
   );
-  const baseGroundColor = mixHexColor(neutralGroundColor, 0xb8c1cc, 0.62);
+  const baseGroundColor = mixHexColor(neutralGroundColor, 0xa9b3ad, 0.42);
   const groundPresentationColor = mixHexColor(
     baseGroundColor,
-    weatherMode === "heavy-rain" ? 0x657587 : 0x76828f,
+    weatherMode === "heavy-rain" ? 0x657587 : 0x707b73,
     surfaceNightBlend,
   );
   const roadPresentationColors: Record<RoadClass, number> = {
     arterial: mixHexColor(
       roadBaseColors.arterial,
-      weatherMode === "heavy-rain" ? 0xaec3d4 : 0xcbd5e1,
-      surfaceNightBlend * 0.86,
+      weatherMode === "heavy-rain" ? 0x2f3944 : 0x343d47,
+      surfaceNightBlend * 0.68,
     ),
     connector: mixHexColor(
       roadBaseColors.connector,
-      weatherMode === "heavy-rain" ? 0x9fb4c7 : 0xbac4d0,
-      surfaceNightBlend * 0.78,
+      weatherMode === "heavy-rain" ? 0x29323c : 0x303842,
+      surfaceNightBlend * 0.62,
     ),
     local: mixHexColor(
       roadBaseColors.local,
-      weatherMode === "heavy-rain" ? 0x8fa5b8 : 0xaab6c2,
-      surfaceNightBlend * 0.72,
+      weatherMode === "heavy-rain" ? 0x242c35 : 0x2b333c,
+      surfaceNightBlend * 0.56,
     ),
   };
   const buildingPresentationTint = mixHexColor(
@@ -563,7 +563,7 @@ export function buildEnvironmentState(
         ? 0.08
         : 0.01,
     buildingTint: buildingPresentationTint,
-    laneMarkerColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd9d1bd,
+    laneMarkerColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xf2dfac,
     laneMarkerEmissive:
       daylight < 0.22
         ? 0x4a4030
@@ -572,7 +572,7 @@ export function buildEnvironmentState(
           : 0x373127,
     laneMarkerIntensity:
       daylight < 0.2 ? 0.34 : weatherMode === "heavy-rain" ? 0.09 : 0.06,
-    crosswalkColor: weatherMode === "heavy-snow" ? 0xe8ebee : 0xc6cbd1,
+    crosswalkColor: weatherMode === "heavy-snow" ? 0xe8ebee : 0xe8edf2,
     crosswalkEmissive: daylight < 0.2 ? 0x242a31 : 0x15181c,
     crosswalkIntensity: daylight < 0.2 ? 0.12 : 0.03,
     stopLineColor: weatherMode === "heavy-snow" ? 0xf0f2f4 : 0xd5d9dd,

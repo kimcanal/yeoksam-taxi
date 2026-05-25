@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "launch": "bash scripts/run-next.sh",
-    "asset:update": "bash scripts/update-assets.sh",
+    "launch": "node scripts/run-next.mjs",
+    "asset:update": "node scripts/update-assets.mjs",
     "screenshot:install": "playwright install chromium",
     "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",
     "dev": "next dev",

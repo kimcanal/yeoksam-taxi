@@ -412,6 +412,7 @@ export type Hotspot = {
   nodeKey: string;
   routeId: string;
   distance: number;
+  sideSign?: number;
   position: THREE.Vector3;
   point: THREE.Vector3;
   label: string;

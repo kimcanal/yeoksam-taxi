@@ -1,5 +1,9 @@
 import { Search, X, Menu } from "lucide-react";
 import { WEATHER_OPTIONS, type WeatherMode } from "@/components/map-simulator/simulation-environment";
+import {
+  MAX_TRAFFIC_LOAD_PERCENT,
+  MIN_TRAFFIC_LOAD_PERCENT,
+} from "@/components/map-simulator/simulation-defaults";
 
 const MAP_SCOPE_LABEL = "역삼동 주변 9개 동";
 
@@ -7,6 +11,13 @@ function parseTimeInput(value: string) {
   const match = value.match(/^(\d{2}):(\d{2})$/);
   if (!match) return null;
   return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+}
+
+function trafficLoadLabel(percent: number) {
+  if (percent >= 145) return "혼잡";
+  if (percent >= 110) return "다소 많음";
+  if (percent <= 65) return "한산";
+  return "보통";
 }
 
 type MapSearchControlProps = {
@@ -17,6 +28,8 @@ type MapSearchControlProps = {
   formattedSimulationDate: string;
   hasDemandData: boolean;
   appliedTaxiCount: number;
+  appliedTrafficCount: number;
+  trafficLoadPercent: number;
   selectedWeather: { label: string; id: string };
   toggleSidebar: () => void;
   simulationDate: string;
@@ -25,6 +38,7 @@ type MapSearchControlProps = {
   setSimulationTimeMinutes: (minutes: number) => void;
   weatherMode: WeatherMode;
   setWeatherMode: (mode: WeatherMode) => void;
+  setTrafficLoadPercent: (percent: number) => void;
 };
 
 export function MapSearchControl({
@@ -35,6 +49,8 @@ export function MapSearchControl({
   formattedSimulationDate,
   hasDemandData,
   appliedTaxiCount,
+  appliedTrafficCount,
+  trafficLoadPercent,
   selectedWeather,
   toggleSidebar,
   simulationDate,
@@ -43,7 +59,10 @@ export function MapSearchControl({
   setSimulationTimeMinutes,
   weatherMode,
   setWeatherMode,
+  setTrafficLoadPercent,
 }: MapSearchControlProps) {
+  const trafficLabel = trafficLoadLabel(trafficLoadPercent);
+
   return (
     <div
       data-ui-panel="map-search-control"
@@ -67,8 +86,8 @@ export function MapSearchControl({
             <span className="block truncate text-[11px] text-slate-500">
               {MAP_SCOPE_LABEL} · {formattedSimulationTime} ·{" "}
               {hasDemandData
-                ? `시뮬레이션 ${appliedTaxiCount}대`
-                : selectedWeather.label}
+                ? `택시 ${appliedTaxiCount}대 · 일반 ${appliedTrafficCount}대`
+                : `${selectedWeather.label} · 일반 ${appliedTrafficCount}대`}
             </span>
           </span>
         </button>
@@ -116,9 +135,9 @@ export function MapSearchControl({
               </div>
             </div>
             <div className="rounded-xl bg-slate-100 px-3 py-2">
-              <div className="text-slate-500">데이터 소스</div>
+              <div className="text-slate-500">교통량</div>
               <div className="mt-0.5 font-semibold text-slate-900">
-                시나리오 프리셋
+                {trafficLabel} {appliedTrafficCount}대
               </div>
             </div>
           </div>
@@ -174,6 +193,32 @@ export function MapSearchControl({
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            교통량
+            <div className="mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+              <div className="mb-2 flex items-center justify-between text-xs normal-case tracking-normal text-slate-700">
+                <span>한산</span>
+                <span className="font-semibold text-slate-950">
+                  {trafficLabel} · {appliedTrafficCount}대
+                </span>
+                <span>혼잡</span>
+              </div>
+              <input
+                type="range"
+                min={MIN_TRAFFIC_LOAD_PERCENT}
+                max={MAX_TRAFFIC_LOAD_PERCENT}
+                step={5}
+                value={trafficLoadPercent}
+                onChange={(event) => {
+                  setCircumstanceMode("specific");
+                  setTrafficLoadPercent(Number(event.target.value));
+                }}
+                className="h-2 w-full accent-cyan-500"
+                aria-label="지도 교통량"
+              />
+            </div>
           </label>
         </div>
       ) : null}

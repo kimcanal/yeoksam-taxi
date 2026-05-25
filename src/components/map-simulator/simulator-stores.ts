@@ -8,7 +8,11 @@ import type {
   SimulationData,
   Stats,
 } from "@/components/map-simulator/map-simulator-types";
-import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
+import {
+  DEFAULT_TAXI_COUNT,
+  DEFAULT_TRAFFIC_COUNT,
+  DEFAULT_TRAFFIC_LOAD_PERCENT,
+} from "@/components/map-simulator/simulation-defaults";
 import {
   createFieldSetter,
   createStore,
@@ -33,6 +37,7 @@ type SceneState = {
   simulationDate: string;
   simulationTimeMinutes: number;
   weatherMode: WeatherMode;
+  trafficLoadPercent: number;
   cameraMode: CameraMode;
   miniMapFocus: MiniMapFocus | null;
   followTaxiId: string;
@@ -57,6 +62,7 @@ const initialSceneState: SceneState = {
   simulationDate: HYDRATION_SAFE_SIMULATION_CLOCK.dateIso,
   simulationTimeMinutes: HYDRATION_SAFE_SIMULATION_CLOCK.minutes,
   weatherMode: "clear",
+  trafficLoadPercent: DEFAULT_TRAFFIC_LOAD_PERCENT,
   cameraMode: "overview",
   miniMapFocus: null,
   followTaxiId: "",
@@ -74,7 +80,7 @@ const initialSceneState: SceneState = {
   },
   stats: {
     taxis: DEFAULT_TAXI_COUNT,
-    traffic: 0,
+    traffic: DEFAULT_TRAFFIC_COUNT,
     waiting: 0,
     signals: 0,
     activeTrips: 0,
@@ -107,6 +113,7 @@ export const sceneSetters = {
   setSimulationDate: createFieldSetter(sceneStore, "simulationDate"),
   setSimulationTimeMinutes: createFieldSetter(sceneStore, "simulationTimeMinutes"),
   setWeatherMode: createFieldSetter(sceneStore, "weatherMode"),
+  setTrafficLoadPercent: createFieldSetter(sceneStore, "trafficLoadPercent"),
   setCameraMode: createFieldSetter(sceneStore, "cameraMode"),
   setMiniMapFocus: createFieldSetter(sceneStore, "miniMapFocus"),
   setFollowTaxiId: createFieldSetter(sceneStore, "followTaxiId"),

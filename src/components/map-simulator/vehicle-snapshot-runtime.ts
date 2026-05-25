@@ -18,6 +18,10 @@ import type {
   VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
+import {
+  trafficVehicleModelKeyForSeed,
+  type TrafficVehicleModelKey,
+} from "@/components/map-simulator/vehicle-asset-loader";
 
 type VehicleSnapshotRouteContext = {
   routeById: Map<string, RouteTemplate>;
@@ -31,6 +35,7 @@ type CreateVehicleFromSnapshotParams = VehicleSnapshotRouteContext & {
   scene: THREE.Scene;
   hotspotById: Map<string, Hotspot>;
   taxiAssetTemplate: THREE.Group | null;
+  trafficAssetTemplates: ReadonlyMap<TrafficVehicleModelKey, THREE.Group>;
   onTaxiClickTarget?: (clickTarget: THREE.Object3D) => void;
 };
 
@@ -86,6 +91,7 @@ export function createVehicleFromSnapshot({
   loopRoutes,
   hotspotById,
   taxiAssetTemplate,
+  trafficAssetTemplates,
   onTaxiClickTarget,
 }: CreateVehicleFromSnapshotParams) {
   const route = resolveRouteForVehicleSnapshot(vehicleSnapshot, {
@@ -98,10 +104,19 @@ export function createVehicleFromSnapshot({
     return null;
   }
 
+  const trafficModelKey =
+    vehicleSnapshot.kind === "traffic"
+      ? trafficVehicleModelKeyForSeed(vehicleSnapshot.renderSeed)
+      : null;
+  const trafficAssetTemplate = trafficModelKey
+    ? trafficAssetTemplates.get(trafficModelKey) ?? null
+    : null;
   const { group, bodyMaterial, signMaterial, clickTarget } = createVehicleGroup(
     vehicleSnapshot.kind,
     vehicleSnapshot.palette,
-    vehicleSnapshot.kind === "taxi" ? { taxiAssetTemplate } : undefined,
+    vehicleSnapshot.kind === "taxi"
+      ? { taxiAssetTemplate }
+      : { importedAssetTemplate: trafficAssetTemplate, trafficModelKey },
   );
   scene.add(group);
 
