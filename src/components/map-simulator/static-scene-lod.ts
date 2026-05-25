@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { ROAD_LAYER_Y } from "@/components/map-simulator/scene-constants";
+import { distanceXZ } from "@/components/map-simulator/route-motion-utils";
 import {
-  distanceXZ,
   type BuildingMass,
   type ProjectedRoadSegment,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 type StaticLodLayer = {
   root: THREE.Group;

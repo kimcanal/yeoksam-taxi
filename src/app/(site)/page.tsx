@@ -29,7 +29,9 @@ function formatBuildTimeKst(date: Date) {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const partMap = new globalThis.Map(parts.map((part) => [part.type, part.value]));
+  const partMap = new globalThis.Map(
+    parts.map((part) => [part.type, part.value]),
+  );
 
   return `${partMap.get("year")}.${partMap.get("month")}.${partMap.get("day")} ${partMap.get("hour")}:${partMap.get("minute")} KST`;
 }
@@ -65,7 +67,7 @@ function resolveEnvironmentLabel(branch: string) {
   return "로컬";
 }
 
-function resolveBuildVersion(): BuildVersionInfo {
+export function resolveBuildVersion(): BuildVersionInfo {
   const rawBranch =
     readGitValue("git rev-parse --abbrev-ref HEAD") ||
     process.env.GITHUB_HEAD_REF ||

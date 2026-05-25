@@ -1,37 +1,53 @@
 import { formatKstDateTime } from "@/components/map-simulator/simulation-environment";
 import { SHOW_DONG_BOUNDARIES } from "@/components/map-simulator/scene-constants";
 import {
-  DEFAULT_MAP_CENTER,
-  EMPTY_NON_ROAD_FEATURE_COLLECTION,
-  EMPTY_TAXI_STAND_FEATURE_COLLECTION,
-  EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
-  MAX_TAXI_COUNT,
-  MAX_TRAFFIC_COUNT,
   buildBuildingMasses,
   buildDongBoundarySegments,
   buildDongRegions,
+} from "@/components/map-simulator/map-region-utils";
+import { buildSignals } from "@/components/map-simulator/signal-data-builder";
+import {
   buildLoopRoutes,
-  buildProjectedRoadSegments,
   buildRoadGraph,
-  buildRoadSegmentSpatialIndex,
-  buildSignals,
+  buildTrafficRoutes,
+  deserializeRoadGraph,
+} from "@/components/map-simulator/road-routing-utils";
+import {
+  buildTaxiStandLandmarks,
+  buildTransitLandmarks,
+} from "@/components/map-simulator/transit-landmark-utils";
+import {
   buildTaxiHotspots,
   buildTaxiStandHotspots,
-  buildTaxiStandLandmarks,
-  buildTrafficRoutes,
-  buildTransitLandmarks,
-  deserializeRoadGraph,
+} from "@/components/map-simulator/taxi-hotspot-utils";
+import { selectTaxiStandRoutes } from "@/components/map-simulator/taxi-stand-route-utils";
+import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/map-defaults";
+import {
+  MAX_TAXI_COUNT,
+  MAX_TRAFFIC_COUNT,
+} from "@/components/map-simulator/simulation-defaults";
+import {
+  EMPTY_NON_ROAD_FEATURE_COLLECTION,
+  EMPTY_TAXI_STAND_FEATURE_COLLECTION,
+  EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
+} from "@/components/map-simulator/empty-feature-collections";
+import {
+  buildProjectedRoadSegments,
+  buildRoadSegmentSpatialIndex,
   featureCollectionCenter,
+} from "@/components/map-simulator/map-geometry-utils";
+import {
   type BuildingFeatureCollection,
   type DongFeatureCollection,
   type NonRoadFeatureCollection,
   type RoadFeatureCollection,
+  type RouteTemplate,
   type SerializedRoadNetwork,
   type SimulationData,
   type TaxiStandFeatureCollection,
   type TrafficSignalFeatureCollection,
   type TransitFeatureCollection,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 import { serializeSimulationData } from "@/components/map-simulator/simulation-data-serialization";
 import { fetchCachedJsonAsset } from "@/components/map-simulator/static-asset-cache";
 
@@ -87,6 +103,24 @@ async function fetchRoadNetworkAsset(path: string) {
 
 function formatMetaLastModified(lastModified: string | null) {
   return lastModified ? formatKstDateTime(lastModified) : null;
+}
+
+function mergeRoutePools(...routePools: RouteTemplate[][]) {
+  const mergedRoutes: RouteTemplate[] = [];
+  const seenRouteIds = new Set<string>();
+
+  routePools.forEach((routePool) => {
+    routePool.forEach((route) => {
+      if (seenRouteIds.has(route.id)) {
+        return;
+      }
+
+      seenRouteIds.add(route.id);
+      mergedRoutes.push(route);
+    });
+  });
+
+  return mergedRoutes;
 }
 
 async function loadSimulationData() {
@@ -212,10 +246,22 @@ async function loadSimulationData() {
   );
   const loopRoutes = buildLoopRoutes(roads, center, signalByKey);
   const trafficRoutes = buildTrafficRoutes(roads, center, signalByKey);
-  const taxiRoutePool = loopRoutes
+  const baseTaxiRoutePool = loopRoutes
     .filter((route) => route.roadClass !== "local")
     .slice(0, Math.max(MAX_TAXI_COUNT, 12));
-  const trafficRoutePool = trafficRoutes.slice(0, Math.max(MAX_TRAFFIC_COUNT, 20));
+  const baseTrafficRoutePool = trafficRoutes.slice(
+    0,
+    Math.max(MAX_TRAFFIC_COUNT, 20),
+  );
+  const taxiStandRoutePool = selectTaxiStandRoutes(
+    taxiStandLandmarks,
+    trafficRoutes,
+  );
+  const taxiRoutePool = mergeRoutePools(baseTaxiRoutePool, taxiStandRoutePool);
+  const trafficRoutePool = mergeRoutePools(
+    baseTrafficRoutePool,
+    taxiStandRoutePool,
+  );
   if (!taxiRoutePool.length || !trafficRoutePool.length) {
     throw new Error("No drivable routes available for vehicle simulation");
   }
@@ -234,7 +280,7 @@ async function loadSimulationData() {
   );
   const taxiStandHotspotPool = buildTaxiStandHotspots(
     taxiStandLandmarks,
-    taxiRoutePool,
+    mergeRoutePools(taxiStandRoutePool, taxiRoutePool, trafficRoutePool),
   );
   const hotspotPool =
     taxiStandHotspotPool.length > 0 ? taxiStandHotspotPool : fallbackHotspotPool;

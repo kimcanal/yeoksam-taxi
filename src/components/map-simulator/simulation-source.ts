@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
 import type {
   Hotspot,
@@ -18,7 +18,7 @@ import type {
   VehicleKind,
   VehiclePalette,
   VehiclePlanMode,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 export type SimulationClock = {
   elapsedTimeSeconds: number;

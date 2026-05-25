@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { buildEnvironmentState, type WeatherMode } from "@/components/map-simulator/simulation-environment";
+import { buildEnvironmentState } from "@/components/map-simulator/simulation-environment";
 import {
   INTERSECTION_BOX_ENTRY_LOOKAHEAD,
   INTERSECTION_BOX_OCCUPANCY_RADIUS_SQ,
@@ -13,9 +13,33 @@ import {
   VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
   VEHICLE_PROXIMITY_CELL_SIZE,
 } from "@/components/map-simulator/scene-constants";
+import { TRAFFIC_PALETTES } from "@/components/map-simulator/vehicle-palettes";
 import {
-  TRAFFIC_PALETTES,
-  type NextStopState,
+  createSignalApproachDemand,
+  createSignalApproachDistance,
+  createSignalAxisOccupancy,
+  createSignalDirectionalOccupancy,
+  canVehicleProceed,
+  signalState,
+  signalDirectionForVector,
+  dominantAxisForHeading,
+  approachDirectionForHeading,
+  opposingSignalDirection,
+} from "@/components/map-simulator/signal-controller";
+import {
+  addVehicleSampleToBucket,
+  clampRouteDistance,
+  clearVehicleSampleBuckets,
+  copyVehicleMotionState,
+  createVehicleSimulationSample,
+  createVehicleMotionState,
+  resolveNextStop,
+  resolveNextStopInto,
+  routeSegmentIndexAtDistance,
+  syncVehicleSampleBucket,
+  vehicleProximityCellCoord,
+} from "@/components/map-simulator/route-motion-utils";
+import {
   type SignalApproachDemand,
   type SignalApproachDistance,
   type SignalAxisOccupancy,
@@ -24,36 +48,24 @@ import {
   type SignalFlow,
   type Stats,
   type Vehicle,
-  type VehicleMotionState,
-  createNextStopState,
-  createSignalApproachDemand,
-  createSignalApproachDistance,
-  createSignalAxisOccupancy,
-  createSignalDirectionalOccupancy,
-  createVehicleMotionState,
-  clampRouteDistance,
-  copyVehicleMotionState,
-  canVehicleProceed,
-  resolveNextStop,
-  resolveNextStopInto,
-  routeSegmentIndexAtDistance,
-  signalState,
-  signalDirectionForVector,
-  dominantAxisForHeading,
-  approachDirectionForHeading,
-  opposingSignalDirection,
-  updateVehicleMotionState,
+  type VehicleProximityBuckets,
+  type VehicleSimulationSample,
+} from "@/components/map-simulator/map-simulator-types";
+import {
   assignVehicleRoute,
-  vehicleProximityCellCoord,
-} from "@/components/map-simulator/core";
+  updateVehicleMotionState,
+} from "@/components/map-simulator/vehicle-runtime-utils";
+import {
+  cloneVehiclePoseSnapshot,
+  createEmptySimulationSnapshot,
+  DEFAULT_SIMULATION_CLOCK,
+} from "@/components/map-simulator/simulation-snapshot-utils";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
   SignalSnapshot,
   SimulationConfig,
-  SimulationSnapshot,
   SimulationSource,
-  VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
 
@@ -61,149 +73,22 @@ type LocalVehicle = Omit<Vehicle, "group" | "bodyMaterial" | "signMaterial"> & {
   renderSeed: number;
 };
 
-type LocalVehicleSimulationSample = {
-  vehicle: LocalVehicle;
-  motion: VehicleMotionState;
-  nextStopState: NextStopState;
-  proximityCellX: number;
-  proximityCellZ: number;
-};
+type LocalVehicleSimulationSample = VehicleSimulationSample<LocalVehicle>;
+type LocalVehicleProximityBuckets = VehicleProximityBuckets<LocalVehicle>;
 
-type VehicleProximityBuckets = Map<
-  number,
-  Map<number, LocalVehicleSimulationSample[]>
->;
-
-const DEFAULT_CLOCK = {
-  dateIso: "2026-01-01",
-  minutes: 12 * 60,
-  weatherMode: "clear" as WeatherMode,
-};
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
-
-function createVehicleSimulationSample(
-  vehicle: LocalVehicle,
-): LocalVehicleSimulationSample {
-  return {
-    vehicle,
-    motion: vehicle.motion,
-    nextStopState: createNextStopState(),
-    proximityCellX: 0,
-    proximityCellZ: 0,
-  };
-}
-
-function addVehicleSampleToBucket(
-  buckets: VehicleProximityBuckets,
-  sample: LocalVehicleSimulationSample,
-  cellX = sample.proximityCellX,
-  cellZ = sample.proximityCellZ,
-) {
-  let column = buckets.get(cellX);
-  if (!column) {
-    column = new Map<number, LocalVehicleSimulationSample[]>();
-    buckets.set(cellX, column);
-  }
-
-  let bucket = column.get(cellZ);
-  if (!bucket) {
-    bucket = [];
-    column.set(cellZ, bucket);
-  }
-  bucket.push(sample);
-}
-
-function clearVehicleSampleBuckets(buckets: VehicleProximityBuckets) {
-  buckets.forEach((column) => {
-    column.forEach((bucket) => {
-      bucket.length = 0;
-    });
-  });
-}
-
-function syncVehicleSampleBucket(
-  buckets: VehicleProximityBuckets,
-  sample: LocalVehicleSimulationSample,
-) {
-  const nextCellX = vehicleProximityCellCoord(sample.motion.lanePosition.x);
-  const nextCellZ = vehicleProximityCellCoord(sample.motion.lanePosition.z);
-  if (
-    nextCellX === sample.proximityCellX &&
-    nextCellZ === sample.proximityCellZ
-  ) {
-    return;
-  }
-
-  const currentColumn = buckets.get(sample.proximityCellX);
-  const currentBucket = currentColumn?.get(sample.proximityCellZ);
-  if (currentBucket) {
-    const sampleIndex = currentBucket.indexOf(sample);
-    if (sampleIndex !== -1) {
-      currentBucket[sampleIndex] = currentBucket[currentBucket.length - 1]!;
-      currentBucket.pop();
-    }
-    if (!currentBucket.length) {
-      currentColumn?.delete(sample.proximityCellZ);
-      if (currentColumn && !currentColumn.size) {
-        buckets.delete(sample.proximityCellX);
-      }
-    }
-  }
-
-  sample.proximityCellX = nextCellX;
-  sample.proximityCellZ = nextCellZ;
-  addVehicleSampleToBucket(buckets, sample, nextCellX, nextCellZ);
-}
-
-function clonePose(source: VehicleMotionState): VehiclePoseSnapshot {
-  return {
-    position: source.position.clone(),
-    lanePosition: source.lanePosition.clone(),
-    heading: source.heading.clone(),
-    right: source.right.clone(),
-    yaw: source.yaw,
-    segmentIndex: source.segmentIndex,
-    nextStopIndex: source.nextStopIndex,
-  };
-}
-
-function createEmptySnapshot(): SimulationSnapshot {
-  return {
-    clock: {
-      elapsedTimeSeconds: 0,
-      ...DEFAULT_CLOCK,
-    },
-    vehicles: [],
-    signals: [],
-    hotspots: [],
-    stats: {
-      taxis: 0,
-      traffic: 0,
-      waiting: 0,
-      signals: 0,
-      activeTrips: 0,
-      completedTrips: 0,
-      pedestrians: 0,
-      pickups: 0,
-      dropoffs: 0,
-      activeCalls: 0,
-      avgPickupWaitSeconds: 0,
-      avgRideSeconds: 0,
-    },
-  };
-}
 
 export function createLocalSimulationSource(): SimulationSource {
   let staticContext: SceneStaticContext | null = null;
   let configState: SimulationConfig = {
     taxiCount: 0,
     trafficCount: 0,
-    clock: DEFAULT_CLOCK,
+    clock: DEFAULT_SIMULATION_CLOCK,
   };
   let elapsedTimeSeconds = 0;
-  let latestStats = createEmptySnapshot().stats;
-  let latestSnapshot = createEmptySnapshot();
+  let latestStats = createEmptySimulationSnapshot().stats;
+  let latestSnapshot = createEmptySimulationSnapshot();
   let snapshotDirty = true;
   let activeVehicleSpeedMultiplier = 1;
   let statsAccumulator = 0;
@@ -223,7 +108,7 @@ export function createLocalSimulationSource(): SimulationSource {
     string,
     SignalDirectionalOccupancy
   >();
-  const proximityBuckets: VehicleProximityBuckets = new globalThis.Map();
+  const proximityBuckets: LocalVehicleProximityBuckets = new globalThis.Map();
   const vehicleSimulationSamples: LocalVehicleSimulationSample[] = [];
 
   let signalById = new globalThis.Map<string, SignalData>();
@@ -781,8 +666,8 @@ export function createLocalSimulationSource(): SimulationSource {
       pickupHotspotId: vehicle.pickupHotspot?.id ?? null,
       dropoffHotspotId: vehicle.dropoffHotspot?.id ?? null,
       renderSeed: vehicle.renderSeed,
-      previousPose: clonePose(vehicle.previousMotion),
-      pose: clonePose(vehicle.motion),
+      previousPose: cloneVehiclePoseSnapshot(vehicle.previousMotion),
+      pose: cloneVehiclePoseSnapshot(vehicle.motion),
     }));
 
   const buildSignalSnapshots = (): SignalSnapshot[] => {
@@ -836,7 +721,7 @@ export function createLocalSimulationSource(): SimulationSource {
   return {
     id: "local-fallback",
     reset(nextConfig, nextStaticContext) {
-      const nextClock = nextConfig.clock ?? DEFAULT_CLOCK;
+      const nextClock = nextConfig.clock ?? DEFAULT_SIMULATION_CLOCK;
       const sameStaticContext = staticContext === nextStaticContext;
       const shouldRebuild =
         !sameStaticContext ||

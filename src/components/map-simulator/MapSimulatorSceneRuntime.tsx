@@ -7,10 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import * as THREE from "three";
-import {
-  CSS2DObject,
-  CSS2DRenderer,
-} from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import {
   buildEnvironmentState,
   daylightFactor,
@@ -22,6 +19,7 @@ import {
   createVehicleTrailLayer,
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle-trail-renderer";
+import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
 import {
   CAMERA_DRAG_SENSITIVITY,
   CAMERA_LOOK_HEIGHT,
@@ -33,17 +31,12 @@ import {
   CAMERA_TOUCH_PITCH_LOCK_DISTANCE,
   CAMERA_TOUCH_PITCH_SENSITIVITY,
   CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
-  CROSSWALK_STEP,
-  CROSSWALK_STRIPE_COUNT,
-  CROSSWALK_WIDTH,
-  CURBSIDE_SIDEWALK_OFFSET,
   HIDDEN_RENDER_FPS,
   HOVER_REFRESH_INTERVAL,
   LABEL_RENDER_INTERVAL,
   LABEL_VISIBILITY_REFRESH_INTERVAL,
   MAX_VEHICLE_SIMULATION_STEPS,
   NON_ROAD_LAYER_Y,
-  ROAD_LAYER_Y,
   PEDESTRIAN_SPAN,
   SIGNAL_CYCLE,
   TAXI_CLICK_MOVE_THRESHOLD,
@@ -54,20 +47,70 @@ import {
   VEHICLE_SIMULATION_STEP,
 } from "@/components/map-simulator/scene-constants";
 import {
+  pitchControlValueFromPitch,
+  pitchFromControlValue,
+  yawControlValueFromYaw,
+  yawFromControlValue,
+} from "@/components/map-simulator/camera-control-utils";
+import {
+  labelVisibilityBudget,
+  precipitationDrawRatioFor,
+  renderPixelRatioFor,
+  resolveRenderCap,
+  stabilizeRefreshRateBand,
+} from "@/components/map-simulator/render-budget-utils";
+import {
+  KAKAO_TAXI_ASSET_PATH,
+  KAKAO_TRAFFIC_ASSET_SPECS,
+  TAXI_ASSET_IDLE_TIMEOUT_MS,
+  TAXI_ASSET_LOAD_DELAY_MS,
+  TRAFFIC_ASSET_IDLE_TIMEOUT_MS,
+  TRAFFIC_ASSET_LOAD_DELAY_MS,
+  type TrafficVehicleModelKey,
+  loadVehicleAssetTemplate,
+  normalizeTaxiAssetTemplate,
+  normalizeTrafficAssetTemplate,
+} from "@/components/map-simulator/vehicle-asset-loader";
+import { disposeObject3DResources } from "@/components/map-simulator/object-resource-utils";
+import {
+  createTaxiStandMarker,
+  createTaxiStandMarkerMaterials,
+} from "@/components/map-simulator/taxi-stand-marker-factory";
+import { buildDemandAnchors } from "@/components/map-simulator/demand-anchor-utils";
+import { buildDemandCorridorSegments } from "@/components/map-simulator/demand-corridor-utils";
+import { createPoiMarkerLayer } from "@/components/map-simulator/poi-marker-layer";
+import { createHotspotVisualLayer } from "@/components/map-simulator/hotspot-visual-layer";
+import { createPedestrianVisualLayer } from "@/components/map-simulator/pedestrian-visual-layer";
+import {
+  applyVehicleSnapshot,
+  createVehicleFromSnapshot,
+} from "@/components/map-simulator/vehicle-snapshot-runtime";
+import { createVehicleGroup } from "@/components/map-simulator/vehicle-group-factory";
+import { createSubwayStationStructure } from "@/components/map-simulator/transit-structure-factory";
+import {
+  setTaxiAppearance,
+  syncVehicleTransform,
+} from "@/components/map-simulator/vehicle-runtime-utils";
+import {
+  boundaryHintElement,
+  labelElement,
+} from "@/components/map-simulator/scene-label-elements";
+import { buildRoadNetworkOverlay } from "@/components/map-simulator/road-network-overlay";
+import { HOTSPOT_PRESENTATION } from "@/components/map-simulator/hotspot-presentation";
+import { statsEqual } from "@/components/map-simulator/stats-utils";
+import type {
   BaseCameraMode,
+  CameraFocusTarget,
   CameraMode,
   CameraPitchControlState,
-  CameraFocusTarget,
   CameraYawControlState,
-  DongBoundarySegment,
   FpsMode,
-  FpsStats,
-  HOTSPOT_PRESENTATION,
-  HOTSPOT_IDLE_COLORS,
+} from "@/components/map-simulator/camera-types";
+import type {
+  DongBoundarySegment,
   Hotspot,
   HotspotMarkerMode,
   HotspotVisual,
-  KAKAO_TAXI_ASSET_PATH,
   LabelDistanceEntry,
   PedestrianVisual,
   RouteTemplate,
@@ -75,64 +118,50 @@ import {
   SceneLabelKind,
   SignalData,
   SignalFlow,
-  SignalLampVisual,
   SignalVisual,
   Stats,
   SceneStatus,
   SimulationData,
-  TAXI_ASSET_IDLE_TIMEOUT_MS,
-  TAXI_ASSET_LOAD_DELAY_MS,
   Vehicle,
-  boundaryHintElement,
-  buildRoadNetworkOverlay,
-  copyVehicleMotionState,
-  createCallerGroup,
-  createPedestrianGroup,
-  createSubwayStationStructure,
-  createVehicleGroup,
-  createVehicleMotionState,
-  curbsideLaneOffset,
+} from "@/components/map-simulator/map-simulator-types";
+import {
   dampAngle,
-  distanceXZ,
-  disposeObject3DResources,
-  dongContainsPoint,
-  dongShapeFromRing,
-  hotspotCallElement,
-  labelElement,
-  labelVisibilityBudget,
-  loadVehicleAssetTemplate,
-  normalizeTaxiAssetTemplate,
-  offsetToRight,
-  precipitationDrawRatioFor,
-  projectPoint,
-  renderPixelRatioFor,
-  resolveRenderCap,
   sampleRoute,
-  setTaxiAppearance,
-  shapesOfNonRoadFeature,
-  signalState,
-  stabilizeRefreshRateBand,
-  syncVehicleTransform,
   wrapAngle,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/route-motion-utils";
+import { signalState } from "@/components/map-simulator/signal-controller";
+import {
+  dongShapeFromRing,
+  shapesOfNonRoadFeature,
+} from "@/components/map-simulator/map-geometry-utils";
+import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
+import {
+  createMapSceneBase,
+  createMapSceneLights,
+  syncSunShadowBounds,
+} from "@/components/map-simulator/map-scene-base";
+import { createDeferredAssetLoadScheduler } from "@/components/map-simulator/deferred-asset-load-scheduler";
+import { createEnvironmentVisuals } from "@/components/map-simulator/map-scene-environment-visuals";
+import { createStaticRoadLayer } from "@/components/map-simulator/map-scene-road-layer";
+import { createMapSceneRenderers } from "@/components/map-simulator/map-scene-renderers";
+import { createTrafficSignalLayer } from "@/components/map-simulator/traffic-signal-layer";
+import { createBuildingMassLayer } from "@/components/map-simulator/building-mass-layer";
+import { createDongBoundaryLayer } from "@/components/map-simulator/dong-boundary-layer";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
   SignalSnapshot,
   SimulationConfig,
   SimulationSnapshot,
-  SimulationSource,
-  VehiclePoseSnapshot,
   VehicleSnapshot,
 } from "@/components/map-simulator/simulation-source";
 
-type MapSimulatorSceneRuntimeProps = {
+export type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
   data: SimulationData | null;
   poiFeatureRowsRef: RefObject<MapPoiFeatureRow[]>;
   onPoiSelect?: (poiCode: string) => void;
   onDongSelect?: (dongName: string) => void;
-  simulationSource: SimulationSource;
   appliedTaxiCountRef: MutableRefObject<number>;
   appliedTrafficCountRef: MutableRefObject<number>;
   selectedDemandDongRef: MutableRefObject<string>;
@@ -178,40 +207,12 @@ type MapSimulatorSceneRuntimeProps = {
   }) => void;
 };
 
-type MapPoiFeatureRow = {
-  poi_code: string;
-  poi_name: string;
-  coverage_dong: string | null;
-  category: string | null;
-  lon: number | null;
-  lat: number | number | null;
-  context_score: number;
-};
-
-type DemandAnchorKind = "poi" | "stand";
-
-type DemandAnchor = {
-  id: string;
-  label: string;
-  kind: DemandAnchorKind;
-  position: THREE.Vector3;
-  dongNames: string[];
-  score: number;
-};
-
-function poiMarkerColor(category: string | null | undefined) {
-  if (category === "station_context") return "#67e8f9";
-  if (category === "road_corridor_context") return "#93c5fd";
-  return "#bae6fd";
-}
-
 export default function MapSimulatorSceneRuntime({
   containerRef,
   data,
   poiFeatureRowsRef,
   onPoiSelect,
   onDongSelect,
-  simulationSource,
   appliedTaxiCountRef,
   appliedTrafficCountRef,
   selectedDemandDongRef,
@@ -255,68 +256,16 @@ export default function MapSimulatorSceneRuntime({
 
     const container = containerRef.current;
     const simulationData = data;
+    const simulationSource = createLocalSimulationSource();
     let sceneDisposed = false;
     let isPageHidden = document.visibilityState === "hidden";
-    const scene = new THREE.Scene();
-    const sceneFog = new THREE.Fog(0x07111b, 120, 360);
-    scene.background = new THREE.Color(0x07111b);
-    scene.fog = sceneFog;
+    const { scene, sceneFog, camera } = createMapSceneBase(container);
 
-    const camera = new THREE.PerspectiveCamera(
-      48,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1500,
-    );
-    camera.position.set(-120, 135, 150);
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      powerPreference: "high-performance",
+    const { renderer, labelRenderer } = createMapSceneRenderers({
+      container,
+      cameraMode: cameraModeRef.current,
     });
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        renderPixelRatioFor(
-          cameraModeRef.current,
-          document.visibilityState === "hidden",
-        ),
-      ),
-    );
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.02;
-    renderer.domElement.style.cursor = "grab";
-    renderer.domElement.style.touchAction = "none";
-    container.appendChild(renderer.domElement);
-
-    const labelRenderer = new CSS2DRenderer();
-    labelRenderer.setSize(container.clientWidth, container.clientHeight);
-    labelRenderer.domElement.style.position = "absolute";
-    labelRenderer.domElement.style.inset = "0";
-    labelRenderer.domElement.style.pointerEvents = "none";
-    container.appendChild(labelRenderer.domElement);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.68);
-    scene.add(ambientLight);
-    const hemisphereLight = new THREE.HemisphereLight(0xb6d5ff, 0x172333, 0.82);
-    scene.add(hemisphereLight);
-
-    const sun = new THREE.DirectionalLight(0xfff1d0, 1.15);
-    sun.position.set(110, 180, 80);
-    sun.castShadow = true;
-    sun.shadow.bias = -0.0005;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 10;
-    sun.shadow.camera.far = 420;
-    sun.shadow.camera.left = -180;
-    sun.shadow.camera.right = 180;
-    sun.shadow.camera.top = 180;
-    sun.shadow.camera.bottom = -180;
-    scene.add(sun);
-    scene.add(sun.target);
+    const { ambientLight, hemisphereLight, sun } = createMapSceneLights(scene);
 
     const buildingFeatures = data.buildingMasses;
     const dongRegions = data.dongRegions;
@@ -439,29 +388,6 @@ export default function MapSimulatorSceneRuntime({
     let appliedPitchControlVersion = cameraPitchControlRef.current.version;
     let appliedYawControlVersion = cameraYawControlRef.current.version;
 
-    const pitchControlValueFromPitch = (pitch: number) =>
-      THREE.MathUtils.clamp(
-        ((pitch - CAMERA_MIN_PITCH) / (CAMERA_MAX_PITCH - CAMERA_MIN_PITCH)) *
-          100,
-        0,
-        100,
-      );
-
-    const pitchFromControlValue = (value: number) =>
-      THREE.MathUtils.lerp(
-        CAMERA_MIN_PITCH,
-        CAMERA_MAX_PITCH,
-        THREE.MathUtils.clamp(value / 100, 0, 1),
-      );
-    const yawControlValueFromYaw = (yaw: number) =>
-      THREE.MathUtils.clamp(
-        THREE.MathUtils.radToDeg((wrapAngle(yaw) + Math.PI * 2) % (Math.PI * 2)),
-        0,
-        359,
-      );
-    const yawFromControlValue = (value: number) =>
-      THREE.MathUtils.degToRad(THREE.MathUtils.clamp(value, 0, 359));
-
     const syncCamera = () => {
       cameraRig.pitch = THREE.MathUtils.clamp(
         cameraRig.pitch,
@@ -512,64 +438,7 @@ export default function MapSimulatorSceneRuntime({
 
     syncCamera();
 
-    const shadowSpan = Math.max(size.x, size.z) * 0.72;
-    sun.shadow.camera.far = Math.max(420, shadowSpan * 3.2);
-    sun.shadow.camera.left = -shadowSpan;
-    sun.shadow.camera.right = shadowSpan;
-    sun.shadow.camera.top = shadowSpan;
-    sun.shadow.camera.bottom = -shadowSpan;
-    sun.shadow.camera.updateProjectionMatrix();
-
-    const createPrecipitationLayer = (
-      count: number,
-      material: THREE.PointsMaterial,
-      minHeight: number,
-      maxHeight: number,
-    ) => {
-      const positions = new Float32Array(count * 3);
-      const seeds = new Float32Array(count);
-      const spanX = size.x + 180;
-      const spanZ = size.z + 180;
-      const minX = centerPoint.x - spanX / 2;
-      const maxX = centerPoint.x + spanX / 2;
-      const minZ = centerPoint.z - spanZ / 2;
-      const maxZ = centerPoint.z + spanZ / 2;
-
-      for (let index = 0; index < count; index += 1) {
-        const offset = index * 3;
-        positions[offset] = THREE.MathUtils.lerp(minX, maxX, Math.random());
-        positions[offset + 1] = THREE.MathUtils.lerp(
-          minHeight,
-          maxHeight,
-          Math.random(),
-        );
-        positions[offset + 2] = THREE.MathUtils.lerp(minZ, maxZ, Math.random());
-        seeds[index] = Math.random();
-      }
-
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(positions, 3),
-      );
-      geometry.setDrawRange(0, count);
-      const points = new THREE.Points(geometry, material);
-      points.visible = false;
-      scene.add(points);
-
-      return {
-        geometry,
-        material,
-        points,
-        seeds,
-        minHeight,
-        maxHeight,
-        minX,
-        maxX,
-        minZ,
-        maxZ,
-      };
-    };
+    syncSunShadowBounds(sun, size);
 
     const groundMaterial = new THREE.MeshStandardMaterial({
       color: 0x202327,
@@ -699,27 +568,10 @@ export default function MapSimulatorSceneRuntime({
     demandBadgeLabel.visible = false;
     demandPulseGroup.add(demandBadgeLabel);
 
-    const demandCorridorSegments = roadSegments
-      .filter((segment) => segment.roadClass !== "local")
-      .map((segment, index) => {
-        const length = distanceXZ(segment.start, segment.end);
-        const center = segment.start.clone().lerp(segment.end, 0.5);
-        return {
-          segment,
-          index,
-          center,
-          length,
-          angle: Math.atan2(
-            segment.end.x - segment.start.x,
-            segment.end.z - segment.start.z,
-          ),
-          dongNames: dongRegions
-            .filter((dong) => dongContainsPoint(dong, center))
-            .map((dong) => dong.name),
-        };
-      })
-      .filter((entry) => entry.length >= 14 && entry.dongNames.length > 0)
-      .slice(0, 520);
+    const demandCorridorSegments = buildDemandCorridorSegments(
+      roadSegments,
+      dongRegions,
+    );
     const demandCorridorMaterial = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
@@ -747,49 +599,12 @@ export default function MapSimulatorSceneRuntime({
     demandCorridorMesh.renderOrder = 43;
     scene.add(demandCorridorMesh);
 
-    const poiDemandAnchors = [...(poiFeatureRowsRef.current ?? [])]
-      .filter(
-        (poi) =>
-          Number.isFinite(poi.lon) &&
-          Number.isFinite(poi.lat),
-      )
-      .map((poi) => {
-        const projected = projectPoint(
-          [poi.lon as number, poi.lat as number],
-          simulationData.center,
-        );
-        const position = new THREE.Vector3(projected.x, 0, projected.z);
-        const inferredDongs = poi.coverage_dong
-          ? [poi.coverage_dong]
-          : dongRegions
-              .filter((dong) => dongContainsPoint(dong, position))
-              .map((dong) => dong.name);
-
-        return {
-          id: `poi-${poi.poi_code}`,
-          label: poi.poi_name,
-          kind: "poi" as const,
-          position,
-          dongNames: inferredDongs,
-          score: THREE.MathUtils.clamp(poi.context_score, 0.25, 1),
-        } satisfies DemandAnchor;
-      })
-      .filter((anchor) => anchor.dongNames.length > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, 24);
-
-    const standDemandAnchors = taxiStandLandmarks
-      .map((stand) => ({
-        id: `stand-${stand.standId || stand.id}`,
-        label: stand.name,
-        kind: "stand" as const,
-        position: stand.position.clone().setY(0),
-        dongNames: [stand.dongName],
-        score: stand.isShelter ? 0.72 : 0.58,
-      }) satisfies DemandAnchor)
-      .slice(0, 24);
-
-    const demandAnchors = [...poiDemandAnchors, ...standDemandAnchors];
+    const demandAnchors = buildDemandAnchors({
+      poiFeatureRows: [...(poiFeatureRowsRef.current ?? [])],
+      taxiStandLandmarks,
+      dongRegions,
+      center: simulationData.center,
+    });
     const demandAnchorColumnMaterial = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
@@ -933,191 +748,26 @@ export default function MapSimulatorSceneRuntime({
     scene.add(nonRoadGroup);
     nonRoadGroupRef.current = nonRoadGroup;
 
-    const celestialRadius = Math.max(size.x, size.z) + 320;
-    const sunDiscMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffd9a8,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunDisc = new THREE.Mesh(
-      new THREE.SphereGeometry(9.4, 20, 20),
+    const {
+      celestialRadius,
       sunDiscMaterial,
-    );
-    scene.add(sunDisc);
-
-    const sunHaloMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffb66c,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunHalo = new THREE.Mesh(
-      new THREE.SphereGeometry(17.6, 20, 20),
+      sunDisc,
       sunHaloMaterial,
-    );
-    scene.add(sunHalo);
-
-    const sunsetGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff8b47,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const sunsetGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(27, 20, 20),
+      sunHalo,
       sunsetGlowMaterial,
-    );
-    scene.add(sunsetGlow);
-
-    const moonMaterial = new THREE.MeshBasicMaterial({
-      color: 0xe9f2ff,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const moon = new THREE.Mesh(
-      new THREE.SphereGeometry(6.6, 18, 18),
+      sunsetGlow,
       moonMaterial,
-    );
-    scene.add(moon);
-
-    const starPositions = new Float32Array(280 * 3);
-    for (let index = 0; index < 280; index += 1) {
-      const azimuth = Math.random() * Math.PI * 2;
-      const elevation = THREE.MathUtils.lerp(0.24, 1.14, Math.random());
-      const radius = celestialRadius + Math.random() * 120;
-      const offset = index * 3;
-      starPositions[offset] =
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius;
-      starPositions[offset + 1] = Math.sin(elevation) * radius * 0.82 + 110;
-      starPositions[offset + 2] =
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius;
-    }
-    const starsGeometry = new THREE.BufferGeometry();
-    starsGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(starPositions, 3),
-    );
-    const starsMaterial = new THREE.PointsMaterial({
-      color: 0xf4f8ff,
-      size: 1.9,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
-
-    const cloudPuffGeometry = new THREE.SphereGeometry(1, 14, 14);
-    const cloudMaterial = new THREE.MeshLambertMaterial({
-      color: 0xdfe8f2,
-      emissive: 0x243344,
-      emissiveIntensity: 0.05,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const cloudClusters = Array.from({ length: 5 }, (_, index) => {
-      const cluster = new THREE.Group();
-      const azimuth =
-        (index / 8) * Math.PI * 2 + (index % 2 === 0 ? 0.22 : -0.16);
-      const elevation = THREE.MathUtils.lerp(0.24, 0.5, (index % 5) / 5);
-      const radius =
-        celestialRadius * THREE.MathUtils.lerp(0.56, 0.72, (index % 4) / 4);
-      const anchor = new THREE.Vector3(
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
-        Math.sin(elevation) * radius * 0.76 + 72 + (index % 3) * 10,
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
-      );
-
-      [
-        { x: -7.5, y: 0.4, z: 0, sx: 7.2, sy: 2.8, sz: 3.6 },
-        { x: -2.2, y: 1.2, z: 1.1, sx: 6.1, sy: 2.5, sz: 3.1 },
-        { x: 3.8, y: 0.8, z: -0.4, sx: 7.8, sy: 3.1, sz: 3.7 },
-        { x: 8.4, y: 0.1, z: 0.7, sx: 5.8, sy: 2.2, sz: 2.8 },
-      ].forEach((puff) => {
-        const mesh = new THREE.Mesh(cloudPuffGeometry, cloudMaterial);
-        mesh.position.set(puff.x, puff.y, puff.z);
-        mesh.scale.set(puff.sx, puff.sy, puff.sz);
-        cluster.add(mesh);
-      });
-
-      cluster.position.copy(anchor);
-      scene.add(cluster);
-      return { cluster, anchor, phase: index * 0.9 };
-    });
-
-    const stormCloudMaterial = new THREE.MeshLambertMaterial({
-      color: 0x7a8da0,
-      emissive: 0x1e2a36,
-      emissiveIntensity: 0.08,
-      transparent: true,
-      opacity: 0,
-      fog: false,
-      depthWrite: false,
-    });
-    const stormCloudClusters = Array.from({ length: 4 }, (_, index) => {
-      const cluster = new THREE.Group();
-      const azimuth =
-        (index / 6) * Math.PI * 2 + (index % 2 === 0 ? 0.34 : -0.22);
-      const elevation = THREE.MathUtils.lerp(0.16, 0.28, (index % 3) / 3);
-      const radius =
-        celestialRadius * THREE.MathUtils.lerp(0.48, 0.62, (index % 4) / 4);
-      const anchor = new THREE.Vector3(
-        centerPoint.x + Math.cos(azimuth) * Math.cos(elevation) * radius,
-        Math.sin(elevation) * radius * 0.62 + 56 + (index % 2) * 7,
-        centerPoint.z + Math.sin(azimuth) * Math.cos(elevation) * radius,
-      );
-
-      [
-        { x: -10.5, y: 0.2, z: 0.5, sx: 10.8, sy: 3.8, sz: 5.2 },
-        { x: -3.2, y: 1.1, z: -1.2, sx: 9.6, sy: 3.4, sz: 4.7 },
-        { x: 5.4, y: 0.9, z: 0.3, sx: 11.2, sy: 4.2, sz: 5.6 },
-        { x: 13.2, y: 0.1, z: -0.4, sx: 8.2, sy: 3.1, sz: 4.4 },
-      ].forEach((puff) => {
-        const mesh = new THREE.Mesh(cloudPuffGeometry, stormCloudMaterial);
-        mesh.position.set(puff.x, puff.y, puff.z);
-        mesh.scale.set(puff.sx, puff.sy, puff.sz);
-        cluster.add(mesh);
-      });
-
-      cluster.position.copy(anchor);
-      cluster.visible = false;
-      scene.add(cluster);
-      return { cluster, anchor, phase: index * 1.2 };
-    });
-
-    const rainLayer = createPrecipitationLayer(
-      480,
-      new THREE.PointsMaterial({
-        color: 0xb8ddff,
-        size: 0.28,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-      }),
-      12,
-      76,
-    );
-    const snowLayer = createPrecipitationLayer(
-      360,
-      new THREE.PointsMaterial({
-        color: 0xffffff,
-        size: 0.68,
-        transparent: true,
-        opacity: 0.38,
-        depthWrite: false,
-      }),
-      10,
-      70,
-    );
+      moon,
+      starsGeometry,
+      starsMaterial,
+      cloudPuffGeometry,
+      cloudMaterial,
+      cloudClusters,
+      stormCloudMaterial,
+      stormCloudClusters,
+      rainLayer,
+      snowLayer,
+    } = createEnvironmentVisuals({ scene, mapSize: size, centerPoint });
     const rainPositions = rainLayer.geometry.attributes.position
       .array as Float32Array;
     const snowPositions = snowLayer.geometry.attributes.position
@@ -1185,6 +835,7 @@ export default function MapSimulatorSceneRuntime({
     };
     let vehicleLayerReady = false;
     let taxiAssetTemplate: THREE.Group | null = null;
+    let trafficAssetTemplates = new Map<TrafficVehicleModelKey, THREE.Group>();
     let activeStarOpacity = 0;
     let vehicleSimulationAccumulator = 0;
     let latestSimulationSnapshot: SimulationSnapshot | null = null;
@@ -1198,22 +849,8 @@ export default function MapSimulatorSceneRuntime({
       traffic: appliedTrafficCountRef.current,
     };
 
-    const statsMatch = (left: Stats, right: Stats) =>
-      left.taxis === right.taxis &&
-      left.traffic === right.traffic &&
-      left.waiting === right.waiting &&
-      left.signals === right.signals &&
-      left.activeTrips === right.activeTrips &&
-      left.completedTrips === right.completedTrips &&
-      left.pedestrians === right.pedestrians &&
-      left.pickups === right.pickups &&
-      left.dropoffs === right.dropoffs &&
-      left.activeCalls === right.activeCalls &&
-      left.avgPickupWaitSeconds === right.avgPickupWaitSeconds &&
-      left.avgRideSeconds === right.avgRideSeconds;
-
     const commitStatsSnapshot = (nextStats: Stats) => {
-      setStats((current) => (statsMatch(current, nextStats) ? current : nextStats));
+      setStats((current) => (statsEqual(current, nextStats) ? current : nextStats));
     };
 
     const syncSelectedTaxi = () => {
@@ -1226,94 +863,6 @@ export default function MapSimulatorSceneRuntime({
         followTaxiIdRef.current = fallbackTaxiId;
         setFollowTaxiId(fallbackTaxiId);
       }
-    };
-
-    const writeMotionFromPose = (
-      target: Vehicle["motion"],
-      pose: VehiclePoseSnapshot,
-    ) => {
-      target.position.copy(pose.position);
-      target.lanePosition.copy(pose.lanePosition);
-      target.heading.copy(pose.heading);
-      target.right.copy(pose.right);
-      target.yaw = pose.yaw;
-      target.segmentIndex = pose.segmentIndex;
-      target.nextStopIndex = pose.nextStopIndex;
-    };
-
-    const fallbackRouteForKind = (kind: VehicleSnapshot["kind"]) =>
-      kind === "taxi"
-        ? taxiRoutePool[0] ?? trafficRoutePool[0] ?? loopRoutes[0]
-        : trafficRoutePool[0] ?? taxiRoutePool[0] ?? loopRoutes[0];
-
-    const resolveRouteForSnapshot = (vehicleSnapshot: VehicleSnapshot) =>
-      routeById.get(vehicleSnapshot.routeId) ??
-      fallbackRouteForKind(vehicleSnapshot.kind);
-
-    const createVehicleFromSnapshot = (
-      vehicleSnapshot: VehicleSnapshot,
-    ) => {
-      const route = resolveRouteForSnapshot(vehicleSnapshot);
-      if (!route) {
-        return null;
-      }
-
-      const { group, bodyMaterial, signMaterial, clickTarget } =
-        createVehicleGroup(
-          vehicleSnapshot.kind,
-          vehicleSnapshot.palette,
-          vehicleSnapshot.kind === "taxi" ? { taxiAssetTemplate } : undefined,
-        );
-      scene.add(group);
-
-      const vehicle: Vehicle = {
-        id: vehicleSnapshot.id,
-        kind: vehicleSnapshot.kind,
-        route,
-        group,
-        bodyMaterial,
-        signMaterial,
-        baseSpeed: vehicleSnapshot.baseSpeed,
-        speed: vehicleSnapshot.speed,
-        distance: 0,
-        safeGap: vehicleSnapshot.safeGap,
-        length: vehicleSnapshot.length,
-        currentSignalId: null,
-        roadName: vehicleSnapshot.roadName,
-        palette: vehicleSnapshot.palette,
-        isOccupied: vehicleSnapshot.isOccupied,
-        pickupHotspot:
-          (vehicleSnapshot.pickupHotspotId
-            ? hotspotById.get(vehicleSnapshot.pickupHotspotId)
-            : null) ?? null,
-        dropoffHotspot:
-          (vehicleSnapshot.dropoffHotspotId
-            ? hotspotById.get(vehicleSnapshot.dropoffHotspotId)
-            : null) ?? null,
-        jobAssignedAt: 0,
-        pickupStartedAt: null,
-        serviceTimer: 0,
-        planMode: vehicleSnapshot.planMode,
-        previousMotion: createVehicleMotionState(),
-        motion: createVehicleMotionState(),
-        renderMotion: createVehicleMotionState(),
-      };
-
-      group.userData.vehicleId = vehicle.id;
-      group.traverse((child) => {
-        child.userData.vehicleId = vehicle.id;
-      });
-      if (clickTarget && vehicle.kind === "taxi") {
-        taxiClickTargets.push(clickTarget);
-      }
-
-      writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
-      writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
-      copyVehicleMotionState(vehicle.renderMotion, vehicle.motion);
-      setTaxiAppearance(vehicle);
-      syncVehicleTransform(vehicle, 1);
-      vehicleById.set(vehicle.id, vehicle);
-      return vehicle;
     };
 
     const upgradeTaxiVehicleMeshes = () => {
@@ -1384,10 +933,24 @@ export default function MapSimulatorSceneRuntime({
         activeVehicleIdentitySignature = nextIdentitySignature;
 
         vehicleSnapshots.forEach((vehicleSnapshot) => {
-          const vehicle = createVehicleFromSnapshot(vehicleSnapshot);
+          const vehicle = createVehicleFromSnapshot({
+            vehicleSnapshot,
+            scene,
+            routeById,
+            taxiRoutePool,
+            trafficRoutePool,
+            loopRoutes,
+            hotspotById,
+            taxiAssetTemplate,
+            trafficAssetTemplates,
+            onTaxiClickTarget: (clickTarget) => {
+              taxiClickTargets.push(clickTarget);
+            },
+          });
           if (!vehicle) {
             return;
           }
+          vehicleById.set(vehicle.id, vehicle);
           vehicles.push(vehicle);
           if (vehicle.kind === "taxi") {
             taxiVehicles.push(vehicle);
@@ -1424,30 +987,34 @@ export default function MapSimulatorSceneRuntime({
           return;
         }
 
-        vehicle.route = resolveRouteForSnapshot(vehicleSnapshot) ?? vehicle.route;
-        vehicle.baseSpeed = vehicleSnapshot.baseSpeed;
-        vehicle.speed = vehicleSnapshot.speed;
-        vehicle.safeGap = vehicleSnapshot.safeGap;
-        vehicle.length = vehicleSnapshot.length;
-        vehicle.roadName = vehicleSnapshot.roadName;
-        vehicle.palette = vehicleSnapshot.palette;
-        vehicle.planMode = vehicleSnapshot.planMode;
-        vehicle.isOccupied = vehicleSnapshot.isOccupied;
-        vehicle.pickupHotspot =
-          (vehicleSnapshot.pickupHotspotId
-            ? hotspotById.get(vehicleSnapshot.pickupHotspotId)
-            : null) ?? null;
-        vehicle.dropoffHotspot =
-          (vehicleSnapshot.dropoffHotspotId
-            ? hotspotById.get(vehicleSnapshot.dropoffHotspotId)
-            : null) ?? null;
-        writeMotionFromPose(vehicle.previousMotion, vehicleSnapshot.previousPose);
-        writeMotionFromPose(vehicle.motion, vehicleSnapshot.pose);
-        setTaxiAppearance(vehicle);
-        syncVehicleTransform(vehicle, interpolationAlpha);
+        applyVehicleSnapshot({
+          vehicle,
+          vehicleSnapshot,
+          routeById,
+          taxiRoutePool,
+          trafficRoutePool,
+          loopRoutes,
+          hotspotById,
+          interpolationAlpha,
+        });
       });
 
       syncSelectedTaxi();
+    };
+
+    const rebuildVehicleLayerFromLatestSnapshot = () => {
+      if (!latestSimulationSnapshot || sceneDisposed) {
+        return;
+      }
+
+      vehicleLayerReady = false;
+      activeVehicleIdentitySignature = "";
+      syncVehicleLayerFromSnapshot(latestSimulationSnapshot.vehicles, 1);
+      hoverNeedsUpdate = true;
+      labelRenderPending = true;
+      labelRenderAccumulator = 0;
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
     };
 
     const syncSimulationTrails = (nowMs: number) => {
@@ -1650,322 +1217,27 @@ export default function MapSimulatorSceneRuntime({
       }
     };
 
-    const dongBoundaryGlowMaterial = new THREE.MeshBasicMaterial({
-      color: 0x6dbb9b,
-      transparent: true,
-      opacity: 0.28,
-      depthWrite: false,
+    const dongBoundaryLayer = createDongBoundaryLayer({
+      boundarySegments: dongBoundarySegments,
+      wallHeight: dongBoundaryWallHeight,
     });
-    const dongBoundaryGlowMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 0.035, 1),
-      dongBoundaryGlowMaterial,
-      dongBoundarySegments.length,
-    );
+    const dongBoundaryGlowMaterial = dongBoundaryLayer.glowMaterial;
+    const dongBoundaryLineMaterial = dongBoundaryLayer.lineMaterial;
+    const dongWallMaterial = dongBoundaryLayer.wallMaterial;
+    const dongWallMesh = dongBoundaryLayer.wallMesh;
+    scene.add(dongBoundaryLayer.group);
 
-    dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, 0.26, segment.center.z);
-      dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(2.1, 1, segment.length + 1.1);
-      dummy.updateMatrix();
-      dongBoundaryGlowMesh.setMatrixAt(index, dummy.matrix);
-      dongBoundaryGlowMesh.setColorAt(index, new THREE.Color(0x87cbb0));
-    });
-
-    dongBoundaryGlowMesh.instanceMatrix.needsUpdate = true;
-    if (dongBoundaryGlowMesh.instanceColor) {
-      dongBoundaryGlowMesh.instanceColor.needsUpdate = true;
-    }
-    dongBoundaryGlowMesh.renderOrder = 35;
-    scene.add(dongBoundaryGlowMesh);
-
-    const dongBoundaryLineMaterial = new THREE.MeshBasicMaterial({
-      color: 0x87d2b0,
-      transparent: true,
-      opacity: 0.88,
-    });
-    const dongBoundaryMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 0.05, 1),
-      dongBoundaryLineMaterial,
-      dongBoundarySegments.length,
-    );
-
-    dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(segment.center.x, 0.315, segment.center.z);
-      dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(1.28, 1.4, segment.length + 0.44);
-      dummy.updateMatrix();
-      dongBoundaryMesh.setMatrixAt(index, dummy.matrix);
-      dongBoundaryMesh.setColorAt(index, new THREE.Color(0x91d6b5));
-    });
-
-    dongBoundaryMesh.instanceMatrix.needsUpdate = true;
-    if (dongBoundaryMesh.instanceColor) {
-      dongBoundaryMesh.instanceColor.needsUpdate = true;
-    }
-    dongBoundaryMesh.renderOrder = 36;
-    scene.add(dongBoundaryMesh);
-
-    const dongWallMaterial = new THREE.MeshBasicMaterial({
-      color: 0x87cbb0,
-      transparent: true,
-      opacity: 0.001,
-      depthWrite: false,
-    });
-    const dongWallMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      dongWallMaterial,
-      dongBoundarySegments.length,
-    );
-
-    dongBoundarySegments.forEach((segment, index) => {
-      dummy.position.set(
-        segment.center.x,
-        dongBoundaryWallHeight / 2,
-        segment.center.z,
-      );
-      dummy.rotation.set(0, segment.angle, 0);
-      dummy.scale.set(0.42, dongBoundaryWallHeight, segment.length + 0.16);
-      dummy.updateMatrix();
-      dongWallMesh.setMatrixAt(index, dummy.matrix);
-      dongWallMesh.setColorAt(index, new THREE.Color(0x8bffb7));
-    });
-
-    dongWallMesh.instanceMatrix.needsUpdate = true;
-    if (dongWallMesh.instanceColor) {
-      dongWallMesh.instanceColor.needsUpdate = true;
-    }
-    dongWallMesh.renderOrder = 24;
-    scene.add(dongWallMesh);
-
-    const roadMaterials = {
-      arterial: new THREE.MeshStandardMaterial({
-        color: 0x626d77,
-        roughness: 0.94,
-        metalness: 0.01,
-        emissive: 0x0d1720,
-        emissiveIntensity: 0.05,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      }),
-      connector: new THREE.MeshStandardMaterial({
-        color: 0x4e5861,
-        roughness: 0.95,
-        metalness: 0.01,
-        emissive: 0x0b131b,
-        emissiveIntensity: 0.035,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
-      }),
-      local: new THREE.MeshStandardMaterial({
-        color: 0x343c44,
-        roughness: 0.98,
-        metalness: 0.01,
-        polygonOffset: true,
-        polygonOffsetFactor: 0,
-        polygonOffsetUnits: 0,
-      }),
-    };
-    const roadSheenMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd8e2ec,
-      transparent: true,
-      opacity: 0,
-      roughness: 0.16,
-      metalness: 0.1,
-      depthWrite: false,
-    });
-
-    const laneMarkerMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3e9cf,
-      emissive: 0x4c412d,
-      emissiveIntensity: 0.06,
-      roughness: 0.82,
-    });
-    const staticRoadGroup = new THREE.Group();
-    const roadGeometries = {
-      arterial: [] as typeof roadSegments,
-      connector: [] as typeof roadSegments,
-      local: [] as typeof roadSegments,
-    };
-
-    roadSegments.forEach((segment) => {
-      if (distanceXZ(segment.start, segment.end) < 1) {
-        return;
-      }
-      roadGeometries[segment.roadClass].push(segment);
-    });
-
-    (["arterial", "connector", "local"] as const).forEach((roadClass) => {
-      const segments = roadGeometries[roadClass];
-      const mesh = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(1, 0.25, 1),
-        roadMaterials[roadClass],
-        segments.length,
-      );
-
-      segments.forEach((segment, index) => {
-        const length = distanceXZ(segment.start, segment.end);
-        const center = segment.start.clone().lerp(segment.end, 0.5);
-        const angle = Math.atan2(
-          segment.end.x - segment.start.x,
-          segment.end.z - segment.start.z,
-        );
-        dummy.position.set(center.x, ROAD_LAYER_Y[roadClass], center.z);
-        dummy.rotation.set(0, angle, 0);
-        dummy.scale.set(segment.width, 1, length + 1.2);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(index, dummy.matrix);
-      });
-
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.renderOrder =
-        roadClass === "arterial" ? 20 : roadClass === "connector" ? 10 : 0;
-      staticRoadGroup.add(mesh);
-    });
-    const roadSheenSegments = roadSegments.filter(
-      (segment) =>
-        segment.roadClass !== "local" && distanceXZ(segment.start, segment.end) >= 10,
-    );
-    const roadSheenMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 0.025, 1),
-      roadSheenMaterial,
-      roadSheenSegments.length,
-    );
-
-    roadSheenSegments.forEach((segment, index) => {
-      const length = distanceXZ(segment.start, segment.end);
-      const center = segment.start.clone().lerp(segment.end, 0.5);
-      const angle = Math.atan2(
-        segment.end.x - segment.start.x,
-        segment.end.z - segment.start.z,
-      );
-      const widthScale =
-        segment.roadClass === "arterial" ? 0.62 : 0.54;
-      dummy.position.set(center.x, ROAD_LAYER_Y[segment.roadClass] + 0.036, center.z);
-      dummy.rotation.set(0, angle, 0);
-      dummy.scale.set(segment.width * widthScale, 1, length + 0.8);
-      dummy.updateMatrix();
-      roadSheenMesh.setMatrixAt(index, dummy.matrix);
-    });
-    roadSheenMesh.instanceMatrix.needsUpdate = true;
-    roadSheenMesh.renderOrder = 22;
-    staticRoadGroup.add(roadSheenMesh);
-
-    const laneMarkers = roadSegments.flatMap((segment) => {
-      if (segment.roadClass === "local") {
-        return [];
-      }
-      const length = distanceXZ(segment.start, segment.end);
-      if (length < 12) {
-        return [];
-      }
-      const dashLength = segment.roadClass === "arterial" ? 4.8 : 3.7;
-      const gapLength = segment.roadClass === "arterial" ? 4.2 : 3.5;
-      const angle = Math.atan2(
-        segment.end.x - segment.start.x,
-        segment.end.z - segment.start.z,
-      );
-      const markerCount = Math.max(
-        1,
-        Math.floor((length - 4) / (dashLength + gapLength)),
-      );
-
-      return Array.from({ length: markerCount }, (_, markerIndex) => {
-        const dashCenter = Math.min(
-          length - dashLength * 0.5 - 2,
-          2 + markerIndex * (dashLength + gapLength) + dashLength * 0.5,
-        );
-        return {
-          center: segment.start.clone().lerp(segment.end, dashCenter / length),
-          angle,
-          length: dashLength,
-        };
-      });
-    });
-    const laneMarkerMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(0.16, 0.03, 1),
-      laneMarkerMaterial,
-      laneMarkers.length,
-    );
-
-    laneMarkers.forEach((marker, index) => {
-      dummy.position.set(marker.center.x, 0.16, marker.center.z);
-      dummy.rotation.set(0, marker.angle, 0);
-      dummy.scale.set(1, 1, marker.length);
-      dummy.updateMatrix();
-      laneMarkerMesh.setMatrixAt(index, dummy.matrix);
-    });
-    laneMarkerMesh.instanceMatrix.needsUpdate = true;
-    staticRoadGroup.add(laneMarkerMesh);
+    const staticRoadLayer = createStaticRoadLayer(roadSegments);
+    const staticRoadGroup = staticRoadLayer.group;
+    const roadMaterials = staticRoadLayer.roadMaterials;
+    const roadSheenMaterial = staticRoadLayer.roadSheenMaterial;
+    const laneMarkerMaterial = staticRoadLayer.laneMarkerMaterial;
     scene.add(staticRoadGroup);
 
-    const buildingMaterial = new THREE.MeshStandardMaterial({
-      roughness: 0.98,
-      metalness: 0.02,
-      emissive: 0x171b20,
-      emissiveIntensity: 0.025,
-    });
-    const buildingRoofMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3f6f8,
-      emissive: 0x0f1520,
-      emissiveIntensity: 0.04,
-      transparent: true,
-      opacity: 0.18,
-      roughness: 0.72,
-      metalness: 0.06,
-      depthWrite: false,
-    });
-    const buildingMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      buildingMaterial,
-      buildingFeatures.length,
-    );
-    buildingMesh.castShadow = true;
-    buildingMesh.receiveShadow = true;
-    
-    const buildingRoofMesh = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      buildingRoofMaterial,
-      buildingFeatures.length,
-    );
-    buildingRoofMesh.castShadow = true;
-    buildingRoofMesh.receiveShadow = true;
-
-    buildingFeatures.forEach((building, index) => {
-      dummy.position.set(
-        building.position.x,
-        building.height / 2,
-        building.position.z,
-      );
-      dummy.rotation.set(0, building.rotationY, 0);
-      dummy.scale.set(building.width, building.height, building.depth);
-      dummy.updateMatrix();
-      buildingMesh.setMatrixAt(index, dummy.matrix);
-      buildingMesh.setColorAt(index, new THREE.Color(building.color));
-
-      dummy.position.set(
-        building.position.x,
-        building.height + 0.12,
-        building.position.z,
-      );
-      dummy.rotation.set(0, building.rotationY, 0);
-      dummy.scale.set(
-        Math.max(0.72, building.width * 0.92),
-        0.24,
-        Math.max(0.72, building.depth * 0.92),
-      );
-      dummy.updateMatrix();
-      buildingRoofMesh.setMatrixAt(index, dummy.matrix);
-    });
-    buildingMesh.instanceMatrix.needsUpdate = true;
-    if (buildingMesh.instanceColor) {
-      buildingMesh.instanceColor.needsUpdate = true;
-    }
-    buildingRoofMesh.instanceMatrix.needsUpdate = true;
-    buildingRoofMesh.renderOrder = 8;
-    scene.add(buildingMesh);
-    scene.add(buildingRoofMesh);
+    const buildingMassLayer = createBuildingMassLayer(buildingFeatures);
+    const buildingMaterial = buildingMassLayer.buildingMaterial;
+    const buildingRoofMaterial = buildingMassLayer.buildingRoofMaterial;
+    scene.add(buildingMassLayer.group);
     const simulationTrailLayer = createVehicleTrailLayer({
       yOffset: 0.24,
       maxPoints: 34,
@@ -2331,163 +1603,22 @@ export default function MapSimulatorSceneRuntime({
         }
       });
 
-    const taxiStandBaseMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      emissive: 0x6b4b00,
-      emissiveIntensity: 0.16,
-      roughness: 0.5,
-      metalness: 0.04,
-    });
-    const taxiStandPoleMaterial = new THREE.MeshStandardMaterial({
-      color: 0x111827,
-      roughness: 0.58,
-      metalness: 0.18,
-    });
-    const taxiStandSignMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfee440,
-      emissive: 0x7c4d00,
-      emissiveIntensity: 0.2,
-      roughness: 0.42,
-    });
+    const taxiStandMarkerMaterials = createTaxiStandMarkerMaterials();
     taxiStandLandmarks.forEach((stand, index) => {
-      const group = new THREE.Group();
-      group.name = `taxi-stand-${stand.standId || index}`;
-      group.position.copy(stand.position);
-      group.rotation.y = stand.yaw;
-
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42, 0.52, 0.14, 20),
-        taxiStandBaseMaterial,
+      transitGroup.add(
+        createTaxiStandMarker(stand, index, taxiStandMarkerMaterials),
       );
-      base.position.y = 0.07;
-      group.add(base);
-
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.045, 0.055, stand.isShelter ? 1.18 : 0.9, 10),
-        taxiStandPoleMaterial,
-      );
-      pole.position.y = stand.isShelter ? 0.73 : 0.6;
-      group.add(pole);
-
-      const sign = new THREE.Mesh(
-        new THREE.BoxGeometry(stand.isShelter ? 1.05 : 0.82, 0.38, 0.12),
-        taxiStandSignMaterial,
-      );
-      sign.position.set(0.15 * stand.sideSign, stand.isShelter ? 1.32 : 1.05, 0);
-      group.add(sign);
-
-      const curbHalo = new THREE.Mesh(
-        new THREE.TorusGeometry(0.68, 0.035, 8, 28),
-        new THREE.MeshBasicMaterial({
-          color: 0xfacc15,
-          transparent: true,
-          opacity: 0.22,
-          depthWrite: false,
-        }),
-      );
-      curbHalo.rotation.x = Math.PI / 2;
-      curbHalo.position.y = 0.05;
-      group.add(curbHalo);
-
-      transitGroup.add(group);
     });
 
-    const poiMarkerGroup = new THREE.Group();
-    poiMarkerGroup.name = "context-poi-marker-layer";
-    const poiHitGeometry = new THREE.CylinderGeometry(1.65, 1.65, 2.8, 24);
-    const poiHitMaterial = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
+    const poiMarkerLayer = createPoiMarkerLayer({
+      center: simulationData.center,
+      poiRows: poiFeatureRowsRef.current ?? [],
     });
-    poiHitMaterial.colorWrite = false;
-    const poiRowsForMap = [...(poiFeatureRowsRef.current ?? [])]
-      .filter(
-        (poi) =>
-          Number.isFinite(poi.lon) &&
-          Number.isFinite(poi.lat),
-      )
-      .sort((left, right) => right.context_score - left.context_score)
-      .slice(0, 10);
-
-    poiRowsForMap.forEach((poi) => {
-      poiByCode.set(poi.poi_code, poi);
-      const projected = projectPoint(
-        [poi.lon as number, poi.lat as number],
-        simulationData.center,
-      );
-      const contextScore = poi.context_score;
-      const accent = new THREE.Color(poiMarkerColor(poi.category));
-      const group = new THREE.Group();
-      group.name = `poi-marker-${poi.poi_code}`;
-      group.position.set(projected.x, 0.24, projected.z);
-
-      const hitTarget = new THREE.Mesh(poiHitGeometry, poiHitMaterial);
-      hitTarget.name = `poi-hit-${poi.poi_code}`;
-      hitTarget.position.y = 1.12;
-      hitTarget.userData.poiCode = poi.poi_code;
-      group.add(hitTarget);
-      poiClickTargets.push(hitTarget);
-
-      const base = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.15, 1.35, 0.16, 28),
-        new THREE.MeshStandardMaterial({
-          color: 0x08111d,
-          emissive: accent,
-          emissiveIntensity: 0.14,
-          roughness: 0.72,
-          metalness: 0.08,
-          transparent: true,
-          opacity: 0.86,
-        }),
-      );
-      base.position.y = 0.05;
-      group.add(base);
-
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(1.02, 0.055, 10, 32),
-        new THREE.MeshStandardMaterial({
-          color: accent,
-          emissive: accent,
-          emissiveIntensity: 0.26,
-          roughness: 0.5,
-          transparent: true,
-          opacity: 0.82,
-        }),
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.2;
-      group.add(ring);
-
-      const stemHeight = 0.44 + Math.min(contextScore, 1) * 0.18;
-      const stem = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.095, stemHeight, 12),
-        new THREE.MeshStandardMaterial({
-          color: accent,
-          emissive: accent,
-          emissiveIntensity: 0.22,
-          roughness: 0.44,
-          transparent: true,
-          opacity: 0.9,
-        }),
-      );
-      stem.position.y = 0.22 + stemHeight / 2;
-      group.add(stem);
-
-      const cap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.24, 18, 18),
-        new THREE.MeshStandardMaterial({
-          color: accent,
-          emissive: accent,
-          emissiveIntensity: 0.3,
-          roughness: 0.36,
-        }),
-      );
-      cap.position.y = 0.32 + stemHeight;
-      group.add(cap);
-
-      poiMarkerGroup.add(group);
+    const poiMarkerGroup = poiMarkerLayer.group;
+    poiMarkerLayer.poiByCode.forEach((poi, poiCode) => {
+      poiByCode.set(poiCode, poi);
     });
+    poiClickTargets.push(...poiMarkerLayer.clickTargets);
 
     if (poiMarkerGroup.children.length > 0) {
       scene.add(poiMarkerGroup);
@@ -2517,467 +1648,41 @@ export default function MapSimulatorSceneRuntime({
       return undefined;
     }
 
-      const signalPoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3.35, 8);
-      const signalPoleMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8d98a6,
-        roughness: 0.62,
-      });
-      const signalHeadGeometry = new THREE.BoxGeometry(1.48, 0.42, 0.42);
-      const signalHeadMaterial = new THREE.MeshStandardMaterial({
-        color: 0x10161f,
-        roughness: 0.5,
-      });
+    const trafficSignalLayer = createTrafficSignalLayer({
+      signals,
+      loopRoutes,
+    });
+    signalVisuals.push(...trafficSignalLayer.signalVisuals);
+    crosswalkMaterial = trafficSignalLayer.crosswalkMaterial;
+    stopLineMaterial = trafficSignalLayer.stopLineMaterial;
+    scene.add(trafficSignalLayer.group);
 
-      const totalMasts = signals.reduce(
-        (sum, s) => sum + s.approaches.length,
-        0,
-      );
-      const signalPoleMesh = new THREE.InstancedMesh(
-        signalPoleGeometry,
-        signalPoleMaterial,
-        totalMasts,
-      );
-      const signalHeadMesh = new THREE.InstancedMesh(
-        signalHeadGeometry,
-        signalHeadMaterial,
-        totalMasts,
-      );
+    const hotspotVisualLayer = createHotspotVisualLayer({
+      hotspots: hotspotPool,
+      taxiRouteById,
+    });
+    hotspotVisuals.push(...hotspotVisualLayer.hotspotVisuals);
+    scene.add(hotspotVisualLayer.group);
 
-      let mastIndex = 0;
-      const nextSignalVisuals = signals.map((signal) => {
-        const group = new THREE.Group();
-        const reds: SignalLampVisual[] = [];
-        const yellows: SignalLampVisual[] = [];
-        const greens: SignalLampVisual[] = [];
-        const leftArrows: SignalLampVisual[] = [];
-        const pedestrianLamps: SignalLampVisual[] = [];
+    const pedestrianVisualLayer = createPedestrianVisualLayer(signalVisuals);
+    pedestrianVisuals.push(...pedestrianVisualLayer.pedestrianVisuals);
+    scene.add(pedestrianVisualLayer.group);
 
-        const mastDistance = signal.approaches.length >= 4 ? 4.2 : 3.6;
-        const lateral = 2.8;
-        const mastLayout = signal.approaches.map((direction) => {
-          const yaw = signal.approachYaws[direction] ?? 0;
-          switch (direction) {
-            case "north":
-              return {
-                axis: "ns" as const,
-                offset: new THREE.Vector3(lateral, 0, -mastDistance),
-                yaw: yaw,
-              };
-            case "south":
-              return {
-                axis: "ns" as const,
-                offset: new THREE.Vector3(-lateral, 0, mastDistance),
-                yaw: yaw,
-              };
-            case "east":
-              return {
-                axis: "ew" as const,
-                offset: new THREE.Vector3(mastDistance, 0, lateral),
-                yaw: yaw,
-              };
-            default:
-              return {
-                axis: "ew" as const,
-                offset: new THREE.Vector3(-mastDistance, 0, -lateral),
-                yaw: yaw,
-              };
-          }
-        });
-
-        mastLayout.forEach(({ axis, offset, yaw }) => {
-          dummy.position.copy(signal.visualPoint).add(offset);
-          dummy.position.y = 1.675;
-          dummy.rotation.set(0, yaw, 0);
-          dummy.scale.setScalar(1);
-          dummy.updateMatrix();
-          signalPoleMesh.setMatrixAt(mastIndex, dummy.matrix);
-
-          const headLocalOffset = new THREE.Vector3(-1.8, 0, 0);
-          const headWorldOffset = headLocalOffset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-          
-          dummy.position.add(headWorldOffset);
-          dummy.position.y = 2.62;
-          dummy.updateMatrix();
-          signalHeadMesh.setMatrixAt(mastIndex, dummy.matrix);
-
-          mastIndex += 1;
-
-          const mast = new THREE.Group();
-          mast.position.copy(offset).add(headWorldOffset);
-          mast.rotation.y = yaw;
-
-          const red = new THREE.Mesh(
-            new THREE.SphereGeometry(0.11, 12, 12),
-            new THREE.MeshStandardMaterial({
-              color: 0x431015,
-              emissive: 0x230709,
-            }),
-          );
-          red.position.set(-0.48, 2.62, 0.24);
-          mast.add(red);
-          reds.push({ mesh: red, axis });
-
-          const yellow = new THREE.Mesh(
-            new THREE.SphereGeometry(0.11, 12, 12),
-            new THREE.MeshStandardMaterial({
-              color: 0x4a3612,
-              emissive: 0x2a1806,
-            }),
-          );
-          yellow.position.set(-0.16, 2.62, 0.24);
-          mast.add(yellow);
-          yellows.push({ mesh: yellow, axis });
-
-          const leftArrow = new THREE.Mesh(
-            new THREE.SphereGeometry(0.11, 12, 12),
-            new THREE.MeshStandardMaterial({
-              color: 0x0f2218,
-              emissive: 0x07120b,
-            }),
-          );
-          leftArrow.position.set(0.16, 2.62, 0.24);
-          leftArrow.visible = signal.hasProtectedLeft;
-          mast.add(leftArrow);
-          leftArrows.push({ mesh: leftArrow, axis });
-
-          const green = new THREE.Mesh(
-            new THREE.SphereGeometry(0.11, 12, 12),
-            new THREE.MeshStandardMaterial({
-              color: 0x123f22,
-              emissive: 0x081a0f,
-            }),
-          );
-          green.position.set(0.48, 2.62, 0.24);
-          mast.add(green);
-          greens.push({ mesh: green, axis });
-
-          const pedestrianLamp = new THREE.Mesh(
-            new THREE.BoxGeometry(0.24, 0.24, 0.14),
-            new THREE.MeshStandardMaterial({
-              color: 0x222833,
-              emissive: 0x10151d,
-            }),
-          );
-          pedestrianLamp.position.set(-0.36, 2.18, 0.18);
-          mast.add(pedestrianLamp);
-          pedestrianLamps.push({ mesh: pedestrianLamp, axis });
-
-          group.add(mast);
-        });
-
-        group.position.copy(signal.visualPoint);
-        scene.add(group);
-
-        return {
-          ...signal,
-          group,
-          reds,
-          yellows,
-          greens,
-          leftArrows,
-          pedestrianLamps,
-          lastVisualSignature: "",
-        } satisfies SignalVisual;
-      });
-      signalVisuals.push(...nextSignalVisuals);
-      signalPoleMesh.instanceMatrix.needsUpdate = true;
-      signalHeadMesh.instanceMatrix.needsUpdate = true;
-      scene.add(signalPoleMesh);
-      scene.add(signalHeadMesh);
-
-      const crosswalkStripes = signalVisuals.flatMap((signal) => {
-        const stripeOffset = (CROSSWALK_STRIPE_COUNT - 1) * 0.5;
-        const nsStripes = Array.from(
-          { length: CROSSWALK_STRIPE_COUNT },
-          (_, index) => ({
-            center: signal.point
-              .clone()
-              .add(
-                new THREE.Vector3(
-                  0,
-                  0.03,
-                  (index - stripeOffset) * CROSSWALK_STEP,
-                ),
-              ),
-            angle: 0,
-            width: CROSSWALK_WIDTH,
-            depth: 0.34,
-          }),
+    taxiRoutePool
+      .filter((route) => route.name)
+      .slice(0, 6)
+      .forEach((route) => {
+        const sample = sampleRoute(route, route.totalLength * 0.4);
+        const label = new CSS2DObject(
+          labelElement(route.name as string, "road"),
         );
-        const ewStripes = Array.from(
-          { length: CROSSWALK_STRIPE_COUNT },
-          (_, index) => ({
-            center: signal.point
-              .clone()
-              .add(
-                new THREE.Vector3(
-                  (index - stripeOffset) * CROSSWALK_STEP,
-                  0.03,
-                  0,
-                ),
-              ),
-            angle: Math.PI / 2,
-            width: CROSSWALK_WIDTH,
-            depth: 0.34,
-          }),
-        );
-        return [...nsStripes, ...ewStripes];
+        label.position.copy(sample.position.clone().setY(1.6));
+        label.visible = showLabelsRef.current;
+        labelObjects.push(label);
+        optionalLabelObjects.push(label);
+        registerSceneLabel(label, "road", 2, route.name);
+        scene.add(label);
       });
-
-      crosswalkMaterial = new THREE.MeshStandardMaterial({
-        color: 0xc6cbd1,
-        emissive: 0x15181c,
-        emissiveIntensity: 0.02,
-        roughness: 0.9,
-      });
-      const crosswalkMesh = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(1, 0.02, 1),
-        crosswalkMaterial,
-        crosswalkStripes.length,
-      );
-
-      crosswalkStripes.forEach((stripe, index) => {
-        dummy.position.copy(stripe.center);
-        dummy.rotation.set(0, stripe.angle, 0);
-        dummy.scale.set(stripe.width, 1, stripe.depth);
-        dummy.updateMatrix();
-        crosswalkMesh.setMatrixAt(index, dummy.matrix);
-      });
-      crosswalkMesh.instanceMatrix.needsUpdate = true;
-      scene.add(crosswalkMesh);
-
-      const stopLineMarkers = loopRoutes
-        .filter((route) => route.roadClass !== "local")
-        .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
-
-      stopLineMaterial = new THREE.MeshStandardMaterial({
-        color: 0xd5d9dd,
-        emissive: 0x181c22,
-        emissiveIntensity: 0.03,
-        roughness: 0.82,
-      });
-      const stopLineMesh = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(1, 0.04, 0.32),
-        stopLineMaterial,
-        stopLineMarkers.length,
-      );
-
-      stopLineMarkers.forEach((marker, index) => {
-        const sample = sampleRoute(marker.route, marker.stop.distance);
-        const lanePosition = offsetToRight(
-          sample.position,
-          sample.heading,
-          marker.route.laneOffset,
-        );
-        dummy.position.set(lanePosition.x, 0.18, lanePosition.z);
-        dummy.rotation.set(
-          0,
-          Math.atan2(sample.heading.x, sample.heading.z),
-          0,
-        );
-        dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);
-        dummy.updateMatrix();
-        stopLineMesh.setMatrixAt(index, dummy.matrix);
-      });
-      stopLineMesh.instanceMatrix.needsUpdate = true;
-      scene.add(stopLineMesh);
-
-      const nextHotspotVisuals = hotspotPool.map((hotspot, index) => {
-        const group = new THREE.Group();
-        const baseColor = HOTSPOT_IDLE_COLORS[index % HOTSPOT_IDLE_COLORS.length]!;
-        const hotspotRoute = taxiRouteById.get(hotspot.routeId);
-        const hotspotSample = hotspotRoute
-          ? sampleRoute(hotspotRoute, hotspot.distance)
-          : {
-            position: hotspot.position.clone(),
-            heading: new THREE.Vector3(0, 0, 1),
-          };
-
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.96, 1.12, 0.12, 20),
-          new THREE.MeshStandardMaterial({
-            color: 0x2c2f33,
-            emissive: baseColor,
-            emissiveIntensity: 0.05,
-            roughness: 0.82,
-            metalness: 0.04,
-          }),
-        );
-        const baseMaterial = base.material as THREE.MeshStandardMaterial;
-        base.position.y = 0.08;
-        base.scale.setScalar(0.72);
-        baseMaterial.emissiveIntensity = 0.025;
-        group.add(base);
-
-        const glow = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.66, 0.78, 0.08, 18),
-          new THREE.MeshStandardMaterial({
-            color: 0xd2cbc0,
-            emissive: baseColor,
-            emissiveIntensity: 0.08,
-            transparent: true,
-            opacity: 0.18,
-            roughness: 0.56,
-          }),
-        );
-        const glowMaterial = glow.material as THREE.MeshStandardMaterial;
-        glow.position.y = 0.18;
-        glow.scale.setScalar(0.62);
-        glowMaterial.emissiveIntensity = 0.035;
-        glowMaterial.opacity = 0.1;
-        group.add(glow);
-
-        const beacon = new THREE.Mesh(
-          new THREE.SphereGeometry(0.28, 18, 18),
-          new THREE.MeshStandardMaterial({
-            color: 0xd9d4cb,
-            emissive: baseColor,
-            emissiveIntensity: 0.12,
-            transparent: true,
-            opacity: 0.22,
-            roughness: 0.4,
-          }),
-        );
-        const beaconMaterial = beacon.material as THREE.MeshStandardMaterial;
-        beacon.position.y = 0.34;
-        beacon.scale.setScalar(0.56);
-        beaconMaterial.emissiveIntensity = 0.045;
-        beaconMaterial.opacity = 0.12;
-        group.add(beacon);
-
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.82, 0.05, 10, 28),
-          new THREE.MeshStandardMaterial({
-            color: 0xcfc4ad,
-            emissive: baseColor,
-            emissiveIntensity: 0.08,
-            roughness: 0.68,
-          }),
-        );
-        const ringMaterial = ring.material as THREE.MeshStandardMaterial;
-        ring.rotation.x = Math.PI / 2;
-        ring.position.y = 0.18;
-        ring.scale.setScalar(0.68);
-        ringMaterial.emissiveIntensity = 0.03;
-        group.add(ring);
-
-        const caller = createCallerGroup(index);
-        const curbOffset = hotspotRoute
-          ? curbsideLaneOffset(hotspotRoute) + CURBSIDE_SIDEWALK_OFFSET
-          : 2.15;
-        const callerAnchor = offsetToRight(
-          hotspotSample.position,
-          hotspotSample.heading,
-          curbOffset,
-        ).addScaledVector(hotspotSample.heading, -0.3);
-        caller.group.position.set(
-          callerAnchor.x - hotspot.position.x,
-          0.04,
-          callerAnchor.z - hotspot.position.z,
-        );
-        caller.group.rotation.y = Math.atan2(
-          hotspotSample.position.x - callerAnchor.x,
-          hotspotSample.position.z - callerAnchor.z,
-        );
-        caller.group.visible = false;
-        caller.waveArmPivot.rotation.z = -0.72;
-        caller.hailCube.scale.setScalar(0.62);
-        (caller.hailCube.material as THREE.MeshStandardMaterial).emissiveIntensity =
-          0.03;
-        group.add(caller.group);
-
-        const callBadge = new CSS2DObject(hotspotCallElement());
-        const badgeElement = callBadge.element as HTMLDivElement;
-        callBadge.position.set(0, 1.92, 0);
-        callBadge.visible = false;
-        group.add(callBadge);
-
-        group.position.copy(hotspot.position);
-        scene.add(group);
-        return {
-          hotspot,
-          base,
-          baseMaterial,
-          glow,
-          glowMaterial,
-          beacon,
-          beaconMaterial,
-          ring,
-          ringMaterial,
-          callerGroup: caller.group,
-          waveArmPivot: caller.waveArmPivot,
-          hailCube: caller.hailCube,
-          hailMaterial: caller.hailCube.material as THREE.MeshStandardMaterial,
-          callBadge,
-          badgeElement,
-          lastMarkerMode: "idle",
-          lastAccentColor: baseColor,
-          lastBadgeText: "",
-        } satisfies HotspotVisual;
-      });
-      hotspotVisuals.push(...nextHotspotVisuals);
-
-      const nextPedestrianVisuals: PedestrianVisual[] = signalVisuals.flatMap(
-        (signal, signalIndex) => [
-          {
-            signalId: signal.id,
-            axis: "ns" as const,
-            group: createPedestrianGroup(signalIndex),
-            phaseOffset: signalIndex * 0.17,
-            speed: 0.18 + (signalIndex % 3) * 0.03,
-            lateralOffset: -2.1,
-            direction: 1 as const,
-          },
-          {
-            signalId: signal.id,
-            axis: "ns" as const,
-            group: createPedestrianGroup(signalIndex + 2),
-            phaseOffset: signalIndex * 0.13 + 0.4,
-            speed: 0.16 + (signalIndex % 2) * 0.02,
-            lateralOffset: 2.1,
-            direction: -1 as const,
-          },
-          {
-            signalId: signal.id,
-            axis: "ew" as const,
-            group: createPedestrianGroup(signalIndex + 4),
-            phaseOffset: signalIndex * 0.11 + 0.2,
-            speed: 0.19 + (signalIndex % 4) * 0.02,
-            lateralOffset: -2.1,
-            direction: 1 as const,
-          },
-          {
-            signalId: signal.id,
-            axis: "ew" as const,
-            group: createPedestrianGroup(signalIndex + 7),
-            phaseOffset: signalIndex * 0.09 + 0.6,
-            speed: 0.17 + (signalIndex % 3) * 0.02,
-            lateralOffset: 2.1,
-            direction: -1 as const,
-          },
-        ],
-      );
-      nextPedestrianVisuals.forEach((pedestrian) => {
-        pedestrian.group.visible = false;
-        scene.add(pedestrian.group);
-      });
-      pedestrianVisuals.push(...nextPedestrianVisuals);
-
-      taxiRoutePool
-        .filter((route) => route.name)
-        .slice(0, 6)
-        .forEach((route) => {
-          const sample = sampleRoute(route, route.totalLength * 0.4);
-          const label = new CSS2DObject(
-            labelElement(route.name as string, "road"),
-          );
-          label.position.copy(sample.position.clone().setY(1.6));
-          label.visible = showLabelsRef.current;
-          labelObjects.push(label);
-          optionalLabelObjects.push(label);
-          registerSceneLabel(label, "road", 2, route.name);
-          scene.add(label);
-        });
 
     syncLabelVisibility(activeCameraMode);
 
@@ -3044,75 +1749,11 @@ export default function MapSimulatorSceneRuntime({
     };
 
     let taxiAssetLoadStarted = false;
-    let lastUserInteractionTimestamp = performance.now();
-    const deferredAssetUserIdleMs = 650;
-    const markUserInteraction = () => {
-      lastUserInteractionTimestamp = performance.now();
-    };
-    const waitForIdleSlice = (callback: () => void, timeoutMs: number) => {
-      const requestIdleCallback = window.requestIdleCallback?.bind(window);
-      if (requestIdleCallback) {
-        return requestIdleCallback(
-          () => {
-            if (!sceneDisposed) {
-              callback();
-            }
-          },
-          { timeout: timeoutMs },
-        );
-      }
-
-      return window.setTimeout(() => {
-        if (!sceneDisposed) {
-          callback();
-        }
-      }, 0);
-    };
-    const cancelIdleSlice = (handle: number) => {
-      if (!handle) {
-        return;
-      }
-      const cancelIdleCallback = window.cancelIdleCallback?.bind(window);
-      if (cancelIdleCallback) {
-        cancelIdleCallback(handle);
-        return;
-      }
-      window.clearTimeout(handle);
-    };
-    const scheduleDeferredAssetLoad = (
-      callback: () => void,
-      delayMs: number,
-      idleTimeoutMs: number,
-    ) => {
-      let idleHandle = 0;
-      let retryHandle = 0;
-      const scheduleWhenInteractionSettles = () => {
-        if (sceneDisposed) {
-          return;
-        }
-
-        const idleForMs = performance.now() - lastUserInteractionTimestamp;
-        if (idleForMs < deferredAssetUserIdleMs) {
-          retryHandle = window.setTimeout(
-            scheduleWhenInteractionSettles,
-            Math.min(deferredAssetUserIdleMs - idleForMs, 420),
-          );
-          return;
-        }
-
-        idleHandle = waitForIdleSlice(callback, idleTimeoutMs);
-      };
-      const timeoutHandle = window.setTimeout(
-        scheduleWhenInteractionSettles,
-        delayMs,
-      );
-
-      return () => {
-        window.clearTimeout(timeoutHandle);
-        window.clearTimeout(retryHandle);
-        cancelIdleSlice(idleHandle);
-      };
-    };
+    const deferredAssetLoadScheduler = createDeferredAssetLoadScheduler({
+      isDisposed: () => sceneDisposed,
+    });
+    const markUserInteraction = deferredAssetLoadScheduler.markUserInteraction;
+    const scheduleDeferredAssetLoad = deferredAssetLoadScheduler.schedule;
     const loadTaxiAssetInBackground = () => {
       if (sceneDisposed || taxiAssetTemplate || taxiAssetLoadStarted) {
         return;
@@ -3145,6 +1786,65 @@ export default function MapSimulatorSceneRuntime({
             "Failed to load Kakao taxi asset; keeping refined fallback taxi.",
             error,
           );
+        }
+      })();
+    };
+    let trafficAssetLoadStarted = false;
+    const disposeTrafficAssetTemplates = (
+      templates: ReadonlyMap<TrafficVehicleModelKey, THREE.Group>,
+    ) => {
+      templates.forEach((template) => {
+        disposeObject3DResources(template);
+      });
+    };
+    const loadTrafficAssetsInBackground = () => {
+      if (
+        sceneDisposed ||
+        trafficAssetTemplates.size > 0 ||
+        trafficAssetLoadStarted
+      ) {
+        return;
+      }
+
+      trafficAssetLoadStarted = true;
+      void (async () => {
+        const nextTemplates = new Map<TrafficVehicleModelKey, THREE.Group>();
+        for (const spec of KAKAO_TRAFFIC_ASSET_SPECS) {
+          let loadedTemplate: THREE.Group | null = null;
+          try {
+            loadedTemplate = await loadVehicleAssetTemplate(spec.path);
+            if (sceneDisposed) {
+              disposeObject3DResources(loadedTemplate);
+              loadedTemplate = null;
+              break;
+            }
+
+            const normalizedTemplate = normalizeTrafficAssetTemplate(
+              loadedTemplate,
+              spec.targetLength,
+            );
+            loadedTemplate = null;
+            nextTemplates.set(spec.key, normalizedTemplate);
+          } catch (error) {
+            if (loadedTemplate) {
+              disposeObject3DResources(loadedTemplate);
+            }
+            console.warn(
+              `Failed to load Kakao traffic asset: ${spec.path}`,
+              error,
+            );
+          }
+        }
+
+        if (sceneDisposed) {
+          disposeTrafficAssetTemplates(nextTemplates);
+          return;
+        }
+
+        if (nextTemplates.size > 0) {
+          disposeTrafficAssetTemplates(trafficAssetTemplates);
+          trafficAssetTemplates = nextTemplates;
+          rebuildVehicleLayerFromLatestSnapshot();
         }
       })();
     };
@@ -4839,11 +3539,17 @@ export default function MapSimulatorSceneRuntime({
       TAXI_ASSET_LOAD_DELAY_MS,
       TAXI_ASSET_IDLE_TIMEOUT_MS,
     );
+    const cancelTrafficAssetLoadSchedule = scheduleDeferredAssetLoad(
+      loadTrafficAssetsInBackground,
+      TRAFFIC_ASSET_LOAD_DELAY_MS,
+      TRAFFIC_ASSET_IDLE_TIMEOUT_MS,
+    );
     animate();
 
     return () => {
       sceneDisposed = true;
       cancelTaxiAssetLoadSchedule();
+      cancelTrafficAssetLoadSchedule();
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointerdown", markUserInteraction, true);
@@ -4878,6 +3584,7 @@ export default function MapSimulatorSceneRuntime({
       if (taxiAssetTemplate) {
         disposeObject3DResources(taxiAssetTemplate);
       }
+      disposeTrafficAssetTemplates(trafficAssetTemplates);
       const currentNonRoadGroup = nonRoadGroup;
       if (currentNonRoadGroup) {
         currentNonRoadGroup.removeFromParent();
@@ -4893,6 +3600,12 @@ export default function MapSimulatorSceneRuntime({
       if (roadNetworkGroupRef.current === roadNetworkOverlay) {
         roadNetworkGroupRef.current = null;
       }
+      trafficSignalLayer.group.removeFromParent();
+      disposeObject3DResources(trafficSignalLayer.group);
+      hotspotVisualLayer.group.removeFromParent();
+      disposeObject3DResources(hotspotVisualLayer.group);
+      pedestrianVisualLayer.group.removeFromParent();
+      disposeObject3DResources(pedestrianVisualLayer.group);
       vehicleLayerReady = false;
       clearVehicleLayer();
       if (transitGroupRef.current === transitGroup) {
@@ -4915,12 +3628,12 @@ export default function MapSimulatorSceneRuntime({
       disposeObject3DResources(demandFloorGroup);
       dongFloorGroup.removeFromParent();
       disposeObject3DResources(dongFloorGroup);
+      dongBoundaryLayer.group.removeFromParent();
+      disposeObject3DResources(dongBoundaryLayer.group);
       staticRoadGroup.removeFromParent();
       disposeObject3DResources(staticRoadGroup);
-      buildingMesh.removeFromParent();
-      disposeObject3DResources(buildingMesh);
-      buildingRoofMesh.removeFromParent();
-      disposeObject3DResources(buildingRoofMesh);
+      buildingMassLayer.group.removeFromParent();
+      disposeObject3DResources(buildingMassLayer.group);
       poiMarkerGroup.removeFromParent();
       disposeObject3DResources(poiMarkerGroup);
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
@@ -4946,7 +3659,6 @@ export default function MapSimulatorSceneRuntime({
     poiFeatureRowsRef,
     selectedDemandDongRef,
     selectedDemandScoreRef,
-    simulationSource,
     showLabelsRef,
     showNonRoadRef,
     showRoadNetworkRef,

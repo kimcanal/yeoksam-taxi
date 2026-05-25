@@ -1,6 +1,6 @@
 import * as THREE from "three";
+import { deserializeRoadGraph } from "@/components/map-simulator/road-routing-utils";
 import {
-  deserializeRoadGraph,
   type BuildingMass,
   type DongBoundarySegment,
   type DongRegion,
@@ -16,7 +16,7 @@ import {
   type TaxiStandLandmark,
   type TransitLandmark,
   type TurnRestriction,
-} from "@/components/map-simulator/core";
+} from "@/components/map-simulator/map-simulator-types";
 
 type PlainVector3 = { x: number; y: number; z: number };
 
