@@ -1314,7 +1314,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
           startX: event.clientX,
           startY: event.clientY,
         });
-        renderer.domElement.setPointerCapture(event.pointerId);
         pointerDownClientX = event.clientX;
         pointerDownClientY = event.clientY;
         pointerDragged = false;
@@ -1431,9 +1430,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
           activeTouchPointers.size === 1 &&
           !pointerDragged &&
           !touchGestureState.usedMultiTouch;
-        if (renderer.domElement.hasPointerCapture(event.pointerId)) {
-          renderer.domElement.releasePointerCapture(event.pointerId);
-        }
         activeTouchPointers.delete(event.pointerId);
         markHoverDirty();
 

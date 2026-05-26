@@ -34,6 +34,8 @@ export function createMapSceneRenderers({
   renderer.toneMappingExposure = 1.02;
   renderer.domElement.style.cursor = "grab";
   renderer.domElement.style.touchAction = "none";
+  renderer.domElement.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+  renderer.domElement.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(container.clientWidth, container.clientHeight);
