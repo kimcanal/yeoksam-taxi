@@ -84,6 +84,14 @@ rendering stability.
 - Removed the now-unused `dongDemandScoresRef` runtime prop after broad demand
   heatmap floor overlays were removed.
 
+## 7. UI/UX 및 실감형 환경 고도화 (UI/UX & Realism Enhancements)
+
+- **Typography & Aesthetics**: 전역 폰트를 시스템 기본 폰트에서 `Pretendard` 로 변경하여 한층 모던하고 깔끔한 프리미엄 UI 디자인 확보 (`layout.tsx`, `globals.css`).
+- **Micro-animations**: `DemandChart.tsx` 의 차트 라인(SVG Path)과 사이드바 정보 표기 영역에 `transition-all duration-500` 을 적용하여 데이터 변경 시 부드럽게 형태가 변하도록 동적 효과(Dynamic Animation) 추가.
+- **Graphics Quality Toggle**: 고성능 환경을 위한 그래픽 품질 토글 추가. `simulator-stores.ts` 와 `MapToolbar.tsx` 에 `graphicsQuality` (성능 우선 / 품질 우선) 상태를 추가하고, `simulator-engine.ts` 내부의 `sceneStore.subscribe` 를 통해 실시간 안티앨리어싱 및 그림자 맵 (Shadow Map) 활성화 여부를 즉시 렌더러에 반영하도록 개선.
+- **Mock API Realism**: `route.ts` 에서 제공하는 결정론적(Deterministic) 가상 수요 데이터에 네트워크 레이턴시 시뮬레이션(300ms~800ms) 및 ±5% 내외의 랜덤 노이즈(Random Noise)를 추가하여 센서/라이브 데이터를 가져오는 듯한 현실감을 부여함.
+- **SEO Optimization**: `layout.tsx` 메타데이터에 Open Graph 및 Twitter 카드 상세 정보를 보강하여 웹 표준에 부합하는 공유 최적화.
+
 ## Verification
 
 - `npx tsc --noEmit`: passed
@@ -110,6 +118,10 @@ rendering stability.
   - HTTP 200 from the local dev server
   - headless browser canvas rendered at `1216 x 629`
   - no browser console errors were reported by the smoke script
+- UX/UI & Realism validation:
+  - `Pretendard` 폰트가 전역으로 올바르게 로드되어 적용됨
+  - API 통신 시 지연 발생 및 차트 애니메이션 부드러운 전환 동작 확인
+  - 툴바 그래픽 품질 변경 버튼 클릭 시 Three.js 그림자 맵 실시간 갱신 확인
 
 ## Notes
 

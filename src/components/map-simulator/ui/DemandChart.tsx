@@ -84,7 +84,11 @@ export function DemandChart({
                 </text>
               </g>
             ))}
-            <path d={demandChart.areaPath} fill="url(#demandCurveFill)" />
+            <path 
+              d={demandChart.areaPath} 
+              fill="url(#demandCurveFill)" 
+              className="transition-all duration-500 ease-out"
+            />
             <path
               d={demandChart.trendPath}
               fill="none"
@@ -93,6 +97,7 @@ export function DemandChart({
               strokeLinecap="round"
               strokeWidth="1.6"
               opacity="0.9"
+              className="transition-all duration-500 ease-out"
             />
             <path
               d={demandChart.linePath}
@@ -101,6 +106,7 @@ export function DemandChart({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2.4"
+              className="transition-all duration-500 ease-out"
             />
             <circle
               cx={demandChart.peakX}
@@ -109,6 +115,7 @@ export function DemandChart({
               fill="#fff7ed"
               stroke="#fb7185"
               strokeWidth="1.6"
+              className="transition-all duration-500 ease-out"
             />
           </svg>
         ) : (

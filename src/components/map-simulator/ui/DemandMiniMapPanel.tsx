@@ -11,6 +11,8 @@ import {
   PANEL_SECTION_LABEL_CLASS,
 } from "@/components/map-simulator/panel-classes";
 
+import { useId } from "react";
+
 type DemandMiniMapPanelProps = {
   demandMiniMap: DemandMiniMapData | null;
   selectedDongName: string;
@@ -24,19 +26,15 @@ export function DemandMiniMapPanel({
   mapPoiFeatureRows,
   onPoiSelect,
 }: DemandMiniMapPanelProps) {
-  let fovPath = "";
+  const fovGradientId = useId().replace(/:/g, "-") + "-fov";
+  const glowFilterId = useId().replace(/:/g, "-") + "-glow";
+
+  let focusAngle = 0;
   if (demandMiniMap?.focusHeading) {
     const { x1, y1, x2, y2 } = demandMiniMap.focusHeading;
     const dx = x2 - x1;
     const dy = y2 - y1;
-    const angle = Math.atan2(dy, dx);
-    const fov = Math.PI / 3.5;
-    const dist = Math.hypot(dx, dy) * 1.8;
-    const px1 = x1 + Math.cos(angle - fov / 2) * dist;
-    const py1 = y1 + Math.sin(angle - fov / 2) * dist;
-    const px2 = x1 + Math.cos(angle + fov / 2) * dist;
-    const py2 = y1 + Math.sin(angle + fov / 2) * dist;
-    fovPath = `M ${x1} ${y1} L ${px1} ${py1} A ${dist} ${dist} 0 0 1 ${px2} ${py2} Z`;
+    focusAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
   }
 
   return (
@@ -62,13 +60,28 @@ export function DemandMiniMapPanel({
             className="block aspect-square w-full"
           >
             <defs>
-              <radialGradient id="demandFocusGlow">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-                <stop offset="50%" stopColor="rgba(34,211,238,0.35)" />
+              <linearGradient id={fovGradientId} x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stopColor="rgba(34,211,238,0.55)" />
                 <stop offset="100%" stopColor="rgba(34,211,238,0)" />
-              </radialGradient>
+              </linearGradient>
+              <filter id={glowFilterId} x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="1.2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
             </defs>
             <rect x="0" y="0" width="100" height="100" fill="#07111c" />
+
+            <g className="select-none pointer-events-none">
+              <text x="50" y="5.5" textAnchor="middle" fill="#475569" fontSize="3.5" fontWeight="700" letterSpacing="0.05em">N</text>
+              <text x="50" y="97.5" textAnchor="middle" fill="#475569" fontSize="3.5" fontWeight="700" letterSpacing="0.05em">S</text>
+              <text x="97" y="51.2" textAnchor="middle" fill="#475569" fontSize="3.5" fontWeight="700" letterSpacing="0.05em">E</text>
+              <text x="3" y="51.2" textAnchor="middle" fill="#475569" fontSize="3.5" fontWeight="700" letterSpacing="0.05em">W</text>
+              
+              <line x1="50" y1="8" x2="50" y2="11.5" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="50" y1="88.5" x2="50" y2="92" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="88.5" y1="50" x2="92" y2="50" stroke="#1e293b" strokeWidth="0.5" />
+              <line x1="8" y1="50" x2="11.5" y2="50" stroke="#1e293b" strokeWidth="0.5" />
+            </g>
             {demandMiniMap.regions.map((region) => (
               <g key={`${region.name}-shape`}>
                 <path
@@ -92,27 +105,32 @@ export function DemandMiniMapPanel({
             ))}
             {demandMiniMap.focus ? (
               <g>
-                <circle
-                  cx={demandMiniMap.focus.x}
-                  cy={demandMiniMap.focus.y}
-                  r="7"
-                  fill="url(#demandFocusGlow)"
-                />
                 {demandMiniMap.focusHeading ? (
-                  <path
-                    d={fovPath}
-                    fill="url(#demandFocusGlow)"
-                    opacity="0.85"
+                  <g transform={`translate(${demandMiniMap.focus.x}, ${demandMiniMap.focus.y}) rotate(${focusAngle + 90})`}>
+                    <path
+                      d="M 0 0 L 14 -22 A 26 26 0 0 1 -14 -22 Z"
+                      fill={`url(#${fovGradientId})`}
+                    />
+                    <path
+                      d="M 0 -3.5 L 2.5 2.5 L 0 1 L -2.5 2.5 Z"
+                      fill="#ffffff"
+                      stroke="#06b6d4"
+                      strokeWidth="0.6"
+                      strokeLinejoin="round"
+                      filter={`url(#${glowFilterId})`}
+                    />
+                  </g>
+                ) : (
+                  <circle
+                    cx={demandMiniMap.focus.x}
+                    cy={demandMiniMap.focus.y}
+                    r="1.8"
+                    fill="#e0f2fe"
+                    stroke="#22d3ee"
+                    strokeWidth="0.5"
+                    filter={`url(#${glowFilterId})`}
                   />
-                ) : null}
-                <circle
-                  cx={demandMiniMap.focus.x}
-                  cy={demandMiniMap.focus.y}
-                  r="1.8"
-                  fill="#e0f2fe"
-                  stroke="#22d3ee"
-                  strokeWidth="0.5"
-                />
+                )}
               </g>
             ) : null}
             {demandMiniMap.regions.map((region) => (

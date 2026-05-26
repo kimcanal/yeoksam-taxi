@@ -28,6 +28,8 @@ export type MiniMapFocus = {
   yawControlValue: number;
 };
 
+export type GraphicsQuality = "performance" | "quality";
+
 type SceneState = {
   data: SimulationData | null;
   status: SceneStatus;
@@ -39,6 +41,7 @@ type SceneState = {
   weatherMode: WeatherMode;
   trafficLoadPercent: number;
   cameraMode: CameraMode;
+  graphicsQuality: GraphicsQuality;
   miniMapFocus: MiniMapFocus | null;
   followTaxiId: string;
   showFps: boolean;
@@ -64,6 +67,7 @@ const initialSceneState: SceneState = {
   weatherMode: "clear",
   trafficLoadPercent: DEFAULT_TRAFFIC_LOAD_PERCENT,
   cameraMode: "overview",
+  graphicsQuality: "performance",
   miniMapFocus: null,
   followTaxiId: "",
   showFps: false,
@@ -115,6 +119,7 @@ export const sceneSetters = {
   setWeatherMode: createFieldSetter(sceneStore, "weatherMode"),
   setTrafficLoadPercent: createFieldSetter(sceneStore, "trafficLoadPercent"),
   setCameraMode: createFieldSetter(sceneStore, "cameraMode"),
+  setGraphicsQuality: createFieldSetter(sceneStore, "graphicsQuality"),
   setMiniMapFocus: createFieldSetter(sceneStore, "miniMapFocus"),
   setFollowTaxiId: createFieldSetter(sceneStore, "followTaxiId"),
   setShowFps: createFieldSetter(sceneStore, "showFps"),

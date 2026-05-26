@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Minimize2, Maximize2, Gauge, Menu, X } from "lucide-react";
+import { Minimize2, Maximize2, Gauge, Menu, X, Sparkles } from "lucide-react";
+import { sceneStore, sceneSetters } from "@/components/map-simulator/simulator-stores";
 
 export function mapToolButtonClass(active: boolean) {
   return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${
@@ -28,6 +29,10 @@ export function MapToolbar({
   isSidebarVisible,
   toggleSidebar,
 }: MapToolbarProps) {
+  const graphicsQuality = sceneStore.useStore((state) => state.graphicsQuality);
+  const { setGraphicsQuality } = sceneSetters;
+  const isQualityMode = graphicsQuality === "quality";
+
   return (
     <>
       <div
@@ -62,6 +67,19 @@ export function MapToolbar({
         >
           <Gauge className="h-4 w-4" aria-hidden="true" />
           <span>FPS</span>
+        </button>
+
+        <button
+          type="button"
+          data-ui-control="graphics-quality-toggle"
+          aria-label={isQualityMode ? "고품질 모드 해제" : "고품질 모드 적용"}
+          aria-pressed={isQualityMode}
+          title={isQualityMode ? "성능 우선 모드로 변경" : "품질 우선 모드로 변경"}
+          onClick={() => setGraphicsQuality(isQualityMode ? "performance" : "quality")}
+          className={mapToolButtonClass(isQualityMode)}
+        >
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <span>{isQualityMode ? "고품질" : "성능"}</span>
         </button>
       </div>
 

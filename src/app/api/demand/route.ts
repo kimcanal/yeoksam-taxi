@@ -147,6 +147,9 @@ function demandForHour({
 }
 
 export async function GET(request: Request) {
+  // Simulate network latency (300ms ~ 800ms)
+  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 500));
+
   const url = new URL(request.url);
   const requestedDong = url.searchParams.get("dong")?.trim() ?? "";
   const dong = TARGET_DONGS.includes(requestedDong as (typeof TARGET_DONGS)[number])
@@ -160,12 +163,16 @@ export async function GET(request: Request) {
   const month = Number(date.slice(5, 7));
 
   const points = Array.from({ length: 24 }, (_, pointHour) => {
-    const demandCount = demandForHour({
+    const baseDemand = demandForHour({
       date,
       dong,
       hour: pointHour,
       weekday,
     });
+    // Add ±5% random noise for realism
+    const noiseMultiplier = 1 + (Math.random() * 0.1 - 0.05);
+    const demandCount = Math.max(12, Math.round(baseDemand * noiseMultiplier));
+
     const condition = weatherForHour(seed, pointHour, month);
     const trafficBase =
       510 +

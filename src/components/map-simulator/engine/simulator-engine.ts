@@ -6,6 +6,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { sceneStore } from "@/components/map-simulator/simulator-stores";
 import {
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
@@ -25,6 +26,7 @@ import {
   CAMERA_TOUCH_PITCH_LOCK_DISTANCE,
   CAMERA_TOUCH_PITCH_SENSITIVITY,
   CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
+  ENABLE_REALTIME_SHADOWS,
   HIDDEN_RENDER_FPS,
   HOVER_REFRESH_INTERVAL,
   LABEL_RENDER_INTERVAL,
@@ -664,14 +666,28 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     };
 
     const applyRenderBudget = (mode: CameraMode) => {
-      renderer.setPixelRatio(
-        resolvedRendererPixelRatioFor(
+      const graphicsQuality = sceneStore.getState().graphicsQuality;
+      
+      let pixelRatio = window.devicePixelRatio || 1;
+      if (graphicsQuality === "performance") {
+        pixelRatio = resolvedRendererPixelRatioFor(
           mode,
           isPageHidden,
-          window.devicePixelRatio || 1,
-        ),
-      );
+          pixelRatio,
+        );
+      }
+      
+      renderer.setPixelRatio(pixelRatio);
       renderer.setSize(container.clientWidth, container.clientHeight, false);
+      
+      if (renderer.shadowMap.enabled !== (graphicsQuality === "quality" && ENABLE_REALTIME_SHADOWS)) {
+        renderer.shadowMap.enabled = graphicsQuality === "quality" && ENABLE_REALTIME_SHADOWS;
+        scene.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            child.material.needsUpdate = true;
+          }
+        });
+      }
     };
 
     let activeHighlightedDongNames: string[] = [];
@@ -1624,6 +1640,15 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
         : new ResizeObserver(() => onResize());
     resizeObserver?.observe(container);
 
+    let lastGraphicsQuality = sceneStore.getState().graphicsQuality;
+    const unsubscribeStore = sceneStore.subscribe(() => {
+      const currentGraphicsQuality = sceneStore.getState().graphicsQuality;
+      if (currentGraphicsQuality !== lastGraphicsQuality) {
+        lastGraphicsQuality = currentGraphicsQuality;
+        applyRenderBudget(cameraModeRef.current);
+      }
+    });
+
     applyEnvironment(
       simulationDateRef.current,
       simulationTimeRef.current,
@@ -2112,6 +2137,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
 
     return () => {
       sceneDisposed = true;
+      unsubscribeStore();
       cancelTaxiAssetLoadSchedule();
       cancelTrafficAssetLoadSchedule();
       window.cancelAnimationFrame(animationFrame);
