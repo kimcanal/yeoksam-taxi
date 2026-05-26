@@ -2,7 +2,7 @@ import {
   DEMAND_WEEKDAYS,
   TARGET_DONGS,
   type DemandWeekdayId,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand";
 
 export type DemandControlsProps = {
   selectedDongName: string;

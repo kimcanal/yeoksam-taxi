@@ -1,28 +1,28 @@
 import * as THREE from "three";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
-import type { CameraMode } from "@/components/map-simulator/camera-types";
+import type { CameraMode } from "@/components/map-simulator/camera";
 import type {
   DongBoundarySegment,
   Vehicle,
-} from "@/components/map-simulator/map-simulator-types";
+} from "@/components/map-simulator/types";
 import {
   updateTrafficSignalVisuals,
-} from "@/components/map-simulator/traffic-signal-layer";
+} from "@/components/map-simulator/signal";
 import {
   updateHotspotVisualLayer,
-} from "@/components/map-simulator/hotspot-visual-layer";
+} from "@/components/map-simulator/scene";
 import {
   updatePedestrianVisualLayer,
-} from "@/components/map-simulator/pedestrian-visual-layer";
+} from "@/components/map-simulator/scene";
 import {
   updateDemandVisualLayer,
-} from "@/components/map-simulator/demand-visual-layer";
+} from "@/components/map-simulator/demand";
 import {
   HOVER_REFRESH_INTERVAL,
   LABEL_RENDER_INTERVAL,
   LABEL_VISIBILITY_REFRESH_INTERVAL,
-} from "@/components/map-simulator/scene-constants";
-import type { SimulationSnapshot } from "@/components/map-simulator/simulation-source";
+} from "@/components/map-simulator/scene";
+import type { SimulationSnapshot } from "@/components/map-simulator/simulation";
 
 export function createEngineVisualUpdater(
   ctx: EngineSceneContext,

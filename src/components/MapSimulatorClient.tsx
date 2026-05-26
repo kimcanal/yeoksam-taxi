@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
 type MapSimulatorClientProps = {
   buildVersion: BuildVersionInfo;

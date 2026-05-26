@@ -2,7 +2,7 @@ import {
   DEMAND_WEEKDAYS,
   TARGET_DONGS,
   type DemandWeekdayId,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand/demand-types";
 
 const DEFAULT_DONG = "역삼1동";
 const DEFAULT_TIMEZONE = "Asia/Seoul";

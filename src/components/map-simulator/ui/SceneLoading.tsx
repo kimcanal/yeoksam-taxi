@@ -1,5 +1,5 @@
 import { PANEL_TOKEN_CLASS } from "@/components/map-simulator/panel-classes";
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
 type SceneLoadingProps = {
   statusLabel: string;

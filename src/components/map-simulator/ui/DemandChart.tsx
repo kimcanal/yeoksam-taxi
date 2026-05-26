@@ -1,8 +1,8 @@
 import type {
   DemandChartGeometry,
   DemandWeekdayId,
-} from "@/components/map-simulator/demand-types";
-import { weekdayLabel } from "@/components/map-simulator/demand-math";
+} from "@/components/map-simulator/demand";
+import { weekdayLabel } from "@/components/map-simulator/demand";
 
 type DemandChartProps = {
   hasDemandData: boolean;

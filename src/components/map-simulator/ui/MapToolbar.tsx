@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Minimize2, Maximize2, Gauge, Menu, X, Sparkles } from "lucide-react";
-import { sceneStore, sceneSetters } from "@/components/map-simulator/simulator-stores";
+import { sceneStore, sceneSetters } from "@/components/map-simulator/hooks";
 
 export function mapToolButtonClass(active: boolean) {
   return `inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/45 ${

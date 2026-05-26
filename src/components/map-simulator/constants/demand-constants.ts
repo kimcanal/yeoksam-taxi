@@ -1,4 +1,4 @@
-import { MAX_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
+import { MAX_TAXI_COUNT } from "@/components/map-simulator/simulation";
 
 export const PRIMARY_SUBWAY_STATION_NAMES = new Set([
   "강남",

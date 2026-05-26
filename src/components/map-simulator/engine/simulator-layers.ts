@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import type { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { EnvironmentVisuals } from "@/components/map-simulator/map-scene-environment-visuals";
-import { disposeObject3DResources } from "@/components/map-simulator/object-resource-utils";
-import { createVehicleTrailLayer } from "@/components/map-simulator/vehicle-trail-renderer";
-import type { MapSceneGeometry } from "@/components/map-simulator/useMapSceneGeometry";
+import type { EnvironmentVisuals } from "@/components/map-simulator/environment";
+import { disposeObject3DResources } from "@/components/map-simulator/utils";
+import { createVehicleTrailLayer } from "@/components/map-simulator/vehicle";
+import type { MapSceneGeometry } from "@/components/map-simulator/hooks";
 
 type DisposableTrailLayer = {
   clear: () => void;

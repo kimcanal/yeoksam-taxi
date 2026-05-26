@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import type { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { CameraMode } from "@/components/map-simulator/camera-types";
-import { resolvedRendererPixelRatioFor } from "@/components/map-simulator/render-budget-utils";
-import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene-constants";
-import { sceneStore } from "@/components/map-simulator/simulator-stores";
+import type { CameraMode } from "@/components/map-simulator/camera";
+import { resolvedRendererPixelRatioFor } from "@/components/map-simulator/utils";
+import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene";
+import { sceneStore } from "@/components/map-simulator/hooks";
 
 export function createSimulatorRendererController({
   camera,

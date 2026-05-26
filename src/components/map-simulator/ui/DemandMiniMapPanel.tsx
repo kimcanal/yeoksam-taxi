@@ -1,7 +1,7 @@
 import type {
   DemandMiniMapData,
   MapPoiFeatureRow,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand";
 import {
   PANEL_ACCENT_CARD_CLASS,
   PANEL_SECTION_LABEL_CLASS,

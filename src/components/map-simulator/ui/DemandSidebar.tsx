@@ -1,10 +1,16 @@
-import { LineChart } from "lucide-react";
+import { LineChart, Settings2 } from "lucide-react";
 import {
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
   PANEL_SECTION_LABEL_CLASS,
 } from "@/components/map-simulator/panel-classes";
-import { weekdayLabel } from "@/components/map-simulator/demand-math";
+import { WEATHER_OPTIONS, type WeatherMode } from "@/components/map-simulator/environment";
+import {
+  MAX_TRAFFIC_LOAD_PERCENT,
+  MIN_TRAFFIC_LOAD_PERCENT,
+} from "@/components/map-simulator/simulation";
+
+import { weekdayLabel } from "@/components/map-simulator/demand";
 import {
   type DemandChartGeometry,
   type DemandMiniMapData,
@@ -12,7 +18,7 @@ import {
   type FiveMinuteDemandPoint,
   type HourlyDemandPoint,
   type MapPoiFeatureRow,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand";
 import { DemandChart } from "@/components/map-simulator/ui/DemandChart";
 import { DemandControls } from "@/components/map-simulator/ui/DemandControls";
 import { DemandMiniMapPanel } from "@/components/map-simulator/ui/DemandMiniMapPanel";
@@ -38,7 +44,33 @@ export type DemandSidebarProps = {
   demandMiniMap: DemandMiniMapData | null;
   mapPoiFeatureRows: MapPoiFeatureRow[];
   onPoiSelect: (poiCode: string) => void;
+  
+  // Environment Controls
+  simulationDate: string;
+  formattedSimulationDate: string;
+  formattedSimulationTime: string;
+  setCircumstanceMode: (mode: "live" | "specific") => void;
+  setSimulationDate: (date: string) => void;
+  setSimulationTimeMinutes: (minutes: number) => void;
+  weatherMode: WeatherMode;
+  setWeatherMode: (mode: WeatherMode) => void;
+  trafficLoadPercent: number;
+  setTrafficLoadPercent: (percent: number) => void;
+  appliedTrafficCount: number;
 };
+
+function parseTimeInput(value: string) {
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+}
+
+function trafficLoadLabel(percent: number) {
+  if (percent >= 145) return "혼잡";
+  if (percent >= 110) return "다소 많음";
+  if (percent <= 65) return "한산";
+  return "보통";
+}
 
 export function DemandSidebar({
   isVisible,
@@ -60,7 +92,21 @@ export function DemandSidebar({
   mapPoiFeatureRows,
   onPoiSelect,
   onClose,
+  simulationDate,
+  formattedSimulationDate,
+  formattedSimulationTime,
+  setCircumstanceMode,
+  setSimulationDate,
+  setSimulationTimeMinutes,
+  weatherMode,
+  setWeatherMode,
+  trafficLoadPercent,
+  setTrafficLoadPercent,
+  appliedTrafficCount,
 }: DemandSidebarProps) {
+  const trafficLabel = trafficLoadLabel(trafficLoadPercent);
+  const selectedWeather = WEATHER_OPTIONS.find((w) => w.id === weatherMode) ?? WEATHER_OPTIONS[0];
+
   return (
     <>
       <button
@@ -99,6 +145,102 @@ export function DemandSidebar({
         >
           {demandFetchBadgeText}
         </span>
+      </div>
+
+      <div className={`mt-5 ${PANEL_CARD_CLASS} p-4`}>
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0 flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-teal-300/20 bg-teal-300/[0.08] text-teal-100">
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <div className={PANEL_SECTION_LABEL_CLASS}>글로벌 환경 제어</div>
+              <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
+                시나리오 설정
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            날짜
+            <input
+              type="date"
+              value={simulationDate}
+              onChange={(event) => {
+                setCircumstanceMode("specific");
+                setSimulationDate(event.target.value);
+              }}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
+              aria-label="지도 기준 날짜"
+            />
+          </label>
+          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            시간
+            <input
+              type="time"
+              step={300}
+              value={formattedSimulationTime}
+              onChange={(event) => {
+                const nextMinutes = parseTimeInput(event.target.value);
+                if (nextMinutes === null) return;
+                setCircumstanceMode("specific");
+                setSimulationTimeMinutes(nextMinutes);
+              }}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
+              aria-label="지도 기준 시간"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            날씨
+            <select
+              value={weatherMode}
+              onChange={(event) => {
+                setCircumstanceMode("specific");
+                setWeatherMode(event.target.value as WeatherMode);
+              }}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
+              aria-label="지도 날씨 조건"
+            >
+              {WEATHER_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            교통 스케일
+            <div className="mt-1 flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2">
+              <div className="mb-1 flex items-center justify-between text-[10px] normal-case tracking-normal text-slate-300">
+                <span className="font-semibold text-slate-50">
+                  {trafficLoadPercent === 100 ? "기본" : `x${(trafficLoadPercent / 100).toFixed(2)}`}
+                </span>
+                <span className="text-[9px] text-slate-500">
+                  {appliedTrafficCount}대
+                </span>
+              </div>
+              <input
+                type="range"
+                min={MIN_TRAFFIC_LOAD_PERCENT}
+                max={MAX_TRAFFIC_LOAD_PERCENT}
+                step={5}
+                value={trafficLoadPercent}
+                onChange={(event) => {
+                  setCircumstanceMode("specific");
+                  setTrafficLoadPercent(Number(event.target.value));
+                }}
+                className="h-1.5 w-full accent-cyan-400"
+                aria-label="지도 교통량"
+              />
+            </div>
+          </label>
+        </div>
       </div>
 
       <div

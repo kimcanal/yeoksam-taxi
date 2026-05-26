@@ -1,5 +1,5 @@
 import MapSimulatorClient from "@/components/MapSimulatorClient";
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

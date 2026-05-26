@@ -7,11 +7,11 @@ import {
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
+import type { WeatherMode } from "@/components/map-simulator/environment";
 import {
   type VehicleTrailPoint,
-} from "@/components/map-simulator/vehicle-trail-renderer";
-import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
+} from "@/components/map-simulator/vehicle";
+import { createLocalSimulationSource } from "@/components/map-simulator/simulation";
 import type {
   BaseCameraMode,
   CameraFocusTarget,
@@ -19,7 +19,7 @@ import type {
   CameraPitchControlState,
   CameraYawControlState,
   FpsMode,
-} from "@/components/map-simulator/camera-types";
+} from "@/components/map-simulator/camera";
 import type {
   DongBoundarySegment,
   Hotspot,
@@ -34,24 +34,24 @@ import type {
   SceneStatus,
   SimulationData,
   Vehicle,
-} from "@/components/map-simulator/map-simulator-types";
-import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/types";
+import type { MapPoiFeatureRow } from "@/components/map-simulator/demand";
 import {
   createMapSceneBase,
   createMapSceneLights,
   syncSunShadowBounds,
-} from "@/components/map-simulator/map-scene-base";
-import { createEnvironmentVisuals, type EnvironmentVisuals } from "@/components/map-simulator/map-scene-environment-visuals";
-import { createEnvironmentSettingsController } from "@/components/map-simulator/useEnvironmentSettings";
-import { createMapSceneRenderers } from "@/components/map-simulator/map-scene-renderers";
+} from "@/components/map-simulator/scene";
+import { createEnvironmentVisuals, type EnvironmentVisuals } from "@/components/map-simulator/environment";
+import { createEnvironmentSettingsController } from "@/components/map-simulator/hooks";
+import { createMapSceneRenderers } from "@/components/map-simulator/scene";
 import {
   createTrafficSignalLayer,
-} from "@/components/map-simulator/traffic-signal-layer";
-import { createMapSceneGeometry } from "@/components/map-simulator/useMapSceneGeometry";
-import { createHoverHintController } from "@/components/map-simulator/hover-hint-controller";
+} from "@/components/map-simulator/signal";
+import { createMapSceneGeometry } from "@/components/map-simulator/hooks";
+import { createHoverHintController } from "@/components/map-simulator/scene";
 import {
   createMapPointerPickController,
-} from "@/components/map-simulator/useCameraInteraction";
+} from "@/components/map-simulator/camera";
 import {
   createOverviewCameraOffset,
   createSimulatorCameraRig,
@@ -65,25 +65,25 @@ import {
 import { createSimulatorRendererController } from "@/components/map-simulator/engine/simulator-renderer";
 import {
   createHotspotVisualLayer,
-} from "@/components/map-simulator/hotspot-visual-layer";
+} from "@/components/map-simulator/scene";
 import {
   createPedestrianVisualLayer,
-} from "@/components/map-simulator/pedestrian-visual-layer";
+} from "@/components/map-simulator/scene";
 import {
   createMapRegionLabelLayer,
   createRoadLabelLayer,
-} from "@/components/map-simulator/map-label-layer";
-import { createSceneLabelVisibilityController } from "@/components/map-simulator/label-visibility-controller";
-import { createTransitLandmarkLayer } from "@/components/map-simulator/transit-landmark-layer";
-import { createVehicleRuntimeSyncController } from "@/components/map-simulator/useVehicleRuntimeSync";
-import { boundaryHintElement } from "@/components/map-simulator/scene-label-elements";
-import { buildRoadNetworkOverlay } from "@/components/map-simulator/road-network-overlay";
-import { createPoiMarkerLayer } from "@/components/map-simulator/poi-marker-layer";
-import { createDeferredAssetLoadScheduler } from "@/components/map-simulator/deferred-asset-load-scheduler";
-import { CAMERA_MAX_DISTANCE } from "@/components/map-simulator/scene-constants";
-import type { SimulationSource, SimulationSnapshot } from "@/components/map-simulator/simulation-source";
-import type { SceneStaticContext } from "@/components/map-simulator/simulation-source";
-import type { TrafficVehicleModelKey } from "@/components/map-simulator/vehicle-asset-loader";
+} from "@/components/map-simulator/scene";
+import { createSceneLabelVisibilityController } from "@/components/map-simulator/scene";
+import { createTransitLandmarkLayer } from "@/components/map-simulator/scene";
+import { createVehicleRuntimeSyncController } from "@/components/map-simulator/vehicle";
+import { boundaryHintElement } from "@/components/map-simulator/scene";
+import { buildRoadNetworkOverlay } from "@/components/map-simulator/road";
+import { createPoiMarkerLayer } from "@/components/map-simulator/scene";
+import { createDeferredAssetLoadScheduler } from "@/components/map-simulator/utils";
+import { CAMERA_MAX_DISTANCE } from "@/components/map-simulator/scene";
+import type { SimulationSource, SimulationSnapshot } from "@/components/map-simulator/simulation";
+import type { SceneStaticContext } from "@/components/map-simulator/simulation";
+import type { TrafficVehicleModelKey } from "@/components/map-simulator/vehicle";
 import type { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/engine/simulator-engine";
 
 /**

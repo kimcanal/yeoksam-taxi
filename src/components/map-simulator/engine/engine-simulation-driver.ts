@@ -1,17 +1,17 @@
 import * as THREE from "three";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
-import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
-import type { Stats } from "@/components/map-simulator/map-simulator-types";
+import type { WeatherMode } from "@/components/map-simulator/environment";
+import type { Stats } from "@/components/map-simulator/types";
 import {
   MAX_VEHICLE_SIMULATION_STEPS,
   VEHICLE_SIMULATION_STEP,
-} from "@/components/map-simulator/scene-constants";
-import { statsEqual } from "@/components/map-simulator/stats-utils";
+} from "@/components/map-simulator/scene";
+import { statsEqual } from "@/components/map-simulator/utils";
 import type {
   SimulationConfig,
   SimulationSnapshot,
   VehicleSnapshot,
-} from "@/components/map-simulator/simulation-source";
+} from "@/components/map-simulator/simulation";
 
 export function createEngineSimulationDriver(ctx: EngineSceneContext) {
   const {

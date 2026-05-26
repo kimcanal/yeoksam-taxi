@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
-import type { Vehicle } from "@/components/map-simulator/map-simulator-types";
-import type { CameraMode } from "@/components/map-simulator/camera-types";
+import type { Vehicle } from "@/components/map-simulator/types";
+import type { CameraMode } from "@/components/map-simulator/camera";
 import {
   CAMERA_LOOK_HEIGHT,
   CAMERA_MIN_DISTANCE,
@@ -9,18 +9,18 @@ import {
   TAXI_VIEW_CAMERA_HEIGHT,
   TAXI_VIEW_CAMERA_SIDE_OFFSET,
   TAXI_VIEW_LOOK_AHEAD,
-} from "@/components/map-simulator/scene-constants";
+} from "@/components/map-simulator/scene";
 import {
   syncSimulatorCameraRig,
 } from "@/components/map-simulator/engine/simulator-camera-rig";
 import {
   dampAngle,
   wrapAngle,
-} from "@/components/map-simulator/route-motion-utils";
+} from "@/components/map-simulator/road";
 import {
   pitchControlValueFromPitch,
   yawControlValueFromYaw,
-} from "@/components/map-simulator/camera-control-utils";
+} from "@/components/map-simulator/camera";
 
 export function createEngineCameraController(
   ctx: EngineSceneContext,

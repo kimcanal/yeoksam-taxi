@@ -2,12 +2,12 @@ import * as THREE from "three";
 import type {
   CameraMode,
   FpsMode,
-} from "@/components/map-simulator/camera-types";
-import { HIDDEN_RENDER_FPS } from "@/components/map-simulator/scene-constants";
+} from "@/components/map-simulator/camera";
+import { HIDDEN_RENDER_FPS } from "@/components/map-simulator/scene";
 import {
   resolveRenderCap,
   stabilizeRefreshRateBand,
-} from "@/components/map-simulator/render-budget-utils";
+} from "@/components/map-simulator/utils";
 
 const FALLBACK_FRAME_MS = 1000 / 60;
 const MAX_RAW_DELTA_MS = 250;

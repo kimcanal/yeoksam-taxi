@@ -1,9 +1,9 @@
 import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/constants/demand-constants";
-import { demandSlotLabel } from "@/components/map-simulator/demand-math";
+import { demandSlotLabel } from "@/components/map-simulator/demand";
 import type {
   FiveMinuteDemandPoint,
   HourlyDemandPoint,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand";
 
 export type DemandSummaryStatsProps = {
   hasDemandData: boolean;

@@ -1,4 +1,4 @@
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
 const DEMAND_SLOT_ALLOCATION_LABEL = "단기 예측";
 

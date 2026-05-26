@@ -4,7 +4,7 @@ import {
   CAMERA_MAX_PITCH,
   CAMERA_MIN_DISTANCE,
   CAMERA_MIN_PITCH,
-} from "@/components/map-simulator/scene-constants";
+} from "@/components/map-simulator/scene";
 
 export type SimulatorCameraDragMode = "pan" | "orbit";
 

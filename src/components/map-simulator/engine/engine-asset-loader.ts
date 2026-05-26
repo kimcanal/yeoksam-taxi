@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import {
   disposeObject3DResources,
-} from "@/components/map-simulator/object-resource-utils";
+} from "@/components/map-simulator/utils";
 import {
   KAKAO_TAXI_ASSET_PATH,
   KAKAO_TRAFFIC_ASSET_SPECS,
@@ -13,7 +13,7 @@ import {
   loadVehicleAssetTemplate,
   normalizeTaxiAssetTemplate,
   normalizeTrafficAssetTemplate,
-} from "@/components/map-simulator/vehicle-asset-loader";
+} from "@/components/map-simulator/vehicle";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
 
 export function createEngineAssetLoader(ctx: EngineSceneContext) {

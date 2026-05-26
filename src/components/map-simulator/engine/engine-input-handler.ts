@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
-import type { Vehicle } from "@/components/map-simulator/map-simulator-types";
-import type { CameraMode, BaseCameraMode } from "@/components/map-simulator/camera-types";
+import type { Vehicle } from "@/components/map-simulator/types";
+import type { CameraMode, BaseCameraMode } from "@/components/map-simulator/camera";
 import {
   CAMERA_DRAG_SENSITIVITY,
   CAMERA_MAX_PITCH,
@@ -12,7 +12,7 @@ import {
   CAMERA_TOUCH_PITCH_SENSITIVITY,
   CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
   TAXI_CLICK_MOVE_THRESHOLD,
-} from "@/components/map-simulator/scene-constants";
+} from "@/components/map-simulator/scene";
 import {
   anchoredPitchTouchIndex,
   createCameraTouchGestureState,
@@ -21,8 +21,8 @@ import {
   rememberCurrentTouchGesture,
   setCameraTouchGestureBasis,
   type CameraTouchPoint,
-} from "@/components/map-simulator/useCameraInteraction";
-import { wrapAngle } from "@/components/map-simulator/route-motion-utils";
+} from "@/components/map-simulator/camera";
+import { wrapAngle } from "@/components/map-simulator/road";
 
 export type InputHandlerCallbacks = {
   syncCamera: () => void;

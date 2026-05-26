@@ -1,0 +1,40 @@
+import type * as THREE from "three";
+import type { NonRoadFeatureCollection, BuildingFeatureCollection, DongFeatureCollection, DongRegion, DongBoundarySegment, BuildingMass } from "./geography-types";
+import type { RoadFeatureCollection, SerializedRoadNetwork, RoadGraph, RouteTemplate, ProjectedRoadSegment, RoadSegmentSpatialIndex } from "./road-types";
+import type { SignalData } from "./signal-types";
+import type { TransitFeatureCollection, TaxiStandFeatureCollection, TransitLandmark, TaxiStandLandmark } from "./transit-types";
+import type { TrafficSignalFeatureCollection } from "./scene-types";
+
+export type AssetMeta = { path: string; lastModified: string | null; featureCount: number; };
+export type SimulationMeta = { source: string; boundarySource: string; latestAssetUpdatedAt: string | null; loadedAt: string; assets: { nonRoad: AssetMeta | null; roads: AssetMeta; buildings: AssetMeta; dongs: AssetMeta; transit: AssetMeta; taxiStands: AssetMeta | null; trafficSignals: AssetMeta | null; roadNetwork: AssetMeta | null; }; };
+export type Stats = { taxis: number; traffic: number; waiting: number; signals: number; activeTrips: number; completedTrips: number; pedestrians: number; pickups: number; dropoffs: number; activeCalls: number; avgPickupWaitSeconds: number; avgRideSeconds: number; };
+export type FpsStats = { fps: number; capLabel: string; simulationMs: number; signalMs: number; vehicleMs: number; overlayMs: number; renderMs: number; simulationHz: number; vehicles: number; };
+export type SceneStatus = "loading" | "rendering" | "ready" | "error";
+export type CircumstanceMode = "live" | "specific";
+export type Hotspot = { id: string; nodeKey: string; routeId: string; distance: number; sideSign?: number; position: THREE.Vector3; point: THREE.Vector3; label: string; roadName: string | null; };
+
+export type SimulationData = {
+  center: { lat: number; lon: number };
+  nonRoad: NonRoadFeatureCollection;
+  roads: RoadFeatureCollection;
+  projectedRoadSegments: ProjectedRoadSegment[];
+  roadSegmentSpatialIndex: RoadSegmentSpatialIndex;
+  buildings: BuildingFeatureCollection;
+  buildingMasses: BuildingMass[];
+  dongs: DongFeatureCollection;
+  dongRegions: DongRegion[];
+  dongBoundarySegments: DongBoundarySegment[];
+  transit: TransitFeatureCollection;
+  transitLandmarks: TransitLandmark[];
+  taxiStands: TaxiStandFeatureCollection;
+  taxiStandLandmarks: TaxiStandLandmark[];
+  trafficSignals: TrafficSignalFeatureCollection;
+  roadNetwork: SerializedRoadNetwork | null;
+  graph: RoadGraph;
+  signals: SignalData[];
+  loopRoutes: RouteTemplate[];
+  taxiRoutePool: RouteTemplate[];
+  trafficRoutePool: RouteTemplate[];
+  hotspotPool: Hotspot[];
+  meta: SimulationMeta;
+};

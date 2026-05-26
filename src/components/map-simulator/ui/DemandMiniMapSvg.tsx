@@ -8,11 +8,11 @@ import type {
   DemandMiniMapLandmark,
   DemandMiniMapPoi,
   DemandMiniMapRegion,
-} from "@/components/map-simulator/demand-types";
+} from "@/components/map-simulator/demand";
 import {
   demandFillForScore,
   demandStrokeForScore,
-} from "@/components/map-simulator/demand-style";
+} from "@/components/map-simulator/demand";
 
 type DemandMiniMapSvgProps = {
   demandMiniMap: DemandMiniMapData;
@@ -220,7 +220,8 @@ function MiniMapPoiMarker({
       role="button"
       tabIndex={0}
       aria-label={`${poi.name} 선택`}
-      className="cursor-pointer outline-none"
+      className="cursor-pointer outline-none transition-transform duration-200"
+      style={{ transform: `translate(${poi.x}px, ${poi.y}px) scale(${poi.isSelected ? 1.25 : 0.9})` }}
       onClick={() => onPoiSelect(poi.code)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -229,28 +230,24 @@ function MiniMapPoiMarker({
         }
       }}
     >
-      <circle
-        cx={poi.x}
-        cy={poi.y}
-        r={poi.isSelected ? "4.2" : "2.7"}
-        fill="rgba(7, 17, 28, 0.68)"
+      <path
+        d="M 0 0 C 1.5 -2.5, 3.5 -4.5, 3.5 -7.5 A 3.5 3.5 0 1 0 -3.5 -7.5 C -3.5 -4.5, -1.5 -2.5, 0 0 Z"
+        fill="rgba(7, 17, 28, 0.85)"
         stroke={poi.isSelected ? "#f8fafc" : "#67e8f9"}
-        strokeWidth={poi.isSelected ? "0.7" : "0.46"}
+        strokeWidth={poi.isSelected ? "0.8" : "0.5"}
       >
         <title>{poi.name} 관심 지점</title>
-      </circle>
+      </path>
       <circle
-        cx={poi.x}
-        cy={poi.y}
-        r={poi.isSelected ? "1.95" : "1.5"}
+        cx="0"
+        cy="-7.5"
+        r="1.4"
         fill={poi.isSelected ? "#f8fafc" : "#67e8f9"}
-        stroke="rgba(7, 17, 28, 0.82)"
-        strokeWidth="0.35"
       />
       {poi.isSelected || poi.contextScore >= DEMAND_SCORE_THRESHOLDS.high ? (
         <text
-          x={poi.labelX}
-          y={poi.labelY}
+          x={poi.labelX - poi.x}
+          y={poi.labelY - poi.y}
           textAnchor={poi.textAnchor}
           fill={poi.isSelected ? "#f8fafc" : "#cffafe"}
           fontSize={poi.isSelected ? "2.45" : "2.05"}

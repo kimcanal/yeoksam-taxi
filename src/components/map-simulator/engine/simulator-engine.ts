@@ -6,7 +6,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { WeatherMode } from "@/components/map-simulator/simulation-environment";
+import type { WeatherMode } from "@/components/map-simulator/environment";
 import type {
   BaseCameraMode,
   CameraFocusTarget,
@@ -14,19 +14,19 @@ import type {
   CameraPitchControlState,
   CameraYawControlState,
   FpsMode,
-} from "@/components/map-simulator/camera-types";
+} from "@/components/map-simulator/camera";
 import type {
   Stats,
   SceneStatus,
   SimulationData,
   Vehicle,
-} from "@/components/map-simulator/map-simulator-types";
-import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
-import { disposeHierarchy } from "@/components/map-simulator/object-resource-utils";
+} from "@/components/map-simulator/types";
+import type { MapPoiFeatureRow } from "@/components/map-simulator/demand";
+import { disposeHierarchy } from "@/components/map-simulator/utils";
 import {
   pitchFromControlValue,
   yawFromControlValue,
-} from "@/components/map-simulator/camera-control-utils";
+} from "@/components/map-simulator/camera";
 import {
   disposeEnvironmentVisualResources,
   disposeSimulatorSceneLayers,

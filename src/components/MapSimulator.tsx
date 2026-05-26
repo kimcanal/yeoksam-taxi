@@ -9,38 +9,38 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import * as THREE from "three";
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
   WEATHER_OPTIONS,
   format24Hour,
   formatDateLabel,
   normalizeDayMinutes,
-} from "@/components/map-simulator/simulation-environment";
-import type { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/MapSimulatorSceneRuntime";
+} from "@/components/map-simulator/environment";
+import { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
 import {
   type MiniMapFocus,
-} from "@/components/map-simulator/simulator-stores";
-import { useMapSimulatorStores } from "@/components/map-simulator/use-map-simulator-stores";
+} from "@/components/map-simulator/hooks";
+import { useMapSimulatorStores } from "@/components/map-simulator/hooks";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { MapFooter } from "@/components/map-simulator/ui/MapFooter";
-import { MapSearchControl } from "@/components/map-simulator/ui/MapSearchControl";
+import { Menu } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
-import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/demand-utils";
-import type { FpsMode } from "@/components/map-simulator/camera-types";
-import { projectPoint } from "@/components/map-simulator/map-geometry-utils";
-import { useMapDemandState } from "@/components/map-simulator/use-map-demand-state";
-import { useMapPoiState } from "@/components/map-simulator/use-map-poi-state";
-import { useMapSceneRuntimeRefs } from "@/components/map-simulator/use-map-scene-runtime-refs";
-import { useSimulationDataLoader } from "@/components/map-simulator/use-simulation-data-loader";
-import { trafficCountForLoadPercent } from "@/components/map-simulator/simulation-defaults";
+import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/demand";
+import type { FpsMode } from "@/components/map-simulator/camera";
+import { projectPoint } from "@/components/map-simulator/utils";
+import { useMapDemandState } from "@/components/map-simulator/demand";
+import { useMapPoiState } from "@/components/map-simulator/hooks";
+import { useMapSceneRuntimeRefs } from "@/components/map-simulator/hooks";
+import { useSimulationDataLoader } from "@/components/map-simulator/hooks";
+import { trafficCountForLoadPercent } from "@/components/map-simulator/simulation";
 
 type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
 };
 
 const MapSimulatorSceneRuntime = dynamic<MapSimulatorSceneRuntimeProps>(
-  () => import("@/components/map-simulator/MapSimulatorSceneRuntime"),
+  () => import("@/components/map-simulator/map-simulator-scene-runtime"),
   {
     ssr: false,
     loading: () => null,
@@ -315,26 +315,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           />
         </MapSimulatorErrorBoundary>
 
-        <MapSearchControl
-          isSidebarVisible={isSidebarVisible}
-          isScenarioControlsExpanded={isScenarioControlsExpanded}
-          toggleScenarioControls={toggleScenarioControls}
-          formattedSimulationTime={formattedSimulationTime}
-          formattedSimulationDate={formattedSimulationDate}
-          hasDemandData={demandState.hasDemandData}
-          appliedTaxiCount={demandState.appliedTaxiCount}
-          appliedTrafficCount={appliedTrafficCount}
-          trafficLoadPercent={trafficLoadPercent}
-          selectedWeather={selectedWeather}
-          toggleSidebar={toggleSidebar}
-          simulationDate={simulationDate}
-          setCircumstanceMode={setCircumstanceMode}
-          setSimulationDate={handleSimulationDateChange}
-          setSimulationTimeMinutes={setSimulationTimeMinutes}
-          weatherMode={weatherMode}
-          setWeatherMode={setWeatherMode}
-          setTrafficLoadPercent={setTrafficLoadPercent}
-        />
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label="정보 패널 열기"
+          aria-expanded={isSidebarVisible}
+          className={`absolute left-4 top-4 z-30 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition-all duration-300 hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 ${
+            isSidebarVisible ? "pointer-events-none opacity-0 -translate-x-4" : "pointer-events-auto opacity-100 translate-x-0"
+          }`}
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
 
         {!isSceneBusy ? (
           <MapFooter
@@ -376,6 +367,17 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           demandMiniMap={demandState.demandMiniMap}
           mapPoiFeatureRows={mapPoiFeatureRows}
           onPoiSelect={handlePoiSelect}
+          simulationDate={simulationDate}
+          formattedSimulationDate={formattedSimulationDate}
+          formattedSimulationTime={formattedSimulationTime}
+          setCircumstanceMode={setCircumstanceMode}
+          setSimulationDate={handleSimulationDateChange}
+          setSimulationTimeMinutes={setSimulationTimeMinutes}
+          weatherMode={weatherMode}
+          setWeatherMode={setWeatherMode}
+          trafficLoadPercent={trafficLoadPercent}
+          setTrafficLoadPercent={setTrafficLoadPercent}
+          appliedTrafficCount={appliedTrafficCount}
         />
 
       </section>
