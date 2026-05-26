@@ -230,7 +230,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     let isPageHidden = document.visibilityState === "hidden";
     const { scene, sceneFog, camera } = createMapSceneBase(container);
 
-    const { renderer, labelRenderer } = createMapSceneRenderers({
+    const { renderer, labelRenderer, preventDefaultTouch } = createMapSceneRenderers({
       container,
       cameraMode: cameraModeRef.current,
     });
@@ -1985,6 +1985,8 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointerleave", onPointerLeave);
       container.removeEventListener("wheel", onWheel);
+      container.removeEventListener("touchstart", preventDefaultTouch);
+      container.removeEventListener("touchmove", preventDefaultTouch);
       disposeEnvironmentVisualResources(environmentVisuals);
       transitHoverMaterial.dispose();
       timer.dispose();

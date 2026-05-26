@@ -70,5 +70,5 @@ export function createMapSceneRenderers({
   container.appendChild(renderer.domElement);
   container.appendChild(labelRenderer.domElement);
 
-  return { renderer, labelRenderer };
+  return { renderer, labelRenderer, preventDefaultTouch };
 }
