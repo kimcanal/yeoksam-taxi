@@ -1027,7 +1027,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
 
     const hoverHintController = createHoverHintController({
       element: boundaryHintText,
-      cursorElement: renderer.domElement,
+      cursorElement: container,
       getPointer: () => ({ x: pointerClientX, y: pointerClientY }),
       isDragging: () => cameraRig.dragging,
       setHighlightedDongNames: setBoundaryDongHighlight,
@@ -1137,6 +1137,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       cameraRig.pointerId = -1;
       cameraRig.dragMode = "pan";
       renderer.domElement.style.cursor = "grab";
+      container.style.cursor = "grab";
     };
 
     const onContextMenu = (event: MouseEvent) => {
@@ -1298,7 +1299,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       ) {
         return;
       }
-      const rect = renderer.domElement.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       pointerInside = true;
       pointerClientX = event.clientX - rect.left;
       pointerClientY = event.clientY - rect.top;
@@ -1336,11 +1337,12 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       pointerDownClientY = event.clientY;
       pointerDragged = event.button === 2;
       renderer.domElement.style.cursor = "grabbing";
+      container.style.cursor = "grabbing";
       markHoverDirty();
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const withinBounds =
         event.clientX >= rect.left &&
         event.clientX <= rect.right &&
@@ -1541,10 +1543,10 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     window.addEventListener("blur", onWindowBlur);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("keydown", onKeyDown);
-    renderer.domElement.addEventListener("contextmenu", onContextMenu);
-    renderer.domElement.addEventListener("pointerdown", onPointerDown);
-    renderer.domElement.addEventListener("pointerleave", onPointerLeave);
-    renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
+    container.addEventListener("contextmenu", onContextMenu);
+    container.addEventListener("pointerdown", onPointerDown);
+    container.addEventListener("pointerleave", onPointerLeave);
+    container.addEventListener("wheel", onWheel, { passive: false });
     applyEnvironment(
       simulationDateRef.current,
       simulationTimeRef.current,
@@ -1979,10 +1981,10 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("keydown", onKeyDown);
-      renderer.domElement.removeEventListener("contextmenu", onContextMenu);
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-      renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
-      renderer.domElement.removeEventListener("wheel", onWheel);
+      container.removeEventListener("contextmenu", onContextMenu);
+      container.removeEventListener("pointerdown", onPointerDown);
+      container.removeEventListener("pointerleave", onPointerLeave);
+      container.removeEventListener("wheel", onWheel);
       disposeEnvironmentVisualResources(environmentVisuals);
       transitHoverMaterial.dispose();
       timer.dispose();

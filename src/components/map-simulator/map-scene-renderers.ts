@@ -34,14 +34,38 @@ export function createMapSceneRenderers({
   renderer.toneMappingExposure = 1.02;
   renderer.domElement.style.cursor = "grab";
   renderer.domElement.style.touchAction = "none";
-  renderer.domElement.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
-  renderer.domElement.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.setSize(container.clientWidth, container.clientHeight);
   labelRenderer.domElement.style.position = "absolute";
   labelRenderer.domElement.style.inset = "0";
   labelRenderer.domElement.style.pointerEvents = "none";
+  labelRenderer.domElement.style.touchAction = "none";
+
+  container.style.cursor = "grab";
+  container.style.touchAction = "none";
+
+  const preventDefaultTouch = (e: TouchEvent) => {
+    const el = e.target as HTMLElement | null;
+    if (el) {
+      const tag = el.tagName;
+      const isInteractive =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "BUTTON" ||
+        el.isContentEditable;
+      if (isInteractive) {
+        return;
+      }
+    }
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+  };
+
+  container.addEventListener("touchstart", preventDefaultTouch, { passive: false });
+  container.addEventListener("touchmove", preventDefaultTouch, { passive: false });
 
   container.appendChild(renderer.domElement);
   container.appendChild(labelRenderer.domElement);
