@@ -6,12 +6,10 @@ import {
 } from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import { sceneStore } from "@/components/map-simulator/simulator-stores";
 import {
   type WeatherMode,
 } from "@/components/map-simulator/simulation-environment";
 import {
-  createVehicleTrailLayer,
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle-trail-renderer";
 import { createLocalSimulationSource } from "@/components/map-simulator/local-simulation-source";
@@ -26,8 +24,6 @@ import {
   CAMERA_TOUCH_PITCH_LOCK_DISTANCE,
   CAMERA_TOUCH_PITCH_SENSITIVITY,
   CAMERA_TOUCH_PITCH_VERTICAL_RATIO,
-  ENABLE_REALTIME_SHADOWS,
-  HIDDEN_RENDER_FPS,
   HOVER_REFRESH_INTERVAL,
   LABEL_RENDER_INTERVAL,
   LABEL_VISIBILITY_REFRESH_INTERVAL,
@@ -45,11 +41,6 @@ import {
   yawControlValueFromYaw,
   yawFromControlValue,
 } from "@/components/map-simulator/camera-control-utils";
-import {
-  resolvedRendererPixelRatioFor,
-  resolveRenderCap,
-  stabilizeRefreshRateBand,
-} from "@/components/map-simulator/render-budget-utils";
 import {
   KAKAO_TAXI_ASSET_PATH,
   KAKAO_TRAFFIC_ASSET_SPECS,
@@ -141,6 +132,21 @@ import {
   setCameraTouchGestureBasis,
   type CameraTouchPoint,
 } from "@/components/map-simulator/useCameraInteraction";
+import {
+  createOverviewCameraOffset,
+  createSimulatorCameraRig,
+  overviewCameraDistance,
+  syncSimulatorCameraRig,
+} from "@/components/map-simulator/engine/simulator-camera-rig";
+import {
+  attachMapSceneGeometryLayers,
+  createDefaultSimulationTrailLayer,
+  disposeEnvironmentVisualResources,
+  disposeSimulatorSceneLayers,
+  removeSceneLabels,
+} from "@/components/map-simulator/engine/simulator-layers";
+import { createSimulatorLoopClock } from "@/components/map-simulator/engine/simulator-loop";
+import { createSimulatorRendererController } from "@/components/map-simulator/engine/simulator-renderer";
 import type {
   SceneStaticContext,
   SimulationConfig,
@@ -205,6 +211,17 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     return () => {};
   }
 
+    const hotspotPool: Hotspot[] = data.hotspotPool;
+    const taxiRoutePool: RouteTemplate[] = data.taxiRoutePool;
+    const trafficRoutePool: RouteTemplate[] = data.trafficRoutePool;
+    const loopRoutes: RouteTemplate[] = data.loopRoutes;
+    if (!taxiRoutePool.length || !trafficRoutePool.length || !hotspotPool.length) {
+      setStatus("error");
+      setStatusDetail("시뮬레이션 경로 데이터가 부족합니다.");
+      setLoadingProgress(0);
+      return () => {};
+    }
+
 
     const container = containerRef.current;
     const simulationData = data;
@@ -247,26 +264,15 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       CAMERA_MAX_DISTANCE,
       Math.max(size.x, size.z) * 1.28,
     );
-    const initialOffset = new THREE.Vector3(-120, 135, 150);
+    const initialOffset = createOverviewCameraOffset();
     const overviewYaw = Math.atan2(initialOffset.x, initialOffset.z);
-    const cameraRig = {
-      focus: centerPoint.clone(),
-      yaw: overviewYaw,
-      pitch: Math.atan2(
-        initialOffset.y,
-        Math.hypot(initialOffset.x, initialOffset.z),
-      ),
-      distance: THREE.MathUtils.clamp(
-        initialOffset.length(),
-        CAMERA_MIN_DISTANCE,
-        maxMapDistance,
-      ),
-      dragging: false,
-      pointerId: -1,
-      pointerX: 0,
-      pointerY: 0,
-      dragMode: "pan" as "pan" | "orbit",
-    };
+    const overviewDistance = overviewCameraDistance();
+    const cameraRig = createSimulatorCameraRig({
+      centerPoint,
+      initialOffset,
+      maxMapDistance,
+      overviewYaw,
+    });
     let lastMiniMapFocusReportTimestamp = 0;
     let lastMiniMapFocusReportX = Number.POSITIVE_INFINITY;
     let lastMiniMapFocusReportZ = Number.POSITIVE_INFINITY;
@@ -323,39 +329,14 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     let appliedYawControlVersion = cameraYawControlRef.current.version;
 
     const syncCamera = () => {
-      cameraRig.pitch = THREE.MathUtils.clamp(
-        cameraRig.pitch,
-        CAMERA_MIN_PITCH,
-        CAMERA_MAX_PITCH,
-      );
-      cameraRig.distance = THREE.MathUtils.clamp(
-        cameraRig.distance,
-        CAMERA_MIN_DISTANCE,
+      syncSimulatorCameraRig({
+        camera,
+        cameraLookLift,
+        cameraOffset,
+        cameraRig,
         maxMapDistance,
-      );
-      cameraRig.focus.x = THREE.MathUtils.clamp(
-        cameraRig.focus.x,
-        movementBounds.min.x,
-        movementBounds.max.x,
-      );
-      cameraRig.focus.z = THREE.MathUtils.clamp(
-        cameraRig.focus.z,
-        movementBounds.min.z,
-        movementBounds.max.z,
-      );
-
-      cameraOffset.set(
-        Math.sin(cameraRig.yaw) * Math.cos(cameraRig.pitch),
-        Math.sin(cameraRig.pitch),
-        Math.cos(cameraRig.yaw) * Math.cos(cameraRig.pitch),
-      ).multiplyScalar(cameraRig.distance);
-
-      camera.position.copy(cameraRig.focus).add(cameraOffset);
-      camera.lookAt(
-        cameraRig.focus.x,
-        cameraRig.focus.y + cameraLookLift,
-        cameraRig.focus.z,
-      );
+        movementBounds,
+      });
     };
 
     const markHoverDirty = () => {
@@ -370,6 +351,21 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       labelRenderAccumulator = LABEL_RENDER_INTERVAL;
     };
 
+    const rendererController = createSimulatorRendererController({
+      camera,
+      container,
+      getCameraMode: () => cameraModeRef.current,
+      getIsPageHidden: () => isPageHidden,
+      labelRenderer,
+      onViewportChanged: () => {
+        markHoverDirty();
+        markLabelVisibilityDirty();
+      },
+      renderer,
+      scene,
+    });
+    const applyRenderBudget = rendererController.applyRenderBudget;
+
     syncCamera();
 
     syncSunShadowBounds(sun, size);
@@ -381,17 +377,14 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       mapSize: size,
       poiFeatureRows: [...(poiFeatureRowsRef.current ?? [])],
     });
-    const { ground, groundMaterial, gridHelper, maskMesh, demandVisualLayer } = mapSceneGeometry;
-    scene.add(ground);
-    scene.add(gridHelper);
-    scene.add(maskMesh);
-
-    const dongFloorGroup = demandVisualLayer.dongFloorGroup;
-    scene.add(demandVisualLayer.group);
-
-    nonRoadGroup = mapSceneGeometry.nonRoadGroup;
-    nonRoadGroup.visible = showNonRoadRef.current;
-    scene.add(nonRoadGroup);
+    const { groundMaterial } = mapSceneGeometry;
+    const mapLayers = attachMapSceneGeometryLayers({
+      mapSceneGeometry,
+      scene,
+      showNonRoad: showNonRoadRef.current,
+    });
+    const { demandVisualLayer, dongFloorGroup } = mapLayers;
+    nonRoadGroup = mapLayers.nonRoadGroup;
     nonRoadGroupRef.current = nonRoadGroup;
 
     const environmentVisuals = createEnvironmentVisuals({
@@ -400,21 +393,13 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       centerPoint,
     });
     const {
-      sunDiscMaterial,
-      sunHaloMaterial,
       sunHalo,
-      sunsetGlowMaterial,
-      moonMaterial,
       moon,
-      starsGeometry,
       starsMaterial,
-      cloudPuffGeometry,
       cloudMaterial,
       cloudClusters,
       stormCloudMaterial,
       stormCloudClusters,
-      rainLayer,
-      snowLayer,
     } = environmentVisuals;
 
     const signalById = new Map<string, SignalData>();
@@ -428,18 +413,13 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     const simulationTrailPoints: VehicleTrailPoint[] = [];
     const taxiTrailColorFor = (vehicle: Vehicle) =>
       vehicle.isOccupied ? 0xfb7185 : 0x22d3ee;
-    let refreshRateBand: number | null = null;
     const taxiClickTargets: THREE.Object3D[] = [];
     const taxiById = new Map<string, Vehicle>();
     const vehicleById = new Map<string, Vehicle>();
-    const hotspotPool: Hotspot[] = data.hotspotPool;
     let activePedestrians = 0;
     let crosswalkMaterial: THREE.MeshStandardMaterial | null = null;
     let stopLineMaterial: THREE.MeshStandardMaterial | null = null;
     let roadNetworkOverlay: THREE.Group | null = null;
-    const taxiRoutePool: RouteTemplate[] = data.taxiRoutePool;
-    const trafficRoutePool: RouteTemplate[] = data.trafficRoutePool;
-    const loopRoutes: RouteTemplate[] = data.loopRoutes;
     const hotspotById = new globalThis.Map(
       hotspotPool.map((hotspot) => [hotspot.id, hotspot] as const),
     );
@@ -555,35 +535,23 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       });
     };
 
-    const dongBoundaryLayer = mapSceneGeometry.dongBoundaryLayer;
+    const dongBoundaryLayer = mapLayers.dongBoundaryLayer;
     const dongBoundaryGlowMaterial = dongBoundaryLayer.glowMaterial;
     const dongBoundaryLineMaterial = dongBoundaryLayer.lineMaterial;
     const dongWallMaterial = dongBoundaryLayer.wallMaterial;
     const dongWallMesh = dongBoundaryLayer.wallMesh;
     scene.add(dongBoundaryLayer.group);
 
-    const staticRoadLayer = mapSceneGeometry.staticRoadLayer;
+    const staticRoadLayer = mapLayers.staticRoadLayer;
     const staticRoadGroup = staticRoadLayer.group;
     const roadMaterials = staticRoadLayer.roadMaterials;
     const roadSheenMaterial = staticRoadLayer.roadSheenMaterial;
     const laneMarkerMaterial = staticRoadLayer.laneMarkerMaterial;
-    scene.add(staticRoadGroup);
 
-    const buildingMassLayer = mapSceneGeometry.buildingMassLayer;
+    const buildingMassLayer = mapLayers.buildingMassLayer;
     const buildingMaterial = buildingMassLayer.buildingMaterial;
     const buildingRoofMaterial = buildingMassLayer.buildingRoofMaterial;
-    scene.add(buildingMassLayer.group);
-    const simulationTrailLayer = createVehicleTrailLayer({
-      yOffset: 0.24,
-      maxPoints: 34,
-      minSampleDistance: 1.2,
-      minSampleIntervalMs: 90,
-      tailDurationMs: 4_400,
-      staleAfterMs: 1_500,
-      opacity: 0.72,
-      headScale: 0.5,
-    });
-    scene.add(simulationTrailLayer.group);
+    const simulationTrailLayer = createDefaultSimulationTrailLayer(scene);
     vehicleRuntimeSync = createVehicleRuntimeSyncController({
       scene,
       routeById,
@@ -665,31 +633,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       dongWallMaterial.opacity = 0.001;
     };
 
-    const applyRenderBudget = (mode: CameraMode) => {
-      const graphicsQuality = sceneStore.getState().graphicsQuality;
-      
-      let pixelRatio = window.devicePixelRatio || 1;
-      if (graphicsQuality === "performance") {
-        pixelRatio = resolvedRendererPixelRatioFor(
-          mode,
-          isPageHidden,
-          pixelRatio,
-        );
-      }
-      
-      renderer.setPixelRatio(pixelRatio);
-      renderer.setSize(container.clientWidth, container.clientHeight, false);
-      
-      if (renderer.shadowMap.enabled !== (graphicsQuality === "quality" && ENABLE_REALTIME_SHADOWS)) {
-        renderer.shadowMap.enabled = graphicsQuality === "quality" && ENABLE_REALTIME_SHADOWS;
-        scene.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.material) {
-            child.material.needsUpdate = true;
-          }
-        });
-      }
-    };
-
     let activeHighlightedDongNames: string[] = [];
     const setBoundaryDongHighlight = (dongNames: string[]) => {
       const activeDongs = new Set(dongNames.filter(Boolean));
@@ -767,7 +710,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
         cameraRig.focus.y = 0;
         cameraRig.yaw = overviewYaw;
         cameraRig.pitch = 0.7;
-        cameraRig.distance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
+        cameraRig.distance = overviewDistance;
         return;
       }
 
@@ -824,17 +767,9 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       signalByKey.set(signal.key, signal);
     });
 
-    if (!taxiRoutePool.length || !trafficRoutePool.length) {
-      return undefined;
-    }
-
     const taxiRouteById = new globalThis.Map(
       taxiRoutePool.map((route) => [route.id, route]),
     );
-    if (!hotspotPool.length) {
-      return undefined;
-    }
-
     const trafficSignalLayer = createTrafficSignalLayer({
       signals,
       loopRoutes,
@@ -1055,12 +990,8 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
 
     const timer = new THREE.Timer();
     timer.connect(document);
+    const frameClock = createSimulatorLoopClock({ timer });
     let animationFrame = 0;
-    let lastRafTimestamp = 0;
-    let lastVisibleRenderTimestamp = 0;
-    let lastCappedRenderTimestamp = 0;
-    let lastCapSignature = "";
-    let refreshRateEstimate = 0;
 
     const updateSignalVisuals = (
       signalSnapshots: SimulationSnapshot["signals"],
@@ -1199,21 +1130,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       }
 
       setBoundaryHover(dongBoundarySegments[nextIndex] ?? null);
-    };
-
-    const onResize = () => {
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      if (width <= 0 || height <= 0) {
-        return;
-      }
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      applyRenderBudget(cameraModeRef.current);
-      renderer.setSize(width, height);
-      labelRenderer.setSize(width, height);
-      markHoverDirty();
-      markLabelVisibilityDirty();
     };
 
     const stopDragging = () => {
@@ -1623,7 +1539,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       hoverNeedsUpdate = false;
     };
 
-    window.addEventListener("resize", onResize);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointercancel", onPointerUp);
@@ -1634,21 +1549,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
     renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(() => onResize());
-    resizeObserver?.observe(container);
-
-    let lastGraphicsQuality = sceneStore.getState().graphicsQuality;
-    const unsubscribeStore = sceneStore.subscribe(() => {
-      const currentGraphicsQuality = sceneStore.getState().graphicsQuality;
-      if (currentGraphicsQuality !== lastGraphicsQuality) {
-        lastGraphicsQuality = currentGraphicsQuality;
-        applyRenderBudget(cameraModeRef.current);
-      }
-    });
-
     applyEnvironment(
       simulationDateRef.current,
       simulationTimeRef.current,
@@ -1658,81 +1558,16 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
 
     const animate = (timestamp?: number) => {
       animationFrame = window.requestAnimationFrame(animate);
-      const frameTimestamp = timestamp ?? performance.now();
-      timer.update(frameTimestamp);
-      const rawDeltaMs =
-        lastRafTimestamp === 0
-          ? 1000 / 60
-          : Math.min(frameTimestamp - lastRafTimestamp, 250);
-      lastRafTimestamp = frameTimestamp;
-      if (!isPageHidden && rawDeltaMs > 2 && rawDeltaMs < 40) {
-        const instantRefreshRate = 1000 / rawDeltaMs;
-        refreshRateEstimate =
-          refreshRateEstimate === 0
-            ? instantRefreshRate
-            : THREE.MathUtils.lerp(
-              refreshRateEstimate,
-              instantRefreshRate,
-              0.1,
-            );
-        refreshRateBand = stabilizeRefreshRateBand(
-          refreshRateEstimate,
-          refreshRateBand,
-        );
-      }
-      const activeRenderCap = isPageHidden
-        ? HIDDEN_RENDER_FPS
-        : resolveRenderCap(
-          cameraModeRef.current,
-          fpsModeRef.current,
-          refreshRateBand ?? (refreshRateEstimate || null),
-        );
-      const capSignature = `${activeRenderCap ?? "unlimited"}:${isPageHidden ? "hidden" : "visible"}`;
-      if (capSignature !== lastCapSignature) {
-        lastCapSignature = capSignature;
-        lastCappedRenderTimestamp = 0;
-      }
-
-      let delta = 0;
-      if (activeRenderCap !== null) {
-        const targetFrameMs = 1000 / activeRenderCap;
-        if (lastCappedRenderTimestamp === 0) {
-          lastCappedRenderTimestamp = frameTimestamp;
-        } else {
-          const elapsedSinceCap = frameTimestamp - lastCappedRenderTimestamp;
-          if (elapsedSinceCap < targetFrameMs) {
-            return;
-          }
-          lastCappedRenderTimestamp =
-            frameTimestamp - (elapsedSinceCap % targetFrameMs);
-        }
-
-        delta = Math.min(
-          Math.max(
-            lastVisibleRenderTimestamp === 0
-              ? targetFrameMs
-              : frameTimestamp - lastVisibleRenderTimestamp,
-            targetFrameMs,
-          ) / 1000,
-          0.05,
-        );
-      } else {
-        delta = Math.min(
-          Math.max(
-            lastVisibleRenderTimestamp === 0
-              ? rawDeltaMs
-              : frameTimestamp - lastVisibleRenderTimestamp,
-            1,
-          ) / 1000,
-          0.05,
-        );
-      }
-
-      if (delta <= 0) {
+      const frameTiming = frameClock.nextFrame({
+        cameraMode: cameraModeRef.current,
+        fpsMode: fpsModeRef.current,
+        isPageHidden,
+        timestamp,
+      });
+      if (!frameTiming) {
         return;
       }
-      lastVisibleRenderTimestamp = frameTimestamp;
-      const elapsedTime = timer.getElapsed();
+      const { delta, elapsedTime, frameTimestamp } = frameTiming;
       const nextSimulationDate = simulationDateRef.current;
       const nextSimulationTime = simulationTimeRef.current;
       const nextWeatherMode = weatherModeRef.current;
@@ -1884,7 +1719,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
         }
       } else if (currentMode === "overview") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const overviewDistance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
         const lerpAlpha = 1 - Math.exp(-delta * 3.8);
         cameraRig.focus.lerp(new THREE.Vector3(centerPoint.x, 0, centerPoint.z), lerpAlpha);
         cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 3.8, delta);
@@ -2137,11 +1971,10 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
 
     return () => {
       sceneDisposed = true;
-      unsubscribeStore();
+      rendererController.dispose();
       cancelTaxiAssetLoadSchedule();
       cancelTrafficAssetLoadSchedule();
       window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", onResize);
       window.removeEventListener("pointerdown", markUserInteraction, true);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
@@ -2150,75 +1983,47 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       window.removeEventListener("blur", onWindowBlur);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("keydown", onKeyDown);
-      resizeObserver?.disconnect();
       renderer.domElement.removeEventListener("contextmenu", onContextMenu);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       renderer.domElement.removeEventListener("wheel", onWheel);
-      rainLayer.geometry.dispose();
-      rainLayer.material.dispose();
-      snowLayer.geometry.dispose();
-      snowLayer.material.dispose();
-      starsGeometry.dispose();
-      starsMaterial.dispose();
-      cloudPuffGeometry.dispose();
-      cloudMaterial.dispose();
-      stormCloudMaterial.dispose();
+      disposeEnvironmentVisualResources(environmentVisuals);
       transitHoverMaterial.dispose();
-      sunDiscMaterial.dispose();
-      sunHaloMaterial.dispose();
-      sunsetGlowMaterial.dispose();
-      moonMaterial.dispose();
       timer.dispose();
       renderer.dispose();
       if (taxiAssetTemplate) {
         disposeObject3DResources(taxiAssetTemplate);
       }
       disposeTrafficAssetTemplates(trafficAssetTemplates);
-      const currentNonRoadGroup = nonRoadGroup;
-      if (currentNonRoadGroup) {
-        currentNonRoadGroup.removeFromParent();
-        disposeObject3DResources(currentNonRoadGroup);
-      }
-      if (nonRoadGroupRef.current === currentNonRoadGroup) {
+      if (nonRoadGroupRef.current === nonRoadGroup) {
         nonRoadGroupRef.current = null;
-      }
-      if (roadNetworkOverlay) {
-        roadNetworkOverlay.removeFromParent();
-        disposeObject3DResources(roadNetworkOverlay);
       }
       if (roadNetworkGroupRef.current === roadNetworkOverlay) {
         roadNetworkGroupRef.current = null;
       }
-      trafficSignalLayer.group.removeFromParent();
-      disposeObject3DResources(trafficSignalLayer.group);
-      hotspotVisualLayer.group.removeFromParent();
-      disposeObject3DResources(hotspotVisualLayer.group);
-      pedestrianVisualLayer.group.removeFromParent();
-      disposeObject3DResources(pedestrianVisualLayer.group);
       vehicleRuntimeSync?.resetLayerReadiness();
       clearVehicleLayer();
       if (transitGroupRef.current === transitGroup) {
         transitGroupRef.current = null;
       }
-      transitGroup.removeFromParent();
-      disposeObject3DResources(transitGroup);
-      simulationTrailLayer.clear();
-      simulationTrailLayer.group.removeFromParent();
-      demandVisualLayer.group.removeFromParent();
-      disposeObject3DResources(demandVisualLayer.group);
-      dongBoundaryLayer.group.removeFromParent();
-      disposeObject3DResources(dongBoundaryLayer.group);
-      staticRoadGroup.removeFromParent();
-      disposeObject3DResources(staticRoadGroup);
-      buildingMassLayer.group.removeFromParent();
-      disposeObject3DResources(buildingMassLayer.group);
-      poiMarkerGroup.removeFromParent();
-      disposeObject3DResources(poiMarkerGroup);
+      disposeSimulatorSceneLayers({
+        buildingMassGroup: buildingMassLayer.group,
+        demandVisualGroup: demandVisualLayer.group,
+        dongBoundaryGroup: dongBoundaryLayer.group,
+        hotspotVisualGroup: hotspotVisualLayer.group,
+        nonRoadGroup,
+        pedestrianVisualGroup: pedestrianVisualLayer.group,
+        poiMarkerGroup,
+        roadNetworkOverlay,
+        simulationTrailLayer,
+        staticRoadGroup,
+        trafficSignalGroup: trafficSignalLayer.group,
+        transitGroup,
+      });
       if (optionalLabelObjectsRef.current === optionalLabelObjects) {
         optionalLabelObjectsRef.current = [];
       }
-      labelObjects.forEach((label) => label.removeFromParent());
+      removeSceneLabels(labelObjects);
       disposeHierarchy(scene);
       container.removeChild(boundaryHintText);
       container.removeChild(renderer.domElement);

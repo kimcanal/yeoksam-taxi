@@ -7,6 +7,10 @@ import type {
   Polygon,
   Position,
 } from "geojson";
+import {
+  METERS_PER_DEGREE_LATITUDE,
+  METERS_PER_DEGREE_LONGITUDE_AT_EQUATOR,
+} from "@/components/map-simulator/constants/map-constants";
 import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/map-defaults";
 import {
   POSITION_SCALE,
@@ -79,9 +83,11 @@ export function projectPoint(
   position: Position,
   center: { lat: number; lon: number },
 ) {
-  const latFactor = 110540 * POSITION_SCALE;
+  const latFactor = METERS_PER_DEGREE_LATITUDE * POSITION_SCALE;
   const lonFactor =
-    111320 * Math.cos((center.lat * Math.PI) / 180) * POSITION_SCALE;
+    METERS_PER_DEGREE_LONGITUDE_AT_EQUATOR *
+    Math.cos((center.lat * Math.PI) / 180) *
+    POSITION_SCALE;
   return new THREE.Vector3(
     (position[0] - center.lon) * lonFactor,
     0,

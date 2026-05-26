@@ -1,4 +1,15 @@
 import * as THREE from "three";
+import {
+  MAP_SCENE_GRID_DIVISIONS,
+  MAP_SCENE_GRID_OPACITY,
+  MAP_SCENE_GRID_PRIMARY_COLOR,
+  MAP_SCENE_GRID_SECONDARY_COLOR,
+  MAP_SCENE_GROUND_MARGIN,
+  MAP_SCENE_OUTER_MASK_COLOR,
+  MAP_SCENE_OUTER_MASK_OPACITY,
+  MAP_SCENE_OUTER_MASK_WORLD_SIZE,
+  MAP_SCENE_OUTER_MASK_Y,
+} from "@/components/map-simulator/constants/map-constants";
 import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
 import { createBuildingMassLayer } from "@/components/map-simulator/building-mass-layer";
 import { createDemandVisualLayer } from "@/components/map-simulator/demand-visual-layer";
@@ -28,22 +39,60 @@ export function createMapSceneGeometry({
     metalness: 0.01,
   });
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(mapSize.x + 120, mapSize.z + 120),
+    new THREE.PlaneGeometry(
+      mapSize.x + MAP_SCENE_GROUND_MARGIN,
+      mapSize.z + MAP_SCENE_GROUND_MARGIN,
+    ),
     groundMaterial,
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(centerPoint.x, 0, centerPoint.z);
   ground.receiveShadow = true;
 
-  const gridHelper = new THREE.GridHelper(
-    Math.max(mapSize.x, mapSize.z) + 120,
-    180,
-    0x3a4556,
-    0x2a3546
+  const gridWidth = mapSize.x + MAP_SCENE_GROUND_MARGIN;
+  const gridDepth = mapSize.z + MAP_SCENE_GROUND_MARGIN;
+  const cellSize = Math.max(gridWidth, gridDepth) / MAP_SCENE_GRID_DIVISIONS;
+
+  const halfW = gridWidth / 2;
+  const halfD = gridDepth / 2;
+
+  const gridGeom = new THREE.BufferGeometry();
+  const gridPositions: number[] = [];
+  const gridColors: number[] = [];
+
+  const primaryGridColor = new THREE.Color(MAP_SCENE_GRID_PRIMARY_COLOR);
+  const secondaryGridColor = new THREE.Color(MAP_SCENE_GRID_SECONDARY_COLOR);
+
+  for (let x = -halfW; x <= halfW; x += cellSize) {
+    const isCenter = Math.abs(x) < cellSize / 2;
+    const color = isCenter ? primaryGridColor : secondaryGridColor;
+    gridPositions.push(x, 0, -halfD, x, 0, halfD);
+    gridColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+  }
+
+  for (let z = -halfD; z <= halfD; z += cellSize) {
+    const isCenter = Math.abs(z) < cellSize / 2;
+    const color = isCenter ? primaryGridColor : secondaryGridColor;
+    gridPositions.push(-halfW, 0, z, halfW, 0, z);
+    gridColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+  }
+
+  gridGeom.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(gridPositions, 3),
   );
+  gridGeom.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(gridColors, 3),
+  );
+
+  const gridMaterial = new THREE.LineBasicMaterial({
+    opacity: MAP_SCENE_GRID_OPACITY,
+    transparent: true,
+    vertexColors: true,
+  });
+  const gridHelper = new THREE.LineSegments(gridGeom, gridMaterial);
   gridHelper.position.set(centerPoint.x, 0.002, centerPoint.z);
-  gridHelper.material.opacity = 0.45;
-  gridHelper.material.transparent = true;
 
   const demandVisualLayer = createDemandVisualLayer({
     center: data.center,
@@ -62,9 +111,8 @@ export function createMapSceneGeometry({
     wallHeight: dongBoundaryWallHeight,
   });
 
-  // Create an inverted mask to hide areas outside the target dongs
   const outerShape = new THREE.Shape();
-  const worldSize = 20000;
+  const worldSize = MAP_SCENE_OUTER_MASK_WORLD_SIZE;
   outerShape.moveTo(-worldSize, -worldSize);
   outerShape.lineTo(worldSize, -worldSize);
   outerShape.lineTo(worldSize, worldSize);
@@ -85,18 +133,18 @@ export function createMapSceneGeometry({
   });
 
   const maskGeometry = new THREE.ShapeGeometry(outerShape);
-  
+
   const maskMaterial = new THREE.MeshBasicMaterial({
-    color: 0x0a1420, // Match the dark background aesthetic
+    color: MAP_SCENE_OUTER_MASK_COLOR,
     transparent: true,
-    opacity: 0.85,
+    opacity: MAP_SCENE_OUTER_MASK_OPACITY,
   });
 
   const maskMesh = new THREE.Mesh(maskGeometry, maskMaterial);
-  maskMesh.rotation.x = -Math.PI / 2; // Lay flat
-  maskMesh.position.y = 0.2; // Keep it slightly above the ground, not in the sky
+  maskMesh.rotation.x = -Math.PI / 2;
+  maskMesh.position.y = MAP_SCENE_OUTER_MASK_Y;
   maskMesh.renderOrder = 4;
-  maskMesh.visible = false; // Hide completely so outside areas (like Daechi Station) are naturally visible
+  maskMesh.visible = false;
 
   const staticRoadLayer = createStaticRoadLayer(data.projectedRoadSegments);
   const buildingMassLayer = createBuildingMassLayer(data.buildingMasses);

@@ -1,7 +1,5 @@
-import {
-  DEMAND_VISUAL_UNIT_CALLS,
-  demandSlotLabel,
-} from "@/components/map-simulator/demand-utils";
+import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/constants/demand-constants";
+import { demandSlotLabel } from "@/components/map-simulator/demand-math";
 import type {
   FiveMinuteDemandPoint,
   HourlyDemandPoint,
