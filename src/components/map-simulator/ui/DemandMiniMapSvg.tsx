@@ -41,7 +41,7 @@ function MiniMapDefs({
         <stop offset="100%" stopColor="rgba(34,211,238,0)" />
       </linearGradient>
       <filter id={glowFilterId} x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.2" result="blur" />
+        <feGaussianBlur stdDeviation="0.6" result="blur" />
         <feComposite in="SourceGraphic" in2="blur" operator="over" />
       </filter>
     </defs>
@@ -193,11 +193,11 @@ function MiniMapRegionLabels({ regions }: { regions: DemandMiniMapRegion[] }) {
             textAnchor="middle"
             dominantBaseline="central"
             fill={region.isSelected ? "#f8fafc" : "#dbeafe"}
-            fontSize={region.isSelected ? 3.6 : 3.2}
+            fontSize={region.isSelected ? 3.8 : 3.4}
             fontWeight={region.isSelected ? 700 : 600}
             paintOrder="stroke"
-            stroke="rgba(7, 17, 28, 0.82)"
-            strokeWidth="0.72"
+            stroke="rgba(7, 17, 28, 0.92)"
+            strokeWidth="0.5"
             strokeLinejoin="round"
           >
             {region.name}
@@ -253,11 +253,11 @@ function MiniMapPoiMarker({
           y={poi.labelY}
           textAnchor={poi.textAnchor}
           fill={poi.isSelected ? "#f8fafc" : "#cffafe"}
-          fontSize={poi.isSelected ? "2.45" : "2.05"}
+          fontSize={poi.isSelected ? "2.6" : "2.2"}
           fontWeight={poi.isSelected ? "800" : "650"}
           paintOrder="stroke"
           stroke="rgba(7, 17, 28, 0.92)"
-          strokeWidth={poi.isSelected ? "0.66" : "0.5"}
+          strokeWidth={poi.isSelected ? "0.45" : "0.35"}
           pointerEvents="none"
         >
           {poi.label}
@@ -301,11 +301,11 @@ function MiniMapLandmark({ landmark }: { landmark: DemandMiniMapLandmark }) {
         y={landmark.labelY}
         textAnchor={landmark.textAnchor}
         fill={landmark.isPrimary ? "#cffafe" : "#e0f2fe"}
-        fontSize={landmark.isPrimary ? "2.55" : "2.1"}
+        fontSize={landmark.isPrimary ? "2.7" : "2.25"}
         fontWeight={landmark.isPrimary ? "700" : "600"}
         paintOrder="stroke"
-        stroke="rgba(7, 17, 28, 0.9)"
-        strokeWidth={landmark.isPrimary ? "0.55" : "0.48"}
+        stroke="rgba(7, 17, 28, 0.92)"
+        strokeWidth={landmark.isPrimary ? "0.4" : "0.35"}
         pointerEvents="none"
       >
         {landmark.label}
