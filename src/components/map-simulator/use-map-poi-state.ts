@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import type { CameraMode } from "@/components/map-simulator/camera-types";
-import {
-  buildStaticPoiFeatureRows,
-} from "@/components/map-simulator/demand-utils";
+import { buildStaticPoiFeatureRows } from "@/components/map-simulator/demand-minimap-renderer";
 import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
 import type { SimulationData } from "@/components/map-simulator/map-simulator-types";
 import {

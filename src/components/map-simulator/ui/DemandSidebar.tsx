@@ -4,7 +4,7 @@ import {
   PANEL_EYEBROW_CLASS,
   PANEL_SECTION_LABEL_CLASS,
 } from "@/components/map-simulator/panel-classes";
-import { weekdayLabel } from "@/components/map-simulator/demand-utils";
+import { weekdayLabel } from "@/components/map-simulator/demand-math";
 import {
   type DemandChartGeometry,
   type DemandMiniMapData,
@@ -20,6 +20,7 @@ import { DemandSummaryStats } from "@/components/map-simulator/ui/DemandSummaryS
 
 export type DemandSidebarProps = {
   isVisible: boolean;
+  onClose: () => void;
   selectedDongName: string;
   setSelectedDongName: (dongName: string) => void;
   selectedWeekday: DemandWeekdayId;
@@ -58,8 +59,22 @@ export function DemandSidebar({
   demandMiniMap,
   mapPoiFeatureRows,
   onPoiSelect,
+  onClose,
 }: DemandSidebarProps) {
   return (
+    <>
+      <button
+        type="button"
+        aria-label="정보 패널 닫기"
+        aria-hidden={!isVisible}
+        tabIndex={isVisible ? 0 : -1}
+        onClick={onClose}
+        className={`absolute inset-0 z-10 bg-slate-950/56 transition-opacity duration-300 ease-in-out lg:hidden ${
+          isVisible
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0"
+        }`}
+      />
     <div
       data-ui-panel="left-sidebar"
       aria-hidden={!isVisible}
@@ -136,5 +151,6 @@ export function DemandSidebar({
         onPoiSelect={onPoiSelect}
       />
     </div>
+    </>
   );
 }

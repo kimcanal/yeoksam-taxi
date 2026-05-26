@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type CSSProperties,
 } from "react";
 import dynamic from "next/dynamic";
@@ -20,12 +19,9 @@ import {
 } from "@/components/map-simulator/simulation-environment";
 import type { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/MapSimulatorSceneRuntime";
 import {
-  sceneSetters,
-  sceneStore,
   type MiniMapFocus,
-  uiSetters,
-  uiStore,
 } from "@/components/map-simulator/simulator-stores";
+import { useMapSimulatorStores } from "@/components/map-simulator/use-map-simulator-stores";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { MapFooter } from "@/components/map-simulator/ui/MapFooter";
 import { MapSearchControl } from "@/components/map-simulator/ui/MapSearchControl";
@@ -42,8 +38,6 @@ import { trafficCountForLoadPercent } from "@/components/map-simulator/simulatio
 type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
 };
-
-const MOBILE_LAYOUT_QUERY = "(max-width: 1023px)";
 
 const MapSimulatorSceneRuntime = dynamic<MapSimulatorSceneRuntimeProps>(
   () => import("@/components/map-simulator/MapSimulatorSceneRuntime"),
@@ -66,29 +60,24 @@ const DemandSidebar = dynamic<DemandSidebarProps>(
 
 export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const data = sceneStore.useStore((state) => state.data);
-  const status = sceneStore.useStore((state) => state.status);
-  const statusDetail = sceneStore.useStore((state) => state.statusDetail);
-  const loadingProgress = sceneStore.useStore((state) => state.loadingProgress);
-  const simulationDate = sceneStore.useStore((state) => state.simulationDate);
-  const simulationTimeMinutes = sceneStore.useStore(
-    (state) => state.simulationTimeMinutes,
-  );
-  const weatherMode = sceneStore.useStore((state) => state.weatherMode);
-  const trafficLoadPercent = sceneStore.useStore(
-    (state) => state.trafficLoadPercent,
-  );
-  const cameraMode = sceneStore.useStore((state) => state.cameraMode);
-  const miniMapFocus = sceneStore.useStore((state) => state.miniMapFocus);
-  const followTaxiId = sceneStore.useStore((state) => state.followTaxiId);
-  const selectedPoiCode = uiStore.useStore((state) => state.selectedPoiCode);
-  const isSidebarCollapsed = uiStore.useStore(
-    (state) => state.isSidebarCollapsed,
-  );
-  const isScenarioControlsExpanded = uiStore.useStore(
-    (state) => state.isScenarioControlsExpanded,
-  );
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const { state, setters } = useMapSimulatorStores();
+  const {
+    data,
+    status,
+    statusDetail,
+    loadingProgress,
+    simulationDate,
+    simulationTimeMinutes,
+    weatherMode,
+    trafficLoadPercent,
+    cameraMode,
+    miniMapFocus,
+    followTaxiId,
+    selectedPoiCode,
+    isSidebarCollapsed,
+    isScenarioControlsExpanded,
+    isMobileLayout,
+  } = state;
 
   const {
     setData,
@@ -104,12 +93,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setMiniMapFocus,
     setFollowTaxiId,
     setStats,
-  } = sceneSetters;
-  const {
     setSelectedPoiCode,
     setIsSidebarCollapsed,
     setIsScenarioControlsExpanded,
-  } = uiSetters;
+  } = setters;
+
   const showLabels = false;
   const showNonRoad = true;
   const showTransit = true;
@@ -133,16 +121,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     cameraMode,
     miniMapFocus,
   });
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
-    const syncMobileLayout = () => setIsMobileLayout(mediaQuery.matches);
-    syncMobileLayout();
-    mediaQuery.addEventListener("change", syncMobileLayout);
-    return () => {
-      mediaQuery.removeEventListener("change", syncMobileLayout);
-    };
-  }, []);
 
   useSimulationDataLoader({
     setData,
@@ -248,8 +226,8 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const formattedSimulationDate = formatDateLabel(simulationDate);
   const isSidebarVisible = !isSidebarCollapsed;
   const mapCanvasClass = isSidebarVisible
-    ? "h-full w-full border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
-    : "h-full w-full transition-[margin,width] duration-300 ease-in-out";
+    ? "h-full w-full touch-none border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
+    : "h-full w-full touch-none transition-[margin,width] duration-300 ease-in-out";
   useEffect(() => {
     if (isSidebarVisible && isScenarioControlsExpanded) {
       setIsScenarioControlsExpanded(false);
@@ -378,22 +356,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
         ) : null}
 
 
-
-        <button
-          type="button"
-          aria-label="정보 패널 닫기"
-          aria-hidden={!isSidebarVisible}
-          tabIndex={isSidebarVisible ? 0 : -1}
-          onClick={toggleSidebar}
-          className={`absolute inset-0 z-10 bg-slate-950/56 transition-opacity duration-300 ease-in-out lg:hidden ${
-            isSidebarVisible
-              ? "pointer-events-auto opacity-100"
-              : "pointer-events-none opacity-0"
-          }`}
-        />
-
         <DemandSidebar
           isVisible={isSidebarVisible}
+          onClose={toggleSidebar}
           selectedDongName={demandState.selectedDongName}
           setSelectedDongName={demandState.setSelectedDongName}
           selectedWeekday={demandState.selectedWeekday}

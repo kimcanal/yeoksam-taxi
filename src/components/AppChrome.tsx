@@ -8,8 +8,8 @@ type AppChromeProps = {
 
 export function AppChrome({ children, showFooter = true }: AppChromeProps) {
   return (
-    <>
-      <header className="border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#060d16]">
+      <header className="border-b border-slate-200/70 bg-white/88 backdrop-blur-xl shrink-0">
         <div className="mx-auto flex h-14 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link
@@ -53,10 +53,10 @@ export function AppChrome({ children, showFooter = true }: AppChromeProps) {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="min-h-0 flex-1 relative w-full h-full">{children}</div>
 
       {showFooter ? (
-        <footer className="border-t border-slate-200/70 bg-white/92 backdrop-blur-xl">
+        <footer className="border-t border-slate-200/70 bg-white/92 backdrop-blur-xl shrink-0">
           <div className="mx-auto flex min-h-12 w-full flex-wrap items-center justify-between gap-2 px-4 py-2 text-[11px] text-slate-600 sm:px-6">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-semibold text-slate-800">
@@ -73,6 +73,6 @@ export function AppChrome({ children, showFooter = true }: AppChromeProps) {
           </div>
         </footer>
       ) : null}
-    </>
+    </div>
   );
 }

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/simulation-defaults";
+import { DEMAND_SLOT_MINUTES } from "@/components/map-simulator/constants/demand-constants";
 import {
-  DEMAND_SLOT_MINUTES,
   averageDemand,
   buildDemandChartGeometry,
   buildFiveMinuteDemandSeries,
   normalizeRemoteDemandPoints,
   scoreDemandAtHour,
   weekdayIdFromDate,
-} from "@/components/map-simulator/demand-utils";
+} from "@/components/map-simulator/demand-math";
 import type {
   DemandFetchStatus,
   DemandWeekdayId,

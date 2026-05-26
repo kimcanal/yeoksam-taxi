@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import type * as THREE from "three";
-import {
-  buildDemandMiniMapData,
-} from "@/components/map-simulator/demand-utils";
+import { buildDemandMiniMapData } from "@/components/map-simulator/demand-minimap-renderer";
 import type { MapPoiFeatureRow } from "@/components/map-simulator/demand-types";
 import type { SimulationData } from "@/components/map-simulator/map-simulator-types";
 import type { MiniMapFocus } from "@/components/map-simulator/simulator-stores";

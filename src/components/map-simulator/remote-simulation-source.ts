@@ -1,7 +1,5 @@
 import * as THREE from "three";
 import type {
-  SceneStaticContext,
-  SimulationConfig,
   SimulationSnapshot,
   SimulationSource,
 } from "@/components/map-simulator/simulation-source";
@@ -23,7 +21,7 @@ export class RemoteSimulationSource implements SimulationSource {
   private snapshotDurationSeconds = 1.0;
   private currentProgressSeconds = 0;
 
-  public reset(_config: SimulationConfig, _staticContext: SceneStaticContext): void {
+  public reset(): void {
     this.currentSnapshot = null;
     this.targetSnapshot = null;
     this.interpolatedSnapshot = null;
