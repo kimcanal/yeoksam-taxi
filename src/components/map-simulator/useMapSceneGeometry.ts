@@ -84,22 +84,19 @@ export function createMapSceneGeometry({
     });
   });
 
-  const maskGeometry = new THREE.ExtrudeGeometry(outerShape, {
-    depth: 60,
-    bevelEnabled: false,
-  });
+  const maskGeometry = new THREE.ShapeGeometry(outerShape);
   
   const maskMaterial = new THREE.MeshBasicMaterial({
     color: 0x0a1420, // Match the dark background aesthetic
-    side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.95,
+    opacity: 0.85,
   });
 
   const maskMesh = new THREE.Mesh(maskGeometry, maskMaterial);
-  maskMesh.rotation.x = -Math.PI / 2; // Lay flat: Extrusion depth points to -Y
-  maskMesh.position.y = 50; // Cover from Y=50 down to Y=-10
-  maskMesh.renderOrder = 40;
+  maskMesh.rotation.x = -Math.PI / 2; // Lay flat
+  maskMesh.position.y = 0.2; // Keep it slightly above the ground, not in the sky
+  maskMesh.renderOrder = 4;
+  maskMesh.visible = false; // Hide completely so outside areas (like Daechi Station) are naturally visible
 
   const staticRoadLayer = createStaticRoadLayer(data.projectedRoadSegments);
   const buildingMassLayer = createBuildingMassLayer(data.buildingMasses);

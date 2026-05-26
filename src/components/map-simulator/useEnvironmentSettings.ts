@@ -272,7 +272,7 @@ export function createEnvironmentSettingsController({
             : 0.88);
     const cloudOpacityBase =
       nextWeatherMode === "clear"
-        ? 0.08
+        ? 0
         : nextWeatherMode === "cloudy"
           ? 0.4
           : nextWeatherMode === "heavy-rain"
@@ -294,7 +294,7 @@ export function createEnvironmentSettingsController({
         : cloudOpacityBase * (daylight > 0.08 ? 1.04 : 0.9);
     environmentVisuals.cloudClusters.forEach(({ cluster }) => {
       cluster.visible =
-        nextWeatherMode !== "heavy-rain" && cloudOpacityBase > 0.01;
+        nextWeatherMode !== "heavy-rain" && cloudOpacityBase > 0.15;
     });
     const stormCloudOpacity = nextWeatherMode === "heavy-rain" ? 0.62 : 0;
     environmentVisuals.stormCloudMaterial.opacity = stormCloudOpacity;
