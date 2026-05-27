@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
 const DEMAND_SLOT_ALLOCATION_LABEL = "단기 예측";
@@ -9,7 +10,7 @@ type MapFooterProps = {
   buildVersion: BuildVersionInfo;
 };
 
-export function MapFooter({
+export const MapFooter = memo(function MapFooter({
   isSidebarVisible,
   demandFetchBadgeText,
   demandVisualUnitCalls,
@@ -41,4 +42,4 @@ export function MapFooter({
       ) : null}
     </footer>
   );
-}
+});

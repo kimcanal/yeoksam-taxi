@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { memo, type Dispatch, type SetStateAction } from "react";
 import { Minimize2, Maximize2, Gauge, Menu, X, Sparkles } from "lucide-react";
 import { sceneStore, sceneSetters } from "@/components/map-simulator/hooks";
 
@@ -20,7 +20,7 @@ type MapToolbarProps = {
   toggleSidebar: () => void;
 };
 
-export function MapToolbar({
+export const MapToolbar = memo(function MapToolbar({
   floatingControlOffsetClass,
   isMapFocusMode,
   toggleMapFocusMode,
@@ -125,4 +125,4 @@ export function MapToolbar({
       </div>
     </>
   );
-}
+});

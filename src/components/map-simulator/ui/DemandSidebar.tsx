@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { LineChart, Settings2, X } from "lucide-react";
 import {
   PANEL_CARD_CLASS,
@@ -71,7 +72,7 @@ function trafficLoadLabel(percent: number) {
   return "보통";
 }
 
-export function DemandSidebar({
+export const DemandSidebar = memo(function DemandSidebar({
   isVisible,
   selectedDongName,
   setSelectedDongName,
@@ -119,7 +120,7 @@ export function DemandSidebar({
     <div
       data-ui-panel="left-sidebar"
       aria-hidden={!isVisible}
-      className={`absolute bottom-0 left-0 right-0 z-20 max-h-[min(68vh,calc(100vh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/14 bg-slate-950/98 p-4 text-white shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out sm:max-h-[min(72vh,calc(100vh-4rem))] lg:right-auto lg:left-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[var(--demand-sidebar-width)] lg:min-w-0 lg:max-w-none lg:rounded-none lg:border-r lg:border-t-0 lg:p-5 ${
+      className={`absolute bottom-0 left-0 right-0 z-20 max-h-[min(68dvh,calc(100dvh-4rem))] overflow-y-auto rounded-t-[1.75rem] border-t border-white/14 bg-slate-950/98 p-4 text-white shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out sm:max-h-[min(72dvh,calc(100dvh-4rem))] lg:right-auto lg:left-0 lg:top-0 lg:h-full lg:max-h-none lg:w-[var(--demand-sidebar-width)] lg:min-w-0 lg:max-w-none lg:rounded-none lg:border-r lg:border-t-0 lg:p-5 ${
         isVisible
           ? "translate-y-0 lg:translate-x-0"
           : "pointer-events-none translate-y-full lg:-translate-x-full lg:translate-y-0"
@@ -300,4 +301,4 @@ export function DemandSidebar({
     </div>
     </>
   );
-}
+});
