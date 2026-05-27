@@ -85,8 +85,10 @@ export function MapToolbar({
 
       <div
         data-ui-panel="mobile-map-toolbar"
-        className={`absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/95 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden ${
-          isSidebarVisible ? "z-30" : "z-20"
+        className={`absolute bottom-3 left-3 right-3 flex items-center gap-2 rounded-2xl border border-white/14 bg-slate-950/95 p-2 text-white shadow-2xl shadow-black/30 backdrop-blur-md lg:hidden transition-all duration-300 ${
+          isSidebarVisible
+            ? "pointer-events-none opacity-0 translate-y-4 z-0"
+            : "pointer-events-auto opacity-100 translate-y-0 z-20"
         }`}
       >
         <button

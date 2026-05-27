@@ -178,9 +178,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
-    if (isMobileLayout) {
-      setIsScenarioControlsExpanded(false);
-    }
     setIsSidebarCollapsed(false);
     if (
       data &&

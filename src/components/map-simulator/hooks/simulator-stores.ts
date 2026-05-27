@@ -129,8 +129,4 @@ export const uiSetters = {
   setSelectedPoiCode: createFieldSetter(uiStore, "selectedPoiCode"),
   setIsSidebarCollapsed: createFieldSetter(uiStore, "isSidebarCollapsed"),
   setIsMapFocusMode: createFieldSetter(uiStore, "isMapFocusMode"),
-  setIsScenarioControlsExpanded: createFieldSetter(
-    uiStore,
-    "isScenarioControlsExpanded",
-  ),
 };

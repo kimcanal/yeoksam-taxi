@@ -1,4 +1,4 @@
-import { LineChart, Settings2 } from "lucide-react";
+import { LineChart, Settings2, X } from "lucide-react";
 import {
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
@@ -135,11 +135,21 @@ export function DemandSidebar({
             {selectedDongName} · {weekdayLabel(selectedWeekday)}요일 · 하루 24시간
           </p>
         </div>
-        <span
-          className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${demandFetchBadgeClass}`}
-        >
-          {demandFetchBadgeText}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${demandFetchBadgeClass}`}
+          >
+            {demandFetchBadgeText}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-slate-900/50 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+            aria-label="정보 패널 닫기"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div className={`mt-5 ${PANEL_CARD_CLASS} p-4`}>

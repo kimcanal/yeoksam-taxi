@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const viewport: Viewport = {
-  width: 768,
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
