@@ -131,7 +131,7 @@
     {
       "id": "osm-daechi-station",
       "name": "대치역",
-      "coverage_dong": "대치4동",
+      "coverage_dong": null,
       "category": "station_context",
       "lon": 127.063,
       "lat": 37.4945,
