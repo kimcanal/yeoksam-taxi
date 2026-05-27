@@ -47,7 +47,6 @@ export type DemandSidebarProps = {
   
   // Environment Controls
   simulationDate: string;
-  formattedSimulationDate: string;
   formattedSimulationTime: string;
   setCircumstanceMode: (mode: "live" | "specific") => void;
   setSimulationDate: (date: string) => void;
@@ -93,7 +92,6 @@ export function DemandSidebar({
   onPoiSelect,
   onClose,
   simulationDate,
-  formattedSimulationDate,
   formattedSimulationTime,
   setCircumstanceMode,
   setSimulationDate,
@@ -104,9 +102,6 @@ export function DemandSidebar({
   setTrafficLoadPercent,
   appliedTrafficCount,
 }: DemandSidebarProps) {
-  const trafficLabel = trafficLoadLabel(trafficLoadPercent);
-  const selectedWeather = WEATHER_OPTIONS.find((w) => w.id === weatherMode) ?? WEATHER_OPTIONS[0];
-
   return (
     <>
       <button

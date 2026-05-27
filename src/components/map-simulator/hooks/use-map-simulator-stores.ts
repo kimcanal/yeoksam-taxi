@@ -23,9 +23,6 @@ export function useMapSimulatorStores() {
   const isSidebarCollapsed = uiStore.useStore(
     (state) => state.isSidebarCollapsed,
   );
-  const isScenarioControlsExpanded = uiStore.useStore(
-    (state) => state.isScenarioControlsExpanded,
-  );
   
   const [isMobileLayout, setIsMobileLayout] = useState(false);
 
@@ -54,7 +51,6 @@ export function useMapSimulatorStores() {
       followTaxiId,
       selectedPoiCode,
       isSidebarCollapsed,
-      isScenarioControlsExpanded,
       isMobileLayout,
     },
     setters: {

@@ -53,7 +53,6 @@ type UiState = {
   selectedPoiCode: string;
   isSidebarCollapsed: boolean;
   isMapFocusMode: boolean;
-  isScenarioControlsExpanded: boolean;
 };
 
 const initialSceneState: SceneState = {
@@ -102,7 +101,6 @@ const initialUiState: UiState = {
   selectedPoiCode: "",
   isSidebarCollapsed: true,
   isMapFocusMode: false,
-  isScenarioControlsExpanded: false,
 };
 
 export const sceneStore = createStore(initialSceneState);

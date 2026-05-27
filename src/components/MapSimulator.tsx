@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   type CSSProperties,
@@ -14,7 +13,6 @@ import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundar
 import {
   WEATHER_OPTIONS,
   format24Hour,
-  formatDateLabel,
   normalizeDayMinutes,
 } from "@/components/map-simulator/environment";
 import { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
@@ -75,7 +73,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     followTaxiId,
     selectedPoiCode,
     isSidebarCollapsed,
-    isScenarioControlsExpanded,
     isMobileLayout,
   } = state;
 
@@ -95,7 +92,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setStats,
     setSelectedPoiCode,
     setIsSidebarCollapsed,
-    setIsScenarioControlsExpanded,
   } = setters;
 
   const showLabels = false;
@@ -155,9 +151,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     status === "loading"
       ? "지도 자산과 도로 그래프를 읽는 중입니다."
       : "3D 장면과 차량 레이어를 맞추는 중입니다.";
-  const selectedWeather =
-    WEATHER_OPTIONS.find((option) => option.id === weatherMode) ??
-    WEATHER_OPTIONS[0];
   const demandState = useMapDemandState({
     data,
     mapPoiFeatureRows,
@@ -213,9 +206,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     isMobileLayout,
     mapPoiFeatureRows,
     setCameraFocusTarget,
-    setCameraMode,
     setIsSidebarCollapsed,
-    setIsScenarioControlsExpanded,
     setSelectedPoiCode,
   ]);
   const handleCameraFocusChange = useCallback((focus: MiniMapFocus) => {
@@ -223,37 +214,16 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setMiniMapFocus(focus);
   }, [setCameraControlValues, setMiniMapFocus]);
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
-  const formattedSimulationDate = formatDateLabel(simulationDate);
   const isSidebarVisible = !isSidebarCollapsed;
   const mapCanvasClass = isSidebarVisible
     ? "h-full w-full touch-none border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
     : "h-full w-full touch-none transition-[margin,width] duration-300 ease-in-out";
-  useEffect(() => {
-    if (isSidebarVisible && isScenarioControlsExpanded) {
-      setIsScenarioControlsExpanded(false);
-    }
-  }, [
-    isScenarioControlsExpanded,
-    isSidebarVisible,
-    setIsScenarioControlsExpanded,
-  ]);
-
-  function toggleScenarioControls() {
-    setIsScenarioControlsExpanded((current) => {
-      const next = !current;
-      if (next) {
-        setIsSidebarCollapsed(true);
-      }
-      return next;
-    });
-  }
 
   function toggleSidebar() {
     if (isSidebarVisible) {
       setIsSidebarCollapsed(true);
       return;
     }
-    setIsScenarioControlsExpanded(false);
     setIsSidebarCollapsed(false);
   }
 
@@ -368,7 +338,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           mapPoiFeatureRows={mapPoiFeatureRows}
           onPoiSelect={handlePoiSelect}
           simulationDate={simulationDate}
-          formattedSimulationDate={formattedSimulationDate}
           formattedSimulationTime={formattedSimulationTime}
           setCircumstanceMode={setCircumstanceMode}
           setSimulationDate={handleSimulationDateChange}
