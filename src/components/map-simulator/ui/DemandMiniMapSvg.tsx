@@ -193,8 +193,8 @@ function MiniMapRegionLabels({ regions }: { regions: DemandMiniMapRegion[] }) {
             textAnchor="middle"
             dominantBaseline="central"
             fill={region.isSelected ? "#f8fafc" : "#dbeafe"}
-            fontSize={region.isSelected ? 3.6 : 3.2}
-            fontWeight={region.isSelected ? 700 : 600}
+            fontSize={region.isSelected ? 3.4 : 2.9}
+            fontWeight={region.isSelected ? 600 : 400}
             paintOrder="stroke"
             stroke="rgba(7, 17, 28, 0.82)"
             strokeWidth="0.25"
@@ -250,8 +250,8 @@ function MiniMapPoiMarker({
           y={poi.labelY - poi.y}
           textAnchor={poi.textAnchor}
           fill={poi.isSelected ? "#f8fafc" : "#cffafe"}
-          fontSize={poi.isSelected ? "2.45" : "2.05"}
-          fontWeight={poi.isSelected ? "800" : "650"}
+          fontSize={poi.isSelected ? "2.3" : "1.85"}
+          fontWeight={poi.isSelected ? "600" : "400"}
           paintOrder="stroke"
           stroke="rgba(7, 17, 28, 0.9)"
           strokeWidth={poi.isSelected ? "0.25" : "0.2"}
@@ -299,8 +299,8 @@ function MiniMapLandmark({ landmark }: { landmark: DemandMiniMapLandmark }) {
         y={landmark.labelY}
         textAnchor={landmark.textAnchor}
         fill={landmark.isPrimary ? "#cffafe" : "#e0f2fe"}
-        fontSize={landmark.isPrimary ? "2.55" : "2.1"}
-        fontWeight={landmark.isPrimary ? "700" : "600"}
+        fontSize={landmark.isPrimary ? "2.4" : "1.9"}
+        fontWeight={landmark.isPrimary ? "600" : "400"}
         paintOrder="stroke"
         stroke="rgba(7, 17, 28, 0.9)"
         strokeWidth={landmark.isPrimary ? "0.25" : "0.2"}
