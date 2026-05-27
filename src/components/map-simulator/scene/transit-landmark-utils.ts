@@ -117,7 +117,10 @@ export function buildTransitLandmarks(
         roadSegmentSpatialIndex,
         22,
       );
-      const nearestHeading = nearestRoad?.heading.clone() ?? fallbackHeading;
+      if (!nearestRoad) {
+        return null;
+      }
+      const nearestHeading = nearestRoad.heading.clone();
       const nearestRight = new THREE.Vector3(
         nearestHeading.z,
         0,

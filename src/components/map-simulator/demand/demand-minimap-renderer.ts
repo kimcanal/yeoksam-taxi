@@ -97,7 +97,7 @@ export function buildStaticPoiFeatureRows() {
       lon: poi.lon,
       lat: poi.lat,
     })),
-  ];
+  ].filter((poi) => poi.coverageDong !== null);
   const rawScores = rows.map((poi) => contextPoiWeight(poi.category));
   const maxScore = Math.max(...rawScores, 1);
 
@@ -224,6 +224,9 @@ export function buildDemandMiniMapData({
         }
         const isPrimary = PRIMARY_SUBWAY_STATION_NAMES.has(name);
         const projected = projectPoint(feature.geometry.coordinates, data.center);
+        if (!bounds.containsPoint(projected)) {
+          return [];
+        }
         const point = mapPoint(projected);
         const x = THREE.MathUtils.clamp(
           point.x,
