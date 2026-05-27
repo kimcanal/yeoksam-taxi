@@ -197,7 +197,7 @@ function MiniMapRegionLabels({ regions }: { regions: DemandMiniMapRegion[] }) {
             fontWeight={region.isSelected ? 700 : 600}
             paintOrder="stroke"
             stroke="rgba(7, 17, 28, 0.82)"
-            strokeWidth="0.72"
+            strokeWidth="0.25"
             strokeLinejoin="round"
           >
             {region.name}
@@ -253,8 +253,9 @@ function MiniMapPoiMarker({
           fontSize={poi.isSelected ? "2.45" : "2.05"}
           fontWeight={poi.isSelected ? "800" : "650"}
           paintOrder="stroke"
-          stroke="rgba(7, 17, 28, 0.92)"
-          strokeWidth={poi.isSelected ? "0.66" : "0.5"}
+          stroke="rgba(7, 17, 28, 0.9)"
+          strokeWidth={poi.isSelected ? "0.25" : "0.2"}
+          strokeLinejoin="round"
           pointerEvents="none"
         >
           {poi.label}
@@ -302,7 +303,8 @@ function MiniMapLandmark({ landmark }: { landmark: DemandMiniMapLandmark }) {
         fontWeight={landmark.isPrimary ? "700" : "600"}
         paintOrder="stroke"
         stroke="rgba(7, 17, 28, 0.9)"
-        strokeWidth={landmark.isPrimary ? "0.55" : "0.48"}
+        strokeWidth={landmark.isPrimary ? "0.25" : "0.2"}
+        strokeLinejoin="round"
         pointerEvents="none"
       >
         {landmark.label}
