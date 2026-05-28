@@ -18,18 +18,14 @@ rendering stability.
 - `resolveBuildVersion()` is now Edge-safe because it only reads environment
   values and formats dates.
 
-## 2. Local Mock Demand API
+## 2. Backend Demand API Handoff
 
-- Added `src/app/api/demand/route.ts`.
-- The route returns the contract shape from `docs/demand-api-contract.md`:
-  - top-level `dong`, `date`, `hour`, `timezone`, `generated`
-  - `selected` weather and traffic context
-  - exactly 24 hourly `points`
-- Demand curves are deterministic by `dong + date + weekday`, with smooth
-  commute, lunch, evening, and late-night peaks.
-- `use-demand-forecast.ts` now falls back to `/api/demand` when
-  `NEXT_PUBLIC_DEMAND_API_ENDPOINT` is missing, so local first-run mode behaves
-  like an AI-linked demand feed.
+- The frontend no longer creates local demand predictions or mock API responses.
+- `use-demand-forecast.ts` only calls `NEXT_PUBLIC_DEMAND_API_ENDPOINT`.
+- When the endpoint is missing, failing, or malformed, the UI stays in an
+  API-required state instead of synthesizing fallback demand.
+- The frontend still preserves the backend hourly total when splitting it into
+  5-minute display slots for the chart and map vehicle layer.
 
 ## 3. Runtime Modularity
 
@@ -81,14 +77,14 @@ rendering stability.
 - Extracted static map geometry creation into `useMapSceneGeometry.ts` as an
   imperative scene factory. This keeps the existing Three.js lifecycle stable
   while reducing orchestration code in `MapSimulatorSceneRuntime.tsx`.
-- Removed the now-unused `dongDemandScoresRef` runtime prop after broad demand
+- Removed the now-unused dong-demand score runtime ref after broad demand
   heatmap floor overlays were removed.
 
 ## 7. UI/UX 및 실감형 환경 고도화 (UI/UX & Realism Enhancements)
 
 - **Typography & Aesthetics**: 전역 폰트를 시스템 기본 폰트에서 `Pretendard` 로 변경하여 한층 모던하고 깔끔한 프리미엄 UI 디자인 확보 (`layout.tsx`, `globals.css`).
 - **Micro-animations**: `DemandChart.tsx` 의 차트 라인(SVG Path)과 사이드바 정보 표기 영역에 `transition-all duration-500` 을 적용하여 데이터 변경 시 부드럽게 형태가 변하도록 동적 효과(Dynamic Animation) 추가.
-- **Graphics Quality Toggle**: 고성능 환경을 위한 그래픽 품질 토글 추가. `simulator-stores.ts` 와 `MapToolbar.tsx` 에 `graphicsQuality` (성능 우선 / 품질 우선) 상태를 추가하고, `simulator-engine.ts` 내부의 `sceneStore.subscribe` 를 통해 실시간 안티앨리어싱 및 그림자 맵 (Shadow Map) 활성화 여부를 즉시 렌더러에 반영하도록 개선.
+- **Graphics Quality Runtime**: `simulator-stores.ts` 의 `graphicsQuality` 상태와 렌더러 구독을 통해 안티앨리어싱 및 그림자 맵 적용 여부를 중앙에서 관리하도록 개선.
 - **Mock API Realism**: `route.ts` 에서 제공하는 결정론적(Deterministic) 가상 수요 데이터에 네트워크 레이턴시 시뮬레이션(300ms~800ms) 및 ±5% 내외의 랜덤 노이즈(Random Noise)를 추가하여 센서/라이브 데이터를 가져오는 듯한 현실감을 부여함.
 - **SEO Optimization**: `layout.tsx` 메타데이터에 Open Graph 및 Twitter 카드 상세 정보를 보강하여 웹 표준에 부합하는 공유 최적화.
 
@@ -97,11 +93,11 @@ rendering stability.
 - `npx tsc --noEmit`: passed
 - `npm run lint`: passed with no warnings
 - `npm run build`: passed
-- `/api/demand` smoke:
-  - `dong`: `Yeoksam 1-dong`
-  - `hour`: `14`
-  - `selected.demand_count`: deterministic value returned
-  - `points.length`: `24`
+- Demand API handoff smoke:
+  - missing `NEXT_PUBLIC_DEMAND_API_ENDPOINT` shows an API-required state
+  - configured endpoint is requested with `dong`, `date`, `hour`, `timezone`,
+    and `weekday`
+  - valid backend `points` are rendered without local prediction fallback
 - `/map` Playwright smoke:
   - desktop canvas rendered, no console errors
   - mobile canvas rendered, no console errors

@@ -10,7 +10,6 @@ import { statsEqual } from "@/components/map-simulator/utils";
 import type {
   SimulationConfig,
   SimulationSnapshot,
-  VehicleSnapshot,
 } from "@/components/map-simulator/simulation";
 
 export function createEngineSimulationDriver(ctx: EngineSceneContext) {

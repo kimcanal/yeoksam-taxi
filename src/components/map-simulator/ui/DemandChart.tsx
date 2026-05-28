@@ -26,7 +26,7 @@ export function DemandChart({
           <svg
             viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
             role="img"
-            aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요 예측`}
+            aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요`}
             className="block h-auto w-full"
           >
             <defs>
@@ -129,7 +129,7 @@ export function DemandChart({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-4 rounded-full bg-cyan-300" />
-            시간당 예측
+            시간당 수요
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-0 w-4 border-t border-dashed border-rose-300" />

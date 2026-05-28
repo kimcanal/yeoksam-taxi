@@ -11,7 +11,6 @@ import * as THREE from "three";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
-  WEATHER_OPTIONS,
   format24Hour,
   normalizeDayMinutes,
 } from "@/components/map-simulator/environment";
@@ -73,7 +72,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     followTaxiId,
     selectedPoiCode,
     isSidebarCollapsed,
-    isMobileLayout,
   } = state;
 
   const {
@@ -200,11 +198,11 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     }
   }, [
     data,
-    isMobileLayout,
     mapPoiFeatureRows,
     setCameraFocusTarget,
     setIsSidebarCollapsed,
     setSelectedPoiCode,
+    setCameraMode,
   ]);
   const handleCameraFocusChange = useCallback((focus: MiniMapFocus) => {
     setCameraControlValues(focus);

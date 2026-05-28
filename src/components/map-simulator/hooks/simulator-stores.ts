@@ -66,7 +66,7 @@ const initialSceneState: SceneState = {
   weatherMode: "clear",
   trafficLoadPercent: DEFAULT_TRAFFIC_LOAD_PERCENT,
   cameraMode: "overview",
-  graphicsQuality: "performance",
+  graphicsQuality: "quality",
   miniMapFocus: null,
   followTaxiId: "",
   showFps: false,

@@ -40,7 +40,6 @@ export function createEngineVisualUpdater(
     dongBoundarySegments,
     frameSignalStates,
     camera,
-    renderer,
     labelRenderer,
     scene,
     raycaster,
@@ -61,8 +60,6 @@ export function createEngineVisualUpdater(
     currentDemandVisualUnitsRef,
     hoverRefreshRequestRef,
     labelRefreshRequestRef,
-    showLabelsRef,
-    showTransitRef,
   } = props;
 
   let hoverNeedsUpdate = true;

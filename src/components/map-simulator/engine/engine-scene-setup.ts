@@ -1,25 +1,10 @@
-import {
-  type Dispatch,
-  type MutableRefObject,
-  type RefObject,
-  type SetStateAction,
-} from "react";
 import * as THREE from "three";
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
-import type { WeatherMode } from "@/components/map-simulator/environment";
 import {
   type VehicleTrailPoint,
 } from "@/components/map-simulator/vehicle";
 import { createLocalSimulationSource } from "@/components/map-simulator/simulation";
-import type {
-  BaseCameraMode,
-  CameraFocusTarget,
-  CameraMode,
-  CameraPitchControlState,
-  CameraYawControlState,
-  FpsMode,
-} from "@/components/map-simulator/camera";
 import type {
   DongBoundarySegment,
   Hotspot,
@@ -30,8 +15,6 @@ import type {
   SignalData,
   SignalFlow,
   SignalVisual,
-  Stats,
-  SceneStatus,
   SimulationData,
   Vehicle,
 } from "@/components/map-simulator/types";
@@ -418,7 +401,7 @@ export function setupEngineScene(
     }),
     getHighlightedDongNames: createLateBound(() => [] as string[]),
     getPointer: createLateBound(() => ({ x: 0, y: 0 })),
-    setHighlightedDongNames: createLateBound((_dongNames: string[]) => {}),
+    setHighlightedDongNames: createLateBound((_dongNames: string[]) => { void _dongNames; }),
   };
 
   // Vehicle runtime sync

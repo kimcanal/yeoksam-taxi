@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { EngineSceneContext } from "@/components/map-simulator/engine/engine-scene-setup";
 import type { Vehicle } from "@/components/map-simulator/types";
-import type { CameraMode, BaseCameraMode } from "@/components/map-simulator/camera";
+import type { CameraMode } from "@/components/map-simulator/camera";
 import {
   CAMERA_DRAG_SENSITIVITY,
   CAMERA_MAX_PITCH,

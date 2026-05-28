@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
-const DEMAND_SLOT_ALLOCATION_LABEL = "단기 예측";
+const DEMAND_SLOT_ALLOCATION_LABEL = "후 수요 예측";
 
 type MapFooterProps = {
   isSidebarVisible: boolean;
@@ -31,7 +31,7 @@ export const MapFooter = memo(function MapFooter({
       <span className="h-3 w-px bg-white/14" />
       <span>5분 {DEMAND_SLOT_ALLOCATION_LABEL}</span>
       <span className="h-3 w-px bg-white/14" />
-      <span>표시 스케일: {demandVisualUnitCalls.toLocaleString("ko-KR")} 호출/대</span>
+      <span>시각화 스케일: {demandVisualUnitCalls.toLocaleString("ko-KR")} 호출/대</span>
       <span className="h-3 w-px bg-white/14" />
       <span>실행 환경: {buildVersion.environmentLabel}</span>
       {buildVersion.commit ? (

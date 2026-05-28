@@ -16,7 +16,7 @@ import type {
 } from "@/components/map-simulator/demand";
 
 const DEMAND_API_ENDPOINT =
-  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() || "/api/demand";
+  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
 
 export function useDemandForecast({
   simulationDate,
@@ -33,7 +33,7 @@ export function useDemandForecast({
     HourlyDemandPoint[] | null
   >(null);
   const [demandFetchStatus, setDemandFetchStatus] =
-    useState<DemandFetchStatus>("idle");
+    useState<DemandFetchStatus>(() => (DEMAND_API_ENDPOINT ? "idle" : "error"));
 
   const hourlyDemandSeries = useMemo(
     () => remoteDemandPoints ?? [],
@@ -62,6 +62,10 @@ export function useDemandForecast({
   const selectedDemandHour = Math.floor(normalizedSimulationTimeMinutes / 60);
 
   useEffect(() => {
+    if (!DEMAND_API_ENDPOINT) {
+      return;
+    }
+
     const controller = new AbortController();
     const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
     url.searchParams.set("dong", selectedDongName);
@@ -127,12 +131,12 @@ export function useDemandForecast({
       : `${Math.round(selectedDemandScore * 100).toLocaleString("ko-KR")}%`;
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
-      ? "AI 모델 연동"
+      ? "백엔드 연동"
       : demandFetchStatus === "loading"
-        ? "데이터 분석 중"
+        ? "API 요청 중"
         : demandFetchStatus === "error"
-          ? "분석 엔진 대기"
-          : "시나리오 모드";
+          ? "API 설정 필요"
+          : "API 대기";
   const demandFetchBadgeClass =
     demandFetchStatus === "ready"
       ? "border-sky-300/25 bg-sky-300/[0.08] text-sky-100"

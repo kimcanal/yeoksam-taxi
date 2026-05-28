@@ -18,29 +18,16 @@ type UseMapDemandStateParams = {
 };
 
 function buildDongDemandScores({
-  data,
-  normalizedSimulationTimeMinutes,
   selectedDongName,
   selectedDemandScore,
 }: {
-  data: SimulationData | null;
-  normalizedSimulationTimeMinutes: number;
   selectedDongName: string;
   selectedDemandScore: number | null;
 }) {
   const scores: Record<string, number> = {};
-  if (!data?.dongRegions) {
-    return scores;
+  if (selectedDemandScore !== null) {
+    scores[selectedDongName] = selectedDemandScore;
   }
-
-  const hour = Math.floor(normalizedSimulationTimeMinutes / 60);
-  data.dongRegions.forEach((dong, index) => {
-    if (dong.name === selectedDongName) {
-      scores[dong.name] = selectedDemandScore ?? 0;
-      return;
-    }
-    scores[dong.name] = (Math.sin(hour * 0.5 + index) + 1) / 2;
-  });
   return scores;
 }
 
@@ -60,16 +47,12 @@ export function useMapDemandState({
   const dongDemandScores = useMemo(
     () =>
       buildDongDemandScores({
-        data,
-        normalizedSimulationTimeMinutes,
         selectedDongName: forecast.selectedDongName,
         selectedDemandScore: forecast.selectedDemandScore,
       }),
     [
-      data,
       forecast.selectedDemandScore,
       forecast.selectedDongName,
-      normalizedSimulationTimeMinutes,
     ],
   );
   const demandMiniMap = useMemo(
@@ -99,7 +82,6 @@ export function useMapDemandState({
   const currentFiveMinuteDemandRef = useSyncRef(
     forecast.currentFiveMinuteDemand,
   );
-  const dongDemandScoresRef = useSyncRef(dongDemandScores);
   const hasDemandDataRef = useSyncRef(forecast.hasDemandData);
   const selectedDemandDongRef = useSyncRef(forecast.selectedDongName);
   const selectedDemandScoreRef = useSyncRef(forecast.selectedDemandScore);
@@ -110,7 +92,6 @@ export function useMapDemandState({
     refs: {
       currentDemandVisualUnitsRef,
       currentFiveMinuteDemandRef,
-      dongDemandScoresRef,
       hasDemandDataRef,
       selectedDemandDongRef,
       selectedDemandScoreRef,

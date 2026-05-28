@@ -1,7 +1,4 @@
-import { useEffect, useState } from "react";
 import { sceneSetters, sceneStore, uiSetters, uiStore } from "@/components/map-simulator/hooks";
-
-const MOBILE_LAYOUT_QUERY = "(max-width: 1023px)";
 
 export function useMapSimulatorStores() {
   const data = sceneStore.useStore((state) => state.data);
@@ -24,18 +21,6 @@ export function useMapSimulatorStores() {
     (state) => state.isSidebarCollapsed,
   );
   
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY);
-    const syncMobileLayout = () => setIsMobileLayout(mediaQuery.matches);
-    syncMobileLayout();
-    mediaQuery.addEventListener("change", syncMobileLayout);
-    return () => {
-      mediaQuery.removeEventListener("change", syncMobileLayout);
-    };
-  }, []);
-
   return {
     state: {
       data,
@@ -51,7 +36,6 @@ export function useMapSimulatorStores() {
       followTaxiId,
       selectedPoiCode,
       isSidebarCollapsed,
-      isMobileLayout,
     },
     setters: {
       ...sceneSetters,

@@ -60,7 +60,6 @@ export function buildTransitLandmarks(
       }
 
       const originalPoint = projectPoint(feature.geometry.coordinates, center);
-      const fallbackHeading = new THREE.Vector3(0, 0, 1);
 
       if (feature.properties.category === "bus_stop") {
         const nearestRoad = nearestRoadContext(

@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { networkInterfaces } from "node:os";
 import type { NextConfig } from "next";
 
 function envValue(name: string) {
@@ -21,6 +22,29 @@ function shortCommit(value: string) {
   return value ? value.slice(0, 12) : "";
 }
 
+function envListValue(name: string) {
+  return envValue(name)
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function localIpv4DevOrigins() {
+  return Object.values(networkInterfaces())
+    .flatMap((addresses) => addresses ?? [])
+    .filter((address) => address.family === "IPv4" && !address.internal)
+    .map((address) => address.address);
+}
+
+const allowedDevOrigins = Array.from(
+  new Set([
+    "127.0.0.1",
+    "localhost",
+    ...localIpv4DevOrigins(),
+    ...envListValue("NEXT_ALLOWED_DEV_ORIGINS"),
+  ]),
+);
+
 const buildBranch =
   envValue("NEXT_PUBLIC_BUILD_BRANCH") ||
   envValue("CF_PAGES_BRANCH") ||
@@ -42,15 +66,7 @@ const buildTimeIso =
   new Date().toISOString();
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: [
-    "127.0.0.1",
-    "localhost",
-    "10.1.12.19",
-    "192.168.55.81",
-    "192.168.55.200",
-    "1.232.87.78",
-    "163.239.77.91",
-  ],
+  allowedDevOrigins,
   turbopack: {
     root: process.cwd(),
   },

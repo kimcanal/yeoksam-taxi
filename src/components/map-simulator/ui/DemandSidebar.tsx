@@ -65,13 +65,6 @@ function parseTimeInput(value: string) {
   return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
 }
 
-function trafficLoadLabel(percent: number) {
-  if (percent >= 145) return "혼잡";
-  if (percent >= 110) return "다소 많음";
-  if (percent <= 65) return "한산";
-  return "보통";
-}
-
 export const DemandSidebar = memo(function DemandSidebar({
   isVisible,
   selectedDongName,
@@ -128,9 +121,9 @@ export const DemandSidebar = memo(function DemandSidebar({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className={PANEL_EYEBROW_CLASS}>수요 예측</p>
+          <p className={PANEL_EYEBROW_CLASS}>백엔드 수요 API</p>
           <h2 className="mt-1 text-xl font-semibold leading-tight text-slate-50">
-            행정동별 수요 분포 및 배차 제어
+            행정동별 수요 곡선 및 지도 시각화
           </h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             {selectedDongName} · {weekdayLabel(selectedWeekday)}요일 · 하루 24시간
@@ -160,9 +153,9 @@ export const DemandSidebar = memo(function DemandSidebar({
               <Settings2 className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <div className={PANEL_SECTION_LABEL_CLASS}>글로벌 환경 제어</div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>시뮬레이션 환경</div>
               <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                시나리오 설정
+                환경 변수 제어
               </div>
             </div>
           </div>
@@ -261,7 +254,7 @@ export const DemandSidebar = memo(function DemandSidebar({
             <div className="min-w-0">
               <div className={PANEL_SECTION_LABEL_CLASS}>수요 곡선</div>
               <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                시간대별 호출 예측
+                시간대별 호출 수요
               </div>
             </div>
           </div>
