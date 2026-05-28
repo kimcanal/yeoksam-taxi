@@ -8,7 +8,7 @@
     "screenshot:install": "playwright install chromium",
     "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack --no-lint",
     "start": "next start",
     "lint": "eslint",
     "fetch:dongs": "node scripts/osm/fetch-dongs.mjs",
