@@ -18,7 +18,7 @@ import type {
 import type { CircumstanceMode } from "@/components/map-simulator/types";
 
 const DEMAND_API_ENDPOINT =
-  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
+  process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() || "/api/demand";
 
 type DemandSeriesByDong = Record<string, HourlyDemandPoint[]>;
 
