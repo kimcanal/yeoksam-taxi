@@ -236,7 +236,7 @@ export default function MapSimulator({
     normalizedSimulationTimeMinutes,
   });
   const weatherState = useWeatherForecast({
-    normalizedSimulationTimeMinutes,
+    normalizedSimulationTimeMinutes: demandState.heatmapHour * 60,
     setWeatherMode,
     simulationDate,
   });
@@ -251,7 +251,7 @@ export default function MapSimulator({
     showRoadNetwork,
     showTransit,
     simulationDate,
-    simulationTimeMinutes,
+    simulationTimeMinutes: circumstanceMode === "live" ? simulationTimeMinutes : demandState.heatmapHour * 60,
     weatherMode,
   });
   const { setCameraControlValues, setCameraFocusTarget } = runtimeRefs;
