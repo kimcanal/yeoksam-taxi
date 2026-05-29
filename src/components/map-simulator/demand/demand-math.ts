@@ -10,9 +10,7 @@ import {
   DEMAND_VISUAL_UNIT_CALLS,
 } from "@/components/map-simulator/constants/demand-constants";
 import {
-  DEMAND_WEEKDAYS,
   type DemandChartGeometry,
-  type DemandWeekdayId,
   type FiveMinuteDemandPoint,
   type HourlyDemandPoint,
 } from "@/components/map-simulator/demand";
@@ -29,23 +27,62 @@ function clamp01(value: number) {
   return clampNumber(value, 0, 1);
 }
 
-export function weekdayIdFromDate(dateIso: string): DemandWeekdayId {
-  const parsed = new Date(`${dateIso}T00:00:00`);
-  const dayIndex = Number.isFinite(parsed.getTime()) ? parsed.getDay() : 5;
-  const byDayIndex: DemandWeekdayId[] = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  return byDayIndex[dayIndex] ?? "friday";
+function finiteNumberFromRecord(
+  record: Record<string, unknown>,
+  keys: string[],
+) {
+  for (const key of keys) {
+    const value = record[key];
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue)) {
+      return numberValue;
+    }
+  }
+  return null;
 }
 
-export function weekdayLabel(id: DemandWeekdayId) {
-  return DEMAND_WEEKDAYS.find((weekday) => weekday.id === id)?.label ?? "금";
+function finiteNumberFromValue(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function hourFromKey(key: string) {
+  const hour = Number(key);
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
+}
+
+function demandFromDailyValue(value: unknown) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return finiteNumberFromRecord(value as Record<string, unknown>, [
+      "demand_count",
+      "demandCount",
+      "demand_pred",
+      "demandPred",
+      "demand",
+      "value",
+    ]);
+  }
+  return finiteNumberFromValue(value);
+}
+
+function demandPointFromValue(hour: number, value: unknown) {
+  const demandPred = demandFromDailyValue(value);
+  if (demandPred === null) {
+    return null;
+  }
+  return {
+    hour,
+    populationPred: null,
+    demandPred: Math.round(demandPred),
+    actualDemand: null,
+    trendDemandPred: 0,
+  } satisfies HourlyDemandPoint;
 }
 
 export function withDemandTrend(points: HourlyDemandPoint[]) {
@@ -79,31 +116,44 @@ export function normalizeRemoteDemandPoints(payload: unknown) {
     }
     const record = point as Record<string, unknown>;
     const hour = Number(record.hour);
-    const rawPopulationPred = Number(
-      record.population_pred ?? record.populationPred ?? record.population,
-    );
-    const demandPred = Number(
-      record.demand_count ??
-        record.demandCount ??
-        record.demand_pred ??
-        record.demandPred ??
-        record.demand,
-    );
+    const rawPopulationPred = finiteNumberFromRecord(record, [
+      "population_pred",
+      "populationPred",
+      "population",
+    ]);
+    const demandPred = finiteNumberFromRecord(record, [
+      "demand_count",
+      "demandCount",
+      "demand_pred",
+      "demandPred",
+      "demand",
+    ]);
+    const actualDemand = finiteNumberFromRecord(record, [
+      "actual_demand_count",
+      "actualDemandCount",
+      "actual_demand",
+      "actualDemand",
+      "real_demand_count",
+      "realDemandCount",
+      "observed_demand_count",
+      "observedDemandCount",
+    ]);
     if (
       !Number.isInteger(hour) ||
       hour < 0 ||
       hour > 23 ||
-      !Number.isFinite(demandPred)
+      demandPred === null
     ) {
       return [];
     }
     return [
       {
         hour,
-        populationPred: Number.isFinite(rawPopulationPred)
+        populationPred: rawPopulationPred !== null
           ? Math.round(rawPopulationPred)
           : null,
         demandPred: Math.round(demandPred),
+        actualDemand: actualDemand !== null ? Math.round(actualDemand) : null,
         trendDemandPred: 0,
       } satisfies HourlyDemandPoint,
     ];
@@ -121,6 +171,70 @@ export function normalizeRemoteDemandPoints(payload: unknown) {
           index === 0 || point.hour !== sorted[index - 1]?.hour,
       ),
   );
+}
+
+export function normalizeRemoteDailyDemandSeries(payload: unknown) {
+  const demandPayload =
+    payload && typeof payload === "object" && "demand" in payload
+      ? (payload as { demand?: unknown }).demand
+      : null;
+  if (
+    !demandPayload ||
+    typeof demandPayload !== "object" ||
+    Array.isArray(demandPayload)
+  ) {
+    return null;
+  }
+
+  const seriesByDong: Record<string, HourlyDemandPoint[]> = {};
+  Object.entries(demandPayload as Record<string, unknown>).forEach(
+    ([outerKey, outerValue]) => {
+      if (
+        !outerValue ||
+        typeof outerValue !== "object" ||
+        Array.isArray(outerValue)
+      ) {
+        return;
+      }
+
+      const outerHour = hourFromKey(outerKey);
+      Object.entries(outerValue as Record<string, unknown>).forEach(
+        ([innerKey, innerValue]) => {
+          const hour = outerHour ?? hourFromKey(innerKey);
+          const dongName = outerHour === null ? outerKey : innerKey;
+          if (hour === null || !dongName) {
+            return;
+          }
+          const point = demandPointFromValue(hour, innerValue);
+          if (!point) {
+            return;
+          }
+          seriesByDong[dongName] = [...(seriesByDong[dongName] ?? []), point];
+        },
+      );
+    },
+  );
+
+  const normalizedEntries = Object.entries(seriesByDong).flatMap(
+    ([dongName, points]) => {
+      const uniqueSortedPoints = points
+        .sort((left, right) => left.hour - right.hour)
+        .filter(
+          (point, index, sorted) =>
+            index === 0 || point.hour !== sorted[index - 1]?.hour,
+        );
+      return uniqueSortedPoints.length
+        ? ([[dongName, withDemandTrend(uniqueSortedPoints)]] as const)
+        : [];
+    },
+  );
+
+  return normalizedEntries.length
+    ? (Object.fromEntries(normalizedEntries) as Record<
+        string,
+        HourlyDemandPoint[]
+      >)
+    : null;
 }
 
 export function demandVisualUnitCount(fiveMinuteDemand: number) {
@@ -183,7 +297,14 @@ export function buildDemandChartGeometry(
   const paddingBottom = DEMAND_CHART_PADDING.bottom;
   const graphWidth = DEMAND_CHART_WIDTH - paddingLeft - paddingRight;
   const graphHeight = DEMAND_CHART_HEIGHT - paddingTop - paddingBottom;
-  const maxDemand = Math.max(1, ...points.map((point) => point.demandPred));
+  const maxDemand = Math.max(
+    1,
+    ...points.flatMap((point) =>
+      point.actualDemand === null
+        ? [point.demandPred]
+        : [point.demandPred, point.actualDemand],
+    ),
+  );
   const yMax =
     Math.ceil(maxDemand / DEMAND_CHART_ROUNDING_STEP) *
     DEMAND_CHART_ROUNDING_STEP;
@@ -202,6 +323,15 @@ export function buildDemandChartGeometry(
         `${index === 0 ? "M" : "L"} ${xForHour(point.hour).toFixed(2)} ${yForDemand(point.trendDemandPred).toFixed(2)}`,
     )
     .join(" ");
+  const actualDemandPoints = points.filter(
+    (point) => point.actualDemand !== null,
+  );
+  const actualLinePath = actualDemandPoints
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"} ${xForHour(point.hour).toFixed(2)} ${yForDemand(point.actualDemand ?? 0).toFixed(2)}`,
+    )
+    .join(" ");
   const baseY = paddingTop + graphHeight;
   const areaPath = points.length
     ? `${linePath} L ${xForHour(points[points.length - 1]!.hour).toFixed(2)} ${baseY.toFixed(2)} L ${xForHour(points[0]!.hour).toFixed(2)} ${baseY.toFixed(2)} Z`
@@ -212,6 +342,7 @@ export function buildDemandChartGeometry(
       hour: 0,
       populationPred: null,
       demandPred: 0,
+      actualDemand: null,
       trendDemandPred: 0,
     },
   );
@@ -223,8 +354,10 @@ export function buildDemandChartGeometry(
     baseY,
     yMax,
     linePath,
+    actualLinePath,
     trendPath,
     areaPath,
+    hasActualDemand: actualDemandPoints.length > 0,
     peakPoint,
     peakX: xForHour(peakPoint.hour),
     peakY: yForDemand(peakPoint.demandPred),

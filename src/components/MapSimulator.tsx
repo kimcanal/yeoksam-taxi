@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type CSSProperties,
@@ -9,10 +10,13 @@ import {
 import dynamic from "next/dynamic";
 import * as THREE from "three";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
+import type { CircumstanceMode } from "@/components/map-simulator/types";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
+  currentSimulationClock,
   format24Hour,
   normalizeDayMinutes,
+  useWeatherForecast,
 } from "@/components/map-simulator/environment";
 import { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
 import {
@@ -20,7 +24,7 @@ import {
 } from "@/components/map-simulator/hooks";
 import { useMapSimulatorStores } from "@/components/map-simulator/hooks";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
-import { MapFooter } from "@/components/map-simulator/ui/MapFooter";
+import { WeatherBadge } from "@/components/map-simulator/ui/WeatherBadge";
 import { Menu } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
 import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/demand";
@@ -34,7 +38,19 @@ import { trafficCountForLoadPercent } from "@/components/map-simulator/simulatio
 
 type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
+  initialMode?: CircumstanceMode;
 };
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+function millisecondsUntilNextHour(date = new Date()) {
+  const elapsedInHourMs =
+    date.getMinutes() * 60_000 +
+    date.getSeconds() * 1000 +
+    date.getMilliseconds();
+
+  return Math.max(1000, ONE_HOUR_MS - elapsedInHourMs + 250);
+}
 
 const MapSimulatorSceneRuntime = dynamic<MapSimulatorSceneRuntimeProps>(
   () => import("@/components/map-simulator/map-simulator-scene-runtime"),
@@ -55,14 +71,19 @@ const DemandSidebar = dynamic<DemandSidebarProps>(
   },
 );
 
-export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
+export default function MapSimulator({
+  buildVersion,
+  initialMode = "live",
+}: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const appliedInitialModeRef = useRef<CircumstanceMode | null>(null);
   const { state, setters } = useMapSimulatorStores();
   const {
     data,
     status,
     statusDetail,
     loadingProgress,
+    circumstanceMode,
     simulationDate,
     simulationTimeMinutes,
     weatherMode,
@@ -104,6 +125,61 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     simulationTimeMinutes,
   );
   const appliedTrafficCount = trafficCountForLoadPercent(trafficLoadPercent);
+
+  useEffect(() => {
+    if (appliedInitialModeRef.current === initialMode) {
+      return;
+    }
+    appliedInitialModeRef.current = initialMode;
+
+    if (initialMode === "live") {
+      const clock = currentSimulationClock();
+      setSimulationDate(clock.dateIso);
+      setSimulationTimeMinutes(clock.minutes);
+      setIsSidebarCollapsed(true);
+    } else {
+      setIsSidebarCollapsed(false);
+    }
+    setCircumstanceMode(initialMode);
+  }, [
+    initialMode,
+    setCircumstanceMode,
+    setIsSidebarCollapsed,
+    setSimulationDate,
+    setSimulationTimeMinutes,
+  ]);
+
+  useEffect(() => {
+    if (circumstanceMode !== "live") {
+      return;
+    }
+
+    function syncCurrentClock() {
+      const clock = currentSimulationClock();
+      setSimulationDate(clock.dateIso);
+      setSimulationTimeMinutes(clock.minutes);
+    }
+
+    let timeoutId: number | undefined;
+    function scheduleNextHourSync() {
+      timeoutId = window.setTimeout(() => {
+        syncCurrentClock();
+        scheduleNextHourSync();
+      }, millisecondsUntilNextHour());
+    }
+
+    syncCurrentClock();
+    scheduleNextHourSync();
+    return () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    circumstanceMode,
+    setSimulationDate,
+    setSimulationTimeMinutes,
+  ]);
 
   const {
     activePoiCode,
@@ -155,8 +231,14 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     miniMapFocus,
     scenarioMapCenter,
     activePoiCode,
+    circumstanceMode,
     simulationDate,
     normalizedSimulationTimeMinutes,
+  });
+  const weatherState = useWeatherForecast({
+    normalizedSimulationTimeMinutes,
+    setWeatherMode,
+    simulationDate,
   });
   const runtimeRefs = useMapSceneRuntimeRefs({
     appliedTaxiCount: demandState.appliedTaxiCount,
@@ -176,7 +258,9 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
   const handlePoiSelect = useCallback((poiCode: string) => {
     const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
     setSelectedPoiCode(poiCode);
-    setIsSidebarCollapsed(false);
+    if (circumstanceMode !== "live") {
+      setIsSidebarCollapsed(false);
+    }
     if (
       data &&
       poi &&
@@ -197,6 +281,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       setCameraMode("drive");
     }
   }, [
+    circumstanceMode,
     data,
     mapPoiFeatureRows,
     setCameraFocusTarget,
@@ -209,6 +294,7 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
     setMiniMapFocus(focus);
   }, [setCameraControlValues, setMiniMapFocus]);
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
+  const isLiveMode = circumstanceMode === "live";
   const isSidebarVisible = !isSidebarCollapsed;
   const mapCanvasClass = isSidebarVisible
     ? "h-full w-full touch-none border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
@@ -220,11 +306,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
       return;
     }
     setIsSidebarCollapsed(false);
-  }
-
-  function handleSimulationDateChange(date: string) {
-    setSimulationDate(date);
-    demandState.setSimulationDateWeekday(date);
   }
 
   return (
@@ -292,12 +373,13 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
 
+
+
         {!isSceneBusy ? (
-          <MapFooter
-            isSidebarVisible={isSidebarVisible}
-            demandFetchBadgeText={demandState.demandFetchBadgeText}
-            demandVisualUnitCalls={DEMAND_VISUAL_UNIT_CALLS}
-            buildVersion={buildVersion}
+          <WeatherBadge
+            weatherFetchStatus={weatherState.weatherFetchStatus}
+            weatherObservation={weatherState.weatherObservation}
+            simulationDate={simulationDate}
           />
         ) : null}
 
@@ -317,8 +399,6 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           onClose={toggleSidebar}
           selectedDongName={demandState.selectedDongName}
           setSelectedDongName={demandState.setSelectedDongName}
-          selectedWeekday={demandState.selectedWeekday}
-          setSelectedWeekday={demandState.setSelectedWeekday}
           demandFetchBadgeText={demandState.demandFetchBadgeText}
           demandFetchBadgeClass={demandState.demandFetchBadgeClass}
           hasDemandData={demandState.hasDemandData}
@@ -329,16 +409,21 @@ export default function MapSimulator({ buildVersion }: MapSimulatorProps) {
           appliedTaxiCount={demandState.appliedTaxiCount}
           demandChart={demandState.demandChart}
           selectedAverageDemand={demandState.selectedAverageDemand}
+          heatmapFetchStatus={demandState.heatmapFetchStatus}
+          heatmapHour={demandState.heatmapHour}
+          heatmapMaxDemand={demandState.heatmapMaxDemand}
+          heatmapScope={demandState.heatmapScope}
+          setHeatmapHour={demandState.setHeatmapHour}
+          setHeatmapScope={demandState.setHeatmapScope}
           demandMiniMap={demandState.demandMiniMap}
           mapPoiFeatureRows={mapPoiFeatureRows}
           onPoiSelect={handlePoiSelect}
+          circumstanceMode={circumstanceMode}
           simulationDate={simulationDate}
           formattedSimulationTime={formattedSimulationTime}
           setCircumstanceMode={setCircumstanceMode}
-          setSimulationDate={handleSimulationDateChange}
+          setSimulationDate={setSimulationDate}
           setSimulationTimeMinutes={setSimulationTimeMinutes}
-          weatherMode={weatherMode}
-          setWeatherMode={setWeatherMode}
           trafficLoadPercent={trafficLoadPercent}
           setTrafficLoadPercent={setTrafficLoadPercent}
           appliedTrafficCount={appliedTrafficCount}

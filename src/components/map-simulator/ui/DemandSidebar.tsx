@@ -1,21 +1,25 @@
 import { memo } from "react";
-import { LineChart, Settings2, X } from "lucide-react";
+import { Clock, History, LineChart, Settings2, X } from "lucide-react";
 import {
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
   PANEL_SECTION_LABEL_CLASS,
 } from "@/components/map-simulator/panel-classes";
-import { WEATHER_OPTIONS, type WeatherMode } from "@/components/map-simulator/environment";
+import {
+  currentSimulationClock,
+  formatDateLabel,
+} from "@/components/map-simulator/environment";
 import {
   MAX_TRAFFIC_LOAD_PERCENT,
   MIN_TRAFFIC_LOAD_PERCENT,
 } from "@/components/map-simulator/simulation";
 
-import { weekdayLabel } from "@/components/map-simulator/demand";
+import type { CircumstanceMode } from "@/components/map-simulator/types";
 import {
   type DemandChartGeometry,
+  type DemandFetchStatus,
+  type DemandHeatmapScope,
   type DemandMiniMapData,
-  type DemandWeekdayId,
   type FiveMinuteDemandPoint,
   type HourlyDemandPoint,
   type MapPoiFeatureRow,
@@ -30,8 +34,6 @@ export type DemandSidebarProps = {
   onClose: () => void;
   selectedDongName: string;
   setSelectedDongName: (dongName: string) => void;
-  selectedWeekday: DemandWeekdayId;
-  setSelectedWeekday: (weekday: DemandWeekdayId) => void;
   demandFetchBadgeText: string;
   demandFetchBadgeClass: string;
   hasDemandData: boolean;
@@ -42,18 +44,23 @@ export type DemandSidebarProps = {
   appliedTaxiCount: number;
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
+  heatmapFetchStatus: DemandFetchStatus;
+  heatmapHour: number;
+  heatmapMaxDemand: number;
+  heatmapScope: DemandHeatmapScope;
+  setHeatmapHour: (hour: number) => void;
+  setHeatmapScope: (scope: DemandHeatmapScope) => void;
   demandMiniMap: DemandMiniMapData | null;
   mapPoiFeatureRows: MapPoiFeatureRow[];
   onPoiSelect: (poiCode: string) => void;
   
   // Environment Controls
+  circumstanceMode: CircumstanceMode;
   simulationDate: string;
   formattedSimulationTime: string;
-  setCircumstanceMode: (mode: "live" | "specific") => void;
+  setCircumstanceMode: (mode: CircumstanceMode) => void;
   setSimulationDate: (date: string) => void;
   setSimulationTimeMinutes: (minutes: number) => void;
-  weatherMode: WeatherMode;
-  setWeatherMode: (mode: WeatherMode) => void;
   trafficLoadPercent: number;
   setTrafficLoadPercent: (percent: number) => void;
   appliedTrafficCount: number;
@@ -69,8 +76,6 @@ export const DemandSidebar = memo(function DemandSidebar({
   isVisible,
   selectedDongName,
   setSelectedDongName,
-  selectedWeekday,
-  setSelectedWeekday,
   demandFetchBadgeText,
   demandFetchBadgeClass,
   hasDemandData,
@@ -81,21 +86,37 @@ export const DemandSidebar = memo(function DemandSidebar({
   appliedTaxiCount,
   demandChart,
   selectedAverageDemand,
+  heatmapFetchStatus,
+  heatmapHour,
+  heatmapMaxDemand,
+  heatmapScope,
+  setHeatmapHour,
+  setHeatmapScope,
   demandMiniMap,
   mapPoiFeatureRows,
   onPoiSelect,
   onClose,
+  circumstanceMode,
   simulationDate,
   formattedSimulationTime,
   setCircumstanceMode,
   setSimulationDate,
   setSimulationTimeMinutes,
-  weatherMode,
-  setWeatherMode,
   trafficLoadPercent,
   setTrafficLoadPercent,
   appliedTrafficCount,
 }: DemandSidebarProps) {
+  function activateLiveMode() {
+    const clock = currentSimulationClock();
+    setSimulationDate(clock.dateIso);
+    setSimulationTimeMinutes(clock.minutes);
+    setCircumstanceMode("live");
+  }
+
+  function activateSpecificMode() {
+    setCircumstanceMode("specific");
+  }
+
   return (
     <>
       <button
@@ -126,7 +147,7 @@ export const DemandSidebar = memo(function DemandSidebar({
             행정동별 수요 곡선 및 지도 시각화
           </h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            {selectedDongName} · {weekdayLabel(selectedWeekday)}요일 · 하루 24시간
+            {selectedDongName} · {formatDateLabel(simulationDate)} · 하루 24시간
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -153,93 +174,107 @@ export const DemandSidebar = memo(function DemandSidebar({
               <Settings2 className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <div className={PANEL_SECTION_LABEL_CLASS}>시뮬레이션 환경</div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>조회 기준</div>
               <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                환경 변수 제어
+                {circumstanceMode === "live" ? "실시간 동기화" : "과거 조회"}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
-          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            날짜
-            <input
-              type="date"
-              value={simulationDate}
-              onChange={(event) => {
-                setCircumstanceMode("specific");
-                setSimulationDate(event.target.value);
-              }}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
-              aria-label="지도 기준 날짜"
-            />
-          </label>
-          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            시간
-            <input
-              type="time"
-              step={300}
-              value={formattedSimulationTime}
-              onChange={(event) => {
-                const nextMinutes = parseTimeInput(event.target.value);
-                if (nextMinutes === null) return;
-                setCircumstanceMode("specific");
-                setSimulationTimeMinutes(nextMinutes);
-              }}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
-              aria-label="지도 기준 시간"
-            />
-          </label>
+        <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-slate-950/55 p-1">
+          <button
+            type="button"
+            onClick={activateLiveMode}
+            aria-pressed={circumstanceMode === "live"}
+            className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-semibold transition ${
+              circumstanceMode === "live"
+                ? "bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/20"
+                : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+            }`}
+          >
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            실시간
+          </button>
+          <button
+            type="button"
+            onClick={activateSpecificMode}
+            aria-pressed={circumstanceMode === "specific"}
+            className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-semibold transition ${
+              circumstanceMode === "specific"
+                ? "bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20"
+                : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+            }`}
+          >
+            <History className="h-3.5 w-3.5" aria-hidden="true" />
+            과거
+          </button>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            날씨
-            <select
-              value={weatherMode}
-              onChange={(event) => {
-                setCircumstanceMode("specific");
-                setWeatherMode(event.target.value as WeatherMode);
-              }}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
-              aria-label="지도 날씨 조건"
-            >
-              {WEATHER_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            교통 스케일
-            <div className="mt-1 flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2">
-              <div className="mb-1 flex items-center justify-between text-[10px] normal-case tracking-normal text-slate-300">
-                <span className="font-semibold text-slate-50">
-                  {trafficLoadPercent === 100 ? "기본" : `x${(trafficLoadPercent / 100).toFixed(2)}`}
-                </span>
-                <span className="text-[9px] text-slate-500">
-                  {appliedTrafficCount}대
-                </span>
-              </div>
-              <input
-                type="range"
-                min={MIN_TRAFFIC_LOAD_PERCENT}
-                max={MAX_TRAFFIC_LOAD_PERCENT}
-                step={5}
-                value={trafficLoadPercent}
-                onChange={(event) => {
-                  setCircumstanceMode("specific");
-                  setTrafficLoadPercent(Number(event.target.value));
-                }}
-                className="h-1.5 w-full accent-cyan-400"
-                aria-label="지도 교통량"
-              />
+        {circumstanceMode === "specific" && (
+          <>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                날짜
+                <input
+                  type="date"
+                  value={simulationDate}
+                  onChange={(event) => {
+                    setCircumstanceMode("specific");
+                    setSimulationDate(event.target.value);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
+                  aria-label="지도 기준 날짜"
+                />
+              </label>
+              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                시간
+                <input
+                  type="time"
+                  step={300}
+                  value={formattedSimulationTime}
+                  onChange={(event) => {
+                    const nextMinutes = parseTimeInput(event.target.value);
+                    if (nextMinutes === null) return;
+                    setCircumstanceMode("specific");
+                    setSimulationTimeMinutes(nextMinutes);
+                  }}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
+                  aria-label="지도 기준 시간"
+                />
+              </label>
             </div>
-          </label>
-        </div>
+
+            <div className="mt-3 text-[11px]">
+              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                교통 밀도
+                <div className="mt-1 flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2.5">
+                  <div className="mb-1 flex items-center justify-between text-[10px] normal-case tracking-normal text-slate-300">
+                    <span className="font-semibold text-slate-50">
+                      {trafficLoadPercent === 100 ? "기본" : `x${(trafficLoadPercent / 100).toFixed(2)}`}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {appliedTrafficCount}대
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={MIN_TRAFFIC_LOAD_PERCENT}
+                    max={MAX_TRAFFIC_LOAD_PERCENT}
+                    step={5}
+                    value={trafficLoadPercent}
+                    onChange={(event) => {
+                      setCircumstanceMode("specific");
+                      setTrafficLoadPercent(Number(event.target.value));
+                    }}
+                    className="h-1.5 w-full accent-cyan-400"
+                    aria-label="지도 교통량"
+                  />
+                </div>
+              </label>
+            </div>
+          </>
+        )}
       </div>
 
       <div
@@ -263,8 +298,6 @@ export const DemandSidebar = memo(function DemandSidebar({
         <DemandControls
           selectedDongName={selectedDongName}
           setSelectedDongName={setSelectedDongName}
-          selectedWeekday={selectedWeekday}
-          setSelectedWeekday={setSelectedWeekday}
         />
 
         <DemandSummaryStats
@@ -279,7 +312,7 @@ export const DemandSidebar = memo(function DemandSidebar({
         <DemandChart
           hasDemandData={hasDemandData}
           selectedDongName={selectedDongName}
-          selectedWeekday={selectedWeekday}
+          simulationDate={simulationDate}
           demandChart={demandChart}
           selectedAverageDemand={selectedAverageDemand}
         />
@@ -287,9 +320,17 @@ export const DemandSidebar = memo(function DemandSidebar({
 
       <DemandMiniMapPanel
         demandMiniMap={demandMiniMap}
+        heatmapFetchStatus={heatmapFetchStatus}
+        heatmapHour={heatmapHour}
+        heatmapMaxDemand={heatmapMaxDemand}
+        heatmapScope={heatmapScope}
         selectedDongName={selectedDongName}
+        setHeatmapHour={setHeatmapHour}
+        setHeatmapScope={setHeatmapScope}
         mapPoiFeatureRows={mapPoiFeatureRows}
         onPoiSelect={onPoiSelect}
+        onDongSelect={setSelectedDongName}
+        circumstanceMode={circumstanceMode}
       />
     </div>
     </>

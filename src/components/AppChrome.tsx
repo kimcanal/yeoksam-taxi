@@ -13,7 +13,7 @@ export function AppChrome({ children, showFooter = true }: AppChromeProps) {
         <div className="mx-auto flex h-14 w-full items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link
-              href="/"
+              href="/?mode=live"
               className="flex min-w-0 items-center gap-3 text-slate-100 transition hover:text-cyan-400"
             >
               <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#082f49,#0f766e)] text-[11px] font-bold tracking-[0.18em] text-white shadow-[0_10px_24px_rgba(8,47,73,0.28)]">
@@ -33,23 +33,6 @@ export function AppChrome({ children, showFooter = true }: AppChromeProps) {
             </span>
           </div>
 
-          <nav
-            aria-label="주요 이동"
-            className="hidden items-center gap-2 sm:flex"
-          >
-            <Link
-              href="/"
-              className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-cyan-500/30 hover:text-cyan-400"
-            >
-              홈
-            </Link>
-            <Link
-              href="/map"
-              className="rounded-full border border-white/10 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-cyan-500/30 hover:text-cyan-400"
-            >
-              지도
-            </Link>
-          </nav>
         </div>
       </header>
 

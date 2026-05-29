@@ -124,6 +124,7 @@ export function buildDemandMiniMapData({
   miniMapFocus,
   scenarioMapCenter,
   activePoiCode,
+  dongDemandCounts,
   selectedDongName,
   dongDemandScores,
 }: {
@@ -132,6 +133,7 @@ export function buildDemandMiniMapData({
   miniMapFocus: MiniMapFocus | null;
   scenarioMapCenter: THREE.Vector3 | null;
   activePoiCode: string;
+  dongDemandCounts: Record<string, number>;
   selectedDongName: string;
   dongDemandScores: Record<string, number>;
 }): DemandMiniMapData | null {
@@ -212,6 +214,7 @@ export function buildDemandMiniMapData({
         labelX: labelPoint.x,
         labelY: labelPoint.y,
         score: dongDemandScores[dong.name] ?? null,
+        demandCount: dongDemandCounts[dong.name] ?? null,
         isSelected: dong.name === selectedDongName,
       } satisfies DemandMiniMapRegion;
     }),

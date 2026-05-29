@@ -27,22 +27,11 @@ export const TARGET_DONGS = [
   "대치4동",
 ] as const;
 
-export const DEMAND_WEEKDAYS = [
-  { id: "monday", label: "월" },
-  { id: "tuesday", label: "화" },
-  { id: "wednesday", label: "수" },
-  { id: "thursday", label: "목" },
-  { id: "friday", label: "금" },
-  { id: "saturday", label: "토" },
-  { id: "sunday", label: "일" },
-] as const;
-
-export type DemandWeekdayId = (typeof DEMAND_WEEKDAYS)[number]["id"];
-
 export type HourlyDemandPoint = {
   hour: number;
   populationPred: number | null;
   demandPred: number;
+  actualDemand: number | null;
   trendDemandPred: number;
 };
 
@@ -55,6 +44,7 @@ export type FiveMinuteDemandPoint = {
 };
 
 export type DemandFetchStatus = "idle" | "loading" | "ready" | "error";
+export type DemandHeatmapScope = "all" | "selected";
 
 export type DemandMiniMapRegion = {
   name: string;
@@ -62,6 +52,7 @@ export type DemandMiniMapRegion = {
   labelX: number;
   labelY: number;
   score: number | null;
+  demandCount: number | null;
   isSelected?: boolean;
 };
 
@@ -105,8 +96,10 @@ export type DemandChartGeometry = {
   baseY: number;
   yMax: number;
   linePath: string;
+  actualLinePath: string;
   trendPath: string;
   areaPath: string;
+  hasActualDemand: boolean;
   peakPoint: HourlyDemandPoint;
   peakX: number;
   peakY: number;

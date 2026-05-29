@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import type * as THREE from "three";
 import { buildDemandMiniMapData } from "@/components/map-simulator/demand";
 import type { MapPoiFeatureRow } from "@/components/map-simulator/demand";
-import type { SimulationData } from "@/components/map-simulator/types";
+import type {
+  CircumstanceMode,
+  SimulationData,
+} from "@/components/map-simulator/types";
 import type { MiniMapFocus } from "@/components/map-simulator/hooks";
 import { useDemandForecast } from "@/components/map-simulator/demand";
 import { useSyncRef } from "@/components/map-simulator/hooks";
@@ -13,21 +16,20 @@ type UseMapDemandStateParams = {
   miniMapFocus: MiniMapFocus | null;
   scenarioMapCenter: THREE.Vector3 | null;
   activePoiCode: string;
+  circumstanceMode: CircumstanceMode;
   simulationDate: string;
   normalizedSimulationTimeMinutes: number;
 };
 
-function buildDongDemandScores({
-  selectedDongName,
-  selectedDemandScore,
-}: {
-  selectedDongName: string;
-  selectedDemandScore: number | null;
-}) {
+function buildDongDemandScores(heatmapDemandByDong: Record<string, number>) {
   const scores: Record<string, number> = {};
-  if (selectedDemandScore !== null) {
-    scores[selectedDongName] = selectedDemandScore;
+  const maxDemand = Math.max(0, ...Object.values(heatmapDemandByDong));
+  if (maxDemand <= 0) {
+    return scores;
   }
+  Object.entries(heatmapDemandByDong).forEach(([dongName, demand]) => {
+    scores[dongName] = Math.max(0, demand) / maxDemand;
+  });
   return scores;
 }
 
@@ -37,23 +39,18 @@ export function useMapDemandState({
   miniMapFocus,
   scenarioMapCenter,
   activePoiCode,
+  circumstanceMode,
   simulationDate,
   normalizedSimulationTimeMinutes,
 }: UseMapDemandStateParams) {
   const forecast = useDemandForecast({
+    circumstanceMode,
     simulationDate,
     normalizedSimulationTimeMinutes,
   });
   const dongDemandScores = useMemo(
-    () =>
-      buildDongDemandScores({
-        selectedDongName: forecast.selectedDongName,
-        selectedDemandScore: forecast.selectedDemandScore,
-      }),
-    [
-      forecast.selectedDemandScore,
-      forecast.selectedDongName,
-    ],
+    () => buildDongDemandScores(forecast.heatmapDemandByDong),
+    [forecast.heatmapDemandByDong],
   );
   const demandMiniMap = useMemo(
     () =>
@@ -63,6 +60,7 @@ export function useMapDemandState({
         miniMapFocus,
         scenarioMapCenter,
         activePoiCode,
+        dongDemandCounts: forecast.heatmapDemandByDong,
         selectedDongName: forecast.selectedDongName,
         dongDemandScores,
       }),
@@ -70,6 +68,7 @@ export function useMapDemandState({
       activePoiCode,
       data,
       dongDemandScores,
+      forecast.heatmapDemandByDong,
       forecast.selectedDongName,
       mapPoiFeatureRows,
       miniMapFocus,

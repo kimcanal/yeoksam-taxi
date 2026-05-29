@@ -1,13 +1,10 @@
-import type {
-  DemandChartGeometry,
-  DemandWeekdayId,
-} from "@/components/map-simulator/demand";
-import { weekdayLabel } from "@/components/map-simulator/demand";
+import type { DemandChartGeometry } from "@/components/map-simulator/demand";
+import { formatDateLabel } from "@/components/map-simulator/environment";
 
 type DemandChartProps = {
   hasDemandData: boolean;
   selectedDongName: string;
-  selectedWeekday: DemandWeekdayId;
+  simulationDate: string;
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
 };
@@ -15,7 +12,7 @@ type DemandChartProps = {
 export function DemandChart({
   hasDemandData,
   selectedDongName,
-  selectedWeekday,
+  simulationDate,
   demandChart,
   selectedAverageDemand,
 }: DemandChartProps) {
@@ -26,7 +23,7 @@ export function DemandChart({
           <svg
             viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
             role="img"
-            aria-label={`${selectedDongName} ${weekdayLabel(selectedWeekday)}요일 시간대별 택시 수요`}
+            aria-label={`${selectedDongName} ${formatDateLabel(simulationDate)} 시간대별 택시 수요`}
             className="block h-auto w-full"
           >
             <defs>
@@ -84,9 +81,9 @@ export function DemandChart({
                 </text>
               </g>
             ))}
-            <path 
-              d={demandChart.areaPath} 
-              fill="url(#demandCurveFill)" 
+            <path
+              d={demandChart.areaPath}
+              fill="url(#demandCurveFill)"
               className="transition-all duration-500 ease-out"
             />
             <path
@@ -108,6 +105,18 @@ export function DemandChart({
               strokeWidth="2.4"
               className="transition-all duration-500 ease-out"
             />
+            {demandChart.hasActualDemand ? (
+              <path
+                d={demandChart.actualLinePath}
+                fill="none"
+                stroke="#facc15"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                opacity="0.95"
+                className="transition-all duration-500 ease-out"
+              />
+            ) : null}
             <circle
               cx={demandChart.peakX}
               cy={demandChart.peakY}
@@ -131,6 +140,12 @@ export function DemandChart({
             <span className="h-1.5 w-4 rounded-full bg-cyan-300" />
             시간당 수요
           </span>
+          {demandChart.hasActualDemand ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-4 rounded-full bg-yellow-300" />
+              실수요
+            </span>
+          ) : null}
           <span className="inline-flex items-center gap-1.5">
             <span className="h-0 w-4 border-t border-dashed border-rose-300" />
             추세

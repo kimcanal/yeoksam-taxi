@@ -47,3 +47,14 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(71, 85, 105, 1);
 }
+
+/* Prevent default browser focus rings on SVG elements */
+g:focus,
+g:focus-visible,
+path:focus,
+path:focus-visible,
+svg *:focus,
+svg *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

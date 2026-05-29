@@ -77,6 +77,70 @@ export function createEngineVisualUpdater(
   const labelCameraQuaternion = new THREE.Quaternion();
 
   let activeHighlightedDongNames: string[] = [];
+  let lastHighlightedKey = "";
+
+  const updateBoundaryVisualHighlight = () => {
+    const { glowMesh, lineMesh } = ctx.dongBoundaryLayer;
+    if (!glowMesh || !lineMesh) return;
+
+    const activeDongs = new Set(activeHighlightedDongNames);
+    if (selectedDemandDongRef.current) {
+      activeDongs.add(selectedDemandDongRef.current);
+    }
+    const key = [...activeDongs].sort().join("|");
+    if (key === lastHighlightedKey) {
+      return;
+    }
+    lastHighlightedKey = key;
+
+    const dummy = new THREE.Object3D();
+    dongBoundarySegments.forEach((segment, index) => {
+      const isHighlighted =
+        (segment.leftDong && activeDongs.has(segment.leftDong)) ||
+        (segment.rightDong && activeDongs.has(segment.rightDong));
+
+      if (isHighlighted) {
+        // Highlighted: bright white line, thick glowing box
+        dummy.position.set(segment.center.x, 0.26, segment.center.z);
+        dummy.rotation.set(0, segment.angle, 0);
+        dummy.scale.set(3.8, 1.4, segment.length + 1.1);
+        dummy.updateMatrix();
+        glowMesh.setMatrixAt(index, dummy.matrix);
+        glowMesh.setColorAt(index, new THREE.Color(0xffa726));
+
+        dummy.position.set(segment.center.x, 0.315, segment.center.z);
+        dummy.rotation.set(0, segment.angle, 0);
+        dummy.scale.set(1.9, 1.9, segment.length + 0.44);
+        dummy.updateMatrix();
+        lineMesh.setMatrixAt(index, dummy.matrix);
+        lineMesh.setColorAt(index, new THREE.Color(0xffffff));
+      } else {
+        // Default normal state
+        dummy.position.set(segment.center.x, 0.26, segment.center.z);
+        dummy.rotation.set(0, segment.angle, 0);
+        dummy.scale.set(2.1, 1, segment.length + 1.1);
+        dummy.updateMatrix();
+        glowMesh.setMatrixAt(index, dummy.matrix);
+        glowMesh.setColorAt(index, new THREE.Color(0xd4834a));
+
+        dummy.position.set(segment.center.x, 0.315, segment.center.z);
+        dummy.rotation.set(0, segment.angle, 0);
+        dummy.scale.set(1.28, 1.4, segment.length + 0.44);
+        dummy.updateMatrix();
+        lineMesh.setMatrixAt(index, dummy.matrix);
+        lineMesh.setColorAt(index, new THREE.Color(0xe8904a));
+      }
+    });
+
+    glowMesh.instanceMatrix.needsUpdate = true;
+    lineMesh.instanceMatrix.needsUpdate = true;
+    if (glowMesh.instanceColor) {
+      glowMesh.instanceColor.needsUpdate = true;
+    }
+    if (lineMesh.instanceColor) {
+      lineMesh.instanceColor.needsUpdate = true;
+    }
+  };
 
   const setBoundaryDongHighlight = (dongNames: string[]) => {
     const activeDongs = new Set(dongNames.filter(Boolean));
@@ -93,6 +157,7 @@ export function createEngineVisualUpdater(
 
     activeHighlightedDongNames = [...activeDongs];
     markLabelVisibilityDirty();
+    updateBoundaryVisualHighlight();
   };
 
   const markHoverDirty = () => {
@@ -162,6 +227,7 @@ export function createEngineVisualUpdater(
       visualUnits: Math.max(0, currentDemandVisualUnitsRef.current),
       elapsedTime,
     });
+    updateBoundaryVisualHighlight();
   };
 
   // --- Atmosphere ---

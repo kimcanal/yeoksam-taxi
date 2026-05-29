@@ -5,39 +5,67 @@ import {
   averageDemand,
   buildDemandChartGeometry,
   buildFiveMinuteDemandSeries,
+  normalizeRemoteDailyDemandSeries,
   normalizeRemoteDemandPoints,
   scoreDemandAtHour,
-  weekdayIdFromDate,
+  TARGET_DONGS,
 } from "@/components/map-simulator/demand";
 import type {
   DemandFetchStatus,
-  DemandWeekdayId,
+  DemandHeatmapScope,
   HourlyDemandPoint,
 } from "@/components/map-simulator/demand";
+import type { CircumstanceMode } from "@/components/map-simulator/types";
 
 const DEMAND_API_ENDPOINT =
   process.env.NEXT_PUBLIC_DEMAND_API_ENDPOINT?.trim() ?? "";
 
+type DemandSeriesByDong = Record<string, HourlyDemandPoint[]>;
+
+function demandAtHour(points: HourlyDemandPoint[] | undefined, hour: number) {
+  return points?.find((point) => point.hour === hour)?.demandPred ?? null;
+}
+
+function isAbortError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
 export function useDemandForecast({
+  circumstanceMode,
   simulationDate,
   normalizedSimulationTimeMinutes,
 }: {
+  circumstanceMode: CircumstanceMode;
   simulationDate: string;
   normalizedSimulationTimeMinutes: number;
 }) {
   const [selectedDongName, setSelectedDongName] = useState<string>("역삼1동");
-  const [selectedWeekday, setSelectedWeekday] = useState<DemandWeekdayId>(
-    () => weekdayIdFromDate(simulationDate),
+  const [demandSeriesByDong, setDemandSeriesByDong] =
+    useState<DemandSeriesByDong>({});
+  const [heatmapHour, setHeatmapHour] = useState(() =>
+    Math.floor(normalizedSimulationTimeMinutes / 60),
   );
-  const [remoteDemandPoints, setRemoteDemandPoints] = useState<
-    HourlyDemandPoint[] | null
-  >(null);
-  const [demandFetchStatus, setDemandFetchStatus] =
+  const [heatmapScope, setHeatmapScope] =
+    useState<DemandHeatmapScope>("all");
+  const [heatmapFetchStatus, setHeatmapFetchStatus] =
     useState<DemandFetchStatus>(() => (DEMAND_API_ENDPOINT ? "idle" : "error"));
+  const demandFetchStatus = heatmapFetchStatus;
+  const selectedForecastHour = Math.floor(normalizedSimulationTimeMinutes / 60);
+  const liveHourlyRefreshKey =
+    circumstanceMode === "live"
+      ? `${simulationDate}:${selectedForecastHour}`
+      : "";
+  const effectiveHeatmapHour =
+    circumstanceMode === "live" ? selectedForecastHour : heatmapHour;
 
   const hourlyDemandSeries = useMemo(
-    () => remoteDemandPoints ?? [],
-    [remoteDemandPoints],
+    () => demandSeriesByDong[selectedDongName] ?? [],
+    [demandSeriesByDong, selectedDongName],
   );
   const hasDemandData = hourlyDemandSeries.length > 0;
   const fiveMinuteDemandSeries = useMemo(
@@ -59,7 +87,8 @@ export function useDemandForecast({
   const appliedTaxiCount = hasDemandData
     ? currentDemandVisualUnits
     : DEFAULT_TAXI_COUNT;
-  const selectedDemandHour = Math.floor(normalizedSimulationTimeMinutes / 60);
+
+
 
   useEffect(() => {
     if (!DEMAND_API_ENDPOINT) {
@@ -67,53 +96,94 @@ export function useDemandForecast({
     }
 
     const controller = new AbortController();
-    const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
-    url.searchParams.set("dong", selectedDongName);
-    url.searchParams.set("date", simulationDate);
-    url.searchParams.set("hour", String(selectedDemandHour));
-    url.searchParams.set("timezone", "Asia/Seoul");
-    url.searchParams.set("weekday", selectedWeekday);
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
-        setRemoteDemandPoints(null);
-        setDemandFetchStatus("loading");
+        setHeatmapFetchStatus("loading");
       }
     });
 
-    fetch(url.toString(), {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Demand API request failed: ${response.status}`);
+    async function fetchDailySeries() {
+      const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
+      url.searchParams.set("scope", "daily");
+      url.searchParams.set("date", simulationDate);
+      const response = await fetch(url.toString(), {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Daily demand heatmap request failed: ${response.status}`,
+        );
+      }
+      const normalized = normalizeRemoteDailyDemandSeries(
+        await response.json(),
+      );
+      if (!normalized) {
+        throw new Error("Daily demand heatmap response invalid.");
+      }
+      return normalized;
+    }
+
+    async function fetchHourlySeriesByDong() {
+      const results = await Promise.allSettled(
+        TARGET_DONGS.map(async (dongName) => {
+          const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
+          url.searchParams.set("dong", dongName);
+          url.searchParams.set("date", simulationDate);
+          const response = await fetch(url.toString(), {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          if (!response.ok) {
+            throw new Error(`Demand heatmap request failed: ${response.status}`);
+          }
+          const normalized = normalizeRemoteDemandPoints(await response.json());
+          if (!normalized) {
+            throw new Error(`Demand heatmap response invalid: ${dongName}`);
+          }
+          return [dongName, normalized] as const;
+        }),
+      );
+      const nextSeries: DemandSeriesByDong = {};
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          const [dongName, points] = result.value;
+          nextSeries[dongName] = points;
+        } else if (!controller.signal.aborted && !isAbortError(result.reason)) {
+          console.error(result.reason);
         }
-        return response.json() as Promise<unknown>;
+      });
+      return nextSeries;
+    }
+
+    fetchDailySeries()
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return null;
+        }
+        console.error(error);
+        return fetchHourlySeriesByDong();
       })
-      .then((payload) => {
-        const normalized = normalizeRemoteDemandPoints(payload);
-        if (!normalized) {
-          throw new Error("Demand API response has no valid points.");
+      .then((nextSeries) => {
+        if (controller.signal.aborted || nextSeries === null) {
+          return;
         }
-        setRemoteDemandPoints(normalized);
-        setDemandFetchStatus("ready");
+        setDemandSeriesByDong(nextSeries);
+        setHeatmapFetchStatus(
+          Object.keys(nextSeries).length > 0 ? "ready" : "error",
+        );
       })
       .catch((error) => {
         if (controller.signal.aborted) {
           return;
         }
         console.error(error);
-        setRemoteDemandPoints(null);
-        setDemandFetchStatus("error");
+        setDemandSeriesByDong({});
+        setHeatmapFetchStatus("error");
       });
 
     return () => controller.abort();
-  }, [
-    selectedDemandHour,
-    selectedDongName,
-    selectedWeekday,
-    simulationDate,
-  ]);
+  }, [liveHourlyRefreshKey, simulationDate]);
 
   const demandChart = useMemo(
     () => buildDemandChartGeometry(hourlyDemandSeries),
@@ -129,13 +199,35 @@ export function useDemandForecast({
     selectedDemandScore === null
       ? "-"
       : `${Math.round(selectedDemandScore * 100).toLocaleString("ko-KR")}%`;
+  const heatmapAllDemandByDong = useMemo(() => {
+    const entries = TARGET_DONGS.flatMap((dongName) => {
+      const demand = demandAtHour(
+        demandSeriesByDong[dongName],
+        effectiveHeatmapHour,
+      );
+      return demand === null ? [] : ([[dongName, demand]] as const);
+    });
+    return Object.fromEntries(entries) as Record<string, number>;
+  }, [demandSeriesByDong, effectiveHeatmapHour]);
+  const heatmapDemandByDong = useMemo(() => {
+    if (heatmapScope === "all") {
+      return heatmapAllDemandByDong;
+    }
+    const selectedDemand = heatmapAllDemandByDong[selectedDongName];
+    return selectedDemand === undefined
+      ? {}
+      : { [selectedDongName]: selectedDemand };
+  }, [heatmapAllDemandByDong, heatmapScope, selectedDongName]);
+  const heatmapMaxDemand = Math.max(0, ...Object.values(heatmapDemandByDong));
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
       ? "백엔드 연동"
       : demandFetchStatus === "loading"
         ? "API 요청 중"
         : demandFetchStatus === "error"
-          ? "API 설정 필요"
+          ? DEMAND_API_ENDPOINT
+            ? "API 오류"
+            : "API 설정 필요"
           : "API 대기";
   const demandFetchBadgeClass =
     demandFetchStatus === "ready"
@@ -146,15 +238,9 @@ export function useDemandForecast({
           ? "border-rose-300/25 bg-rose-300/[0.08] text-rose-100"
           : "border-slate-500/30 bg-slate-500/[0.08] text-slate-300";
 
-  function setSimulationDateWeekday(date: string) {
-    setSelectedWeekday(weekdayIdFromDate(date));
-  }
-
   return {
     selectedDongName,
     setSelectedDongName,
-    selectedWeekday,
-    setSelectedWeekday,
     currentDemandSlot,
     currentDemandVisualUnits,
     currentFiveMinuteDemand,
@@ -165,9 +251,15 @@ export function useDemandForecast({
     selectedPeakDemand,
     selectedDemandScore,
     selectedDemandIntensityLabel,
+    heatmapDemandByDong,
+    heatmapFetchStatus,
+    heatmapHour: effectiveHeatmapHour,
+    heatmapMaxDemand,
+    heatmapScope,
+    setHeatmapHour,
+    setHeatmapScope,
     demandFetchStatus,
     demandFetchBadgeText,
     demandFetchBadgeClass,
-    setSimulationDateWeekday,
   };
 }

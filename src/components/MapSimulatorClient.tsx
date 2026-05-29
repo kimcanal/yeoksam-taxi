@@ -1,10 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { CircumstanceMode } from "@/components/map-simulator/types";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
 type MapSimulatorClientProps = {
   buildVersion: BuildVersionInfo;
+  initialMode?: CircumstanceMode;
 };
 
 const MapSimulator = dynamic<MapSimulatorClientProps>(() => import("./MapSimulator"), {
@@ -21,6 +23,7 @@ const MapSimulator = dynamic<MapSimulatorClientProps>(() => import("./MapSimulat
 
 export default function MapSimulatorClient({
   buildVersion,
+  initialMode,
 }: MapSimulatorClientProps) {
-  return <MapSimulator buildVersion={buildVersion} />;
+  return <MapSimulator buildVersion={buildVersion} initialMode={initialMode} />;
 }

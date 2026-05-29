@@ -1,5 +1,5 @@
 import type { WeatherMode } from "@/components/map-simulator/environment";
-import { HYDRATION_SAFE_SIMULATION_CLOCK } from "@/components/map-simulator/environment";
+import { currentSimulationClock } from "@/components/map-simulator/environment";
 import type { CameraMode } from "@/components/map-simulator/camera";
 import type {
   CircumstanceMode,
@@ -55,14 +55,16 @@ type UiState = {
   isMapFocusMode: boolean;
 };
 
+const initialSimulationClock = currentSimulationClock();
+
 const initialSceneState: SceneState = {
   data: null,
   status: "loading",
   statusDetail: "OSM 지도 데이터 불러오는 중",
   loadingProgress: 0,
-  circumstanceMode: "specific",
-  simulationDate: HYDRATION_SAFE_SIMULATION_CLOCK.dateIso,
-  simulationTimeMinutes: HYDRATION_SAFE_SIMULATION_CLOCK.minutes,
+  circumstanceMode: "live",
+  simulationDate: initialSimulationClock.dateIso,
+  simulationTimeMinutes: initialSimulationClock.minutes,
   weatherMode: "clear",
   trafficLoadPercent: DEFAULT_TRAFFIC_LOAD_PERCENT,
   cameraMode: "overview",

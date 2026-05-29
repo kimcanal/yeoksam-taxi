@@ -101,6 +101,7 @@ export function createDemandVisualLayer({
   demandPulseRing.rotation.x = -Math.PI / 2;
   demandPulseRing.position.y = 0.48;
   demandPulseRing.renderOrder = 42;
+  demandPulseRing.visible = false;
   demandPulseGroup.add(demandPulseRing);
 
   const demandPulseCoreMaterial = new THREE.MeshBasicMaterial({
@@ -117,20 +118,21 @@ export function createDemandVisualLayer({
   demandPulseCore.rotation.x = -Math.PI / 2;
   demandPulseCore.position.y = 0.5;
   demandPulseCore.renderOrder = 41;
+  demandPulseCore.visible = false;
   demandPulseGroup.add(demandPulseCore);
 
   const demandBadgeElement = document.createElement("div");
   demandBadgeElement.className = "scene-label scene-label-demand";
   demandBadgeElement.style.pointerEvents = "none";
-  demandBadgeElement.style.border = "1px solid rgba(103,232,249,0.42)";
-  demandBadgeElement.style.background = "rgba(8,18,29,0.92)";
-  demandBadgeElement.style.color = "#e0faff";
+  demandBadgeElement.style.border = "1.5px solid #22d3ee";
+  demandBadgeElement.style.background = "#08121d";
+  demandBadgeElement.style.color = "#ffffff";
   demandBadgeElement.style.boxShadow =
-    "0 0 0 1px rgba(34,211,238,0.12), 0 14px 30px rgba(0,0,0,0.36)";
+    "0 0 0 1.5px rgba(34,211,238,0.28), 0 12px 28px rgba(0,0,0,0.65)";
   demandBadgeElement.style.fontWeight = "700";
-  demandBadgeElement.style.fontSize = "11px";
-  demandBadgeElement.style.letterSpacing = "0";
-  demandBadgeElement.style.padding = "5px 8px";
+  demandBadgeElement.style.fontSize = "12px";
+  demandBadgeElement.style.letterSpacing = "0.02em";
+  demandBadgeElement.style.padding = "6px 12px";
   demandBadgeElement.style.borderRadius = "999px";
   demandBadgeElement.style.whiteSpace = "nowrap";
   const demandBadgeLabel = new CSS2DObject(demandBadgeElement);

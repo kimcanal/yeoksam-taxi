@@ -87,9 +87,9 @@ export const TAXI_CLICK_MOVE_THRESHOLD = 8;
 
 // Render cadence trades visual smoothness against browser budget in heavy scenes.
 export const SHOW_DONG_BOUNDARIES = false;
-export const DRIVE_RENDER_FPS = 30;
-export const FOLLOW_RENDER_FPS = 30;
-export const OVERVIEW_RENDER_FPS = 30;
+export const DRIVE_RENDER_FPS = 60;
+export const FOLLOW_RENDER_FPS = 60;
+export const OVERVIEW_RENDER_FPS = 60;
 export const HIDDEN_RENDER_FPS = 12;
 export const SIMULATION_STATS_UPDATE_INTERVAL = 0.3;
 export const HOTSPOT_ACTIVITY_REFRESH_INTERVAL = 1.2;

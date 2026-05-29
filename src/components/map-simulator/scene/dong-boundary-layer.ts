@@ -98,7 +98,9 @@ export function createDongBoundaryLayer({
   return {
     group,
     glowMaterial,
+    glowMesh,
     lineMaterial,
+    lineMesh,
     wallMaterial,
     wallMesh,
   };

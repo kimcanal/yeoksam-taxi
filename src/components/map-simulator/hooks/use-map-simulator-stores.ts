@@ -5,6 +5,9 @@ export function useMapSimulatorStores() {
   const status = sceneStore.useStore((state) => state.status);
   const statusDetail = sceneStore.useStore((state) => state.statusDetail);
   const loadingProgress = sceneStore.useStore((state) => state.loadingProgress);
+  const circumstanceMode = sceneStore.useStore(
+    (state) => state.circumstanceMode,
+  );
   const simulationDate = sceneStore.useStore((state) => state.simulationDate);
   const simulationTimeMinutes = sceneStore.useStore(
     (state) => state.simulationTimeMinutes,
@@ -27,6 +30,7 @@ export function useMapSimulatorStores() {
       status,
       statusDetail,
       loadingProgress,
+      circumstanceMode,
       simulationDate,
       simulationTimeMinutes,
       weatherMode,

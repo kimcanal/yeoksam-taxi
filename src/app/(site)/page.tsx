@@ -1,4 +1,5 @@
 import MapSimulatorClient from "@/components/MapSimulatorClient";
+import type { CircumstanceMode } from "@/components/map-simulator/types";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import type { Metadata } from "next";
 
@@ -62,7 +63,7 @@ function resolveEnvironmentLabel(branch: string) {
   return "로컬";
 }
 
-export function resolveBuildVersion(): BuildVersionInfo {
+function resolveBuildVersion(): BuildVersionInfo {
   const rawBranch =
     envValue("NEXT_PUBLIC_BUILD_BRANCH") ||
     envValue("CF_PAGES_BRANCH") ||
@@ -93,12 +94,28 @@ export function resolveBuildVersion(): BuildVersionInfo {
   };
 }
 
-export default function Home() {
+type HomePageProps = {
+  searchParams?: Promise<{
+    mode?: string | string[] | undefined;
+  }>;
+};
+
+function resolveInitialMode(value: string | string[] | undefined): CircumstanceMode {
+  const mode = Array.isArray(value) ? value[0] : value;
+  return mode === "past" || mode === "specific" ? "specific" : "live";
+}
+
+export default async function Home({ searchParams }: HomePageProps) {
   const buildVersion = resolveBuildVersion();
+  const params = searchParams ? await searchParams : {};
+  const initialMode = resolveInitialMode(params.mode);
 
   return (
     <main className="h-full min-h-0 w-full overflow-hidden bg-black">
-      <MapSimulatorClient buildVersion={buildVersion} />
+      <MapSimulatorClient
+        buildVersion={buildVersion}
+        initialMode={initialMode}
+      />
     </main>
   );
 }

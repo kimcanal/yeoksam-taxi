@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import {
   DEMAND_MINI_MAP_VIEWBOX_SIZE,
   DEMAND_SCORE_THRESHOLDS,
@@ -17,6 +17,7 @@ import {
 type DemandMiniMapSvgProps = {
   demandMiniMap: DemandMiniMapData;
   onPoiSelect: (poiCode: string) => void;
+  onDongSelect?: (dongName: string) => void;
 };
 
 function focusHeadingAngle(demandMiniMap: DemandMiniMapData) {
@@ -113,11 +114,38 @@ function regionStrokeWidth(region: DemandMiniMapRegion) {
     : 0.42;
 }
 
-function MiniMapRegions({ regions }: { regions: DemandMiniMapRegion[] }) {
+function MiniMapRegions({
+  regions,
+  onDongSelect,
+}: {
+  regions: DemandMiniMapRegion[];
+  onDongSelect?: (dongName: string) => void;
+}) {
+  const [hoveredRegion, setHoveredRegion] =
+    useState<DemandMiniMapRegion | null>(null);
+
   return (
     <>
       {regions.map((region) => (
-        <g key={`${region.name}-shape`}>
+        <g
+          key={`${region.name}-shape`}
+          role="button"
+          aria-label={`${region.name} 선택`}
+          onMouseEnter={() => setHoveredRegion(region)}
+          onMouseLeave={() => setHoveredRegion(null)}
+          onFocus={() => setHoveredRegion(region)}
+          onBlur={() => setHoveredRegion(null)}
+          onClick={() => onDongSelect?.(region.name)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onDongSelect?.(region.name);
+            }
+          }}
+          tabIndex={0}
+          style={{ outline: "none" }}
+          className="cursor-pointer"
+        >
           <path
             d={region.path}
             fill={demandFillForScore(region.score, region.isSelected)}
@@ -125,12 +153,37 @@ function MiniMapRegions({ regions }: { regions: DemandMiniMapRegion[] }) {
             strokeWidth={regionStrokeWidth(region)}
           />
           <title>
-            {region.score === null
+            {region.demandCount === null
               ? `${region.name} 수요 데이터 없음`
-              : `${region.name} 수요 ${Math.round(region.score * 100)}`}
+              : `${region.name} 예측량 ${Math.round(region.demandCount).toLocaleString("ko-KR")}대`}
           </title>
         </g>
       ))}
+      {hoveredRegion ? (
+        <g
+          pointerEvents="none"
+          transform={`translate(${Math.min(hoveredRegion.labelX + 2, 75)}, ${Math.max(hoveredRegion.labelY - 8, 8)})`}
+        >
+          <rect
+            x="0"
+            y="0"
+            width="24"
+            height="9"
+            rx="2.2"
+            fill="rgba(7, 17, 28, 0.92)"
+            stroke="rgba(103, 232, 249, 0.62)"
+            strokeWidth="0.35"
+          />
+          <text x="2.2" y="3.4" fill="#e2e8f0" fontSize="2.15" fontWeight="600">
+            {hoveredRegion.name}
+          </text>
+          <text x="2.2" y="6.8" fill="#bae6fd" fontSize="2.05">
+            {hoveredRegion.demandCount === null
+              ? "데이터 없음"
+              : `예측량 ${Math.round(hoveredRegion.demandCount).toLocaleString("ko-KR")}대`}
+          </text>
+        </g>
+      ) : null}
     </>
   );
 }
@@ -221,7 +274,7 @@ function MiniMapPoiMarker({
       tabIndex={0}
       aria-label={`${poi.name} 선택`}
       className="cursor-pointer outline-none transition-transform duration-200"
-      style={{ transform: `translate(${poi.x}px, ${poi.y}px) scale(${poi.isSelected ? 1.25 : 0.9})` }}
+      transform={`translate(${poi.x}, ${poi.y})`}
       onClick={() => onPoiSelect(poi.code)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -230,20 +283,23 @@ function MiniMapPoiMarker({
         }
       }}
     >
-      <path
-        d="M 0 0 C 1.5 -2.5, 3.5 -4.5, 3.5 -7.5 A 3.5 3.5 0 1 0 -3.5 -7.5 C -3.5 -4.5, -1.5 -2.5, 0 0 Z"
-        fill="rgba(7, 17, 28, 0.85)"
-        stroke={poi.isSelected ? "#f8fafc" : "#67e8f9"}
-        strokeWidth={poi.isSelected ? "0.8" : "0.5"}
-      >
-        <title>{poi.name} 관심 지점</title>
-      </path>
-      <circle
-        cx="0"
-        cy="-7.5"
-        r="1.4"
-        fill={poi.isSelected ? "#f8fafc" : "#67e8f9"}
-      />
+      {/* Only scale the map pin shape graphics to keep them delicate and small */}
+      <g transform={`scale(${poi.isSelected ? 0.52 : 0.36})`}>
+        <path
+          d="M 0 0 C 1.5 -2.5, 3.5 -4.5, 3.5 -7.5 A 3.5 3.5 0 1 0 -3.5 -7.5 C -3.5 -4.5, -1.5 -2.5, 0 0 Z"
+          fill="rgba(7, 17, 28, 0.85)"
+          stroke={poi.isSelected ? "#f8fafc" : "#67e8f9"}
+          strokeWidth={poi.isSelected ? "0.8" : "0.5"}
+        >
+          <title>{poi.name} 관심 지점</title>
+        </path>
+        <circle
+          cx="0"
+          cy="-7.5"
+          r="1.4"
+          fill={poi.isSelected ? "#f8fafc" : "#67e8f9"}
+        />
+      </g>
       {poi.isSelected || poi.contextScore >= DEMAND_SCORE_THRESHOLDS.high ? (
         <text
           x={poi.labelX - poi.x}
@@ -330,6 +386,7 @@ function MiniMapLandmarks({
 export function DemandMiniMapSvg({
   demandMiniMap,
   onPoiSelect,
+  onDongSelect,
 }: DemandMiniMapSvgProps) {
   const idPrefix = useId().replace(/:/g, "-");
   const fovGradientId = `${idPrefix}-fov`;
@@ -351,15 +408,18 @@ export function DemandMiniMapSvg({
         fill="#07111c"
       />
       <MiniMapCompass />
-      <MiniMapRegions regions={demandMiniMap.regions} />
+      <MiniMapRegions
+        regions={demandMiniMap.regions}
+        onDongSelect={onDongSelect}
+      />
       <MiniMapFocus
         demandMiniMap={demandMiniMap}
         fovGradientId={fovGradientId}
         glowFilterId={glowFilterId}
       />
-      <MiniMapRegionLabels regions={demandMiniMap.regions} />
       <MiniMapPois pois={demandMiniMap.pois} onPoiSelect={onPoiSelect} />
       <MiniMapLandmarks landmarks={demandMiniMap.landmarks} />
+      <MiniMapRegionLabels regions={demandMiniMap.regions} />
     </svg>
   );
 }
