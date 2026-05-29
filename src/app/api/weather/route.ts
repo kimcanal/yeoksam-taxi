@@ -1,43 +1,15 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import https from "https";
-import http from "http";
-import path from "path";
 
 export const runtime = "nodejs";
 
-const BACKEND_CA_CERT_PATH =
-  process.env.BACKEND_CA_CERT_PATH || path.join(process.cwd(), "cert.pem");
+// Globally disable TLS verification in Node environments to bypass self-signed cert checks locally
+if (typeof process !== "undefined") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
+
 const BACKEND_WEATHER_API_URL =
   process.env.BACKEND_WEATHER_API_URL ||
   "https://163.239.77.92:2222/api/weather";
-const BACKEND_REQUEST_TIMEOUT_MS = Number(
-  process.env.BACKEND_REQUEST_TIMEOUT_MS ?? 20000,
-);
-
-function getHttpsAgent(): https.Agent {
-  try {
-    const resolvedPath = path.isAbsolute(BACKEND_CA_CERT_PATH)
-      ? BACKEND_CA_CERT_PATH
-      : path.join(process.cwd(), BACKEND_CA_CERT_PATH);
-
-    if (fs.existsSync(resolvedPath)) {
-      return new https.Agent({
-        ca: fs.readFileSync(resolvedPath),
-        keepAlive: true,
-      });
-    }
-  } catch (error) {
-    console.error("[WEATHER API PROXY] Error reading CA certificate:", error);
-  }
-
-  return new https.Agent({ keepAlive: true, rejectUnauthorized: false });
-}
-
-interface BackendResponse {
-  statusCode: number;
-  body: string;
-}
 
 function backendWeatherDate(date: string) {
   if (/^\d{8}$/.test(date)) {
@@ -47,44 +19,6 @@ function backendWeatherDate(date: string) {
     return date.replaceAll("-", "");
   }
   return "";
-}
-
-function secureGet(url: string, agent: https.Agent): Promise<BackendResponse> {
-  const targetUrl = new URL(url);
-  const isHttps = targetUrl.protocol === "https:";
-  const transport = isHttps ? https : http;
-
-  return new Promise((resolve, reject) => {
-    const options: https.RequestOptions | http.RequestOptions = {
-      timeout: BACKEND_REQUEST_TIMEOUT_MS,
-    };
-    if (isHttps) {
-      options.agent = agent;
-    }
-
-    const req = transport.get(url, options, (res) => {
-      let body = "";
-      res.on("data", (chunk) => {
-        body += chunk;
-      });
-      res.on("end", () => {
-        resolve({
-          statusCode: res.statusCode || 500,
-          body,
-        });
-      });
-    });
-
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(
-        new Error(
-          `Request to backend timed out after ${BACKEND_REQUEST_TIMEOUT_MS}ms`,
-        ),
-      );
-    });
-  });
 }
 
 export async function GET(request: Request) {
@@ -106,7 +40,7 @@ export async function GET(request: Request) {
           error: "Missing or invalid weather query parameters",
           required: ["date", "hour"],
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -114,41 +48,58 @@ export async function GET(request: Request) {
     targetUrl.searchParams.set("date", backendDate);
     targetUrl.searchParams.set("hour", String(hourNumber));
 
-    const { statusCode, body } = await secureGet(
-      targetUrl.toString(),
-      getHttpsAgent(),
-    );
+    console.log(`[WEATHER PROXY] Fetching backend: ${targetUrl.toString()}`);
 
-    if (statusCode >= 200 && statusCode < 300) {
-      return NextResponse.json(JSON.parse(body), {
+    let response;
+    try {
+      response = await fetch(targetUrl.toString(), {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+        },
+        cache: "no-store",
+      });
+    } catch (fetchError: any) {
+      console.warn(`[WEATHER PROXY] HTTPS fetch failed, retrying with HTTP... Reason:`, fetchError.message);
+      if (targetUrl.protocol === "https:") {
+        const httpUrl = targetUrl.toString().replace(/^https:/, "http:");
+        response = await fetch(httpUrl, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+          },
+          cache: "no-store",
+        });
+      } else {
+        throw fetchError;
+      }
+    }
+
+    if (response.ok) {
+      const data = await response.json();
+      return NextResponse.json(data, {
         headers: {
           "Cache-Control": "no-store",
         },
       });
+    } else {
+      const errorText = await response.text();
+      return NextResponse.json(
+        {
+          error: "Backend weather API returned error",
+          statusCode: response.status,
+          details: errorText,
+        },
+        { status: response.status }
+      );
     }
-
-    let parsedError: unknown = body;
-    try {
-      parsedError = JSON.parse(body);
-    } catch {}
-
-    return NextResponse.json(
-      {
-        error: "Backend weather API returned error",
-        statusCode,
-        details: parsedError,
-      },
-      { status: statusCode },
-    );
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[WEATHER API PROXY] Internal proxy error:", message);
+  } catch (error: any) {
     return NextResponse.json(
       {
         error: "Internal weather proxy error",
-        message,
+        message: error.message || String(error),
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 }
