@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import { projectPoint } from "@/components/map-simulator/utils";
-import { distanceXZ } from "@/components/map-simulator/road";
+import { projectPoint } from "@/components/map-simulator/utils/map-geometry-utils";
+import { distanceXZ } from "@/components/map-simulator/road/route-motion-utils";
 import {
   nearestRoadContext,
   roadRank,
-} from "@/components/map-simulator/road";
+} from "@/components/map-simulator/road/road-query-utils";
 import {
   type ProjectedRoadSegment,
   type RoadSegmentSpatialIndex,

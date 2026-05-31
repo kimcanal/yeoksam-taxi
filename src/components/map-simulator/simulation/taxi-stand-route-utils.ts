@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { roadRank } from "@/components/map-simulator/road";
+import { roadRank } from "@/components/map-simulator/road/road-query-utils";
 import type {
   RouteTemplate,
   TaxiStandLandmark,

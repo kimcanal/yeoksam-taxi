@@ -323,7 +323,7 @@ export function updateDemandVisualLayer(
   layer.demandPulseCoreMaterial.opacity =
     0.08 + demandScore * 0.16 + pulse * 0.04;
 
-  const nextBadgeText = `${selectedDongName} 5분 ${Math.round(fiveMinuteDemand).toLocaleString("ko-KR")}건 · 지도 ${visualUnits}대`;
+  const nextBadgeText = `${selectedDongName} · ${Math.round(fiveMinuteDemand).toLocaleString("ko-KR")}건/h`;
   if (nextBadgeText !== layer.lastBadgeText) {
     layer.demandBadgeElement.textContent = nextBadgeText;
     layer.lastBadgeText = nextBadgeText;

@@ -3,7 +3,7 @@ import type { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js"
 import type { EnvironmentVisuals } from "@/components/map-simulator/environment";
 import { disposeObject3DResources } from "@/components/map-simulator/utils";
 import { createVehicleTrailLayer } from "@/components/map-simulator/vehicle";
-import type { MapSceneGeometry } from "@/components/map-simulator/hooks";
+import type { MapSceneGeometry } from "@/components/map-simulator/hooks/use-map-scene-geometry";
 
 type DisposableTrailLayer = {
   clear: () => void;

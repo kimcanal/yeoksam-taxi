@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import {
   createPrecipitationLayer,
+  createRainTexture,
+  createSnowTexture,
   type PrecipitationLayer,
 } from "@/components/map-simulator/environment";
 
@@ -56,15 +58,37 @@ export function createEnvironmentVisuals({
   centerPoint: THREE.Vector3;
 }): EnvironmentVisuals {
   const celestialRadius = Math.max(mapSize.x, mapSize.z) + 320;
+
+  // Create procedural glowing sun canvas texture in memory
+  const sunCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+  let sunTexture: THREE.CanvasTexture | null = null;
+  if (sunCanvas) {
+    sunCanvas.width = 256;
+    sunCanvas.height = 256;
+    const sCtx = sunCanvas.getContext("2d");
+    if (sCtx) {
+      const grad = sCtx.createRadialGradient(128, 128, 20, 128, 128, 128);
+      grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+      grad.addColorStop(0.15, "rgba(255, 250, 220, 1.0)");
+      grad.addColorStop(0.4, "rgba(255, 215, 80, 0.9)");
+      grad.addColorStop(0.7, "rgba(255, 110, 20, 0.4)");
+      grad.addColorStop(1.0, "rgba(255, 50, 0, 0.0)");
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, 256, 256);
+      sunTexture = new THREE.CanvasTexture(sunCanvas);
+    }
+  }
+
   const sunDiscMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffd9a8,
+    color: 0xfff9e6,
+    map: sunTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
   });
   const sunDisc = new THREE.Mesh(
-    new THREE.SphereGeometry(9.4, 20, 20),
+    new THREE.SphereGeometry(22.0, 20, 20),
     sunDiscMaterial,
   );
   scene.add(sunDisc);
@@ -77,7 +101,7 @@ export function createEnvironmentVisuals({
     depthWrite: false,
   });
   const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(17.6, 20, 20),
+    new THREE.SphereGeometry(38.0, 20, 20),
     sunHaloMaterial,
   );
   scene.add(sunHalo);
@@ -90,20 +114,69 @@ export function createEnvironmentVisuals({
     depthWrite: false,
   });
   const sunsetGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(27, 20, 20),
+    new THREE.SphereGeometry(55.0, 20, 20),
     sunsetGlowMaterial,
   );
   scene.add(sunsetGlow);
 
+  // Create procedural moon crater canvas texture in memory
+  const moonCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+  let moonTexture: THREE.CanvasTexture | null = null;
+  if (moonCanvas) {
+    moonCanvas.width = 512;
+    moonCanvas.height = 512;
+    const mCtx = moonCanvas.getContext("2d");
+    if (mCtx) {
+      // Pearly moon base color
+      mCtx.fillStyle = "#e2e8f0";
+      mCtx.fillRect(0, 0, 512, 512);
+
+      // Large basaltic plains (Maria)
+      mCtx.fillStyle = "rgba(160, 174, 192, 0.5)";
+      mCtx.beginPath(); mCtx.arc(160, 180, 110, 0, Math.PI * 2); mCtx.fill();
+      mCtx.beginPath(); mCtx.arc(330, 240, 85, 0, Math.PI * 2); mCtx.fill();
+      mCtx.beginPath(); mCtx.arc(200, 330, 95, 0, Math.PI * 2); mCtx.fill();
+
+      // Craters
+      const craters = [
+        { x: 90, y: 140, r: 22 },
+        { x: 380, y: 170, r: 18 },
+        { x: 330, y: 360, r: 26 },
+        { x: 130, y: 340, r: 14 },
+        { x: 250, y: 90, r: 16 },
+        { x: 210, y: 210, r: 11 },
+      ];
+      craters.forEach(c => {
+        mCtx.fillStyle = "rgba(90, 100, 115, 0.65)";
+        mCtx.beginPath(); mCtx.arc(c.x, c.y, c.r, 0, Math.PI * 2); mCtx.fill();
+        mCtx.fillStyle = "rgba(255, 255, 255, 0.75)";
+        mCtx.beginPath(); mCtx.arc(c.x - c.r * 0.15, c.y - c.r * 0.15, c.r * 0.85, 0, Math.PI * 2); mCtx.fill();
+        mCtx.fillStyle = "rgba(150, 160, 175, 0.7)";
+        mCtx.beginPath(); mCtx.arc(c.x - c.r * 0.08, c.y - c.r * 0.08, c.r * 0.7, 0, Math.PI * 2); mCtx.fill();
+      });
+
+      // Procedural surface noise
+      for (let i = 0; i < 3000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const r = Math.random() * 2 + 0.5;
+        mCtx.fillStyle = Math.random() > 0.5 ? "rgba(255, 255, 255, 0.3)" : "rgba(80, 95, 110, 0.15)";
+        mCtx.beginPath(); mCtx.arc(x, y, r, 0, Math.PI * 2); mCtx.fill();
+      }
+      moonTexture = new THREE.CanvasTexture(moonCanvas);
+    }
+  }
+
   const moonMaterial = new THREE.MeshBasicMaterial({
-    color: 0xe9f2ff,
+    color: 0xffffff,
+    map: moonTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
   });
   const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(6.6, 18, 18),
+    new THREE.SphereGeometry(18.0, 18, 18),
     moonMaterial,
   );
   scene.add(moon);
@@ -207,10 +280,13 @@ export function createEnvironmentVisuals({
     count: 480,
     material: new THREE.PointsMaterial({
       color: 0xb8ddff,
-      size: 0.28,
+      size: 0.88,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.12,
+      map: createRainTexture(),
       depthWrite: false,
+      alphaTest: 0.01,
+      blending: THREE.NormalBlending,
     }),
     minHeight: 12,
     maxHeight: 76,
@@ -222,10 +298,13 @@ export function createEnvironmentVisuals({
     count: 360,
     material: new THREE.PointsMaterial({
       color: 0xffffff,
-      size: 0.68,
+      size: 1.08,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.22,
+      map: createSnowTexture(),
       depthWrite: false,
+      alphaTest: 0.01,
+      blending: THREE.NormalBlending,
     }),
     minHeight: 10,
     maxHeight: 70,

@@ -1,6 +1,6 @@
 import { QuadTree } from "@/components/map-simulator/utils";
 import { projectPoint } from "@/components/map-simulator/utils";
-import type { MiniMapFocus } from "@/components/map-simulator/hooks";
+import type { MiniMapFocus } from "@/components/map-simulator/hooks/simulator-stores";
 import type { CameraMode } from "@/components/map-simulator/camera";
 import type {
   IndexedMapPoiFeatureRow,

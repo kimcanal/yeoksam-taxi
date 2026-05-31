@@ -23,14 +23,17 @@ This project was originally born out of a capstone specification for taxi-demand
 ## 🛠 Local Development
 
 ```bash
-# Install dependencies
+# First-time setup only
 npm install
 
-# Start the Next.js development server
-npm run dev
+# Open the web launcher menu
+./run-web.sh
+
+# Or start the development server directly
+./run-web.sh dev
 ```
 
-The application will be available at `http://localhost:3000`.
+The application will be available at `http://localhost:8000` by default.
 
 ## 🔮 Backend Demand API Handoff
 
@@ -47,7 +50,7 @@ The application reads pre-processed OSM snapshot files to ensure high-performanc
 To regenerate the base map layers from OSM:
 
 ```bash
-npm run asset:update
+./run-web.sh asset:update
 ```
 
 This will refresh multiple layers in `public/` including `buildings.geojson`, `roads.geojson`, and `traffic-signals.geojson`.

@@ -12,7 +12,7 @@ import {
   type FpsMode,
 } from "@/components/map-simulator/camera";
 import type { WeatherMode } from "@/components/map-simulator/environment";
-import { useSyncRef } from "@/components/map-simulator/hooks";
+import { useSyncRef } from "@/components/map-simulator/hooks/use-sync-ref";
 
 type UseMapSceneRuntimeRefsParams = {
   appliedTaxiCount: number;

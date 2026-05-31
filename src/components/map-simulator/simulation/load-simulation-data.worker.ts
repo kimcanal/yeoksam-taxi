@@ -1,41 +1,41 @@
-import { formatKstDateTime } from "@/components/map-simulator/environment";
-import { SHOW_DONG_BOUNDARIES } from "@/components/map-simulator/scene";
+import { formatKstDateTime } from "@/components/map-simulator/environment/environment-state";
+import { SHOW_DONG_BOUNDARIES } from "@/components/map-simulator/scene/scene-constants";
 import {
   buildBuildingMasses,
   buildDongBoundarySegments,
   buildDongRegions,
-} from "@/components/map-simulator/utils";
-import { buildSignals } from "@/components/map-simulator/signal";
+} from "@/components/map-simulator/utils/map-region-utils";
+import { buildSignals } from "@/components/map-simulator/signal/signal-data-builder";
 import {
   buildLoopRoutes,
   buildRoadGraph,
   buildTrafficRoutes,
   deserializeRoadGraph,
-} from "@/components/map-simulator/road";
+} from "@/components/map-simulator/road/road-routing-utils";
 import {
   buildTaxiStandLandmarks,
   buildTransitLandmarks,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/transit-landmark-utils";
 import {
   buildTaxiHotspots,
   buildTaxiStandHotspots,
-} from "@/components/map-simulator/simulation";
-import { selectTaxiStandRoutes } from "@/components/map-simulator/simulation";
-import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/utils";
+} from "@/components/map-simulator/simulation/taxi-hotspot-utils";
+import { selectTaxiStandRoutes } from "@/components/map-simulator/simulation/taxi-stand-route-utils";
+import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/utils/map-defaults";
 import {
   MAX_TAXI_COUNT,
   MAX_TRAFFIC_COUNT,
-} from "@/components/map-simulator/simulation";
+} from "@/components/map-simulator/simulation/simulation-defaults";
 import {
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
   EMPTY_TAXI_STAND_FEATURE_COLLECTION,
   EMPTY_TRAFFIC_SIGNAL_FEATURE_COLLECTION,
-} from "@/components/map-simulator/utils";
+} from "@/components/map-simulator/utils/empty-feature-collections";
 import {
   buildProjectedRoadSegments,
   buildRoadSegmentSpatialIndex,
   featureCollectionCenter,
-} from "@/components/map-simulator/utils";
+} from "@/components/map-simulator/utils/map-geometry-utils";
 import {
   type BuildingFeatureCollection,
   type DongFeatureCollection,
@@ -48,8 +48,8 @@ import {
   type TrafficSignalFeatureCollection,
   type TransitFeatureCollection,
 } from "@/components/map-simulator/types";
-import { serializeSimulationData } from "@/components/map-simulator/simulation";
-import { fetchCachedJsonAsset } from "@/components/map-simulator/utils";
+import { serializeSimulationData } from "@/components/map-simulator/simulation/simulation-data-serialization";
+import { fetchCachedJsonAsset } from "@/components/map-simulator/utils/static-asset-cache";
 
 type WorkerRequest = {
   type: "load";

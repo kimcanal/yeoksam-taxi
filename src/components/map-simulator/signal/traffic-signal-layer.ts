@@ -11,7 +11,8 @@ import {
   CROSSWALK_STEP,
   CROSSWALK_STRIPE_COUNT,
   CROSSWALK_WIDTH,
-  ROAD_MARKING_Y,
+  ROAD_LAYER_Y,
+  ROAD_SURFACE_THICKNESS,
 } from "@/components/map-simulator/scene";
 import { signalState } from "@/components/map-simulator/signal";
 import {
@@ -120,6 +121,17 @@ export function createTrafficSignalLayer({
       mast.position.copy(offset).add(headWorldOffset);
       mast.rotation.y = yaw;
 
+      // 3D Mast Arm (Horizontal bar joining the Pole and Head)
+      const mastArm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.042, 0.042, 1.8, 8),
+        signalPoleMaterial,
+      );
+      mastArm.rotation.z = Math.PI / 2;
+      mastArm.position.set(0.9, 2.62, 0); // spans 1.8m horizontally from Head(0) to Pole(1.8)
+      mastArm.castShadow = true;
+      mastArm.receiveShadow = true;
+      mast.add(mastArm);
+
       const red = new THREE.Mesh(
         new THREE.SphereGeometry(0.11, 12, 12),
         new THREE.MeshStandardMaterial({
@@ -216,7 +228,7 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .setY(ROAD_MARKING_Y + 0.006)
+          .setY(ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + 0.0015)
           .add(
             new THREE.Vector3(
               0,
@@ -234,7 +246,7 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .setY(ROAD_MARKING_Y + 0.006)
+          .setY(ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + 0.0015)
           .add(
             new THREE.Vector3(
               (index - stripeOffset) * CROSSWALK_STEP,
@@ -250,7 +262,7 @@ export function createTrafficSignalLayer({
     return [...nsStripes, ...ewStripes];
   });
   const crosswalkMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.02, 1),
+    new THREE.BoxGeometry(1, 0.0005, 1),
     crosswalkMaterial,
     crosswalkStripes.length,
   );
@@ -279,7 +291,7 @@ export function createTrafficSignalLayer({
     .filter((route) => route.roadClass !== "local")
     .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
   const stopLineMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.04, 0.32),
+    new THREE.BoxGeometry(1, 0.0005, 0.32),
     stopLineMaterial,
     stopLineMarkers.length,
   );
@@ -291,7 +303,9 @@ export function createTrafficSignalLayer({
       sample.heading,
       marker.route.laneOffset,
     );
-    dummy.position.set(lanePosition.x, ROAD_MARKING_Y + 0.012, lanePosition.z);
+    const roadClass = marker.route.roadClass;
+    const y = ROAD_LAYER_Y[roadClass] + ROAD_SURFACE_THICKNESS / 2 + 0.002;
+    dummy.position.set(lanePosition.x, y, lanePosition.z);
     dummy.rotation.set(0, Math.atan2(sample.heading.x, sample.heading.z), 0);
     dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);
     dummy.updateMatrix();

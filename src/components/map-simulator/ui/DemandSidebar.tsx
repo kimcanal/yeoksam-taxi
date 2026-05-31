@@ -10,9 +10,9 @@ import {
   formatDateLabel,
 } from "@/components/map-simulator/environment";
 import {
-  MAX_TRAFFIC_LOAD_PERCENT,
-  MIN_TRAFFIC_LOAD_PERCENT,
-} from "@/components/map-simulator/simulation";
+  DEMAND_TAXI_SCALE_MIN_PERCENT,
+  DEMAND_TAXI_SCALE_STEP_PERCENT,
+} from "@/components/map-simulator/constants/demand-constants";
 
 import type { CircumstanceMode } from "@/components/map-simulator/types";
 import {
@@ -29,9 +29,7 @@ import { DemandControls } from "@/components/map-simulator/ui/DemandControls";
 import { DemandMiniMapPanel } from "@/components/map-simulator/ui/DemandMiniMapPanel";
 import { DemandSummaryStats } from "@/components/map-simulator/ui/DemandSummaryStats";
 
-export type DemandSidebarProps = {
-  isVisible: boolean;
-  onClose: () => void;
+type DemandSidebarDemandState = {
   selectedDongName: string;
   setSelectedDongName: (dongName: string) => void;
   demandFetchBadgeText: string;
@@ -41,6 +39,10 @@ export type DemandSidebarProps = {
   selectedDemandIntensityLabel: string;
   currentDemandSlot: FiveMinuteDemandPoint | null;
   currentFiveMinuteDemand: number;
+  taxiDemandScalePercent: number;
+  effectiveTaxiDemandScalePercent: number;
+  maxSafeTaxiScalePercent: number;
+  setTaxiDemandScalePercent: (percent: number) => void;
   appliedTaxiCount: number;
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
@@ -51,61 +53,302 @@ export type DemandSidebarProps = {
   setHeatmapHour: (hour: number) => void;
   setHeatmapScope: (scope: DemandHeatmapScope) => void;
   demandMiniMap: DemandMiniMapData | null;
+};
+
+type DemandSidebarPoiState = {
   mapPoiFeatureRows: MapPoiFeatureRow[];
   onPoiSelect: (poiCode: string) => void;
-  
-  // Environment Controls
+};
+
+type DemandSidebarEnvironmentControls = {
   circumstanceMode: CircumstanceMode;
   simulationDate: string;
   formattedSimulationTime: string;
   setCircumstanceMode: (mode: CircumstanceMode) => void;
   setSimulationDate: (date: string) => void;
   setSimulationTimeMinutes: (minutes: number) => void;
-  trafficLoadPercent: number;
-  setTrafficLoadPercent: (percent: number) => void;
-  appliedTrafficCount: number;
 };
 
-function parseTimeInput(value: string) {
-  const match = value.match(/^(\d{2}):(\d{2})$/);
-  if (!match) return null;
-  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-}
+export type DemandSidebarProps = {
+  isVisible: boolean;
+  onClose: () => void;
+  demandState: DemandSidebarDemandState;
+  poiState: DemandSidebarPoiState;
+  environmentControls: DemandSidebarEnvironmentControls;
+};
 
-export const DemandSidebar = memo(function DemandSidebar({
-  isVisible,
-  selectedDongName,
-  setSelectedDongName,
-  demandFetchBadgeText,
-  demandFetchBadgeClass,
-  hasDemandData,
-  selectedPeakDemand,
-  selectedDemandIntensityLabel,
-  currentDemandSlot,
-  currentFiveMinuteDemand,
-  appliedTaxiCount,
-  demandChart,
-  selectedAverageDemand,
-  heatmapFetchStatus,
-  heatmapHour,
-  heatmapMaxDemand,
-  heatmapScope,
-  setHeatmapHour,
-  setHeatmapScope,
-  demandMiniMap,
-  mapPoiFeatureRows,
-  onPoiSelect,
-  onClose,
-  circumstanceMode,
+type SpecificModeControlsProps = Omit<
+  DemandSidebarEnvironmentControls,
+  "circumstanceMode"
+>;
+
+function SpecificModeControls({
   simulationDate,
   formattedSimulationTime,
   setCircumstanceMode,
   setSimulationDate,
   setSimulationTimeMinutes,
-  trafficLoadPercent,
-  setTrafficLoadPercent,
-  appliedTrafficCount,
+}: SpecificModeControlsProps) {
+  const [y, m, d] = simulationDate.split("-");
+  const [hStr] = formattedSimulationTime.split(":");
+  const currentHour = parseInt(hStr || "0", 10);
+  const currentYear = parseInt(y || "2026", 10);
+
+  // 해당 연도/월의 마지막 날 계산
+  const daysInMonth = new Date(
+    currentYear,
+    parseInt(m || "1", 10),
+    0,
+  ).getDate();
+
+  function handleYearChange(value: string) {
+    setCircumstanceMode("specific");
+    const newYear = value;
+    // 일이 새 연도/월에서 유효한지 확인
+    const newDaysInMonth = new Date(
+      parseInt(newYear, 10),
+      parseInt(m || "1", 10),
+      0,
+    ).getDate();
+    const safeDay = Math.min(parseInt(d || "1", 10), newDaysInMonth);
+    setSimulationDate(
+      `${newYear}-${m || "01"}-${safeDay.toString().padStart(2, "0")}`,
+    );
+  }
+
+  function handleMonthChange(value: string) {
+    setCircumstanceMode("specific");
+    // 일이 새 월에서 유효한지 확인
+    const newDaysInMonth = new Date(
+      currentYear,
+      parseInt(value, 10),
+      0,
+    ).getDate();
+    const safeDay = Math.min(parseInt(d || "1", 10), newDaysInMonth);
+    setSimulationDate(
+      `${y || "2026"}-${value.padStart(2, "0")}-${safeDay.toString().padStart(2, "0")}`,
+    );
+  }
+
+  function handleDayChange(value: string) {
+    setCircumstanceMode("specific");
+    setSimulationDate(
+      `${y || "2026"}-${m || "01"}-${value.padStart(2, "0")}`,
+    );
+  }
+
+  function handleHourSelect(value: number) {
+    setCircumstanceMode("specific");
+    // 분은 항상 00분 고정
+    setSimulationTimeMinutes(value * 60);
+  }
+
+  // 연도 범위: 2020 ~ 현재 연도
+  const currentRealYear = new Date().getFullYear();
+  const yearOptions = Array.from(
+    { length: currentRealYear - 2020 + 1 },
+    (_, i) => 2020 + i,
+  );
+
+  return (
+    <>
+      <div className="mt-2 mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        조회 날짜
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {/* 연도 — 클릭형 select */}
+        <div className="group relative">
+          <select
+            value={currentYear}
+            onChange={(event) => handleYearChange(event.target.value)}
+            className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
+            id="date-year"
+          >
+            {yearOptions.map((year) => (
+              <option key={year} value={year} className="bg-slate-900 text-slate-100">
+                {year}년
+              </option>
+            ))}
+          </select>
+          <label
+            htmlFor="date-year"
+            className="absolute left-2.5 top-0 -translate-y-1/2 bg-slate-950 px-1 text-[9px] font-semibold tracking-wider text-slate-500 peer-focus:text-amber-400"
+          >
+            연도
+          </label>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+            ▼
+          </div>
+        </div>
+
+        {/* 월 — 기존 select 유지 */}
+        <div className="group relative">
+          <select
+            value={parseInt(m || "1", 10).toString()}
+            onChange={(event) => handleMonthChange(event.target.value)}
+            className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
+            id="date-month"
+          >
+            {Array.from({ length: 12 }, (_, index) => index + 1).map(
+              (month) => (
+                <option
+                  key={month}
+                  value={month}
+                  className="bg-slate-900 text-slate-100"
+                >
+                  {month}월
+                </option>
+              ),
+            )}
+          </select>
+          <label
+            htmlFor="date-month"
+            className="absolute left-2.5 top-0 -translate-y-1/2 bg-slate-950 px-1 text-[9px] font-semibold tracking-wider text-slate-500 peer-focus:text-amber-400"
+          >
+            월
+          </label>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+            ▼
+          </div>
+        </div>
+
+        {/* 일 — 클릭형 select (해당 월의 실제 날짜 수에 맞게 동적 생성) */}
+        <div className="group relative">
+          <select
+            value={parseInt(d || "1", 10)}
+            onChange={(event) => handleDayChange(event.target.value)}
+            className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
+            id="date-day"
+          >
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
+              (day) => (
+                <option
+                  key={day}
+                  value={day}
+                  className="bg-slate-900 text-slate-100"
+                >
+                  {day}일
+                </option>
+              ),
+            )}
+          </select>
+          <label
+            htmlFor="date-day"
+            className="absolute left-2.5 top-0 -translate-y-1/2 bg-slate-950 px-1 text-[9px] font-semibold tracking-wider text-slate-500 peer-focus:text-amber-400"
+          >
+            일
+          </label>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+            ▼
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+        조회 시간
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {/* 시 — 기존 select 유지 */}
+        <div className="group relative">
+          <select
+            value={currentHour}
+            onChange={(event) => handleHourSelect(Number(event.target.value))}
+            className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
+            id="time-hour"
+          >
+            {Array.from({ length: 24 }, (_, index) => index).map((hour) => (
+              <option
+                key={hour}
+                value={hour}
+                className="bg-slate-900 text-slate-100"
+              >
+                {hour.toString().padStart(2, "0")}시 (h)
+              </option>
+            ))}
+          </select>
+          <label
+            htmlFor="time-hour"
+            className="absolute left-2.5 top-0 -translate-y-1/2 bg-slate-950 px-1 text-[9px] font-semibold tracking-wider text-slate-500 peer-focus:text-amber-400"
+          >
+            시 (Hour)
+          </label>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+            ▼
+          </div>
+        </div>
+
+        {/* 분 — 항상 00분 고정, 외관은 동일하지만 변경 불가 */}
+        <div className="group relative">
+          <select
+            value={0}
+            disabled
+            className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-500 outline-none cursor-not-allowed opacity-60"
+            id="time-minute"
+            aria-label="분은 00분으로 고정됩니다"
+          >
+            <option value={0} className="bg-slate-900 text-slate-100">
+              00분 (m)
+            </option>
+          </select>
+          <label
+            htmlFor="time-minute"
+            className="absolute left-2.5 top-0 -translate-y-1/2 bg-slate-950 px-1 text-[9px] font-semibold tracking-wider text-slate-500"
+          >
+            분 (Minute)
+          </label>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-600">
+            —
+          </div>
+        </div>
+      </div>
+
+
+    </>
+  );
+}
+
+export const DemandSidebar = memo(function DemandSidebar({
+  isVisible,
+  onClose,
+  demandState,
+  poiState,
+  environmentControls,
 }: DemandSidebarProps) {
+  const {
+    selectedDongName,
+    setSelectedDongName,
+    demandFetchBadgeText,
+    demandFetchBadgeClass,
+    hasDemandData,
+    selectedPeakDemand,
+    selectedDemandIntensityLabel,
+    currentDemandSlot,
+    currentFiveMinuteDemand,
+    effectiveTaxiDemandScalePercent,
+    maxSafeTaxiScalePercent,
+    setTaxiDemandScalePercent,
+    appliedTaxiCount,
+    demandChart,
+    selectedAverageDemand,
+    heatmapFetchStatus,
+    heatmapHour,
+    heatmapMaxDemand,
+    heatmapScope,
+    setHeatmapHour,
+    setHeatmapScope,
+    demandMiniMap,
+  } = demandState;
+
+  const { mapPoiFeatureRows, onPoiSelect } = poiState;
+
+  const {
+    circumstanceMode,
+    simulationDate,
+    formattedSimulationTime,
+    setCircumstanceMode,
+    setSimulationDate,
+    setSimulationTimeMinutes,
+  } = environmentControls;
   function activateLiveMode() {
     const clock = currentSimulationClock();
     setSimulationDate(clock.dateIso);
@@ -211,70 +454,54 @@ export const DemandSidebar = memo(function DemandSidebar({
           </button>
         </div>
 
-        {circumstanceMode === "specific" && (
-          <>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                날짜
-                <input
-                  type="date"
-                  value={simulationDate}
-                  onChange={(event) => {
-                    setCircumstanceMode("specific");
-                    setSimulationDate(event.target.value);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
-                  aria-label="지도 기준 날짜"
-                />
-              </label>
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                시간
-                <input
-                  type="time"
-                  step={300}
-                  value={formattedSimulationTime}
-                  onChange={(event) => {
-                    const nextMinutes = parseTimeInput(event.target.value);
-                    if (nextMinutes === null) return;
-                    setCircumstanceMode("specific");
-                    setSimulationTimeMinutes(nextMinutes);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-100 outline-none transition focus:border-cyan-400 focus:bg-slate-900/80"
-                  aria-label="지도 기준 시간"
-                />
-              </label>
-            </div>
+        {circumstanceMode === "specific" ? (
+          <SpecificModeControls
+            simulationDate={simulationDate}
+            formattedSimulationTime={formattedSimulationTime}
+            setCircumstanceMode={setCircumstanceMode}
+            setSimulationDate={setSimulationDate}
+            setSimulationTimeMinutes={setSimulationTimeMinutes}
+          />
+        ) : null}
 
-            <div className="mt-3 text-[11px]">
-              <label className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                교통 밀도
-                <div className="mt-1 flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/50 px-3 py-2.5">
-                  <div className="mb-1 flex items-center justify-between text-[10px] normal-case tracking-normal text-slate-300">
-                    <span className="font-semibold text-slate-50">
-                      {trafficLoadPercent === 100 ? "기본" : `x${(trafficLoadPercent / 100).toFixed(2)}`}
-                    </span>
-                    <span className="text-[9px] text-slate-500">
-                      {appliedTrafficCount}대
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={MIN_TRAFFIC_LOAD_PERCENT}
-                    max={MAX_TRAFFIC_LOAD_PERCENT}
-                    step={5}
-                    value={trafficLoadPercent}
-                    onChange={(event) => {
-                      setCircumstanceMode("specific");
-                      setTrafficLoadPercent(Number(event.target.value));
-                    }}
-                    className="h-1.5 w-full accent-cyan-400"
-                    aria-label="지도 교통량"
-                  />
-                </div>
-              </label>
+        {/* 수요 기반 택시 표시 슬라이더 — 실시간/과거 공통 */}
+        <div className="mt-4">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+            수요 기반 택시 표시
+          </div>
+          <div className="flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/30 px-3 py-2.5">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">
+                {selectedDongName} 수요의{" "}
+                <span className="font-bold text-amber-300 tabular-nums">
+                  {effectiveTaxiDemandScalePercent.toFixed(1)}%
+                </span>
+                {" "}표시 중
+              </span>
+              <span className="text-sm font-bold tabular-nums text-slate-50">
+                총 {appliedTaxiCount.toLocaleString("ko-KR")}대
+              </span>
             </div>
-          </>
-        )}
+            <input
+              type="range"
+              min={DEMAND_TAXI_SCALE_MIN_PERCENT}
+              max={maxSafeTaxiScalePercent}
+              step={DEMAND_TAXI_SCALE_STEP_PERCENT}
+              value={effectiveTaxiDemandScalePercent}
+              onChange={(event) => {
+                setTaxiDemandScalePercent(
+                  Math.min(Number(event.target.value), maxSafeTaxiScalePercent),
+                );
+              }}
+              className="h-1.5 w-full accent-amber-300"
+              aria-label="수요 기반 택시 표시 비율"
+            />
+            <div className="mt-1 text-[9px] text-slate-500">
+              {selectedDongName} 현재 수요 {Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")}건 기준 ·
+              최대 {maxSafeTaxiScalePercent.toFixed(1)}%
+            </div>
+          </div>
+        </div>
       </div>
 
       <div
@@ -305,7 +532,7 @@ export const DemandSidebar = memo(function DemandSidebar({
           selectedPeakDemand={selectedPeakDemand}
           selectedDemandIntensityLabel={selectedDemandIntensityLabel}
           currentDemandSlot={currentDemandSlot}
-          currentFiveMinuteDemand={currentFiveMinuteDemand}
+          currentTaxiDemandBase={currentFiveMinuteDemand}
           appliedTaxiCount={appliedTaxiCount}
         />
 
@@ -315,6 +542,7 @@ export const DemandSidebar = memo(function DemandSidebar({
           simulationDate={simulationDate}
           demandChart={demandChart}
           selectedAverageDemand={selectedAverageDemand}
+          currentHour={heatmapHour}
         />
       </div>
 

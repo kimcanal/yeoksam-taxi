@@ -25,12 +25,12 @@ import {
   syncSunShadowBounds,
 } from "@/components/map-simulator/scene";
 import { createEnvironmentVisuals, type EnvironmentVisuals } from "@/components/map-simulator/environment";
-import { createEnvironmentSettingsController } from "@/components/map-simulator/hooks";
+import { createEnvironmentSettingsController } from "@/components/map-simulator/hooks/use-environment-settings";
 import { createMapSceneRenderers } from "@/components/map-simulator/scene";
 import {
   createTrafficSignalLayer,
 } from "@/components/map-simulator/signal";
-import { createMapSceneGeometry } from "@/components/map-simulator/hooks";
+import { createMapSceneGeometry } from "@/components/map-simulator/hooks/use-map-scene-geometry";
 import { createHoverHintController } from "@/components/map-simulator/scene";
 import {
   createMapPointerPickController,
@@ -234,7 +234,6 @@ export function setupEngineScene(
     showLabelsRef,
     showTransitRef,
     showNonRoadRef,
-    showRoadNetworkRef,
     nonRoadGroupRef,
     roadNetworkGroupRef,
     transitGroupRef,
@@ -436,8 +435,6 @@ export function setupEngineScene(
         setFollowTaxiId(fallbackTaxiId);
       }
     },
-    taxiTrailColorFor: (vehicle: Vehicle) =>
-      vehicle.isOccupied ? 0xfb7185 : 0x22d3ee,
     markVisualsDirty: () => lateBound.markVisualsDirty.current(),
     renderNow: () => lateBound.renderNow.current(),
   });
@@ -535,8 +532,8 @@ export function setupEngineScene(
   // Road network overlay
   const currentGraph = data.graph;
   const roadNetworkOverlay = buildRoadNetworkOverlay(currentGraph);
-  roadNetworkOverlay.visible = showRoadNetworkRef.current;
-  scene.add(roadNetworkOverlay);
+  roadNetworkOverlay.visible = false; // Completely disable road network overlay lines for a pristine look
+  // scene.add(roadNetworkOverlay); // Do not add it to the scene at all
   roadNetworkGroupRef.current = roadNetworkOverlay;
 
   // Signals

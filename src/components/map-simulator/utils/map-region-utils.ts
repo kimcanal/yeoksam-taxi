@@ -2,13 +2,16 @@ import * as THREE from "three";
 import {
   outerRingOfBuilding,
   outerRingsOfDong,
-} from "@/components/map-simulator/utils";
-import { distanceXZ, polygonAreaXZ } from "@/components/map-simulator/road";
+} from "@/components/map-simulator/utils/map-geometry-utils";
+import {
+  distanceXZ,
+  polygonAreaXZ,
+} from "@/components/map-simulator/road/route-motion-utils";
 import {
   BUILDING_HEIGHT_SCALE,
   LARGE_LOW_RISE_BUILDING_AREA_M2,
   LARGE_LOW_RISE_BUILDING_MAX_HEIGHT_M,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/scene-constants";
 import type {
   BuildingFeatureCollection,
   BuildingMass,

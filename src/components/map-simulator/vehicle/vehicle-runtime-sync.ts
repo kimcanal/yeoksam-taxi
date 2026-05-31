@@ -48,7 +48,6 @@ type VehicleRuntimeSyncControllerOptions = {
   isSceneDisposed: () => boolean;
   resetVehicleSimulationAccumulator: () => void;
   syncSelectedTaxi: () => void;
-  taxiTrailColorFor: (vehicle: Vehicle) => number;
   renderNow: () => void;
   markVisualsDirty: () => void;
 };
@@ -74,7 +73,6 @@ export function createVehicleRuntimeSyncController({
   isSceneDisposed,
   resetVehicleSimulationAccumulator,
   syncSelectedTaxi,
-  taxiTrailColorFor,
   renderNow,
   markVisualsDirty,
 }: VehicleRuntimeSyncControllerOptions) {
@@ -229,23 +227,10 @@ export function createVehicleRuntimeSyncController({
     renderNow();
   };
 
-  const syncSimulationTrails = (nowMs: number) => {
+  const syncSimulationTrails = () => {
+    // Completely disable trails to keep the map pristine, clean and realistic
     simulationTrailPoints.length = 0;
-
-    for (let index = 0; index < taxiVehicles.length; index += 1) {
-      const vehicle = taxiVehicles[index]!;
-      simulationTrailPoints.push({
-        id: vehicle.id,
-        position: vehicle.renderMotion.lanePosition,
-        color: taxiTrailColorFor(vehicle),
-      });
-    }
-
-    if (simulationTrailPoints.length) {
-      simulationTrailLayer.sync(simulationTrailPoints, nowMs);
-    } else {
-      simulationTrailLayer.fade(nowMs);
-    }
+    simulationTrailLayer.clear();
   };
 
   return {

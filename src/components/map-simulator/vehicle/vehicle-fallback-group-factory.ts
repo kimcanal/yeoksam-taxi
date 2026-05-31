@@ -133,6 +133,24 @@ function addFallbackTaxiDetails({
     group.add(stripe);
   });
 
+  const beamGeom = new THREE.ConeGeometry(0.18, 2.4, 8);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0xfff3d1,
+    transparent: true,
+    opacity: 0.05,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const tailBeamGeom = new THREE.ConeGeometry(0.12, 1.2, 8);
+  const tailBeamMat = new THREE.MeshBasicMaterial({
+    color: 0xff2038,
+    transparent: true,
+    opacity: 0.04,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
   [-1, 1].forEach((side) => {
     const headlight = new THREE.Mesh(
       new THREE.BoxGeometry(0.34, 0.12, 0.06),
@@ -141,12 +159,24 @@ function addFallbackTaxiDetails({
     headlight.position.set(side * 0.46, 0.67, 2.09);
     group.add(headlight);
 
+    // Front headlight beam cone (Raised to Y=0.88, slimmed to radius=0.18)
+    const beam = new THREE.Mesh(beamGeom, beamMat);
+    beam.rotation.x = Math.PI / 2;
+    beam.position.set(side * 0.46, 0.88, 2.09 + 1.2);
+    group.add(beam);
+
     const tailLight = new THREE.Mesh(
       new THREE.BoxGeometry(0.32, 0.12, 0.06),
       tailLightMaterial,
     );
     tailLight.position.set(side * 0.46, 0.66, -2.09);
     group.add(tailLight);
+
+    // Rear taillight brake beam cone (Raised to Y=0.86, slimmed to radius=0.12)
+    const tailBeam = new THREE.Mesh(tailBeamGeom, tailBeamMat);
+    tailBeam.rotation.x = -Math.PI / 2;
+    tailBeam.position.set(side * 0.46, 0.86, -2.09 - 0.6);
+    group.add(tailBeam);
   });
 
   const wheelMaterial = new THREE.MeshStandardMaterial({
@@ -275,6 +305,24 @@ function addFallbackTrafficDetails({
     group.add(hood);
   }
 
+  const beamGeom = new THREE.ConeGeometry(0.18, 2.4, 8);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0xfff3d1,
+    transparent: true,
+    opacity: 0.05,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const tailBeamGeom = new THREE.ConeGeometry(0.12, 1.2, 8);
+  const tailBeamMat = new THREE.MeshBasicMaterial({
+    color: 0xff2038,
+    transparent: true,
+    opacity: 0.04,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
   [-1, 1].forEach((side) => {
     const headlight = new THREE.Mesh(
       new THREE.BoxGeometry(0.34, 0.11, 0.06),
@@ -287,6 +335,16 @@ function addFallbackTrafficDetails({
     );
     group.add(headlight);
 
+    // Front headlight beam (Raised Y and slimmed to radius=0.18)
+    const beam = new THREE.Mesh(beamGeom, beamMat);
+    beam.rotation.x = Math.PI / 2;
+    beam.position.set(
+      side * (trafficProfile.body[0] * 0.28),
+      trafficProfile.bodyY + trafficProfile.body[1] * 0.38,
+      trafficProfile.body[2] * 0.5 + 1.2,
+    );
+    group.add(beam);
+
     const tailLight = new THREE.Mesh(
       new THREE.BoxGeometry(0.32, 0.12, 0.06),
       tailLightMaterial,
@@ -297,6 +355,16 @@ function addFallbackTrafficDetails({
       -trafficProfile.body[2] * 0.5 - 0.03,
     );
     group.add(tailLight);
+
+    // Rear taillight brake beam (Raised Y and slimmed to radius=0.12)
+    const tailBeam = new THREE.Mesh(tailBeamGeom, tailBeamMat);
+    tailBeam.rotation.x = -Math.PI / 2;
+    tailBeam.position.set(
+      side * (trafficProfile.body[0] * 0.28),
+      trafficProfile.bodyY + trafficProfile.body[1] * 0.36,
+      -trafficProfile.body[2] * 0.5 - 0.6,
+    );
+    group.add(tailBeam);
   });
 
   const wheelMaterial = new THREE.MeshStandardMaterial({

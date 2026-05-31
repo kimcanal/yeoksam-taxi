@@ -5,7 +5,7 @@ import {
   SIGNAL_COORDINATION_PHASE_STEP,
   SIGNAL_CYCLE,
   SIGNAL_WAVE_TRAVEL_SPEED,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/scene-constants";
 import type {
   SignalApproachDemand,
   SignalApproachDistance,

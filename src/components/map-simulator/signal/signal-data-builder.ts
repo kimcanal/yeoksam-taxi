@@ -4,21 +4,24 @@ import {
   createSignalData,
   signalAxisForDirection,
   signalDirectionForVector,
-} from "@/components/map-simulator/signal";
+} from "@/components/map-simulator/signal/signal-controller";
 import {
   SIGNAL_CLUSTER_DISTANCE,
   SIGNAL_NODE_SNAP_DISTANCE,
   SIGNAL_ROAD_SNAP_DISTANCE,
-} from "@/components/map-simulator/scene";
-import { lineStringsOfRoad, projectPoint } from "@/components/map-simulator/utils";
-import { distanceXZ } from "@/components/map-simulator/road";
+} from "@/components/map-simulator/scene/scene-constants";
+import {
+  lineStringsOfRoad,
+  projectPoint,
+} from "@/components/map-simulator/utils/map-geometry-utils";
 import {
   averagePoint,
   nearestGraphNode,
   nearestRoadContext,
   nearbyRoadSegments,
   roadRank,
-} from "@/components/map-simulator/road";
+} from "@/components/map-simulator/road/road-query-utils";
+import { distanceXZ } from "@/components/map-simulator/road/route-motion-utils";
 import {
   type ProjectedRoadSegment,
   type RoadFeatureCollection,

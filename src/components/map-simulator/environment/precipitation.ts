@@ -13,6 +13,62 @@ export type PrecipitationLayer = {
   maxZ: number;
 };
 
+export function createRainTexture(): THREE.Texture {
+  if (typeof document === "undefined") {
+    return new THREE.Texture();
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 16;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, 16, 64);
+    // Sophisticated soft vertical streak gradient
+    const grad = ctx.createLinearGradient(8, 0, 8, 64);
+    grad.addColorStop(0, "rgba(255, 255, 255, 0)");
+    grad.addColorStop(0.15, "rgba(200, 230, 255, 0.08)");
+    grad.addColorStop(0.5, "rgba(220, 240, 255, 0.72)");
+    grad.addColorStop(0.85, "rgba(200, 230, 255, 0.08)");
+    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = grad;
+    // Draw a thin vertical line aligned at the center
+    ctx.fillRect(7, 0, 2, 64);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.format = THREE.RGBAFormat;
+  texture.premultiplyAlpha = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+export function createSnowTexture(): THREE.Texture {
+  if (typeof document === "undefined") {
+    return new THREE.Texture();
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, 32, 32);
+    // Beautiful fluffy radial soft snowball
+    const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, "rgba(255, 255, 255, 0.88)");
+    grad.addColorStop(0.34, "rgba(255, 255, 255, 0.54)");
+    grad.addColorStop(0.72, "rgba(255, 255, 255, 0.14)");
+    grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(16, 16, 16, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.format = THREE.RGBAFormat;
+  texture.premultiplyAlpha = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 export function createPrecipitationLayer({
   scene,
   count,
@@ -96,9 +152,15 @@ export function updatePrecipitationVisuals({
   if (rainLayer.points.visible) {
     for (let index = 0; index < activeRainSeedCount; index += 1) {
       const offset = index * 3;
-      rainPositions[offset] += delta * 0.5;
-      rainPositions[offset + 1] -= delta * (36 + rainLayer.seeds[index] * 16);
-      rainPositions[offset + 2] += delta * 1.8;
+      const seed = rainLayer.seeds[index];
+      // Organic wind shear/slant speed variations based on seed
+      const slantX = 0.4 + seed * 0.4;
+      const slantZ = 1.4 + seed * 0.8;
+      const fallSpeed = 38 + seed * 16;
+
+      rainPositions[offset] += delta * slantX;
+      rainPositions[offset + 1] -= delta * fallSpeed;
+      rainPositions[offset + 2] += delta * slantZ;
 
       if (rainPositions[offset] > rainLayer.maxX) {
         rainPositions[offset] = rainLayer.minX;
@@ -126,13 +188,28 @@ export function updatePrecipitationVisuals({
   if (snowLayer.points.visible) {
     for (let index = 0; index < activeSnowSeedCount; index += 1) {
       const offset = index * 3;
-      const sway =
-        Math.sin(elapsedTime * 1.6 + snowLayer.seeds[index] * Math.PI * 2) *
-        0.52;
-      snowPositions[offset] += sway * delta;
-      snowPositions[offset + 1] -= delta * (7 + snowLayer.seeds[index] * 3.2);
-      snowPositions[offset + 2] +=
-        delta * (1.1 + snowLayer.seeds[index] * 0.8);
+      const seed = snowLayer.seeds[index];
+
+      // Highly cinematic 3D spiral turbulence (helical/spiral path)
+      const radius = 0.38 + seed * 0.58;
+      const speed = 1.5 + seed * 2.5;
+      const angle = elapsedTime * speed + seed * Math.PI * 2;
+      const currentSwayX = Math.sin(angle) * radius;
+      const currentSwayZ = Math.cos(angle) * radius;
+
+      const prevAngle = (elapsedTime - delta) * speed + seed * Math.PI * 2;
+      const prevSwayX = Math.sin(prevAngle) * radius;
+      const prevSwayZ = Math.cos(prevAngle) * radius;
+
+      // Extract raw displacement of spiral rotation
+      const rotationStepX = currentSwayX - prevSwayX;
+      const rotationStepZ = currentSwayZ - prevSwayZ;
+      const fallSpeed = 6.2 + seed * 3.2;
+
+      // Combine helical rotation with light ambient wind
+      snowPositions[offset] += rotationStepX + delta * 0.22;
+      snowPositions[offset + 1] -= delta * fallSpeed;
+      snowPositions[offset + 2] += rotationStepZ + delta * 0.38;
 
       if (snowPositions[offset] > snowLayer.maxX) {
         snowPositions[offset] = snowLayer.minX;

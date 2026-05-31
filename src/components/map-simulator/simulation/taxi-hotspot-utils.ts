@@ -2,8 +2,8 @@ import * as THREE from "three";
 import {
   curbsideLaneOffset,
   offsetToRight,
-} from "@/components/map-simulator/road";
-import { classifyTurn } from "@/components/map-simulator/road";
+} from "@/components/map-simulator/road/route-motion-utils";
+import { classifyTurn } from "@/components/map-simulator/road/road-query-utils";
 import {
   type BuildingMass,
   type Hotspot,
@@ -15,7 +15,7 @@ import {
 import {
   nearestTaxiStandRouteProjection,
   sideSignForProjection,
-} from "@/components/map-simulator/simulation";
+} from "@/components/map-simulator/simulation/taxi-stand-route-utils";
 
 function hotspotLabelForRoute(
   route: RouteTemplate,

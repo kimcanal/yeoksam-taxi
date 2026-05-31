@@ -3,7 +3,7 @@ import type { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.j
 import type { CameraMode } from "@/components/map-simulator/camera";
 import { resolvedRendererPixelRatioFor } from "@/components/map-simulator/utils";
 import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene";
-import { sceneStore } from "@/components/map-simulator/hooks";
+import { sceneStore } from "@/components/map-simulator/hooks/simulator-stores";
 
 export function createSimulatorRendererController({
   camera,

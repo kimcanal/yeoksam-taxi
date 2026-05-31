@@ -7,6 +7,7 @@ type DemandChartProps = {
   simulationDate: string;
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
+  currentHour: number;
 };
 
 export function DemandChart({
@@ -15,6 +16,7 @@ export function DemandChart({
   simulationDate,
   demandChart,
   selectedAverageDemand,
+  currentHour,
 }: DemandChartProps) {
   return (
     <>
@@ -117,15 +119,36 @@ export function DemandChart({
                 className="transition-all duration-500 ease-out"
               />
             ) : null}
-            <circle
-              cx={demandChart.peakX}
-              cy={demandChart.peakY}
-              r="4"
-              fill="#fff7ed"
-              stroke="#fb7185"
-              strokeWidth="1.6"
-              className="transition-all duration-500 ease-out"
-            />
+            {/* 현재 시간대 수직선 + 점 */}
+            {(() => {
+              const clampedHour = Math.max(0, Math.min(23, currentHour));
+              const graphWidth = demandChart.width - demandChart.paddingLeft - 12;
+              const cx = demandChart.paddingLeft + (clampedHour / 23) * graphWidth;
+              const topY = demandChart.yTicks[demandChart.yTicks.length - 1]?.y ?? 0;
+              return (
+                <g>
+                  <line
+                    x1={cx} y1={topY}
+                    x2={cx} y2={demandChart.baseY}
+                    stroke="rgba(251,191,36,0.5)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                  <rect
+                    x={cx - 10} y={demandChart.baseY + 5}
+                    width={20} height={12} rx={3}
+                    fill="rgba(251,191,36,0.18)"
+                  />
+                  <text
+                    x={cx} y={demandChart.baseY + 14}
+                    textAnchor="middle"
+                    fill="#fbbf24" fontSize="8" fontWeight="700"
+                  >
+                    {clampedHour}
+                  </text>
+                </g>
+              );
+            })()}
           </svg>
         ) : (
           <div className="flex h-[164px] items-center justify-center px-5 text-center text-xs leading-5 text-slate-500">

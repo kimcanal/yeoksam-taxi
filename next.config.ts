@@ -29,10 +29,14 @@ function envListValue(name: string) {
 }
 
 function localIpv4DevOrigins() {
-  return Object.values(networkInterfaces())
-    .flatMap((addresses) => addresses ?? [])
-    .filter((address) => address.family === "IPv4" && !address.internal)
-    .map((address) => address.address);
+  try {
+    return Object.values(networkInterfaces())
+      .flatMap((addresses) => addresses ?? [])
+      .filter((address) => address.family === "IPv4" && !address.internal)
+      .map((address) => address.address);
+  } catch {
+    return [];
+  }
 }
 
 const allowedDevOrigins = Array.from(
@@ -68,12 +72,21 @@ const buildTimeIso =
 const nextConfig: any = {
   allowedDevOrigins,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   env: {
     NEXT_PUBLIC_BUILD_BRANCH: normalizedBuildBranch,
     NEXT_PUBLIC_BUILD_COMMIT: buildCommit,
     NEXT_PUBLIC_BUILD_TIME_ISO: buildTimeIso,
+  },
+  async redirects() {
+    return [
+      {
+        source: "/map",
+        destination: "/",
+        permanent: true,
+      },
+    ];
   },
 };
 

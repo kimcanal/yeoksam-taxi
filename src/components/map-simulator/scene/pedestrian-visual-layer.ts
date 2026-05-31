@@ -8,8 +8,9 @@ import type {
 } from "@/components/map-simulator/types";
 import {
   PEDESTRIAN_SPAN,
-  ROAD_MARKING_Y,
   SIGNAL_CYCLE,
+  ROAD_LAYER_Y,
+  ROAD_SURFACE_THICKNESS,
 } from "@/components/map-simulator/scene";
 import { signalState } from "@/components/map-simulator/signal";
 
@@ -120,17 +121,33 @@ export function updatePedestrianVisualLayer({
     );
     const bob = Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
 
+    // Beautiful cross-swing walking cycle animation
+    const leftLeg = pedestrian.group.getObjectByName("leftLeg");
+    const rightLeg = pedestrian.group.getObjectByName("rightLeg");
+    const leftArm = pedestrian.group.getObjectByName("leftArm");
+    const rightArm = pedestrian.group.getObjectByName("rightArm");
+    if (leftLeg || rightLeg || leftArm || rightArm) {
+      const speedFreq = 11.5 + pedestrian.speed * 8;
+      const swingAngle = elapsedTime * speedFreq + pedestrian.phaseOffset * 8;
+      const walkAmplitude = 0.42;
+
+      if (leftLeg) leftLeg.rotation.x = Math.sin(swingAngle) * walkAmplitude;
+      if (rightLeg) rightLeg.rotation.x = -Math.sin(swingAngle) * walkAmplitude;
+      if (leftArm) leftArm.rotation.x = -Math.sin(swingAngle) * (walkAmplitude * 0.85);
+      if (rightArm) rightArm.rotation.x = Math.sin(swingAngle) * (walkAmplitude * 0.85);
+    }
+
     if (pedestrian.axis === "ns") {
       pedestrian.group.position.set(
         signal.visualPoint.x + pedestrian.lateralOffset,
-        ROAD_MARKING_Y + 0.006 + bob,
+        ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + bob,
         signal.visualPoint.z + travel,
       );
       pedestrian.group.rotation.y = 0;
     } else {
       pedestrian.group.position.set(
         signal.visualPoint.x + travel,
-        ROAD_MARKING_Y + 0.006 + bob,
+        ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + bob,
         signal.visualPoint.z + pedestrian.lateralOffset,
       );
       pedestrian.group.rotation.y = Math.PI / 2;

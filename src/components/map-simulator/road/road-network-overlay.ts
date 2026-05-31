@@ -3,7 +3,7 @@ import {
   ROAD_LAYER_Y,
   ROAD_NETWORK_EDGE_Y_OFFSET,
   ROAD_NETWORK_NODE_Y,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/scene-constants";
 import type { RoadGraph } from "@/components/map-simulator/types";
 
 export function buildRoadNetworkOverlay(graph: RoadGraph) {

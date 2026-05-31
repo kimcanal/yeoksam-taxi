@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { collectRoadSegmentCandidateIndices } from "@/components/map-simulator/utils";
-import { distanceXZ } from "@/components/map-simulator/road";
+import { collectRoadSegmentCandidateIndices } from "@/components/map-simulator/utils/map-geometry-utils";
+import { distanceXZ } from "@/components/map-simulator/road/route-motion-utils";
 import type {
   NearestRoadContext,
   ProjectedRoadSegment,

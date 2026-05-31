@@ -11,12 +11,12 @@ import {
   METERS_PER_DEGREE_LATITUDE,
   METERS_PER_DEGREE_LONGITUDE_AT_EQUATOR,
 } from "@/components/map-simulator/constants/map-constants";
-import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/utils";
+import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/utils/map-defaults";
 import {
   POSITION_SCALE,
   ROAD_SEGMENT_INDEX_CELL_SIZE,
   ROAD_WIDTH_SCALE,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/scene-constants";
 import type {
   BuildingFeature,
   DongFeature,

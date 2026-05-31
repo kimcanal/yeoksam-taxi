@@ -6,9 +6,9 @@ import type {
   CircumstanceMode,
   SimulationData,
 } from "@/components/map-simulator/types";
-import type { MiniMapFocus } from "@/components/map-simulator/hooks";
+import type { MiniMapFocus } from "@/components/map-simulator/hooks/simulator-stores";
 import { useDemandForecast } from "@/components/map-simulator/demand";
-import { useSyncRef } from "@/components/map-simulator/hooks";
+import { useSyncRef } from "@/components/map-simulator/hooks/use-sync-ref";
 
 type UseMapDemandStateParams = {
   data: SimulationData | null;

@@ -11,7 +11,6 @@ const CALLER_BOTTOM_MATERIALS = new Map<number, THREE.MeshStandardMaterial>();
 
 let PEDESTRIAN_BODY_GEOMETRY: THREE.BoxGeometry | null = null;
 let PEDESTRIAN_HEAD_GEOMETRY: THREE.SphereGeometry | null = null;
-let PEDESTRIAN_FEET_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_SHADOW_GEOMETRY: THREE.PlaneGeometry | null = null;
 let CALLER_SHOES_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_LEGS_GEOMETRY: THREE.BoxGeometry | null = null;
@@ -21,7 +20,6 @@ let CALLER_LEFT_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_WAVE_ARM_GEOMETRY: THREE.BoxGeometry | null = null;
 let CALLER_HAIL_CUBE_GEOMETRY: THREE.BoxGeometry | null = null;
 let PEDESTRIAN_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
-let PEDESTRIAN_FEET_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let CALLER_SHADOW_MATERIAL: THREE.MeshBasicMaterial | null = null;
 let CALLER_SHOES_MATERIAL: THREE.MeshStandardMaterial | null = null;
 let CALLER_HEAD_MATERIAL: THREE.MeshStandardMaterial | null = null;
@@ -72,10 +70,6 @@ function sharedPedestrianHeadGeometry() {
   return PEDESTRIAN_HEAD_GEOMETRY;
 }
 
-function sharedPedestrianFeetGeometry() {
-  PEDESTRIAN_FEET_GEOMETRY ??= new THREE.BoxGeometry(0.28, 0.12, 0.2);
-  return PEDESTRIAN_FEET_GEOMETRY;
-}
 
 function sharedPedestrianHeadMaterial() {
   PEDESTRIAN_HEAD_MATERIAL ??= new THREE.MeshStandardMaterial({
@@ -85,13 +79,6 @@ function sharedPedestrianHeadMaterial() {
   return PEDESTRIAN_HEAD_MATERIAL;
 }
 
-function sharedPedestrianFeetMaterial() {
-  PEDESTRIAN_FEET_MATERIAL ??= new THREE.MeshStandardMaterial({
-    color: 0x1a2331,
-    roughness: 0.92,
-  });
-  return PEDESTRIAN_FEET_MATERIAL;
-}
 
 function sharedCallerShadowGeometry() {
   CALLER_SHADOW_GEOMETRY ??= new THREE.PlaneGeometry(1.1, 0.72);
@@ -162,6 +149,7 @@ export function createPedestrianGroup(seed: number) {
   const palette = [0xff8d71, 0x78c4ff, 0x79d58f, 0xffcb44, 0xc6a2ff][seed % 5];
   const group = new THREE.Group();
 
+  // Torso
   const body = markMeshResourceSharing(
     new THREE.Mesh(
       sharedPedestrianBodyGeometry(),
@@ -172,19 +160,71 @@ export function createPedestrianGroup(seed: number) {
   body.position.y = 0.74;
   group.add(body);
 
+  // Head
   const head = markMeshResourceSharing(
     new THREE.Mesh(sharedPedestrianHeadGeometry(), sharedPedestrianHeadMaterial()),
     { material: true },
   );
-  head.position.y = 1.34;
+  head.position.y = 1.28;
   group.add(head);
 
-  const feet = markMeshResourceSharing(
-    new THREE.Mesh(sharedPedestrianFeetGeometry(), sharedPedestrianFeetMaterial()),
-    { material: true },
-  );
-  feet.position.y = 0.12;
-  group.add(feet);
+  // Separate Legs (Left/Right) with Pivot Groups
+  const legGeometry = new THREE.BoxGeometry(0.1, 0.44, 0.12);
+  const legMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1f2733,
+    roughness: 0.9,
+  });
+
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.name = "leftLeg";
+  leftLegPivot.position.set(-0.09, 0.46, 0); // Hip joint position
+  const leftLegMesh = markMeshResourceSharing(new THREE.Mesh(legGeometry, legMaterial));
+  leftLegMesh.position.y = -0.22; // Align top of geometry to pivot y
+  leftLegPivot.add(leftLegMesh);
+  group.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.name = "rightLeg";
+  rightLegPivot.position.set(0.09, 0.46, 0);
+  const rightLegMesh = markMeshResourceSharing(new THREE.Mesh(legGeometry, legMaterial));
+  rightLegMesh.position.y = -0.22;
+  rightLegPivot.add(rightLegMesh);
+  group.add(rightLegPivot);
+
+  // Separate Arms (Left/Right) with Pivot Groups
+  const armGeometry = new THREE.BoxGeometry(0.08, 0.42, 0.08);
+  const armMaterial = new THREE.MeshStandardMaterial({
+    color: palette,
+    roughness: 0.8,
+  });
+
+  const leftArmPivot = new THREE.Group();
+  leftArmPivot.name = "leftArm";
+  leftArmPivot.position.set(-0.21, 1.02, 0); // Shoulder joint
+  const leftArmMesh = markMeshResourceSharing(new THREE.Mesh(armGeometry, armMaterial));
+  leftArmMesh.position.y = -0.21;
+  leftArmPivot.add(leftArmMesh);
+  group.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group();
+  rightArmPivot.name = "rightArm";
+  rightArmPivot.position.set(0.21, 1.02, 0);
+  const rightArmMesh = markMeshResourceSharing(new THREE.Mesh(armGeometry, armMaterial));
+  rightArmMesh.position.y = -0.21;
+  rightArmPivot.add(rightArmMesh);
+  group.add(rightArmPivot);
+
+  // Soft Contact Foot Shadow
+  const shadowGeo = new THREE.PlaneGeometry(0.48, 0.32);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.16,
+  });
+  const shadow = markMeshResourceSharing(new THREE.Mesh(shadowGeo, shadowMat));
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.01;
+  group.add(shadow);
 
   return group;
 }

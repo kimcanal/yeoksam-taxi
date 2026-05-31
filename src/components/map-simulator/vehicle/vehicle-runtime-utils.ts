@@ -13,6 +13,7 @@ import type {
   RouteTemplate,
   Vehicle,
 } from "@/components/map-simulator/types";
+import { ROAD_LAYER_Y, ROAD_SURFACE_THICKNESS } from "@/components/map-simulator/scene";
 
 export function setTaxiAppearance(vehicle: Vehicle) {
   if (vehicle.kind !== "taxi") {
@@ -60,6 +61,10 @@ export function updateVehicleMotionState(vehicle: Vehicle) {
   vehicle.motion.lanePosition
     .copy(vehicle.motion.position)
     .addScaledVector(vehicle.motion.right, laneOffset);
+  const roadClass = vehicle.route.roadClass;
+  const roadSurfaceY = ROAD_LAYER_Y[roadClass] + ROAD_SURFACE_THICKNESS / 2;
+  vehicle.motion.lanePosition.y = roadSurfaceY;
+
   vehicle.motion.yaw = Math.atan2(
     vehicle.motion.heading.x,
     vehicle.motion.heading.z,
@@ -95,6 +100,10 @@ export function syncVehicleTransform(vehicle: Vehicle, alpha = 1) {
       wrapAngle(motion.yaw - previousMotion.yaw) * nextAlpha;
     renderMotion.nextStopIndex = motion.nextStopIndex;
   }
+
+  const roadClass = vehicle.route.roadClass;
+  const roadSurfaceY = ROAD_LAYER_Y[roadClass] + ROAD_SURFACE_THICKNESS / 2;
+  renderMotion.lanePosition.y = roadSurfaceY;
 
   vehicle.group.position.copy(renderMotion.lanePosition);
   vehicle.group.rotation.y = renderMotion.yaw;

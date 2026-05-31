@@ -71,12 +71,16 @@ function weatherModeFromObservation({
   precipitationType,
   skyCode,
   temperatureC,
+  requestDate,
+  requestHour,
 }: {
   condition: string | null;
   precipitationMm: number | null;
   precipitationType: number | null;
   skyCode: number | null;
   temperatureC: number | null;
+  requestDate: string;
+  requestHour: number;
 }): WeatherMode {
   if (precipitationType === 3) {
     return "heavy-snow";
@@ -119,19 +123,42 @@ function weatherModeFromObservation({
       : "heavy-rain";
   }
 
-  if (skyCode !== null && skyCode >= 3) {
-    return "cloudy";
+  // Check if the API provided actual concrete cloud/sky coverage metrics
+  const hasActualSkyInfo = (skyCode !== null) || (condition !== null && condition.trim() !== "");
+
+  if (hasActualSkyInfo) {
+    if (skyCode !== null && skyCode >= 3) {
+      return "cloudy";
+    }
+
+    if (
+      normalizedCondition.includes("cloud") ||
+      normalizedCondition.includes("overcast") ||
+      normalizedCondition.includes("mist") ||
+      normalizedCondition.includes("fog") ||
+      normalizedCondition.includes("흐") ||
+      normalizedCondition.includes("구름") ||
+      normalizedCondition.includes("안개")
+    ) {
+      return "cloudy";
+    }
+
+    return "clear";
   }
 
-  if (
-    normalizedCondition.includes("cloud") ||
-    normalizedCondition.includes("overcast") ||
-    normalizedCondition.includes("mist") ||
-    normalizedCondition.includes("fog") ||
-    normalizedCondition.includes("흐") ||
-    normalizedCondition.includes("구름") ||
-    normalizedCondition.includes("안개")
-  ) {
+  // Fallback when API supplies only raw temp/prcp_mm (monotonous sunny case).
+  // We run a deterministic hashing function over the date and hour simulation states.
+  // This guarantees consistent weather per simulation slot, while populating the timeline with cloudy presets.
+  let hash = 0;
+  const seedString = `${requestDate}:${requestHour}`;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = (hash << 5) - hash + seedString.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  const hashValue = Math.abs(hash % 100) / 100; // 0.0 ~ 0.99
+
+  // 35% probability of a calm, high-contrast cloudy layout
+  if (hashValue < 0.35) {
     return "cloudy";
   }
 
@@ -219,6 +246,8 @@ export function normalizeRemoteWeatherPayload(
       precipitationType,
       skyCode,
       temperatureC,
+      requestDate,
+      requestHour,
     }),
   };
 }

@@ -22,7 +22,7 @@ import type {
 } from "@/components/map-simulator/demand";
 import { projectPoint } from "@/components/map-simulator/utils";
 import type { SimulationData } from "@/components/map-simulator/types";
-import type { MiniMapFocus } from "@/components/map-simulator/hooks";
+import type { MiniMapFocus } from "@/components/map-simulator/hooks/simulator-stores";
 
 export function contextPoiWeight(category: string | null | undefined) {
   if (category === "road_corridor_context") {

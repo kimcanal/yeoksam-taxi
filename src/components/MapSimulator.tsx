@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   type CSSProperties,
@@ -13,27 +12,24 @@ import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import type { CircumstanceMode } from "@/components/map-simulator/types";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
-  currentSimulationClock,
   format24Hour,
   normalizeDayMinutes,
   useWeatherForecast,
 } from "@/components/map-simulator/environment";
 import { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
-import {
-  type MiniMapFocus,
-} from "@/components/map-simulator/hooks";
-import { useMapSimulatorStores } from "@/components/map-simulator/hooks";
+import { useLiveClockSync } from "@/components/map-simulator/hooks/use-live-clock-sync";
+import { useMapInteractions } from "@/components/map-simulator/hooks/use-map-interactions";
+import { pitchFromControlValue } from "@/components/map-simulator/camera";
+import { useMapPoiState } from "@/components/map-simulator/hooks/use-map-poi-state";
+import { useMapSceneRuntimeRefs } from "@/components/map-simulator/hooks/use-map-scene-runtime-refs";
+import { useMapSimulatorStores } from "@/components/map-simulator/hooks/use-map-simulator-stores";
+import { useSimulationDataLoader } from "@/components/map-simulator/hooks/use-simulation-data-loader";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { WeatherBadge } from "@/components/map-simulator/ui/WeatherBadge";
 import { Menu } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
-import { DEMAND_VISUAL_UNIT_CALLS } from "@/components/map-simulator/demand";
 import type { FpsMode } from "@/components/map-simulator/camera";
-import { projectPoint } from "@/components/map-simulator/utils";
 import { useMapDemandState } from "@/components/map-simulator/demand";
-import { useMapPoiState } from "@/components/map-simulator/hooks";
-import { useMapSceneRuntimeRefs } from "@/components/map-simulator/hooks";
-import { useSimulationDataLoader } from "@/components/map-simulator/hooks";
 import { trafficCountForLoadPercent } from "@/components/map-simulator/simulation";
 
 type MapSimulatorProps = {
@@ -41,16 +37,7 @@ type MapSimulatorProps = {
   initialMode?: CircumstanceMode;
 };
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
 
-function millisecondsUntilNextHour(date = new Date()) {
-  const elapsedInHourMs =
-    date.getMinutes() * 60_000 +
-    date.getSeconds() * 1000 +
-    date.getMilliseconds();
-
-  return Math.max(1000, ONE_HOUR_MS - elapsedInHourMs + 250);
-}
 
 const MapSimulatorSceneRuntime = dynamic<MapSimulatorSceneRuntimeProps>(
   () => import("@/components/map-simulator/map-simulator-scene-runtime"),
@@ -76,7 +63,6 @@ export default function MapSimulator({
   initialMode = "live",
 }: MapSimulatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const appliedInitialModeRef = useRef<CircumstanceMode | null>(null);
   const { state, setters } = useMapSimulatorStores();
   const {
     data,
@@ -104,7 +90,6 @@ export default function MapSimulator({
     setSimulationDate,
     setSimulationTimeMinutes,
     setWeatherMode,
-    setTrafficLoadPercent,
     setCameraMode,
     setMiniMapFocus,
     setFollowTaxiId,
@@ -126,60 +111,15 @@ export default function MapSimulator({
   );
   const appliedTrafficCount = trafficCountForLoadPercent(trafficLoadPercent);
 
-  useEffect(() => {
-    if (appliedInitialModeRef.current === initialMode) {
-      return;
-    }
-    appliedInitialModeRef.current = initialMode;
-
-    if (initialMode === "live") {
-      const clock = currentSimulationClock();
-      setSimulationDate(clock.dateIso);
-      setSimulationTimeMinutes(clock.minutes);
-      setIsSidebarCollapsed(true);
-    } else {
-      setIsSidebarCollapsed(false);
-    }
-    setCircumstanceMode(initialMode);
-  }, [
+  // 실시간 시계 및 초기 환경 연동 훅
+  useLiveClockSync({
     initialMode,
-    setCircumstanceMode,
-    setIsSidebarCollapsed,
-    setSimulationDate,
-    setSimulationTimeMinutes,
-  ]);
-
-  useEffect(() => {
-    if (circumstanceMode !== "live") {
-      return;
-    }
-
-    function syncCurrentClock() {
-      const clock = currentSimulationClock();
-      setSimulationDate(clock.dateIso);
-      setSimulationTimeMinutes(clock.minutes);
-    }
-
-    let timeoutId: number | undefined;
-    function scheduleNextHourSync() {
-      timeoutId = window.setTimeout(() => {
-        syncCurrentClock();
-        scheduleNextHourSync();
-      }, millisecondsUntilNextHour());
-    }
-
-    syncCurrentClock();
-    scheduleNextHourSync();
-    return () => {
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [
     circumstanceMode,
+    setCircumstanceMode,
     setSimulationDate,
     setSimulationTimeMinutes,
-  ]);
+    setIsSidebarCollapsed,
+  });
 
   const {
     activePoiCode,
@@ -255,46 +195,51 @@ export default function MapSimulator({
     weatherMode,
   });
   const { setCameraControlValues, setCameraFocusTarget } = runtimeRefs;
-  const handlePoiSelect = useCallback((poiCode: string) => {
-    const poi = mapPoiFeatureRows.find((row) => row.poi_code === poiCode);
-    setSelectedPoiCode(poiCode);
-    if (circumstanceMode !== "live") {
-      setIsSidebarCollapsed(false);
-    }
-    if (
-      data &&
-      poi &&
-      Number.isFinite(poi.lon) &&
-      Number.isFinite(poi.lat)
-    ) {
-      const projected = projectPoint(
-        [poi.lon as number, poi.lat as number],
-        data.center,
-      );
-      setCameraFocusTarget({
-        x: projected.x,
-        z: projected.z,
-        distance: 78,
-        pitch: 0.68,
-        label: poi.poi_name,
-      });
-      setCameraMode("drive");
-    }
-  }, [
-    circumstanceMode,
+
+  // POI 및 미니맵 카메라 상호작용 훅
+  const { handlePoiSelect, handleCameraFocusChange } = useMapInteractions({
     data,
     mapPoiFeatureRows,
-    setCameraFocusTarget,
-    setIsSidebarCollapsed,
+    circumstanceMode,
     setSelectedPoiCode,
+    setIsSidebarCollapsed,
     setCameraMode,
-  ]);
-  const handleCameraFocusChange = useCallback((focus: MiniMapFocus) => {
-    setCameraControlValues(focus);
-    setMiniMapFocus(focus);
-  }, [setCameraControlValues, setMiniMapFocus]);
+    setMiniMapFocus,
+    setCameraFocusTarget,
+    setCameraControlValues,
+  });
+
+  const compassAngle = useMemo(() => {
+    if (!miniMapFocus) {
+      return 0;
+    }
+    // headingX and headingZ represent the camera's horizontal forward direction.
+    // In Three.js, positive X is East, negative Z is North.
+    // So Math.atan2(headingX, -headingZ) computes the angle in radians clockwise from North.
+    const angleRad = Math.atan2(miniMapFocus.headingX, -miniMapFocus.headingZ);
+    return (angleRad * 180) / Math.PI;
+  }, [miniMapFocus]);
+
+  const handleResetCompass = useCallback(() => {
+    if (!miniMapFocus) {
+      return;
+    }
+
+    // Switch to free-drive mode if not already
+    setCameraMode("drive");
+
+    // Command the 3D camera to smoothly transition and align exactly North-Up
+    setCameraFocusTarget({
+      x: miniMapFocus.x,
+      z: miniMapFocus.z,
+      distance: 120, // A highly readable default distance that looks pristine!
+      yaw: 0, // 0 is exactly North-Up!
+      pitch: pitchFromControlValue(miniMapFocus.pitchControlValue),
+      label: "지도 정북 방향 정렬",
+    });
+  }, [miniMapFocus, setCameraMode, setCameraFocusTarget]);
+
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
-  const isLiveMode = circumstanceMode === "live";
   const isSidebarVisible = !isSidebarCollapsed;
   const mapCanvasClass = isSidebarVisible
     ? "h-full w-full touch-none border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
@@ -383,6 +328,45 @@ export default function MapSimulator({
           />
         ) : null}
 
+        {/* 나침반 UI */}
+        {!isSceneBusy && miniMapFocus ? (
+          <div
+            data-ui-panel="compass"
+            onClick={handleResetCompass}
+            title="클릭 시 지도 정북 방향(North-Up) 정렬"
+            className="absolute right-4 top-4 z-30 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300 cursor-pointer hover:bg-slate-900/90 hover:scale-105 active:scale-95"
+          >
+            <div className="relative h-12 w-12 flex items-center justify-center">
+              {/* 나침반 다이얼 */}
+              <div
+                className="absolute inset-0 rounded-full border border-white/5 bg-slate-900/40 transition-transform duration-200"
+                style={{ transform: `rotate(${-compassAngle}deg)` }}
+              >
+                {/* 방위 표시 */}
+                <span className="absolute left-1/2 top-0.5 -translate-x-1/2 text-[9px] font-bold text-red-500">N</span>
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400">S</span>
+                <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">W</span>
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">E</span>
+              </div>
+              {/* 바늘 */}
+              <div className="z-10 h-7 w-0.5 bg-gradient-to-b from-red-500 to-slate-400 rounded-full shadow-lg" />
+            </div>
+            <span className="mt-1 text-[9px] font-semibold tracking-wider text-slate-400 uppercase">
+              {Math.round((compassAngle + 360) % 360)}° {(() => {
+                const normalizedAngle = ((compassAngle % 360) + 360) % 360;
+                if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return "북";
+                if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return "북동";
+                if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return "동";
+                if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return "남동";
+                if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return "남";
+                if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return "남서";
+                if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return "서";
+                return "북서";
+              })()}
+            </span>
+          </div>
+        ) : null}
+
         {isSceneBusy ? (
           <SceneLoading
             statusLabel={statusLabel}
@@ -397,36 +381,19 @@ export default function MapSimulator({
         <DemandSidebar
           isVisible={isSidebarVisible}
           onClose={toggleSidebar}
-          selectedDongName={demandState.selectedDongName}
-          setSelectedDongName={demandState.setSelectedDongName}
-          demandFetchBadgeText={demandState.demandFetchBadgeText}
-          demandFetchBadgeClass={demandState.demandFetchBadgeClass}
-          hasDemandData={demandState.hasDemandData}
-          selectedPeakDemand={demandState.selectedPeakDemand}
-          selectedDemandIntensityLabel={demandState.selectedDemandIntensityLabel}
-          currentDemandSlot={demandState.currentDemandSlot}
-          currentFiveMinuteDemand={demandState.currentFiveMinuteDemand}
-          appliedTaxiCount={demandState.appliedTaxiCount}
-          demandChart={demandState.demandChart}
-          selectedAverageDemand={demandState.selectedAverageDemand}
-          heatmapFetchStatus={demandState.heatmapFetchStatus}
-          heatmapHour={demandState.heatmapHour}
-          heatmapMaxDemand={demandState.heatmapMaxDemand}
-          heatmapScope={demandState.heatmapScope}
-          setHeatmapHour={demandState.setHeatmapHour}
-          setHeatmapScope={demandState.setHeatmapScope}
-          demandMiniMap={demandState.demandMiniMap}
-          mapPoiFeatureRows={mapPoiFeatureRows}
-          onPoiSelect={handlePoiSelect}
-          circumstanceMode={circumstanceMode}
-          simulationDate={simulationDate}
-          formattedSimulationTime={formattedSimulationTime}
-          setCircumstanceMode={setCircumstanceMode}
-          setSimulationDate={setSimulationDate}
-          setSimulationTimeMinutes={setSimulationTimeMinutes}
-          trafficLoadPercent={trafficLoadPercent}
-          setTrafficLoadPercent={setTrafficLoadPercent}
-          appliedTrafficCount={appliedTrafficCount}
+          demandState={demandState}
+          poiState={{
+            mapPoiFeatureRows,
+            onPoiSelect: handlePoiSelect,
+          }}
+          environmentControls={{
+            circumstanceMode,
+            simulationDate,
+            formattedSimulationTime,
+            setCircumstanceMode,
+            setSimulationDate,
+            setSimulationTimeMinutes,
+          }}
         />
 
       </section>

@@ -7,10 +7,14 @@ export const PRIMARY_SUBWAY_STATION_NAMES = new Set([
   "신논현",
 ]);
 
-export const DEMAND_SLOT_MINUTES = 5;
-export const DEMAND_SLOTS_PER_HOUR = 60 / DEMAND_SLOT_MINUTES;
+export const DEMAND_SLOT_MINUTES = 60; // 백엔드는 시간당(hourly) 예측만 제공 → 1시간 단위 슬롯
+export const DEMAND_SLOTS_PER_HOUR = 60 / DEMAND_SLOT_MINUTES; // = 1
 export const DEMAND_VISUAL_UNIT_CALLS = 40;
 export const DEMAND_VISUAL_MAX_TAXIS = MAX_TAXI_COUNT;
+export const DEMAND_TAXI_SCALE_MIN_PERCENT = 0.1;
+export const DEMAND_TAXI_SCALE_MAX_PERCENT = 12;
+export const DEMAND_TAXI_SCALE_DEFAULT_PERCENT = 0.5;
+export const DEMAND_TAXI_SCALE_STEP_PERCENT = 0.1;
 
 export const DEMAND_CHART_WIDTH = 320;
 export const DEMAND_CHART_HEIGHT = 164;

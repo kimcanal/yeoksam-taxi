@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_TAXI_COUNT } from "@/components/map-simulator/simulation";
-import { DEMAND_SLOT_MINUTES } from "@/components/map-simulator/constants/demand-constants";
+import {
+  DEMAND_SLOT_MINUTES,
+  DEMAND_TAXI_SCALE_DEFAULT_PERCENT,
+  DEMAND_TAXI_SCALE_MAX_PERCENT,
+  DEMAND_TAXI_SCALE_MIN_PERCENT,
+  DEMAND_TAXI_SCALE_STEP_PERCENT,
+  DEMAND_VISUAL_MAX_TAXIS,
+} from "@/components/map-simulator/constants/demand-constants";
 import {
   averageDemand,
   buildDemandChartGeometry,
   buildFiveMinuteDemandSeries,
   normalizeRemoteDailyDemandSeries,
-  normalizeRemoteDemandPoints,
   scoreDemandAtHour,
   TARGET_DONGS,
 } from "@/components/map-simulator/demand";
@@ -26,15 +32,6 @@ function demandAtHour(points: HourlyDemandPoint[] | undefined, hour: number) {
   return points?.find((point) => point.hour === hour)?.demandPred ?? null;
 }
 
-function isAbortError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "name" in error &&
-    error.name === "AbortError"
-  );
-}
-
 export function useDemandForecast({
   circumstanceMode,
   simulationDate,
@@ -52,6 +49,9 @@ export function useDemandForecast({
   );
   const [heatmapScope, setHeatmapScope] =
     useState<DemandHeatmapScope>("all");
+  const [taxiDemandScalePercent, setTaxiDemandScalePercent] = useState(
+    DEMAND_TAXI_SCALE_DEFAULT_PERCENT,
+  );
   const [heatmapFetchStatus, setHeatmapFetchStatus] =
     useState<DemandFetchStatus>(() => (DEMAND_API_ENDPOINT ? "idle" : "error"));
   const demandFetchStatus = heatmapFetchStatus;
@@ -84,11 +84,29 @@ export function useDemandForecast({
   }, [fiveMinuteDemandSeries, normalizedSimulationTimeMinutes]);
   const currentDemandVisualUnits = currentDemandSlot?.visualUnits ?? 0;
   const currentFiveMinuteDemand = currentDemandSlot?.demand ?? 0;
+  const maxSafeTaxiScalePercent = currentFiveMinuteDemand > 0
+    ? Math.max(
+        DEMAND_TAXI_SCALE_MIN_PERCENT,
+        Math.min(
+          DEMAND_TAXI_SCALE_MAX_PERCENT,
+          Math.floor(
+            (DEMAND_VISUAL_MAX_TAXIS / currentFiveMinuteDemand) *
+              100 *
+              (1 / DEMAND_TAXI_SCALE_STEP_PERCENT),
+          ) * DEMAND_TAXI_SCALE_STEP_PERCENT,
+        ),
+      )
+    : DEMAND_TAXI_SCALE_MAX_PERCENT;
+  const effectiveTaxiDemandScalePercent = Math.min(
+    taxiDemandScalePercent,
+    maxSafeTaxiScalePercent,
+  );
   const appliedTaxiCount = hasDemandData
-    ? currentDemandVisualUnits
+    ? Math.min(
+        DEMAND_VISUAL_MAX_TAXIS,
+        Math.round(currentFiveMinuteDemand * (effectiveTaxiDemandScalePercent / 100)),
+      )
     : DEFAULT_TAXI_COUNT;
-
-
 
   useEffect(() => {
     if (!DEMAND_API_ENDPOINT) {
@@ -111,49 +129,19 @@ export function useDemandForecast({
         signal: controller.signal,
       });
       if (!response.ok) {
-        throw new Error(
+        console.warn(
           `Daily demand heatmap request failed: ${response.status}`,
         );
+        return {};
       }
       const normalized = normalizeRemoteDailyDemandSeries(
         await response.json(),
       );
       if (!normalized) {
-        throw new Error("Daily demand heatmap response invalid.");
+        console.warn("Daily demand heatmap response invalid.");
+        return {};
       }
       return normalized;
-    }
-
-    async function fetchHourlySeriesByDong() {
-      const results = await Promise.allSettled(
-        TARGET_DONGS.map(async (dongName) => {
-          const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
-          url.searchParams.set("dong", dongName);
-          url.searchParams.set("date", simulationDate);
-          const response = await fetch(url.toString(), {
-            cache: "no-store",
-            signal: controller.signal,
-          });
-          if (!response.ok) {
-            throw new Error(`Demand heatmap request failed: ${response.status}`);
-          }
-          const normalized = normalizeRemoteDemandPoints(await response.json());
-          if (!normalized) {
-            throw new Error(`Demand heatmap response invalid: ${dongName}`);
-          }
-          return [dongName, normalized] as const;
-        }),
-      );
-      const nextSeries: DemandSeriesByDong = {};
-      results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          const [dongName, points] = result.value;
-          nextSeries[dongName] = points;
-        } else if (!controller.signal.aborted && !isAbortError(result.reason)) {
-          console.error(result.reason);
-        }
-      });
-      return nextSeries;
     }
 
     fetchDailySeries()
@@ -161,8 +149,10 @@ export function useDemandForecast({
         if (controller.signal.aborted) {
           return null;
         }
-        console.error(error);
-        return fetchHourlySeriesByDong();
+        console.warn(
+          `Daily demand heatmap request failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return {};
       })
       .then((nextSeries) => {
         if (controller.signal.aborted || nextSeries === null) {
@@ -177,7 +167,9 @@ export function useDemandForecast({
         if (controller.signal.aborted) {
           return;
         }
-        console.error(error);
+        console.warn(
+          `Demand heatmap request failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
         setDemandSeriesByDong({});
         setHeatmapFetchStatus("error");
       });
@@ -244,6 +236,10 @@ export function useDemandForecast({
     currentDemandSlot,
     currentDemandVisualUnits,
     currentFiveMinuteDemand,
+    taxiDemandScalePercent,
+    effectiveTaxiDemandScalePercent,
+    maxSafeTaxiScalePercent,
+    setTaxiDemandScalePercent,
     appliedTaxiCount,
     hasDemandData,
     demandChart,

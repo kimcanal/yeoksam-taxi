@@ -5,7 +5,7 @@ import {
   CURBSIDE_EXTRA_OFFSET_MAX,
   HOTSPOT_SLOWDOWN_DISTANCE,
   VEHICLE_PROXIMITY_CELL_SIZE,
-} from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/scene/scene-constants";
 import type {
   NextStopState,
   RouteSample,

@@ -1,5 +1,5 @@
 import type { SimulationData } from "@/components/map-simulator/types";
-import { deserializeSimulationData } from "@/components/map-simulator/simulation";
+import { deserializeSimulationData } from "@/components/map-simulator/simulation/simulation-data-serialization";
 
 type LoadSimulationDataOptions = {
   signal?: AbortSignal;

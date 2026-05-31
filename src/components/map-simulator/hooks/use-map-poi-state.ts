@@ -7,8 +7,8 @@ import {
   buildPoiSpatialIndex,
   visiblePoiRowsForCamera,
 } from "@/components/map-simulator/scene";
-import type { MiniMapFocus } from "@/components/map-simulator/hooks";
-import { useSyncRef } from "@/components/map-simulator/hooks";
+import type { MiniMapFocus } from "@/components/map-simulator/hooks/simulator-stores";
+import { useSyncRef } from "@/components/map-simulator/hooks/use-sync-ref";
 
 type UseMapPoiStateParams = {
   data: SimulationData | null;

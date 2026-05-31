@@ -12,13 +12,14 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(rootDir);
 
+const defaultServerPort = "8000";
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stderr,
 });
 const lineIterator = rl[Symbol.asyncIterator]();
 
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const scriptChoices = new Map([
   ["1", "dev"],
   ["dev", "dev"],
@@ -34,9 +35,9 @@ const scriptChoices = new Map([
 ]);
 
 function printHeader() {
-  console.log(`yeoksam-taxi launcher
+  console.log(`yeoksam-taxi web launcher
 
-npm run options
+Choose what to run
   1) dev       - development server with HMR. Best for active coding.
   2) start     - production server. Uses the latest build output.
   3) build     - production build only. Does not start a server.
@@ -46,21 +47,21 @@ npm run options
 
 For dev/start, the launcher binds Next.js to 0.0.0.0 by default.
 That keeps localhost working on this machine while still allowing access from other devices.
-The launcher opens http://localhost:<port>/map after the server is ready.`);
+The launcher opens http://localhost:<port>/ after the server is ready.`);
 }
 
 function printUsage() {
   console.log(`Usage:
-  npm run launch
-  npm run launch -- --script dev --port 3000
-  npm run launch -- dev --port 3000 --no-open
+  ./run-web.sh
+  ./run-web.sh dev
+  ./run-web.sh start --no-open
 
 Options:
   -s, --script <name>       dev, start, build, lint, or asset:update
-  -p, --port <port>         Port for dev/start. Defaults to 3000 when --script is used.
+  -p, --port <port>         Port for dev/start. Defaults to ${defaultServerPort}.
   -H, --host <host>         Bind host for dev/start. Defaults to 0.0.0.0.
       --hostname <host>     Alias for --host.
-      --path <path>         Path to open after startup. Defaults to /map.
+      --path <path>         Path to open after startup. Defaults to /.
       --open                Open the browser after the server is ready.
       --no-open             Do not open the browser.
       --auto-port           In non-interactive mode, use the next free port if busy.
@@ -170,7 +171,7 @@ async function ask(question) {
 async function promptScript() {
   while (true) {
     console.error("");
-    const choice = await ask("Choose an npm script to run: ");
+    const choice = await ask("Choose what to run: ");
     const scriptName = normalizeScriptName(choice);
 
     if (scriptName) {
@@ -262,7 +263,7 @@ async function promptPort(options) {
   }
 
   if (options.scriptName) {
-    const defaultPort = process.env.PORT || "3000";
+    const defaultPort = process.env.PORT || defaultServerPort;
     return chooseAvailablePort(defaultPort, {
       autoPort: options.autoPort,
       prompt: false,
@@ -272,20 +273,20 @@ async function promptPort(options) {
   while (true) {
     console.error("");
     console.error("Port mode");
-    console.error("  1) Start on default port 3000 and open /map");
-    console.error("  2) Start on a specific port (press Enter for 8000, useful on VDI)");
+    console.error(`  1) Start on VDI web port ${defaultServerPort}`);
+    console.error("  2) Start on a specific port");
     const portMode = await ask("Choose port mode: ");
 
     switch (portMode.trim()) {
       case "":
       case "1":
       case "default":
-      case "3000":
-        return chooseAvailablePort("3000");
+      case "8000":
+        return chooseAvailablePort(defaultServerPort);
       case "2":
       case "custom": {
-        const customPortInput = await ask("Port number [8000]: ");
-        const customPort = customPortInput.trim() || "8000";
+        const customPortInput = await ask(`Port number [${defaultServerPort}]: `);
+        const customPort = customPortInput.trim() || defaultServerPort;
         if (validatePort(customPort)) {
           return chooseAvailablePort(customPort);
         }
@@ -311,12 +312,17 @@ function selectAccessHost() {
     return process.env.LAUNCH_ACCESS_HOST;
   }
 
-  const detectedIps = Object.values(os.networkInterfaces())
-    .flat()
-    .filter(Boolean)
-    .filter((item) => item.family === "IPv4" && !item.internal)
-    .map((item) => item.address)
-    .sort();
+  let detectedIps = [];
+  try {
+    detectedIps = Object.values(os.networkInterfaces())
+      .flat()
+      .filter(Boolean)
+      .filter((item) => item.family === "IPv4" && !item.internal)
+      .map((item) => item.address)
+      .sort();
+  } catch {
+    detectedIps = [];
+  }
 
   return detectedIps.find(isPrivateIpv4) ?? detectedIps[0] ?? "";
 }
@@ -352,33 +358,77 @@ function createChildEnv(options = {}) {
   env[pathKey] = env[pathKey] ? `${localBin}${path.delimiter}${env[pathKey]}` : localBin;
 
   if (!env.XDG_CONFIG_HOME) {
-    env.XDG_CONFIG_HOME = path.join(rootDir, ".tmp", "xdg.config");
+    env.XDG_CONFIG_HOME = path.join(os.tmpdir(), "yeoksam-taxi", "xdg.config");
     fs.mkdirSync(env.XDG_CONFIG_HOME, { recursive: true });
   }
 
   env.NEXT_ENABLE_OPENNEXT_CLOUDFLARE_DEV = options.cloudflareDev ? "1" : "0";
 
+  // 자동 인증서(cert.pem) 감지 및 NODE_EXTRA_CA_CERTS 주입
+  if (!env.NODE_EXTRA_CA_CERTS) {
+    const possibleCertPaths = [
+      path.join(rootDir, "cert.pem"),
+      path.join(os.homedir(), "cert.pem"),
+    ];
+    for (const certPath of possibleCertPaths) {
+      if (fs.existsSync(certPath)) {
+        env.NODE_EXTRA_CA_CERTS = certPath;
+        console.log(`[Launcher] Detected cert.pem at ${certPath}. Automatically set NODE_EXTRA_CA_CERTS.`);
+        break;
+      }
+    }
+  }
+
   return env;
 }
 
-function quoteCmdArg(value) {
-  const arg = String(value);
-  if (/^[A-Za-z0-9_./:=@-]+$/.test(arg)) {
-    return arg;
-  }
-  return `"${arg.replace(/"/g, '""')}"`;
+function localBinCommand(name) {
+  const executable = process.platform === "win32" ? `${name}.cmd` : name;
+  return path.join(rootDir, "node_modules", ".bin", executable);
 }
 
-function runNpm(args, options = {}) {
+function commandForScript(scriptName, serverOptions = {}) {
+  switch (scriptName) {
+    case "dev":
+    case "start":
+      return {
+        command: localBinCommand("next"),
+        args: [
+          scriptName,
+          "--hostname",
+          serverOptions.bindHost,
+          "--port",
+          serverOptions.port,
+        ],
+        label: `next ${scriptName} --hostname ${serverOptions.bindHost} --port ${serverOptions.port}`,
+      };
+    case "build":
+      return {
+        command: localBinCommand("next"),
+        args: ["build", "--webpack"],
+        label: "next build --webpack",
+      };
+    case "lint":
+      return {
+        command: localBinCommand("eslint"),
+        args: [],
+        label: "eslint",
+      };
+    case "asset:update":
+      return {
+        command: process.execPath,
+        args: [path.join(rootDir, "scripts", "update-assets.mjs")],
+        label: "node scripts/update-assets.mjs",
+      };
+    default:
+      throw new Error(`Unknown script: ${scriptName}`);
+  }
+}
+
+function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const childEnv = createChildEnv(options);
-    const command = process.platform === "win32" ? "cmd.exe" : npmCommand;
-    const commandArgs =
-      process.platform === "win32"
-        ? ["/d", "/s", "/c", [npmCommand, ...args].map(quoteCmdArg).join(" ")]
-        : args;
-
-    const child = spawn(command, commandArgs, {
+    const child = spawn(command, args, {
       cwd: rootDir,
       env: childEnv,
       stdio: ["ignore", "inherit", "inherit"],
@@ -397,10 +447,11 @@ async function ensureBuildIfNeeded(options) {
   }
 
   console.log("");
-  console.log("No production build found. 'npm run start' needs a fresh build first.");
-  const runBuild = await ask("Run 'npm run build' now? [Y/n]: ");
+  console.log("No production build found. The production server needs a fresh build first.");
+  const runBuild = await ask("Run a production build now? [Y/n]: ");
   if (["", "y", "Y", "yes", "YES"].includes(runBuild.trim())) {
-    const result = await runNpm(["run", "build"], options);
+    const buildTask = commandForScript("build");
+    const result = await runCommand(buildTask.command, buildTask.args, options);
     if (result.code !== 0) {
       process.exit(result.code);
     }
@@ -475,12 +526,12 @@ function openUrlWhenReady(url, shouldOpen) {
   });
 }
 
-async function runNpmScript(scriptName, options) {
+async function runSelectedScript(scriptName, options) {
   if (scriptName === "dev" || scriptName === "start") {
     const port = await promptPort(options);
     const bindHost = options.bindHost || process.env.LAUNCH_BIND_HOST || "0.0.0.0";
     const accessHost = selectAccessHost();
-    const launchPath = options.launchPath || process.env.LAUNCH_PATH || "/map";
+    const launchPath = options.launchPath || process.env.LAUNCH_PATH || "/";
     const localUrl = `http://localhost:${port}${launchPath}`;
     const shouldOpen =
       options.shouldOpen ?? (process.env.LAUNCH_OPEN ? process.env.LAUNCH_OPEN !== "0" : true);
@@ -492,21 +543,20 @@ async function runNpmScript(scriptName, options) {
     printAccessUrls(port, bindHost, accessHost, launchPath);
     console.log("");
     console.log(`Opening when ready: ${localUrl}`);
-    console.log(`Running: npm run ${scriptName} -- --hostname ${bindHost} --port ${port}`);
+    const task = commandForScript(scriptName, { bindHost, port });
+    console.log(`Running: ${task.label}`);
     openUrlWhenReady(localUrl, shouldOpen);
 
     rl.close();
-    const result = await runNpm(
-      ["run", scriptName, "--", "--hostname", bindHost, "--port", port],
-      options,
-    );
+    const result = await runCommand(task.command, task.args, options);
     process.exit(result.code);
   }
 
+  const task = commandForScript(scriptName);
   console.log("");
-  console.log(`Running: npm run ${scriptName}`);
+  console.log(`Running: ${task.label}`);
   rl.close();
-  const result = await runNpm(["run", scriptName], options);
+  const result = await runCommand(task.command, task.args, options);
   process.exit(result.code);
 }
 
@@ -519,7 +569,7 @@ try {
 
   printHeader();
   const selectedScript = options.scriptName ?? (await promptScript());
-  await runNpmScript(selectedScript, options);
+  await runSelectedScript(selectedScript, options);
 } catch (error) {
   rl.close();
   console.error(error instanceof Error ? error.message : error);

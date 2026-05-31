@@ -283,8 +283,9 @@ export function demandSlotLabel(point: FiveMinuteDemandPoint | null) {
   if (!point) {
     return "-";
   }
-  const start = point.minuteOfDay;
-  const end = normalizeDayMinutes(start + DEMAND_SLOT_MINUTES);
+  // 슬롯은 1시간 단위 — hour 정각부터 다음 정각까지
+  const start = point.hour * 60;
+  const end = normalizeDayMinutes(start + 60);
   return `${format24Hour(start)}-${format24Hour(end)}`;
 }
 

@@ -1,16 +1,16 @@
 import * as THREE from "three";
-import { lineStringsOfRoad } from "@/components/map-simulator/utils";
+import { lineStringsOfRoad } from "@/components/map-simulator/utils/map-geometry-utils";
 import {
   buildCumulative,
   buildSegmentHeadings,
   buildSegmentLengthsFromCumulative,
   distanceXZ,
-} from "@/components/map-simulator/road";
-import { ROAD_WIDTH_SCALE } from "@/components/map-simulator/scene";
+} from "@/components/map-simulator/road/route-motion-utils";
+import { ROAD_WIDTH_SCALE } from "@/components/map-simulator/scene/scene-constants";
 import {
   classifyTurn,
   roadRank,
-} from "@/components/map-simulator/road";
+} from "@/components/map-simulator/road/road-query-utils";
 import {
   type GraphEdge,
   type RoadFeatureCollection,
@@ -23,7 +23,7 @@ import {
   type StopMarker,
   type TurnRestriction,
 } from "@/components/map-simulator/types";
-import { dominantAxis } from "@/components/map-simulator/signal";
+import { dominantAxis } from "@/components/map-simulator/signal/signal-controller";
 
 function roadTravelCost(roadClass: RoadProperties["roadClass"]) {
   switch (roadClass) {

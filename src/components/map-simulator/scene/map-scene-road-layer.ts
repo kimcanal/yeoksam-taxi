@@ -2,8 +2,6 @@ import * as THREE from "three";
 import type { ProjectedRoadSegment } from "@/components/map-simulator/types";
 import {
   ROAD_LAYER_Y,
-  ROAD_MARKING_Y,
-  ROAD_SHEEN_Y_OFFSET,
   ROAD_SURFACE_THICKNESS,
 } from "@/components/map-simulator/scene";
 import { distanceXZ } from "@/components/map-simulator/road";
@@ -120,7 +118,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
       distanceXZ(segment.start, segment.end) >= 10,
   );
   const roadSheenMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.025, 1),
+    new THREE.BoxGeometry(1, 0.0005, 1),
     roadSheenMaterial,
     roadSheenSegments.length,
   );
@@ -131,7 +129,7 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
     const widthScale = segment.roadClass === "arterial" ? 0.62 : 0.54;
     dummy.position.set(
       center.x,
-      ROAD_LAYER_Y[segment.roadClass] + ROAD_SHEEN_Y_OFFSET,
+      ROAD_LAYER_Y[segment.roadClass] + ROAD_SURFACE_THICKNESS / 2 + 0.0005,
       center.z,
     );
     dummy.rotation.set(0, roadAngle(segment), 0);
@@ -169,17 +167,22 @@ export function createStaticRoadLayer(roadSegments: ProjectedRoadSegment[]) {
         center: segment.start.clone().lerp(segment.end, dashCenter / length),
         angle: roadAngle(segment),
         length: dashLength,
+        roadClass: segment.roadClass,
       };
     });
   });
   const laneMarkerMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.16, 0.03, 1),
+    new THREE.BoxGeometry(0.16, 0.0005, 1),
     laneMarkerMaterial,
     laneMarkers.length,
   );
 
   laneMarkers.forEach((marker, index) => {
-    dummy.position.set(marker.center.x, ROAD_MARKING_Y, marker.center.z);
+    dummy.position.set(
+      marker.center.x,
+      ROAD_LAYER_Y[marker.roadClass] + ROAD_SURFACE_THICKNESS / 2 + 0.001,
+      marker.center.z,
+    );
     dummy.rotation.set(0, marker.angle, 0);
     dummy.scale.set(1, 1, marker.length);
     dummy.updateMatrix();

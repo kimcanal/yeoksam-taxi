@@ -209,6 +209,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     simulationDateRef.current,
     simulationTimeRef.current,
     weatherModeRef.current,
+    true, // forceInstant = true on initial load
   );
   environmentSettings.syncPrecipitationDensity(cameraModeRef.current);
   cameraController.syncCamera();
@@ -284,7 +285,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       snapshot.vehicles,
       interpolationAlpha,
     );
-    ctx.vehicleRuntimeSync.syncSimulationTrails(frameTimestamp);
+    ctx.vehicleRuntimeSync.syncSimulationTrails();
     finalVisualUpdater.updateSignals(snapshot.signals, snapshot.clock.elapsedTimeSeconds);
 
     // Camera update
@@ -298,6 +299,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     simDriver.setActivePedestrians(activePedestrianCount);
     simDriver.commitSourceStats(snapshot.stats);
     environmentSettings.updatePrecipitation(delta, elapsedTime);
+    environmentSettings.updateEnvironmentTransition(delta);
     finalVisualUpdater.updateAtmosphere(elapsedTime);
 
     // Labels & hover

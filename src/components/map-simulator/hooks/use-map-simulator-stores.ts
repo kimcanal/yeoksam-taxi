@@ -1,4 +1,9 @@
-import { sceneSetters, sceneStore, uiSetters, uiStore } from "@/components/map-simulator/hooks";
+import {
+  sceneSetters,
+  sceneStore,
+  uiSetters,
+  uiStore,
+} from "@/components/map-simulator/hooks/simulator-stores";
 
 export function useMapSimulatorStores() {
   const data = sceneStore.useStore((state) => state.data);
