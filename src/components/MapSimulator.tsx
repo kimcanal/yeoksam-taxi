@@ -181,7 +181,7 @@ export default function MapSimulator({
     simulationDate,
   });
   const runtimeRefs = useMapSceneRuntimeRefs({
-    appliedTaxiCount: demandState.appliedTaxiCount,
+    appliedTaxiCount: demandState.appliedMapTaxiCount,
     appliedTrafficCount,
     cameraMode,
     followTaxiId,

@@ -84,13 +84,25 @@ export function useDemandForecast({
   }, [fiveMinuteDemandSeries, normalizedSimulationTimeMinutes]);
   const currentDemandVisualUnits = currentDemandSlot?.visualUnits ?? 0;
   const currentFiveMinuteDemand = currentDemandSlot?.demand ?? 0;
-  const maxSafeTaxiScalePercent = currentFiveMinuteDemand > 0
+  const currentMapDemand = useMemo(
+    () =>
+      TARGET_DONGS.reduce((sum, dongName) => {
+        const demand =
+          demandAtHour(demandSeriesByDong[dongName], effectiveHeatmapHour) ?? 0;
+        return sum + demand;
+      }, 0),
+    [demandSeriesByDong, effectiveHeatmapHour],
+  );
+  const hasAnyDemandData = Object.values(demandSeriesByDong).some(
+    (series) => series.length > 0,
+  );
+  const maxSafeTaxiScalePercent = currentMapDemand > 0
     ? Math.max(
         DEMAND_TAXI_SCALE_MIN_PERCENT,
         Math.min(
           DEMAND_TAXI_SCALE_MAX_PERCENT,
           Math.floor(
-            (DEMAND_VISUAL_MAX_TAXIS / currentFiveMinuteDemand) *
+            (DEMAND_VISUAL_MAX_TAXIS / currentMapDemand) *
               100 *
               (1 / DEMAND_TAXI_SCALE_STEP_PERCENT),
           ) * DEMAND_TAXI_SCALE_STEP_PERCENT,
@@ -105,6 +117,12 @@ export function useDemandForecast({
     ? Math.min(
         DEMAND_VISUAL_MAX_TAXIS,
         Math.round(currentFiveMinuteDemand * (effectiveTaxiDemandScalePercent / 100)),
+      )
+    : DEFAULT_TAXI_COUNT;
+  const appliedMapTaxiCount = hasAnyDemandData
+    ? Math.min(
+        DEMAND_VISUAL_MAX_TAXIS,
+        Math.round(currentMapDemand * (effectiveTaxiDemandScalePercent / 100)),
       )
     : DEFAULT_TAXI_COUNT;
 
@@ -236,11 +254,13 @@ export function useDemandForecast({
     currentDemandSlot,
     currentDemandVisualUnits,
     currentFiveMinuteDemand,
+    currentMapDemand,
     taxiDemandScalePercent,
     effectiveTaxiDemandScalePercent,
     maxSafeTaxiScalePercent,
     setTaxiDemandScalePercent,
     appliedTaxiCount,
+    appliedMapTaxiCount,
     hasDemandData,
     demandChart,
     selectedAverageDemand,

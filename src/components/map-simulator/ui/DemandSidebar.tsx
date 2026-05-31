@@ -39,11 +39,13 @@ type DemandSidebarDemandState = {
   selectedDemandIntensityLabel: string;
   currentDemandSlot: FiveMinuteDemandPoint | null;
   currentFiveMinuteDemand: number;
+  currentMapDemand: number;
   taxiDemandScalePercent: number;
   effectiveTaxiDemandScalePercent: number;
   maxSafeTaxiScalePercent: number;
   setTaxiDemandScalePercent: (percent: number) => void;
   appliedTaxiCount: number;
+  appliedMapTaxiCount: number;
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
   heatmapFetchStatus: DemandFetchStatus;
@@ -324,10 +326,12 @@ export const DemandSidebar = memo(function DemandSidebar({
     selectedDemandIntensityLabel,
     currentDemandSlot,
     currentFiveMinuteDemand,
+    currentMapDemand,
     effectiveTaxiDemandScalePercent,
     maxSafeTaxiScalePercent,
     setTaxiDemandScalePercent,
     appliedTaxiCount,
+    appliedMapTaxiCount,
     demandChart,
     selectedAverageDemand,
     heatmapFetchStatus,
@@ -479,7 +483,7 @@ export const DemandSidebar = memo(function DemandSidebar({
                 {" "}표시 중
               </span>
               <span className="text-sm font-bold tabular-nums text-slate-50">
-                총 {appliedTaxiCount.toLocaleString("ko-KR")}대
+                선택 동 {appliedTaxiCount.toLocaleString("ko-KR")}대
               </span>
             </div>
             <input
@@ -498,6 +502,8 @@ export const DemandSidebar = memo(function DemandSidebar({
             />
             <div className="mt-1 text-[9px] text-slate-500">
               {selectedDongName} 현재 수요 {Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")}건 기준 ·
+              지도 전체 {appliedMapTaxiCount.toLocaleString("ko-KR")}대 표시 ·
+              전체 수요 {Math.round(currentMapDemand).toLocaleString("ko-KR")}건 기준 ·
               최대 {maxSafeTaxiScalePercent.toFixed(1)}%
             </div>
           </div>
