@@ -35,6 +35,18 @@ function readGeoJSON(filePath) {
   }
 }
 
+function readSupplementalContextPois(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.supplemental_context_pois)
+      ? parsed.supplemental_context_pois
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function polygonCentroid(ring) {
   const pts = (
     ring.length > 1 &&
@@ -182,6 +194,7 @@ const output = {
   generated_at: new Date().toISOString().split('T')[0],
   description:  '동별 정적 쿼터 및 대로변 역출구 최대 2개 필터 적용 핫스팟 셋',
   context_pois: pois,
+  supplemental_context_pois: readSupplementalContextPois(OUTPUT_PATH),
 };
 
 try {
