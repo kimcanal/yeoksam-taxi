@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { Clock, History, LineChart, Settings2, X } from "lucide-react";
+import { memo, useState, useRef, useCallback, useEffect } from "react";
+import { AlertTriangle, Clock, History, LineChart, Settings2, X } from "lucide-react";
 import {
   PANEL_CARD_CLASS,
   PANEL_EYEBROW_CLASS,
@@ -84,6 +84,7 @@ type SpecificModeControlsProps = Omit<
   "circumstanceMode"
 > & {
   setHeatmapHour: (hour: number) => void;
+  onValidationError: (msg: string) => void;
 };
 
 function SpecificModeControls({
@@ -93,6 +94,7 @@ function SpecificModeControls({
   setSimulationDate,
   setSimulationTimeMinutes,
   setHeatmapHour,
+  onValidationError,
 }: SpecificModeControlsProps) {
   const [y, m, d] = simulationDate.split("-");
   const [hStr] = formattedSimulationTime.split(":");
@@ -121,6 +123,7 @@ function SpecificModeControls({
         month: now.getMonth() + 1,
         day: now.getDate(),
         hour: now.getHours(),
+        isClamped: true,
       };
     }
     return {
@@ -128,6 +131,7 @@ function SpecificModeControls({
       month: targetMonth,
       day: targetDay,
       hour: targetHour,
+      isClamped: false,
     };
   }
 
@@ -149,6 +153,10 @@ function SpecificModeControls({
 
     const safe = getSafeDateTime(newYear, currentM, tempDay, currentHour);
 
+    if (safe.isClamped) {
+      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+    }
+
     setSimulationDate(
       `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
@@ -168,6 +176,10 @@ function SpecificModeControls({
 
     const safe = getSafeDateTime(currentYear, newMonth, tempDay, currentHour);
 
+    if (safe.isClamped) {
+      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+    }
+
     setSimulationDate(
       `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
@@ -184,6 +196,10 @@ function SpecificModeControls({
 
     const safe = getSafeDateTime(currentYear, currentM, newDay, currentHour);
 
+    if (safe.isClamped) {
+      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+    }
+
     setSimulationDate(
       `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
@@ -199,6 +215,10 @@ function SpecificModeControls({
     const currentD = parseInt(d || "1", 10);
 
     const safe = getSafeDateTime(currentYear, currentM, currentD, value);
+
+    if (safe.isClamped) {
+      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+    }
 
     setSimulationDate(
       `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
@@ -430,6 +450,27 @@ export const DemandSidebar = memo(function DemandSidebar({
     setSimulationDate,
     setSimulationTimeMinutes,
   } = environmentControls;
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerToast = useCallback((message: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastMessage(message);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
   function activateLiveMode() {
     const clock = currentSimulationClock();
     setSimulationDate(clock.dateIso);
@@ -446,12 +487,39 @@ export const DemandSidebar = memo(function DemandSidebar({
 
   function handleHeatmapHourChange(hour: number) {
     setCircumstanceMode("specific");
+
+    // 미니맵 조작 시 미래 시각 검증
+    const [y, m, d] = simulationDate.split("-");
+    const currentYear = parseInt(y || "2026", 10);
+    const currentM = parseInt(m || "1", 10);
+    const currentD = parseInt(d || "1", 10);
+
+    const target = new Date(currentYear, currentM - 1, currentD, hour, 0, 0);
+    const now = new Date();
+
+    if (target > now) {
+      triggerToast("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+      const safeHour = now.getHours();
+      setHeatmapHour(safeHour);
+      setSimulationTimeMinutes(safeHour * 60);
+      return;
+    }
+
     setHeatmapHour(hour);
     setSimulationTimeMinutes(hour * 60);
   }
 
   return (
     <>
+      {/* 커스텀 토스트 알림 오버레이 */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 z-[9999] -translate-x-1/2 animate-bounce">
+          <div className="flex items-center gap-2.5 rounded-2xl border border-rose-500/30 bg-slate-950/90 px-4 py-3 text-sm font-semibold text-rose-200 shadow-2xl backdrop-blur-md shadow-rose-950/20">
+            <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" aria-hidden="true" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
       <button
         type="button"
         aria-label="정보 패널 닫기"
@@ -552,6 +620,7 @@ export const DemandSidebar = memo(function DemandSidebar({
             setSimulationDate={setSimulationDate}
             setSimulationTimeMinutes={setSimulationTimeMinutes}
             setHeatmapHour={setHeatmapHour}
+            onValidationError={triggerToast}
           />
         ) : null}
 
