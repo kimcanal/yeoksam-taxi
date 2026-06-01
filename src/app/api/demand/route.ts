@@ -54,9 +54,26 @@ export async function GET(request: Request) {
   }
   targetUrl.searchParams.set("date", backendDate);
 
-  return proxyBackendGet({
+  const response = await proxyBackendGet({
     targetUrl,
     logLabel: "API",
     cacheTtlMs: DEMAND_PROXY_CACHE_TTL_MS,
   });
+
+  // 오늘 날짜 24시간 수요 데이터 조회인 경우에 한해서 브라우저 캐싱 (Cache-Control) 허용
+  if (response.ok && scope === "daily") {
+    const KST_OFFSET = 9 * 60 * 60 * 1000;
+    const todayKst = new Date(Date.now() + KST_OFFSET);
+    const todayStr = todayKst.toISOString().slice(0, 10); // YYYY-MM-DD
+    const todayBackendStr = todayStr.replaceAll("-", "");
+
+    if (backendDate === todayBackendStr) {
+      response.headers.set(
+        "Cache-Control",
+        "public, max-age=3600, stale-while-revalidate=600",
+      );
+    }
+  }
+
+  return response;
 }

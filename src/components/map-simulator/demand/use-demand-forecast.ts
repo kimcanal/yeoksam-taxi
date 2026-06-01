@@ -28,6 +28,8 @@ const DEMAND_API_ENDPOINT =
 
 type DemandSeriesByDong = Record<string, HourlyDemandPoint[]>;
 
+let todayDemandCache: DemandSeriesByDong | null = null;
+
 function demandAtHour(points: HourlyDemandPoint[] | undefined, hour: number) {
   return points?.find((point) => point.hour === hour)?.demandPred ?? null;
 }
@@ -132,6 +134,18 @@ export function useDemandForecast({
       return;
     }
 
+    // 현실 기준 오늘 날짜(KST) 구하기
+    const KST_OFFSET = 9 * 60 * 60 * 1000;
+    const todayStr = new Date(Date.now() + KST_OFFSET).toISOString().slice(0, 10);
+    const isToday = simulationDate === todayStr;
+
+    // 만약 오늘 날짜이고 이미 메모리 캐시에 데이터가 존재한다면 즉각 반환하고 통신 생략!
+    if (isToday && todayDemandCache) {
+      setDemandSeriesByDong(todayDemandCache);
+      setHeatmapFetchStatus("ready");
+      return;
+    }
+
     const controller = new AbortController();
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
@@ -143,8 +157,10 @@ export function useDemandForecast({
       const url = new URL(DEMAND_API_ENDPOINT, window.location.origin);
       url.searchParams.set("scope", "daily");
       url.searchParams.set("date", simulationDate);
+      
+      // 오늘인 경우 브라우저 HTTP 캐싱을 타도록 cache: "default" 지정, 과거일 땐 no-store 유지
       const response = await fetch(url.toString(), {
-        cache: "no-store",
+        cache: isToday ? "default" : "no-store",
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -177,6 +193,12 @@ export function useDemandForecast({
         if (controller.signal.aborted || nextSeries === null) {
           return;
         }
+
+        // 가져온 데이터가 오늘이고 유효하다면 오늘 전용 런타임 메모리 캐시에 박제!
+        if (isToday && Object.keys(nextSeries).length > 0) {
+          todayDemandCache = nextSeries;
+        }
+
         setDemandSeriesByDong(nextSeries);
         setHeatmapFetchStatus(
           Object.keys(nextSeries).length > 0 ? "ready" : "error",
