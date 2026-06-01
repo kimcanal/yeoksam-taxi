@@ -82,7 +82,9 @@ export type DemandSidebarProps = {
 type SpecificModeControlsProps = Omit<
   DemandSidebarEnvironmentControls,
   "circumstanceMode"
->;
+> & {
+  setHeatmapHour: (hour: number) => void;
+};
 
 function SpecificModeControls({
   simulationDate,
@@ -90,11 +92,44 @@ function SpecificModeControls({
   setCircumstanceMode,
   setSimulationDate,
   setSimulationTimeMinutes,
+  setHeatmapHour,
 }: SpecificModeControlsProps) {
   const [y, m, d] = simulationDate.split("-");
   const [hStr] = formattedSimulationTime.split(":");
   const currentHour = parseInt(hStr || "0", 10);
   const currentYear = parseInt(y || "2026", 10);
+
+  // 현재 현실 시각 구하기
+  const realNow = new Date();
+  const realYear = realNow.getFullYear();
+  const realMonth = realNow.getMonth() + 1; // 1-indexed
+  const realDay = realNow.getDate();
+  const realHour = realNow.getHours();
+
+  // 특정 연-월-일 시 정보가 미래인지 검증하고, 미래일 경우 현재 현실 시각으로 안전하게 클램핑해주는 헬퍼
+  function getSafeDateTime(
+    targetYear: number,
+    targetMonth: number,
+    targetDay: number,
+    targetHour: number,
+  ) {
+    const target = new Date(targetYear, targetMonth - 1, targetDay, targetHour, 0, 0);
+    const now = new Date();
+    if (target > now) {
+      return {
+        year: now.getFullYear(),
+        month: now.getMonth() + 1,
+        day: now.getDate(),
+        hour: now.getHours(),
+      };
+    }
+    return {
+      year: targetYear,
+      month: targetMonth,
+      day: targetDay,
+      hour: targetHour,
+    };
+  }
 
   // 해당 연도/월의 마지막 날 계산
   const daysInMonth = new Date(
@@ -105,52 +140,82 @@ function SpecificModeControls({
 
   function handleYearChange(value: string) {
     setCircumstanceMode("specific");
-    const newYear = value;
-    // 일이 새 연도/월에서 유효한지 확인
-    const newDaysInMonth = new Date(
-      parseInt(newYear, 10),
-      parseInt(m || "1", 10),
-      0,
-    ).getDate();
-    const safeDay = Math.min(parseInt(d || "1", 10), newDaysInMonth);
+    const newYear = parseInt(value, 10);
+    const currentM = parseInt(m || "1", 10);
+    const currentD = parseInt(d || "1", 10);
+
+    const newDaysInMonth = new Date(newYear, currentM, 0).getDate();
+    const tempDay = Math.min(currentD, newDaysInMonth);
+
+    const safe = getSafeDateTime(newYear, currentM, tempDay, currentHour);
+
     setSimulationDate(
-      `${newYear}-${m || "01"}-${safeDay.toString().padStart(2, "0")}`,
+      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
+    if (safe.hour !== currentHour) {
+      setHeatmapHour(safe.hour);
+      setSimulationTimeMinutes(safe.hour * 60);
+    }
   }
 
   function handleMonthChange(value: string) {
     setCircumstanceMode("specific");
-    // 일이 새 월에서 유효한지 확인
-    const newDaysInMonth = new Date(
-      currentYear,
-      parseInt(value, 10),
-      0,
-    ).getDate();
-    const safeDay = Math.min(parseInt(d || "1", 10), newDaysInMonth);
+    const newMonth = parseInt(value, 10);
+    const currentD = parseInt(d || "1", 10);
+
+    const newDaysInMonth = new Date(currentYear, newMonth, 0).getDate();
+    const tempDay = Math.min(currentD, newDaysInMonth);
+
+    const safe = getSafeDateTime(currentYear, newMonth, tempDay, currentHour);
+
     setSimulationDate(
-      `${y || "2026"}-${value.padStart(2, "0")}-${safeDay.toString().padStart(2, "0")}`,
+      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
+    if (safe.hour !== currentHour) {
+      setHeatmapHour(safe.hour);
+      setSimulationTimeMinutes(safe.hour * 60);
+    }
   }
 
   function handleDayChange(value: string) {
     setCircumstanceMode("specific");
+    const newDay = parseInt(value, 10);
+    const currentM = parseInt(m || "1", 10);
+
+    const safe = getSafeDateTime(currentYear, currentM, newDay, currentHour);
+
     setSimulationDate(
-      `${y || "2026"}-${m || "01"}-${value.padStart(2, "0")}`,
+      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
     );
+    if (safe.hour !== currentHour) {
+      setHeatmapHour(safe.hour);
+      setSimulationTimeMinutes(safe.hour * 60);
+    }
   }
 
   function handleHourSelect(value: number) {
     setCircumstanceMode("specific");
-    // 분은 항상 00분 고정
-    setSimulationTimeMinutes(value * 60);
+    const currentM = parseInt(m || "1", 10);
+    const currentD = parseInt(d || "1", 10);
+
+    const safe = getSafeDateTime(currentYear, currentM, currentD, value);
+
+    setSimulationDate(
+      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
+    );
+    setHeatmapHour(safe.hour);
+    setSimulationTimeMinutes(safe.hour * 60);
   }
 
   // 연도 범위: 2020 ~ 현재 연도
-  const currentRealYear = new Date().getFullYear();
   const yearOptions = Array.from(
-    { length: currentRealYear - 2020 + 1 },
+    { length: realYear - 2020 + 1 },
     (_, i) => 2020 + i,
   );
+
+  const isCurrentYear = currentYear === realYear;
+  const isCurrentMonth = isCurrentYear && parseInt(m || "1", 10) === realMonth;
+  const isToday = isCurrentMonth && parseInt(d || "1", 10) === realDay;
 
   return (
     <>
@@ -183,7 +248,7 @@ function SpecificModeControls({
           </div>
         </div>
 
-        {/* 월 — 기존 select 유지 */}
+        {/* 월 — 미래 월 비활성화 */}
         <div className="group relative">
           <select
             value={parseInt(m || "1", 10).toString()}
@@ -192,15 +257,19 @@ function SpecificModeControls({
             id="date-month"
           >
             {Array.from({ length: 12 }, (_, index) => index + 1).map(
-              (month) => (
-                <option
-                  key={month}
-                  value={month}
-                  className="bg-slate-900 text-slate-100"
-                >
-                  {month}월
-                </option>
-              ),
+              (month) => {
+                const isFutureMonth = isCurrentYear && month > realMonth;
+                return (
+                  <option
+                    key={month}
+                    value={month}
+                    disabled={isFutureMonth}
+                    className={`bg-slate-900 ${isFutureMonth ? "text-slate-600" : "text-slate-100"}`}
+                  >
+                    {month}월
+                  </option>
+                );
+              },
             )}
           </select>
           <label
@@ -214,7 +283,7 @@ function SpecificModeControls({
           </div>
         </div>
 
-        {/* 일 — 클릭형 select (해당 월의 실제 날짜 수에 맞게 동적 생성) */}
+        {/* 일 — 미래 일 비활성화 */}
         <div className="group relative">
           <select
             value={parseInt(d || "1", 10)}
@@ -223,15 +292,19 @@ function SpecificModeControls({
             id="date-day"
           >
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
-              (day) => (
-                <option
-                  key={day}
-                  value={day}
-                  className="bg-slate-900 text-slate-100"
-                >
-                  {day}일
-                </option>
-              ),
+              (day) => {
+                const isFutureDay = isCurrentMonth && day > realDay;
+                return (
+                  <option
+                    key={day}
+                    value={day}
+                    disabled={isFutureDay}
+                    className={`bg-slate-900 ${isFutureDay ? "text-slate-600" : "text-slate-100"}`}
+                  >
+                    {day}일
+                  </option>
+                );
+              },
             )}
           </select>
           <label
@@ -250,7 +323,7 @@ function SpecificModeControls({
         조회 시간
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {/* 시 — 기존 select 유지 */}
+        {/* 시 — 미래 시 비활성화 */}
         <div className="group relative">
           <select
             value={currentHour}
@@ -258,15 +331,19 @@ function SpecificModeControls({
             className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
             id="time-hour"
           >
-            {Array.from({ length: 24 }, (_, index) => index).map((hour) => (
-              <option
-                key={hour}
-                value={hour}
-                className="bg-slate-900 text-slate-100"
-              >
-                {hour.toString().padStart(2, "0")}시 (h)
-              </option>
-            ))}
+            {Array.from({ length: 24 }, (_, index) => index).map((hour) => {
+              const isFutureHour = isToday && hour > realHour;
+              return (
+                <option
+                  key={hour}
+                  value={hour}
+                  disabled={isFutureHour}
+                  className={`bg-slate-900 ${isFutureHour ? "text-slate-600" : "text-slate-100"}`}
+                >
+                  {hour.toString().padStart(2, "0")}시 (h)
+                </option>
+              );
+            })}
           </select>
           <label
             htmlFor="time-hour"
@@ -279,7 +356,7 @@ function SpecificModeControls({
           </div>
         </div>
 
-        {/* 분 — 항상 00분 고정, 외관은 동일하지만 변경 불가 */}
+        {/* 분 — 항상 00분 고정 */}
         <div className="group relative">
           <select
             value={0}
@@ -357,11 +434,20 @@ export const DemandSidebar = memo(function DemandSidebar({
     const clock = currentSimulationClock();
     setSimulationDate(clock.dateIso);
     setSimulationTimeMinutes(clock.minutes);
+    setHeatmapHour(Math.floor(clock.minutes / 60));
     setCircumstanceMode("live");
   }
 
   function activateSpecificMode() {
+    const [hourText] = formattedSimulationTime.split(":");
+    setHeatmapHour(parseInt(hourText || "0", 10));
     setCircumstanceMode("specific");
+  }
+
+  function handleHeatmapHourChange(hour: number) {
+    setCircumstanceMode("specific");
+    setHeatmapHour(hour);
+    setSimulationTimeMinutes(hour * 60);
   }
 
   return (
@@ -465,6 +551,7 @@ export const DemandSidebar = memo(function DemandSidebar({
             setCircumstanceMode={setCircumstanceMode}
             setSimulationDate={setSimulationDate}
             setSimulationTimeMinutes={setSimulationTimeMinutes}
+            setHeatmapHour={setHeatmapHour}
           />
         ) : null}
 
@@ -559,7 +646,7 @@ export const DemandSidebar = memo(function DemandSidebar({
         heatmapMaxDemand={heatmapMaxDemand}
         heatmapScope={heatmapScope}
         selectedDongName={selectedDongName}
-        setHeatmapHour={setHeatmapHour}
+        setHeatmapHour={handleHeatmapHourChange}
         setHeatmapScope={setHeatmapScope}
         mapPoiFeatureRows={mapPoiFeatureRows}
         onPoiSelect={onPoiSelect}

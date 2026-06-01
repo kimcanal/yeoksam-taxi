@@ -62,6 +62,7 @@ export function useDemandForecast({
       : "";
   const effectiveHeatmapHour =
     circumstanceMode === "live" ? selectedForecastHour : heatmapHour;
+  const effectiveDemandTimeMinutes = effectiveHeatmapHour * 60;
 
   const hourlyDemandSeries = useMemo(
     () => demandSeriesByDong[selectedDongName] ?? [],
@@ -78,10 +79,10 @@ export function useDemandForecast({
     }
     const slotIndex = Math.min(
       fiveMinuteDemandSeries.length - 1,
-      Math.floor(normalizedSimulationTimeMinutes / DEMAND_SLOT_MINUTES),
+      Math.floor(effectiveDemandTimeMinutes / DEMAND_SLOT_MINUTES),
     );
     return fiveMinuteDemandSeries[slotIndex] ?? null;
-  }, [fiveMinuteDemandSeries, normalizedSimulationTimeMinutes]);
+  }, [effectiveDemandTimeMinutes, fiveMinuteDemandSeries]);
   const currentDemandVisualUnits = currentDemandSlot?.visualUnits ?? 0;
   const currentFiveMinuteDemand = currentDemandSlot?.demand ?? 0;
   const currentMapDemand = useMemo(
@@ -202,8 +203,8 @@ export function useDemandForecast({
   const selectedAverageDemand = averageDemand(hourlyDemandSeries);
   const selectedPeakDemand = demandChart.peakPoint;
   const selectedDemandScore = useMemo(
-    () => scoreDemandAtHour(hourlyDemandSeries, normalizedSimulationTimeMinutes),
-    [hourlyDemandSeries, normalizedSimulationTimeMinutes],
+    () => scoreDemandAtHour(hourlyDemandSeries, effectiveDemandTimeMinutes),
+    [effectiveDemandTimeMinutes, hourlyDemandSeries],
   );
   const selectedDemandIntensityLabel =
     selectedDemandScore === null
@@ -219,6 +220,16 @@ export function useDemandForecast({
     });
     return Object.fromEntries(entries) as Record<string, number>;
   }, [demandSeriesByDong, effectiveHeatmapHour]);
+  const heatmapDailyMaxDemand = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...Object.values(demandSeriesByDong).flatMap((series) =>
+          series.map((point) => point.demandPred),
+        ),
+      ),
+    [demandSeriesByDong],
+  );
   const heatmapDemandByDong = useMemo(() => {
     if (heatmapScope === "all") {
       return heatmapAllDemandByDong;
@@ -270,6 +281,7 @@ export function useDemandForecast({
     heatmapDemandByDong,
     heatmapFetchStatus,
     heatmapHour: effectiveHeatmapHour,
+    heatmapDailyMaxDemand,
     heatmapMaxDemand,
     heatmapScope,
     setHeatmapHour,
