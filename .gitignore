@@ -39,9 +39,9 @@ yarn-error.log*
 /.claude/
 /.venv/
 dev-server.*.log
- /papers/
- /notebooks/
- /scripts/__pycache__/
+/papers/
+/notebooks/
+/scripts/__pycache__/
 
 # python cache
 __pycache__/
@@ -76,3 +76,6 @@ next-env.d.ts
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# SSL certs (local only)
+certs/

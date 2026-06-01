@@ -244,6 +244,7 @@ export function createBuildingLodLayer(
 
   const projectionMatrix = new THREE.Matrix4();
   const frustum = new THREE.Frustum();
+  const reusableSphere = new THREE.Sphere();
 
   return {
     root,
@@ -255,9 +256,10 @@ export function createBuildingLodLayer(
         camera.matrixWorldInverse,
       );
       frustum.setFromProjectionMatrix(projectionMatrix);
-      const visibility = chunks.map((chunk) =>
-        frustum.intersectsSphere(new THREE.Sphere(chunk.center, chunk.radius + 12)),
-      );
+      const visibility = chunks.map((chunk) => {
+        reusableSphere.set(chunk.center, chunk.radius + 12); // 도로 LOD는 +16
+        return frustum.intersectsSphere(reusableSphere);
+      });
       const disableFrustumCulling = !visibility.some(Boolean);
 
       chunks.forEach((chunk, index) => {

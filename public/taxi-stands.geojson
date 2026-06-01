@@ -5,7 +5,7 @@
     "source": "https://data.seoul.go.kr/dataList/OA-22228/F/1/datasetView.do",
     "source_dataset_id": "OA-22228",
     "generated_at_kst": "2026-05-11T12:25:31+09:00",
-    "feature_count": 248,
+    "feature_count": 254,
     "target_dongs": [
       "논현1동",
       "논현2동",
@@ -16,8 +16,7 @@
       "역삼1동",
       "역삼2동",
       "청담동"
-    ],
-    "note": "잘못된 외부 동 스팟 제거, 대치4동 스팟 2개 추가"
+    ]
   },
   "features": [
     {
@@ -7405,29 +7404,29 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          127.0484,
-          37.4953
+          127.07472,
+          37.51092
         ]
       },
       "properties": {
-        "source_row": 300,
-        "stand_id": "CUSTOM-DAECHI4-001",
-        "old_id": "",
-        "jcd_id": "",
-        "stand_type": "폴형",
-        "facility_type": "폴형",
-        "installed_at": "2024년",
-        "lon": 127.0484,
-        "lat": 37.4953,
+        "source_row": 250,
+        "stand_id": "24-142623",
+        "old_id": "송파-23",
+        "jcd_id": "S-50",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2026년",
+        "lon": 127.07472,
+        "lat": 37.51092,
         "powered": "-",
-        "district": "강남구",
-        "source_dong_name": "대치4동",
-        "dong_name": "대치4동",
-        "lot_address": "",
-        "road_address": "테헤란로 621",
-        "adjacent_road": "테헤란로",
-        "location_name": "대치4동 테헤란로 승차 스팟",
-        "is_target_dong": true
+        "district": "",
+        "source_dong_name": "잠실동",
+        "dong_name": "잠실동",
+        "lot_address": "잠실동51",
+        "road_address": "잠실동52",
+        "adjacent_road": "올림픽로",
+        "location_name": "잠실종합운동장역 1번출구",
+        "is_target_dong": false
       }
     },
     {
@@ -7435,29 +7434,209 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          127.0552,
-          37.4978
+          127.16375,
+          37.55663
         ]
       },
       "properties": {
-        "source_row": 301,
-        "stand_id": "CUSTOM-DAECHI4-002",
-        "old_id": "",
-        "jcd_id": "",
+        "source_row": 251,
+        "stand_id": "25-021901",
+        "old_id": "강동-01",
+        "jcd_id": "B-03",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2019-10-24",
+        "lon": 127.16375,
+        "lat": 37.55663,
+        "powered": "-",
+        "district": "강동구",
+        "source_dong_name": "고덕동",
+        "dong_name": "고덕동",
+        "lot_address": "고덕동 299",
+        "road_address": "고덕로 391-1",
+        "adjacent_road": "고덕로",
+        "location_name": "고덕그라시움 107동 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.14826,
+          37.55476
+        ]
+      },
+      "properties": {
+        "source_row": 252,
+        "stand_id": "25-091206",
+        "old_id": "강동-02",
+        "jcd_id": "B-17",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2012-04-13",
+        "lon": 127.14826,
+        "lat": 37.55476,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "상일동",
+        "dong_name": "상일동",
+        "lot_address": "상일동 149",
+        "road_address": "동남로 892",
+        "adjacent_road": "동남로",
+        "location_name": "강동경희대학교병원 앞(장례식장 건물 앞)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.14254,
+          37.54616
+        ]
+      },
+      "properties": {
+        "source_row": 253,
+        "stand_id": "25-040202",
+        "old_id": "강동-03",
+        "jcd_id": "B-16",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.14254,
+        "lat": 37.54616,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "천호동",
+        "dong_name": "천호동",
+        "lot_address": "천호동 42",
+        "road_address": "양재대로 1571",
+        "adjacent_road": "상암로",
+        "location_name": "홈플러스 강동점 앞(굽은다리역 2번 출구 방향)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.13698,
+          37.53029
+        ]
+      },
+      "properties": {
+        "source_row": 254,
+        "stand_id": "25-052104",
+        "old_id": "강동-04",
+        "jcd_id": "B-07",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-21",
+        "lon": 127.13698,
+        "lat": 37.53029,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 397-10",
+        "road_address": "양재대로 1393",
+        "adjacent_road": "양재대로",
+        "location_name": "삼진빌딩 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12901,
+          37.52369
+        ]
+      },
+      "properties": {
+        "source_row": 255,
+        "stand_id": "25-050203",
+        "old_id": "강동-05",
+        "jcd_id": "B-05",
+        "stand_type": "쉘터형",
+        "facility_type": "구형",
+        "installed_at": "2002년",
+        "lon": 127.12901,
+        "lat": 37.52369,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 448-11",
+        "road_address": "강동대로 207",
+        "adjacent_road": "강동대로",
+        "location_name": "삼성SDS 성내사옥 앞",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.12172,
+          37.52703
+        ]
+      },
+      "properties": {
+        "source_row": 256,
+        "stand_id": "25-052105",
+        "old_id": "강동-06",
+        "jcd_id": "B-08",
+        "stand_type": "쉘터형",
+        "facility_type": "표준형",
+        "installed_at": "2021-05-21",
+        "lon": 127.12172,
+        "lat": 37.52703,
+        "powered": "-",
+        "district": "",
+        "source_dong_name": "성내동",
+        "dong_name": "성내동",
+        "lot_address": "성내동 459-6",
+        "road_address": "강동대로 143-22",
+        "adjacent_road": "강동대로",
+        "location_name": "채선당 올림픽공원점 앞(청구빌라트 옆)",
+        "is_target_dong": false
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          127.13727,
+          37.52585
+        ]
+      },
+      "properties": {
+        "source_row": 257,
+        "stand_id": "25-062507P",
+        "old_id": "강동-07",
+        "jcd_id": "Pole-30",
         "stand_type": "폴형",
         "facility_type": "폴형",
-        "installed_at": "2024년",
-        "lon": 127.0552,
-        "lat": 37.4978,
+        "installed_at": "2025년",
+        "lon": 127.13727,
+        "lat": 37.52585,
         "powered": "-",
-        "district": "강남구",
-        "source_dong_name": "대치4동",
-        "dong_name": "대치4동",
-        "lot_address": "",
-        "road_address": "영동대로 513",
-        "adjacent_road": "영동대로",
-        "location_name": "대치4동 영동대로 승차 스팟",
-        "is_target_dong": true
+        "district": "",
+        "source_dong_name": "둔촌동",
+        "dong_name": "둔촌동",
+        "lot_address": "둔촌동170",
+        "road_address": "둔촌동170",
+        "adjacent_road": "둔촌동",
+        "location_name": "둔촌동파출소 앞",
+        "is_target_dong": false
       }
     }
   ]

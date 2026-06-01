@@ -143,10 +143,22 @@ export function createVehicleTrailLayer({
   };
 
   const updateTrailGeometry = (visual: TrailVisual, nowMs: number) => {
-    const livePoints = visual.points
-      .filter((point) => nowMs - point.timestampMs <= tailDurationMs)
-      .slice(-maxPoints);
-    visual.points = livePoints;
+    // 만료된 포인트 앞에서부터 제거 (배열 재생성 없이)
+    let startIndex = 0;
+    while (
+      startIndex < visual.points.length &&
+      nowMs - visual.points[startIndex]!.timestampMs > tailDurationMs
+    ) {
+      startIndex += 1;
+    }
+    if (startIndex > 0) {
+      visual.points.splice(0, startIndex);
+    }
+    // maxPoints 초과분 제거
+    if (visual.points.length > maxPoints) {
+      visual.points.splice(0, visual.points.length - maxPoints);
+    }
+    const livePoints = visual.points;
 
     const positionAttribute = visual.geometry.getAttribute(
       "position",

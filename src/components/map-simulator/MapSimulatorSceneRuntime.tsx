@@ -3319,21 +3319,8 @@ export default function MapSimulatorSceneRuntime({
       markLabelVisibilityDirty();
     };
 
-    const controlKeyCodes = new Set([
-      "KeyW",
-      "KeyA",
-      "KeyQ",
-      "KeyS",
-      "KeyD",
-      "KeyE",
-      "KeyF",
-      "ShiftLeft",
-      "ShiftRight",
-      "ArrowUp",
-      "ArrowDown",
-      "ArrowLeft",
-      "ArrowRight",
-    ]);
+    // Mobile-only: movement keys removed. Only KeyF (FPS toggle) is tracked.
+    const controlKeyCodes = new Set(["KeyF"]);
 
     const isInteractiveTarget = (target: EventTarget | null) => {
       const element = target as HTMLElement | null;
@@ -3369,7 +3356,12 @@ export default function MapSimulatorSceneRuntime({
         followTaxiIdRef.current = "";
         setFollowTaxiId("");
       }
-      if (cameraModeRef.current !== "drive") {
+      // Mobile map style: stay in overview when already there so render budget
+      // stays high. Only switch to drive when coming from follow mode.
+      if (
+        cameraModeRef.current !== "drive" &&
+        cameraModeRef.current !== "overview"
+      ) {
         cameraModeRef.current = "drive";
         activeCameraMode = "drive";
         setCameraMode("drive");
@@ -3683,17 +3675,15 @@ export default function MapSimulatorSceneRuntime({
         followOrbit.yawOffset = wrapAngle(
           followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
         );
+        syncCamera();
       } else if (cameraModeRef.current === "ride") {
         return;
       } else {
-        cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
+        // Naver Maps-style: mouse drag pans the map instead of rotating.
+        enterTouchMapMode();
+        panCameraByScreenDelta(deltaX, deltaY);
+        syncCamera();
       }
-      cameraRig.pitch = THREE.MathUtils.clamp(
-        cameraRig.pitch - deltaY * CAMERA_DRAG_SENSITIVITY,
-        CAMERA_MIN_PITCH,
-        CAMERA_MAX_PITCH,
-      );
-      syncCamera();
     };
 
     const onPointerUp = (event: PointerEvent) => {
@@ -3784,27 +3774,7 @@ export default function MapSimulatorSceneRuntime({
         setShowFps((current) => !current);
         return;
       }
-      if (!controlKeyCodes.has(event.code)) {
-        return;
-      }
-      if (!isInteractiveTarget(event.target)) {
-        event.preventDefault();
-      }
-      if (
-        cameraModeRef.current === "overview" &&
-        (event.code === "KeyW" ||
-          event.code === "KeyA" ||
-          event.code === "KeyS" ||
-          event.code === "KeyD" ||
-          event.code === "ArrowUp" ||
-          event.code === "ArrowDown" ||
-          event.code === "ArrowLeft" ||
-          event.code === "ArrowRight")
-      ) {
-        cameraModeRef.current = "drive";
-        setCameraMode("drive");
-      }
-      pressedKeys.add(event.code);
+      // No movement keys — nothing further to handle.
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
@@ -4021,63 +3991,13 @@ export default function MapSimulatorSceneRuntime({
 
       if (currentMode === "drive") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const forwardInput =
-          Number(pressedKeys.has("KeyW") || pressedKeys.has("ArrowUp")) -
-          Number(pressedKeys.has("KeyS") || pressedKeys.has("ArrowDown"));
-        const strafeInput =
-          Number(pressedKeys.has("KeyD") || pressedKeys.has("ArrowRight")) -
-          Number(pressedKeys.has("KeyA") || pressedKeys.has("ArrowLeft"));
-        const turnInput =
-          Number(pressedKeys.has("KeyE")) - Number(pressedKeys.has("KeyQ"));
-        const boostScale =
-          pressedKeys.has("ShiftLeft") || pressedKeys.has("ShiftRight")
-            ? 1.8
-            : 1;
-        const moveSpeed =
-          CAMERA_DRIVE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
-        const strafeSpeed =
-          CAMERA_STRAFE_SPEED * CAMERA_BASE_MOVE_SCALE * boostScale;
-        const turnSpeed = CAMERA_TURN_SPEED * CAMERA_BASE_TURN_SCALE;
-
-        if (turnInput !== 0) {
-          cameraRig.yaw += turnInput * turnSpeed * delta;
-        }
-        if (forwardInput !== 0 || strafeInput !== 0) {
-          driveLookDirection.copy(cameraRig.focus).sub(camera.position).setY(0);
-          if (driveLookDirection.lengthSq() < 0.0001) {
-            driveLookDirection.set(
-              -Math.sin(cameraRig.yaw),
-              0,
-              -Math.cos(cameraRig.yaw),
-            );
-          }
-          driveLookDirection.normalize();
-          driveStrafeDirection.set(
-            -driveLookDirection.z,
-            0,
-            driveLookDirection.x,
-          ).normalize();
-          cameraRig.focus.addScaledVector(
-            driveStrafeDirection,
-            strafeInput * strafeSpeed * delta,
-          );
-          cameraRig.focus.addScaledVector(
-            driveLookDirection,
-            forwardInput * moveSpeed * delta,
-          );
-        }
         cameraRig.focus.y = THREE.MathUtils.damp(
           cameraRig.focus.y,
           0,
           4.6,
           delta,
         );
-        if (
-          forwardInput !== 0 ||
-          strafeInput !== 0 ||
-          turnInput !== 0 ||
-          cameraRig.dragging
-        ) {
+        if (cameraRig.dragging) {
           cameraFocusTargetRef.current = null;
         } else if (cameraFocusTargetRef.current) {
           const focusTarget = cameraFocusTargetRef.current;
@@ -4127,12 +4047,42 @@ export default function MapSimulatorSceneRuntime({
         }
       } else if (currentMode === "overview") {
         cameraLookLift = CAMERA_LOOK_HEIGHT;
-        const overviewDistance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
-        const lerpAlpha = 1 - Math.exp(-delta * 3.8);
-        cameraRig.focus.lerp(new THREE.Vector3(centerPoint.x, 0, centerPoint.z), lerpAlpha);
-        cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 3.8, delta);
-        cameraRig.pitch = THREE.MathUtils.damp(cameraRig.pitch, 0.7, 3.8, delta);
-        cameraRig.distance = THREE.MathUtils.damp(cameraRig.distance, overviewDistance, 3.8, delta);
+        // Only snap back to the fixed overview position when the user is not
+        // actively panning/pinching (Naver Maps-style free interaction).
+        const userIsPanning =
+          cameraRig.dragging || activeTouchPointers.size > 0;
+        if (!userIsPanning && !cameraFocusTargetRef.current) {
+          const overviewDistance = Math.sqrt(120 * 120 + 135 * 135 + 150 * 150);
+          const lerpAlpha = 1 - Math.exp(-delta * 3.8);
+          cameraRig.focus.lerp(new THREE.Vector3(centerPoint.x, 0, centerPoint.z), lerpAlpha);
+          cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 3.8, delta);
+          cameraRig.pitch = THREE.MathUtils.damp(cameraRig.pitch, 0.7, 3.8, delta);
+          cameraRig.distance = THREE.MathUtils.damp(cameraRig.distance, overviewDistance, 3.8, delta);
+        } else if (cameraFocusTargetRef.current) {
+          const focusTarget = cameraFocusTargetRef.current;
+          const targetDistance = THREE.MathUtils.clamp(
+            focusTarget.distance,
+            CAMERA_MIN_DISTANCE,
+            maxMapDistance,
+          );
+          cameraRig.focus.x = THREE.MathUtils.damp(cameraRig.focus.x, focusTarget.x, 5.6, delta);
+          cameraRig.focus.z = THREE.MathUtils.damp(cameraRig.focus.z, focusTarget.z, 5.6, delta);
+          cameraRig.pitch = THREE.MathUtils.damp(cameraRig.pitch, focusTarget.pitch, 5.2, delta);
+          cameraRig.distance = THREE.MathUtils.damp(cameraRig.distance, targetDistance, 5.2, delta);
+          if (focusTarget.yaw !== undefined) {
+            cameraRig.yaw = dampAngle(cameraRig.yaw, focusTarget.yaw, 5.2, delta);
+          }
+          if (
+            Math.abs(cameraRig.focus.x - focusTarget.x) < 0.45 &&
+            Math.abs(cameraRig.focus.z - focusTarget.z) < 0.45 &&
+            Math.abs(cameraRig.pitch - focusTarget.pitch) < 0.02 &&
+            Math.abs(cameraRig.distance - targetDistance) < 0.7 &&
+            (focusTarget.yaw === undefined ||
+              Math.abs(wrapAngle(cameraRig.yaw - focusTarget.yaw)) < 0.03)
+          ) {
+            cameraFocusTargetRef.current = null;
+          }
+        }
       } else if (currentMode === "follow") {
         if (followTaxiIdRef.current !== activeFollowTaxiId) {
           activeFollowTaxiId = followTaxiIdRef.current;

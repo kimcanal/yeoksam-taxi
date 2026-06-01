@@ -1,286 +1,162 @@
 {
-  "version": 5,
-  "generated_at": "2026-05-19",
-  "description": "동별 정적 쿼터 및 대로변 역출구 최대 2개 필터 적용 핫스팟 셋",
+  "version": 1,
+  "generated_at": "2026-05-06",
+  "description": "Gangnam-focused POI registry for map-context anchors. These entries are presentation anchors only; realtime interpretation belongs to the backend.",
   "context_pois": [
     {
-      "code": "AUTO_POI_001",
-      "name": "삼성2동 도로변 건물",
+      "code": "POI001",
+      "name": "강남 MICE 관광특구",
+      "coverage_dong": "삼성1동",
+      "category": "tourism_business",
+      "lon": 127.059,
+      "lat": 37.5127,
+      "note": "COEX/MICE district context anchor for Samsung-dong."
+    },
+    {
+      "code": "POI014",
+      "name": "강남역",
+      "coverage_dong": "역삼1동",
+      "category": "station_commercial",
+      "lon": 127.0276,
+      "lat": 37.498,
+      "note": "High-volume station and commercial demand anchor."
+    },
+    {
+      "code": "POI034",
+      "name": "선릉역",
       "coverage_dong": "삼성2동",
-      "category": "road_corridor_context",
-      "lon": 127.05110075,
-      "lat": 37.50618225,
-      "note": "삼성2동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_office",
+      "lon": 127.049,
+      "lat": 37.5045,
+      "note": "Station and office-flow proxy around Seolleung."
     },
     {
-      "code": "AUTO_POI_002",
-      "name": "논현1동 도로변 건물",
+      "code": "POI037",
+      "name": "신논현역·논현역",
       "coverage_dong": "논현1동",
-      "category": "road_corridor_context",
-      "lon": 127.02877892592593,
-      "lat": 37.50521922222222,
-      "note": "논현1동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_nightlife",
+      "lon": 127.023,
+      "lat": 37.5077,
+      "note": "Combined station hotspot for Nonhyeon/Gangnam north edge."
     },
     {
-      "code": "AUTO_POI_003",
-      "name": "논현2동 도로변 건물",
+      "code": "POI041",
+      "name": "양재역",
+      "coverage_dong": null,
+      "category": "adjacent_station",
+      "lon": 127.034,
+      "lat": 37.4844,
+      "actual_area_note": "서초구 서초/양재동 및 강남구 도곡동 경계권. 9개 target dong에 직접 귀속하지 않음.",
+      "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
+    },
+    {
+      "code": "POI042",
+      "name": "역삼역",
+      "coverage_dong": "역삼1동",
+      "category": "station_office",
+      "lon": 127.037,
+      "lat": 37.5008,
+      "note": "Core Yeoksam office-flow proxy."
+    },
+    {
+      "code": "POI059",
+      "name": "가로수길",
+      "coverage_dong": "신사동",
+      "category": "commercial_street",
+      "lon": 127.0233,
+      "lat": 37.521,
+      "note": "Sinsa/Garosu-gil retail and dining visitor proxy."
+    },
+    {
+      "code": "POI071",
+      "name": "압구정로데오거리",
+      "coverage_dong": null,
+      "category": "commercial_street",
+      "lon": 127.0405,
+      "lat": 37.5275,
+      "actual_area_note": "압구정/청담 경계 성격의 상권 POI. 신사동으로 단정 매핑하지 않음.",
+      "note": "Excluded from live target-dong aggregation until boundary mapping is made explicit."
+    },
+    {
+      "code": "POI080",
+      "name": "청담동 명품거리",
+      "coverage_dong": "청담동",
+      "category": "commercial_street",
+      "lon": 127.0456,
+      "lat": 37.5248,
+      "note": "Cheongdam retail visitor context anchor."
+    },
+    {
+      "code": "POI018",
+      "name": "교대역",
+      "coverage_dong": null,
+      "category": "adjacent_station",
+      "lon": 127.0146,
+      "lat": 37.4934,
+      "actual_area_note": "서초구 서초동 권역. 강남구 대치4동에 귀속하지 않음.",
+      "note": "Excluded from live target-dong aggregation. Keep only as possible future adjacent-area context."
+    }
+  ],
+  "supplemental_context_pois": [
+    {
+      "id": "osm-hakdong-station",
+      "name": "학동역",
       "coverage_dong": "논현2동",
-      "category": "road_corridor_context",
-      "lon": 127.0429635,
-      "lat": 37.517016749999996,
-      "note": "논현2동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_context",
+      "lon": 127.03075,
+      "lat": 37.513957,
+      "source": "OSM transit.geojson",
+      "note": "Map/context POI."
     },
     {
-      "code": "AUTO_POI_004",
-      "name": "논현2동 도로변 건물",
-      "coverage_dong": "논현2동",
-      "category": "road_corridor_context",
-      "lon": 127.04474450000001,
-      "lat": 37.51754225,
-      "note": "논현2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_005",
-      "name": "삼성2동 도로변 건물",
-      "coverage_dong": "삼성2동",
-      "category": "road_corridor_context",
-      "lon": 127.04620975,
-      "lat": 37.5178345,
-      "note": "삼성2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_006",
-      "name": "삼성2동 도로변 건물",
-      "coverage_dong": "삼성2동",
-      "category": "road_corridor_context",
-      "lon": 127.04984625,
-      "lat": 37.516031,
-      "note": "삼성2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_007",
-      "name": "삼성1동 도로변 건물",
-      "coverage_dong": "삼성1동",
-      "category": "road_corridor_context",
-      "lon": 127.05966500000001,
-      "lat": 37.511664833333334,
-      "note": "삼성1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_008",
-      "name": "삼성1동 도로변 건물",
-      "coverage_dong": "삼성1동",
-      "category": "road_corridor_context",
-      "lon": 127.0599242,
-      "lat": 37.508655,
-      "note": "삼성1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_009",
-      "name": "삼성1동 도로변 건물",
-      "coverage_dong": "삼성1동",
-      "category": "road_corridor_context",
-      "lon": 127.06110012500001,
-      "lat": 37.510353437499994,
-      "note": "삼성1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_010",
-      "name": "삼성1동 도로변 건물",
-      "coverage_dong": "삼성1동",
-      "category": "road_corridor_context",
-      "lon": 127.0584995,
-      "lat": 37.51029475,
-      "note": "삼성1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_011",
-      "name": "삼성1동 도로변 건물",
-      "coverage_dong": "삼성1동",
-      "category": "road_corridor_context",
-      "lon": 127.05977471428571,
-      "lat": 37.51310685714286,
-      "note": "삼성1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_012",
-      "name": "역삼1동 도로변 건물",
+      "id": "osm-eonju-station",
+      "name": "언주역",
       "coverage_dong": "역삼1동",
-      "category": "road_corridor_context",
-      "lon": 127.03072304545456,
-      "lat": 37.50068727272726,
-      "note": "역삼1동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_context",
+      "lon": 127.033875,
+      "lat": 37.507321,
+      "source": "OSM transit.geojson",
+      "note": "Map/context POI."
     },
     {
-      "code": "AUTO_POI_013",
-      "name": "역삼1동 도로변 건물",
-      "coverage_dong": "역삼1동",
-      "category": "road_corridor_context",
-      "lon": 127.03017929999999,
-      "lat": 37.5019803,
-      "note": "역삼1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_014",
-      "name": "역삼2동 도로변 건물",
-      "coverage_dong": "역삼2동",
-      "category": "road_corridor_context",
-      "lon": 127.04270666666666,
-      "lat": 37.50152933333333,
-      "note": "역삼2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_015",
-      "name": "역삼1동 도로변 건물",
-      "coverage_dong": "역삼1동",
-      "category": "road_corridor_context",
-      "lon": 127.03171975000001,
-      "lat": 37.49878375,
-      "note": "역삼1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_016",
-      "name": "역삼1동 도로변 건물",
-      "coverage_dong": "역삼1동",
-      "category": "road_corridor_context",
-      "lon": 127.03655380555557,
-      "lat": 37.499967,
-      "note": "역삼1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_017",
-      "name": "역삼2동 도로변 건물",
-      "coverage_dong": "역삼2동",
-      "category": "road_corridor_context",
-      "lon": 127.04890125,
-      "lat": 37.502865,
-      "note": "역삼2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_018",
-      "name": "역삼2동 도로변 건물",
-      "coverage_dong": "역삼2동",
-      "category": "road_corridor_context",
-      "lon": 127.04674274999999,
-      "lat": 37.50325925,
-      "note": "역삼2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_019",
-      "name": "역삼1동 도로변 건물",
-      "coverage_dong": "역삼1동",
-      "category": "road_corridor_context",
-      "lon": 127.0327765,
-      "lat": 37.498238,
-      "note": "역삼1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_020",
-      "name": "신사동 도로변 건물",
-      "coverage_dong": "신사동",
-      "category": "road_corridor_context",
-      "lon": 127.02389765000001,
-      "lat": 37.52326375,
-      "note": "신사동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_021",
-      "name": "역삼2동 도로변 건물",
-      "coverage_dong": "역삼2동",
-      "category": "road_corridor_context",
-      "lon": 127.04798020000001,
-      "lat": 37.4999824,
-      "note": "역삼2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_022",
-      "name": "역삼2동 도로변 건물",
-      "coverage_dong": "역삼2동",
-      "category": "road_corridor_context",
-      "lon": 127.04698855555554,
-      "lat": 37.50028911111111,
-      "note": "역삼2동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_023",
-      "name": "신사동 도로변 건물",
-      "coverage_dong": "신사동",
-      "category": "road_corridor_context",
-      "lon": 127.02172983333332,
-      "lat": 37.51442516666666,
-      "note": "신사동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_024",
-      "name": "신사동 도로변 건물",
-      "coverage_dong": "신사동",
-      "category": "road_corridor_context",
-      "lon": 127.02248333333331,
-      "lat": 37.51437516666667,
-      "note": "신사동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_025",
-      "name": "청담동 도로변 건물",
+      "id": "osm-gangnam-gu-office-station",
+      "name": "강남구청역",
       "coverage_dong": "청담동",
-      "category": "road_corridor_context",
-      "lon": 127.0450445,
-      "lat": 37.523557000000004,
-      "note": "청담동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_context",
+      "lon": 127.041286,
+      "lat": 37.517176,
+      "source": "OSM transit.geojson",
+      "note": "Map/context POI."
     },
     {
-      "code": "AUTO_POI_026",
-      "name": "청담동 도로변 건물",
-      "coverage_dong": "청담동",
-      "category": "road_corridor_context",
-      "lon": 127.04413285714286,
-      "lat": 37.52319271428571,
-      "note": "청담동 도로 인접 건물 기반 승하차 스팟"
+      "id": "osm-daechi-station",
+      "name": "대치역",
+      "coverage_dong": null,
+      "category": "station_context",
+      "lon": 127.063,
+      "lat": 37.4945,
+      "source": "OSM transit/road context",
+      "note": "Map/context POI."
     },
     {
-      "code": "AUTO_POI_027",
-      "name": "청담동 도로변 건물",
-      "coverage_dong": "청담동",
-      "category": "road_corridor_context",
-      "lon": 127.04376400000001,
-      "lat": 37.5233234,
-      "note": "청담동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_028",
-      "name": "논현1동 도로변 건물",
-      "coverage_dong": "논현1동",
-      "category": "road_corridor_context",
-      "lon": 127.02478060000001,
-      "lat": 37.5048584,
-      "note": "논현1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_029",
-      "name": "논현1동 도로변 건물",
-      "coverage_dong": "논현1동",
-      "category": "road_corridor_context",
-      "lon": 127.02547824999999,
-      "lat": 37.50342275,
-      "note": "논현1동 도로 인접 건물 기반 승하차 스팟"
-    },
-    {
-      "code": "AUTO_POI_030",
-      "name": "대치4동 도로변 건물",
+      "id": "osm-hanti-station",
+      "name": "한티역",
       "coverage_dong": "대치4동",
-      "category": "road_corridor_context",
-      "lon": 127.05029625000002,
-      "lat": 37.50051375,
-      "note": "대치4동 도로 인접 건물 기반 승하차 스팟"
+      "category": "station_context",
+      "lon": 127.0522,
+      "lat": 37.4977,
+      "source": "OSM transit.geojson",
+      "note": "Map/context POI."
     },
     {
-      "code": "AUTO_POI_031",
-      "name": "대치4동 도로변 건물",
-      "coverage_dong": "대치4동",
+      "id": "osm-teheran-ro",
+      "name": "테헤란로",
+      "coverage_dong": "역삼1동",
       "category": "road_corridor_context",
-      "lon": 127.054796,
-      "lat": 37.501622125,
-      "note": "대치4동 도로 인접 건물 기반 승하차 스팟"
+      "lon": 127.0395,
+      "lat": 37.503,
+      "source": "OSM road context",
+      "note": "Corridor-level context POI."
     }
   ]
 }

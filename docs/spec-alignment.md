@@ -59,7 +59,7 @@
 현재 책임 분리는 다음과 같습니다.
 
 - Backend: 모델, target, feature, r 보정, 저장, 검증, 정책 해석
-- Frontend: `{ dong, weekday }` 요청, 응답 검증, 그래프/미니맵 표시
+- Frontend: `{ dong, date, hour, timezone, weekday }` 요청, 응답 검증, 그래프/미니맵 표시
 
 서비스 handoff는 백엔드 수요 API 계약으로 받습니다. 백엔드가 동/요일 기준 0-23시 수요 예측값을 제공하면, 프론트는 그 값을 그대로 그래프와 지도 선택 상태로 표시합니다.
 
@@ -68,8 +68,8 @@
 현재 저장소는 운영 정책을 계산하지 않습니다. 백엔드가 동/요일/시간 기준으로 0-23시 수요 예측값을 내려주면, 프론트는 선택된 동의 시간대별 값을 그래프와 지도 패널에 표시하는 역할에 집중합니다.
 
 ```text
-request = { dong, weekday }
-response = [{ hour: 0, demand: number }, ... { hour: 23, demand: number }]
+request = { dong, date, hour, timezone, weekday }
+response = { selected, points: [{ hour: 0, demand_count: number }, ... { hour: 23, demand_count: number }] }
 ```
 
 해석은 단순합니다.

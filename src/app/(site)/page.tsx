@@ -1,22 +1,17 @@
-import { execSync } from "node:child_process";
 import MapSimulatorClient from "@/components/MapSimulatorClient";
-import type { BuildVersionInfo } from "@/components/map-simulator/build-version";
+import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "강남·역삼권 택시 운영 시뮬레이터",
 };
 
-function readGitValue(command: string) {
-  try {
-    return execSync(command, {
-      cwd: process.cwd(),
-      stdio: ["ignore", "pipe", "ignore"],
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    return "";
-  }
+function envValue(name: string) {
+  return process.env[name]?.trim() ?? "";
+}
+
+function shortCommit(value: string) {
+  return value ? value.slice(0, 12) : "";
 }
 
 function formatBuildTimeKst(date: Date) {
@@ -29,7 +24,9 @@ function formatBuildTimeKst(date: Date) {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(date);
-  const partMap = new globalThis.Map(parts.map((part) => [part.type, part.value]));
+  const partMap = new globalThis.Map(
+    parts.map((part) => [part.type, part.value]),
+  );
 
   return `${partMap.get("year")}.${partMap.get("month")}.${partMap.get("day")} ${partMap.get("hour")}:${partMap.get("minute")} KST`;
 }
@@ -65,22 +62,34 @@ function resolveEnvironmentLabel(branch: string) {
   return "로컬";
 }
 
-function resolveBuildVersion(): BuildVersionInfo {
+export function resolveBuildVersion(): BuildVersionInfo {
   const rawBranch =
-    readGitValue("git rev-parse --abbrev-ref HEAD") ||
+    envValue("NEXT_PUBLIC_BUILD_BRANCH") ||
+    envValue("CF_PAGES_BRANCH") ||
     process.env.GITHUB_HEAD_REF ||
     process.env.GITHUB_REF_NAME ||
-    process.env.CF_PAGES_BRANCH ||
     process.env.BRANCH ||
     "main";
   const branch = rawBranch === "HEAD" ? "main" : rawBranch;
-  const commit = readGitValue("git rev-parse --short HEAD") || null;
+  const commit =
+    shortCommit(
+      envValue("NEXT_PUBLIC_BUILD_COMMIT") ||
+        envValue("CF_PAGES_COMMIT_SHA") ||
+        envValue("GITHUB_SHA"),
+    ) || null;
+  const buildTime = new Date(
+    envValue("NEXT_PUBLIC_BUILD_TIME_ISO") ||
+      envValue("BUILD_TIME_ISO") ||
+      Date.now(),
+  );
 
   return {
     environmentLabel: resolveEnvironmentLabel(branch),
     branch,
     commit,
-    builtAtLabel: formatBuildTimeKst(new Date()),
+    builtAtLabel: formatBuildTimeKst(
+      Number.isFinite(buildTime.getTime()) ? buildTime : new Date(),
+    ),
   };
 }
 
@@ -88,7 +97,7 @@ export default function Home() {
   const buildVersion = resolveBuildVersion();
 
   return (
-    <main className="h-screen w-full overflow-hidden bg-black">
+    <main className="h-full min-h-0 w-full overflow-hidden bg-black">
       <MapSimulatorClient buildVersion={buildVersion} />
     </main>
   );

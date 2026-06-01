@@ -757,12 +757,10 @@ export function createLocalSimulationSource(): SimulationSource {
     }
 
     statsAccumulator += deltaSeconds;
-    if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
-      statsAccumulator = 0;
-      latestStats = buildStatsSnapshot(waitingVehicles, activeTrips);
-    } else {
-      latestStats = buildStatsSnapshot(waitingVehicles, activeTrips);
-    }
+if (statsAccumulator >= SIMULATION_STATS_UPDATE_INTERVAL) {
+  statsAccumulator = 0;
+  latestStats = buildStatsSnapshot(waitingVehicles, activeTrips);
+}
   };
 
   const buildVehicleSnapshots = (): VehicleSnapshot[] =>
