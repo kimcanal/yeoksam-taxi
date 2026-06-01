@@ -172,6 +172,8 @@ export function createHotspotVisualLayer({
   return { group: layer, hotspotVisuals };
 }
 
+const hotspotSnapshotById = new globalThis.Map<string, HotspotSnapshot>();
+
 export function updateHotspotVisualLayer({
   elapsedTime,
   hotspotSnapshots,
@@ -185,11 +187,11 @@ export function updateHotspotVisualLayer({
     return;
   }
 
-  const hotspotSnapshotById = new globalThis.Map(
-    hotspotSnapshots.map(
-      (hotspotSnapshot) => [hotspotSnapshot.id, hotspotSnapshot] as const,
-    ),
-  );
+  hotspotSnapshotById.clear();
+  for (let i = 0; i < hotspotSnapshots.length; i += 1) {
+    const snapshot = hotspotSnapshots[i]!;
+    hotspotSnapshotById.set(snapshot.id, snapshot);
+  }
 
   for (let index = 0; index < hotspotVisuals.length; index += 1) {
     const visual = hotspotVisuals[index]!;

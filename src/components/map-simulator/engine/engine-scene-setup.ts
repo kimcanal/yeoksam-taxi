@@ -295,13 +295,14 @@ export function setupEngineScene(
   const movementBounds = bounds
     .clone()
     .expandByVector(new THREE.Vector3(48, 0, 48));
-  const maxMapDistance = Math.max(
-    CAMERA_MAX_DISTANCE,
-    Math.max(mapSize.x, mapSize.z) * 1.28,
-  );
   const initialOffset = createOverviewCameraOffset();
-  const overviewYaw = Math.atan2(initialOffset.x, initialOffset.z);
   const overviewDistance = overviewCameraDistance();
+  const mapFitDistance = Math.max(
+    overviewDistance,
+    Math.max(mapSize.x, mapSize.z) * 1.05,
+  );
+  const maxMapDistance = Math.min(CAMERA_MAX_DISTANCE, mapFitDistance);
+  const overviewYaw = Math.atan2(initialOffset.x, initialOffset.z);
   const cameraRig = createSimulatorCameraRig({
     centerPoint,
     initialOffset,
@@ -618,6 +619,31 @@ export function setupEngineScene(
   // Timer
   const timer = new THREE.Timer();
   timer.connect(document);
+
+  // --- Static Scene Matrix Freeze ---
+  // Freeze static groups to avoid traversing and recomputing world matrices every frame.
+  // Because these layers are completely stationary, we update their matrices once and disable auto-updating.
+  const staticObjects = [
+    mapSceneGeometry.ground,
+    mapSceneGeometry.gridHelper,
+    mapSceneGeometry.maskMesh,
+    dongBoundaryLayer.group,
+    staticRoadLayer.group,
+    buildingMassLayer.group,
+    nonRoadGroup,
+    transitGroup,
+    trafficSignalLayer.group,
+    poiMarkerGroup,
+  ];
+
+  staticObjects.forEach((obj) => {
+    if (obj) {
+      obj.updateMatrixWorld(true);
+      obj.traverse((child) => {
+        child.matrixAutoUpdate = false;
+      });
+    }
+  });
 
   return {
     props,

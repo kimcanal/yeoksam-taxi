@@ -11,10 +11,10 @@ import {
   MAP_SCENE_OUTER_MASK_Y,
 } from "@/components/map-simulator/constants/map-constants";
 import type { MapPoiFeatureRow } from "@/components/map-simulator/demand";
-import { createBuildingMassLayer } from "@/components/map-simulator/scene";
+import { createBuildingCulledLayer } from "@/components/map-simulator/scene";
 import { createDemandVisualLayer } from "@/components/map-simulator/demand";
 import { createDongBoundaryLayer } from "@/components/map-simulator/scene";
-import { createStaticRoadLayer } from "@/components/map-simulator/scene";
+import { createRoadCulledLayer } from "@/components/map-simulator/scene";
 import { createNonRoadSurfaceLayer } from "@/components/map-simulator/scene";
 import type { SimulationData } from "@/components/map-simulator/types";
 
@@ -146,8 +146,8 @@ export function createMapSceneGeometry({
   maskMesh.renderOrder = 4;
   maskMesh.visible = false;
 
-  const staticRoadLayer = createStaticRoadLayer(data.projectedRoadSegments);
-  const buildingMassLayer = createBuildingMassLayer(data.buildingMasses);
+  const staticRoadLayer = createRoadCulledLayer(data.projectedRoadSegments);
+  const buildingMassLayer = createBuildingCulledLayer(data.buildingMasses);
 
   return {
     ground,

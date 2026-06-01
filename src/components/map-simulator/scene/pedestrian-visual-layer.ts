@@ -122,10 +122,24 @@ export function updatePedestrianVisualLayer({
     const bob = Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
 
     // Beautiful cross-swing walking cycle animation
-    const leftLeg = pedestrian.group.getObjectByName("leftLeg");
-    const rightLeg = pedestrian.group.getObjectByName("rightLeg");
-    const leftArm = pedestrian.group.getObjectByName("leftArm");
-    const rightArm = pedestrian.group.getObjectByName("rightArm");
+    if (pedestrian.leftLeg === undefined) {
+      pedestrian.leftLeg = pedestrian.group.getObjectByName("leftLeg") || null;
+    }
+    if (pedestrian.rightLeg === undefined) {
+      pedestrian.rightLeg = pedestrian.group.getObjectByName("rightLeg") || null;
+    }
+    if (pedestrian.leftArm === undefined) {
+      pedestrian.leftArm = pedestrian.group.getObjectByName("leftArm") || null;
+    }
+    if (pedestrian.rightArm === undefined) {
+      pedestrian.rightArm = pedestrian.group.getObjectByName("rightArm") || null;
+    }
+
+    const leftLeg = pedestrian.leftLeg;
+    const rightLeg = pedestrian.rightLeg;
+    const leftArm = pedestrian.leftArm;
+    const rightArm = pedestrian.rightArm;
+
     if (leftLeg || rightLeg || leftArm || rightArm) {
       const speedFreq = 11.5 + pedestrian.speed * 8;
       const swingAngle = elapsedTime * speedFreq + pedestrian.phaseOffset * 8;

@@ -101,6 +101,9 @@ function SpecificModeControls({
   const currentHour = parseInt(hStr || "0", 10);
   const currentYear = parseInt(y || "2026", 10);
 
+  const currentMonth = parseInt(m || "1", 10);
+  const currentDay = parseInt(d || "1", 10);
+
   // 현재 현실 시각 구하기
   const realNow = new Date();
   const realYear = realNow.getFullYear();
@@ -108,124 +111,39 @@ function SpecificModeControls({
   const realDay = realNow.getDate();
   const realHour = realNow.getHours();
 
-  // 특정 연-월-일 시 정보가 미래인지 검증하고, 미래일 경우 현재 현실 시각으로 안전하게 클램핑해주는 헬퍼
-  function getSafeDateTime(
-    targetYear: number,
-    targetMonth: number,
-    targetDay: number,
-    targetHour: number,
-  ) {
-    const target = new Date(targetYear, targetMonth - 1, targetDay, targetHour, 0, 0);
+  function updateDateTime(newYear: number, newMonth: number, newDay: number, newHour: number) {
+    setCircumstanceMode("specific");
+    
+    // 해당 연도/월의 마지막 날 계산하여 일자 보정
+    const daysInNewMonth = new Date(newYear, newMonth, 0).getDate();
+    const safeDay = Math.min(newDay, daysInNewMonth);
+
+    const target = new Date(newYear, newMonth - 1, safeDay, newHour, 0, 0);
     const now = new Date();
+    
+    let finalYear = newYear;
+    let finalMonth = newMonth;
+    let finalDay = safeDay;
+    let finalHour = newHour;
+
+    // 미래 시간일 경우 현재 현실 시간으로 클램핑
     if (target > now) {
-      return {
-        year: now.getFullYear(),
-        month: now.getMonth() + 1,
-        day: now.getDate(),
-        hour: now.getHours(),
-        isClamped: true,
-      };
+      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
+      finalYear = now.getFullYear();
+      finalMonth = now.getMonth() + 1;
+      finalDay = now.getDate();
+      finalHour = now.getHours();
     }
-    return {
-      year: targetYear,
-      month: targetMonth,
-      day: targetDay,
-      hour: targetHour,
-      isClamped: false,
-    };
+
+    setSimulationDate(
+      `${finalYear}-${finalMonth.toString().padStart(2, "0")}-${finalDay.toString().padStart(2, "0")}`,
+    );
+    setHeatmapHour(finalHour);
+    setSimulationTimeMinutes(finalHour * 60);
   }
 
   // 해당 연도/월의 마지막 날 계산
-  const daysInMonth = new Date(
-    currentYear,
-    parseInt(m || "1", 10),
-    0,
-  ).getDate();
-
-  function handleYearChange(value: string) {
-    setCircumstanceMode("specific");
-    const newYear = parseInt(value, 10);
-    const currentM = parseInt(m || "1", 10);
-    const currentD = parseInt(d || "1", 10);
-
-    const newDaysInMonth = new Date(newYear, currentM, 0).getDate();
-    const tempDay = Math.min(currentD, newDaysInMonth);
-
-    const safe = getSafeDateTime(newYear, currentM, tempDay, currentHour);
-
-    if (safe.isClamped) {
-      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
-    }
-
-    setSimulationDate(
-      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
-    );
-    if (safe.hour !== currentHour) {
-      setHeatmapHour(safe.hour);
-      setSimulationTimeMinutes(safe.hour * 60);
-    }
-  }
-
-  function handleMonthChange(value: string) {
-    setCircumstanceMode("specific");
-    const newMonth = parseInt(value, 10);
-    const currentD = parseInt(d || "1", 10);
-
-    const newDaysInMonth = new Date(currentYear, newMonth, 0).getDate();
-    const tempDay = Math.min(currentD, newDaysInMonth);
-
-    const safe = getSafeDateTime(currentYear, newMonth, tempDay, currentHour);
-
-    if (safe.isClamped) {
-      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
-    }
-
-    setSimulationDate(
-      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
-    );
-    if (safe.hour !== currentHour) {
-      setHeatmapHour(safe.hour);
-      setSimulationTimeMinutes(safe.hour * 60);
-    }
-  }
-
-  function handleDayChange(value: string) {
-    setCircumstanceMode("specific");
-    const newDay = parseInt(value, 10);
-    const currentM = parseInt(m || "1", 10);
-
-    const safe = getSafeDateTime(currentYear, currentM, newDay, currentHour);
-
-    if (safe.isClamped) {
-      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
-    }
-
-    setSimulationDate(
-      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
-    );
-    if (safe.hour !== currentHour) {
-      setHeatmapHour(safe.hour);
-      setSimulationTimeMinutes(safe.hour * 60);
-    }
-  }
-
-  function handleHourSelect(value: number) {
-    setCircumstanceMode("specific");
-    const currentM = parseInt(m || "1", 10);
-    const currentD = parseInt(d || "1", 10);
-
-    const safe = getSafeDateTime(currentYear, currentM, currentD, value);
-
-    if (safe.isClamped) {
-      onValidationError("미래 시점의 수요 데이터는 조회할 수 없습니다.");
-    }
-
-    setSimulationDate(
-      `${safe.year}-${safe.month.toString().padStart(2, "0")}-${safe.day.toString().padStart(2, "0")}`,
-    );
-    setHeatmapHour(safe.hour);
-    setSimulationTimeMinutes(safe.hour * 60);
-  }
+  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
 
   // 연도 범위: 2020 ~ 현재 연도
   const yearOptions = Array.from(
@@ -234,8 +152,8 @@ function SpecificModeControls({
   );
 
   const isCurrentYear = currentYear === realYear;
-  const isCurrentMonth = isCurrentYear && parseInt(m || "1", 10) === realMonth;
-  const isToday = isCurrentMonth && parseInt(d || "1", 10) === realDay;
+  const isCurrentMonth = isCurrentYear && currentMonth === realMonth;
+  const isToday = isCurrentMonth && currentDay === realDay;
 
   return (
     <>
@@ -247,7 +165,7 @@ function SpecificModeControls({
         <div className="group relative">
           <select
             value={currentYear}
-            onChange={(event) => handleYearChange(event.target.value)}
+            onChange={(event) => updateDateTime(parseInt(event.target.value, 10), currentMonth, currentDay, currentHour)}
             className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
             id="date-year"
           >
@@ -271,8 +189,8 @@ function SpecificModeControls({
         {/* 월 — 미래 월 비활성화 */}
         <div className="group relative">
           <select
-            value={parseInt(m || "1", 10).toString()}
-            onChange={(event) => handleMonthChange(event.target.value)}
+            value={currentMonth.toString()}
+            onChange={(event) => updateDateTime(currentYear, parseInt(event.target.value, 10), currentDay, currentHour)}
             className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
             id="date-month"
           >
@@ -306,8 +224,8 @@ function SpecificModeControls({
         {/* 일 — 미래 일 비활성화 */}
         <div className="group relative">
           <select
-            value={parseInt(d || "1", 10)}
-            onChange={(event) => handleDayChange(event.target.value)}
+            value={currentDay}
+            onChange={(event) => updateDateTime(currentYear, currentMonth, parseInt(event.target.value, 10), currentHour)}
             className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
             id="date-day"
           >
@@ -347,7 +265,7 @@ function SpecificModeControls({
         <div className="group relative">
           <select
             value={currentHour}
-            onChange={(event) => handleHourSelect(Number(event.target.value))}
+            onChange={(event) => updateDateTime(currentYear, currentMonth, currentDay, Number(event.target.value))}
             className="peer w-full appearance-none rounded-lg border border-white/10 bg-slate-900/40 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-amber-400/80 focus:bg-slate-900/80"
             id="time-hour"
           >

@@ -60,6 +60,7 @@ export function createEngineCameraController(
   const rideDesiredLookTarget = new THREE.Vector3();
   const followFocusTarget = new THREE.Vector3();
   const miniMapCameraDirection = new THREE.Vector3();
+  const overviewFocusTarget = new THREE.Vector3(centerPoint.x, 0, centerPoint.z);
 
   // Mini map focus report throttling
   let lastMiniMapFocusReportTimestamp = 0;
@@ -204,7 +205,7 @@ export function createEngineCameraController(
     } else if (mode === "overview") {
       cameraLookLift = CAMERA_LOOK_HEIGHT;
       const lerpAlpha = 1 - Math.exp(-delta * 3.8);
-      cameraRig.focus.lerp(new THREE.Vector3(centerPoint.x, 0, centerPoint.z), lerpAlpha);
+      cameraRig.focus.lerp(overviewFocusTarget, lerpAlpha);
       cameraRig.yaw = dampAngle(cameraRig.yaw, overviewYaw, 3.8, delta);
       cameraRig.pitch = THREE.MathUtils.damp(cameraRig.pitch, 0.7, 3.8, delta);
       cameraRig.distance = THREE.MathUtils.damp(cameraRig.distance, overviewDistance, 3.8, delta);

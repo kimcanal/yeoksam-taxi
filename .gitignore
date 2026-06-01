@@ -31,6 +31,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+daemon.log
+*.log
 
 # local verification artifacts
 /.codex

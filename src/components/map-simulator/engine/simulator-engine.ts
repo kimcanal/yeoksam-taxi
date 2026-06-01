@@ -35,10 +35,15 @@ import {
 import { createSimulatorLoopClock } from "@/components/map-simulator/engine/simulator-loop";
 import { setupEngineScene } from "@/components/map-simulator/engine/engine-scene-setup";
 import { createEngineAssetLoader } from "@/components/map-simulator/engine/engine-asset-loader";
-import { createEngineInputHandler } from "@/components/map-simulator/engine/engine-input-handler";
+import {
+  createEngineInputHandler,
+  type InputHandlerCallbacks,
+} from "@/components/map-simulator/engine/engine-input-handler";
 import { createEngineCameraController } from "@/components/map-simulator/engine/engine-camera-controller";
 import { createEngineSimulationDriver } from "@/components/map-simulator/engine/engine-simulation-driver";
 import { createEngineVisualUpdater } from "@/components/map-simulator/engine/engine-visual-updater";
+import { sceneSetters } from "@/components/map-simulator/hooks/simulator-stores";
+import { initPerfBenchmark, disposePerfBenchmark } from "@/components/map-simulator/engine/perf-benchmark";
 
 export type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -128,17 +133,6 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
   const simDriver = createEngineSimulationDriver(ctx);
   const assetLoader = createEngineAssetLoader(ctx);
 
-  const visualUpdater = createEngineVisualUpdater(
-    ctx,
-    () => ({ x: 0, y: 0 }), // temporary, replaced below
-    () => false,
-  );
-
-  const cameraCtrlTemp = createEngineCameraController(
-    ctx,
-    () => ({ yawOffset: 0.22 }),
-  );
-
   const enterRideMode = (vehicle: Vehicle) => {
     if (cameraModeRef.current === "ride") {
       return;
@@ -148,36 +142,34 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     setCameraMode("ride");
   };
 
-  const inputHandler = createEngineInputHandler(ctx, {
-    syncCamera: cameraCtrlTemp.syncCamera,
-    markHoverDirty: visualUpdater.markHoverDirty,
-    markLabelVisibilityDirty: visualUpdater.markLabelVisibilityDirty,
+  const engineControllers: {
+    cameraController?: ReturnType<typeof createEngineCameraController>;
+    visualUpdater?: ReturnType<typeof createEngineVisualUpdater>;
+  } = {};
+  const inputCallbacks: InputHandlerCallbacks = {
+    syncCamera: () => engineControllers.cameraController!.syncCamera(),
+    markHoverDirty: () => engineControllers.visualUpdater!.markHoverDirty(),
+    markLabelVisibilityDirty: () =>
+      engineControllers.visualUpdater!.markLabelVisibilityDirty(),
     enterRideMode,
-    applyDistrictPresentation: cameraCtrlTemp.applyDistrictPresentation,
+    applyDistrictPresentation: (mode) =>
+      engineControllers.cameraController!.applyDistrictPresentation(mode),
     applyRenderBudget: (mode) => ctx.rendererController.applyRenderBudget(mode),
-  });
+  };
 
-  // Now create final versions with correct pointers
+  const finalInputHandler = createEngineInputHandler(ctx, inputCallbacks);
+
   const finalVisualUpdater = createEngineVisualUpdater(
     ctx,
-    inputHandler.getPointerClient,
-    inputHandler.getIsPointerInside,
+    finalInputHandler.getPointerClient,
+    finalInputHandler.getIsPointerInside,
   );
-
   const cameraController = createEngineCameraController(
     ctx,
-    inputHandler.getFollowOrbit,
+    finalInputHandler.getFollowOrbit,
   );
-
-  // Re-wire input handler callbacks with final controllers
-  const finalInputHandler = createEngineInputHandler(ctx, {
-    syncCamera: cameraController.syncCamera,
-    markHoverDirty: finalVisualUpdater.markHoverDirty,
-    markLabelVisibilityDirty: finalVisualUpdater.markLabelVisibilityDirty,
-    enterRideMode,
-    applyDistrictPresentation: cameraController.applyDistrictPresentation,
-    applyRenderBudget: (mode) => ctx.rendererController.applyRenderBudget(mode),
-  });
+  engineControllers.visualUpdater = finalVisualUpdater;
+  engineControllers.cameraController = cameraController;
 
   // --- 3. Wire late-bound callbacks ---
   _lateBound.getTaxiAssetTemplate.current = assetLoader.getTaxiAssetTemplate;
@@ -204,6 +196,25 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
   // --- 6. Initialize ---
   finalInputHandler.attach();
   const { environmentSettings, rendererController } = ctx;
+  const lastCullingCameraPosition = new THREE.Vector3(
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+    Number.POSITIVE_INFINITY,
+  );
+  const lastCullingCameraQuaternion = new THREE.Quaternion();
+  const updateStaticLayerVisibility = () => {
+    const cameraMoved =
+      lastCullingCameraPosition.distanceToSquared(camera.position) > 0.25 ||
+      1 - Math.abs(lastCullingCameraQuaternion.dot(camera.quaternion)) > 0.00001;
+    if (!cameraMoved) {
+      return;
+    }
+
+    lastCullingCameraPosition.copy(camera.position);
+    lastCullingCameraQuaternion.copy(camera.quaternion);
+    ctx.buildingMassLayer.updateVisibility(camera);
+    ctx.staticRoadLayer.updateVisibility(camera);
+  };
 
   environmentSettings.applyEnvironment(
     simulationDateRef.current,
@@ -213,6 +224,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
   );
   environmentSettings.syncPrecipitationDensity(cameraModeRef.current);
   cameraController.syncCamera();
+  updateStaticLayerVisibility();
 
   ctx.vehicleRuntimeSync.syncVehicleLayerFromSnapshot([], 1);
   simDriver.resetSimulationSource(false);
@@ -222,6 +234,11 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
   const assetLoadSchedule = assetLoader.scheduleLoads();
 
   let animationFrame = 0;
+
+  // --- FPS profiling state ---
+  let fpsFrameCount = 0;
+  let fpsAccumulator = 0;
+  const FPS_REPORT_INTERVAL = 0.5;
 
   // --- 7. Animation Loop ---
   const animate = (timestamp?: number) => {
@@ -305,16 +322,46 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     // Labels & hover
     finalVisualUpdater.updateLabelsAndHover(delta, currentMode);
 
+    // Culling visibility updates
+    updateStaticLayerVisibility();
+
+    // Vehicle frustum culling – skip draw calls for offscreen vehicles
+    finalVisualUpdater.cullVehicles();
+
     // Render
+    const renderStart = performance.now();
     renderer.render(scene, camera);
+    const renderMs = performance.now() - renderStart;
     finalVisualUpdater.renderLabelsIfNeeded(delta);
+
+    // FPS stats reporting
+    fpsFrameCount += 1;
+    fpsAccumulator += delta;
+    if (fpsAccumulator >= FPS_REPORT_INTERVAL) {
+      const fps = Math.round(fpsFrameCount / fpsAccumulator);
+      sceneSetters.setFpsStats({
+        fps,
+        capLabel: `${fps} FPS`,
+        simulationMs: 0,
+        signalMs: 0,
+        vehicleMs: 0,
+        overlayMs: 0,
+        renderMs: Math.round(renderMs * 100) / 100,
+        simulationHz: 0,
+        vehicles: ctx.vehicles.length,
+      });
+      fpsFrameCount = 0;
+      fpsAccumulator = 0;
+    }
   };
 
   animate();
+  const cleanupBenchmark = initPerfBenchmark(renderer);
 
   // --- 8. Cleanup ---
   return () => {
     ctx.sceneDisposed = true;
+    cleanupBenchmark();
     rendererController.dispose();
     assetLoadSchedule.cancelTaxi();
     assetLoadSchedule.cancelTraffic();
