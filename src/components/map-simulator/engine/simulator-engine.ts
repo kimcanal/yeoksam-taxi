@@ -43,7 +43,6 @@ import { createEngineCameraController } from "@/components/map-simulator/engine/
 import { createEngineSimulationDriver } from "@/components/map-simulator/engine/engine-simulation-driver";
 import { createEngineVisualUpdater } from "@/components/map-simulator/engine/engine-visual-updater";
 import { sceneSetters } from "@/components/map-simulator/hooks/simulator-stores";
-import { initPerfBenchmark, disposePerfBenchmark } from "@/components/map-simulator/engine/perf-benchmark";
 
 export type MapSimulatorSceneRuntimeProps = {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -356,12 +355,10 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
   };
 
   animate();
-  const cleanupBenchmark = initPerfBenchmark(renderer);
 
   // --- 8. Cleanup ---
   return () => {
     ctx.sceneDisposed = true;
-    cleanupBenchmark();
     rendererController.dispose();
     assetLoadSchedule.cancelTaxi();
     assetLoadSchedule.cancelTraffic();

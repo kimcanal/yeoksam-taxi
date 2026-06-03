@@ -1,7 +1,6 @@
 import type { CircumstanceMode } from "@/components/map-simulator/types";
 import type {
   DemandFetchStatus,
-  DemandHeatmapScope,
   DemandMiniMapData,
   MapPoiFeatureRow,
 } from "@/components/map-simulator/demand";
@@ -16,10 +15,8 @@ type DemandMiniMapPanelProps = {
   heatmapFetchStatus: DemandFetchStatus;
   heatmapHour: number;
   heatmapMaxDemand: number;
-  heatmapScope: DemandHeatmapScope;
   selectedDongName: string;
   setHeatmapHour: (hour: number) => void;
-  setHeatmapScope: (scope: DemandHeatmapScope) => void;
   mapPoiFeatureRows: MapPoiFeatureRow[];
   onPoiSelect: (poiCode: string) => void;
   onDongSelect?: (dongName: string) => void;
@@ -31,10 +28,8 @@ export function DemandMiniMapPanel({
   heatmapFetchStatus,
   heatmapHour,
   heatmapMaxDemand,
-  heatmapScope,
   selectedDongName,
   setHeatmapHour,
-  setHeatmapScope,
   mapPoiFeatureRows,
   onPoiSelect,
   onDongSelect,
@@ -42,7 +37,7 @@ export function DemandMiniMapPanel({
 }: DemandMiniMapPanelProps) {
   const heatmapStatusText =
     heatmapFetchStatus === "ready"
-      ? `${heatmapScope === "all" ? "최대" : "선택"} ${Math.round(heatmapMaxDemand).toLocaleString("ko-KR")}대`
+      ? `최대 ${Math.round(heatmapMaxDemand).toLocaleString("ko-KR")}대`
       : heatmapFetchStatus === "loading"
         ? "API 요청 중"
         : "API 오류";
@@ -59,33 +54,6 @@ export function DemandMiniMapPanel({
             {selectedDongName}
           </div>
         </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-slate-950/55 p-1">
-        <button
-          type="button"
-          onClick={() => setHeatmapScope("all")}
-          aria-pressed={heatmapScope === "all"}
-          className={`h-8 rounded-lg text-[11px] font-semibold transition ${
-            heatmapScope === "all"
-              ? "bg-cyan-300 text-slate-950"
-              : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
-          }`}
-        >
-          전체 동
-        </button>
-        <button
-          type="button"
-          onClick={() => setHeatmapScope("selected")}
-          aria-pressed={heatmapScope === "selected"}
-          className={`h-8 rounded-lg text-[11px] font-semibold transition ${
-            heatmapScope === "selected"
-              ? "bg-amber-300 text-slate-950"
-              : "text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
-          }`}
-        >
-          선택 동
-        </button>
       </div>
 
       {circumstanceMode === "live" ? (

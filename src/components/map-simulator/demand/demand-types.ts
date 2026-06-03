@@ -44,7 +44,6 @@ export type FiveMinuteDemandPoint = {
 };
 
 export type DemandFetchStatus = "idle" | "loading" | "ready" | "error";
-export type DemandHeatmapScope = "all" | "selected";
 
 export type DemandMiniMapRegion = {
   name: string;

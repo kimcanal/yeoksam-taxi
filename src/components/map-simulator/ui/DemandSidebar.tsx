@@ -18,7 +18,6 @@ import type { CircumstanceMode } from "@/components/map-simulator/types";
 import {
   type DemandChartGeometry,
   type DemandFetchStatus,
-  type DemandHeatmapScope,
   type DemandMiniMapData,
   type FiveMinuteDemandPoint,
   type HourlyDemandPoint,
@@ -51,9 +50,7 @@ type DemandSidebarDemandState = {
   heatmapFetchStatus: DemandFetchStatus;
   heatmapHour: number;
   heatmapMaxDemand: number;
-  heatmapScope: DemandHeatmapScope;
   setHeatmapHour: (hour: number) => void;
-  setHeatmapScope: (scope: DemandHeatmapScope) => void;
   demandMiniMap: DemandMiniMapData | null;
 };
 
@@ -352,9 +349,7 @@ export const DemandSidebar = memo(function DemandSidebar({
     heatmapFetchStatus,
     heatmapHour,
     heatmapMaxDemand,
-    heatmapScope,
     setHeatmapHour,
-    setHeatmapScope,
     demandMiniMap,
   } = demandState;
 
@@ -631,10 +626,8 @@ export const DemandSidebar = memo(function DemandSidebar({
         heatmapFetchStatus={heatmapFetchStatus}
         heatmapHour={heatmapHour}
         heatmapMaxDemand={heatmapMaxDemand}
-        heatmapScope={heatmapScope}
         selectedDongName={selectedDongName}
         setHeatmapHour={handleHeatmapHourChange}
-        setHeatmapScope={setHeatmapScope}
         mapPoiFeatureRows={mapPoiFeatureRows}
         onPoiSelect={onPoiSelect}
         onDongSelect={setSelectedDongName}

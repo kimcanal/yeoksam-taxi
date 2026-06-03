@@ -26,7 +26,7 @@ import { useMapSimulatorStores } from "@/components/map-simulator/hooks/use-map-
 import { useSimulationDataLoader } from "@/components/map-simulator/hooks/use-simulation-data-loader";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { WeatherBadge } from "@/components/map-simulator/ui/WeatherBadge";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
 import type { FpsMode } from "@/components/map-simulator/camera";
 import { useMapDemandState } from "@/components/map-simulator/demand";
@@ -239,8 +239,14 @@ export default function MapSimulator({
     });
   }, [miniMapFocus, setCameraMode, setCameraFocusTarget]);
 
+  function handleExitRideMode() {
+    const nextCameraMode = runtimeRefs.rideExitModeRef.current;
+    setCameraMode(nextCameraMode);
+  }
+
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const isSidebarVisible = !isSidebarCollapsed;
+  const isRideMode = cameraMode === "ride";
   const mapCanvasClass = isSidebarVisible
     ? "h-full w-full touch-none border-white/10 transition-[margin,width] duration-300 ease-in-out lg:ml-[var(--demand-sidebar-width)] lg:w-[calc(100%-var(--demand-sidebar-width))] lg:border-l"
     : "h-full w-full touch-none transition-[margin,width] duration-300 ease-in-out";
@@ -318,6 +324,17 @@ export default function MapSimulator({
           <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
 
+        {isRideMode && !isSceneBusy ? (
+          <button
+            type="button"
+            onClick={handleExitRideMode}
+            aria-label="택시 시점 나가기"
+            className="absolute left-1/2 top-4 z-40 inline-flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/85 px-3 py-2 text-xs font-semibold text-slate-100 shadow-xl backdrop-blur-md transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 active:scale-95"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+            <span>택시 시점 나가기</span>
+          </button>
+        ) : null}
 
 
         {!isSceneBusy ? (

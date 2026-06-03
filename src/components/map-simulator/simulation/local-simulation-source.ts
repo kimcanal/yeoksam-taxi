@@ -33,17 +33,17 @@ import {
   syncVehicleSampleBucket,
   vehicleProximityCellCoord,
 } from "@/components/map-simulator/road";
-import { limitSpeedForNearbyVehicles } from "@/components/map-simulator/simulation";
+import { limitSpeedForNearbyVehicles } from "./local-proximity-checker";
 import {
   castLocalVehicleForMotion,
   type LocalVehicle,
   type LocalVehicleProximityBuckets,
   type LocalVehicleSimulationSample,
-} from "@/components/map-simulator/simulation";
+} from "./local-simulation-types";
 import {
   createLocalTaxiVehicle,
   createLocalTrafficVehicle,
-} from "@/components/map-simulator/simulation";
+} from "./local-vehicle-factory";
 import {
   type SignalApproachDemand,
   type SignalApproachDistance,
@@ -61,7 +61,7 @@ import {
   cloneVehiclePoseSnapshot,
   createEmptySimulationSnapshot,
   DEFAULT_SIMULATION_CLOCK,
-} from "@/components/map-simulator/simulation";
+} from "./simulation-snapshot-utils";
 import type {
   HotspotSnapshot,
   SceneStaticContext,
@@ -69,7 +69,7 @@ import type {
   SimulationConfig,
   SimulationSource,
   VehicleSnapshot,
-} from "@/components/map-simulator/simulation";
+} from "./simulation-source";
 
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
