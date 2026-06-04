@@ -22,6 +22,8 @@ export function useMapSimulatorStores() {
     (state) => state.trafficLoadPercent,
   );
   const cameraMode = sceneStore.useStore((state) => state.cameraMode);
+  const showFps = sceneStore.useStore((state) => state.showFps);
+  const fpsStats = sceneStore.useStore((state) => state.fpsStats);
   const miniMapFocus = sceneStore.useStore((state) => state.miniMapFocus);
   const followTaxiId = sceneStore.useStore((state) => state.followTaxiId);
   const selectedPoiCode = uiStore.useStore((state) => state.selectedPoiCode);
@@ -41,6 +43,8 @@ export function useMapSimulatorStores() {
       weatherMode,
       trafficLoadPercent,
       cameraMode,
+      showFps,
+      fpsStats,
       miniMapFocus,
       followTaxiId,
       selectedPoiCode,

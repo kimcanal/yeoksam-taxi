@@ -67,16 +67,20 @@ export function createPedestrianVisualLayer(signalVisuals: SignalVisual[]) {
   return { group: layer, pedestrianVisuals };
 }
 
+const _pedSphere = new THREE.Sphere();
+
 export function updatePedestrianVisualLayer({
   elapsedTime,
   frameSignalStates,
   pedestrianVisuals,
   signalById,
+  cameraFrustum,
 }: {
   elapsedTime: number;
   frameSignalStates: ReadonlyMap<string, SignalFlow>;
   pedestrianVisuals: PedestrianVisual[];
   signalById: ReadonlyMap<string, SignalData>;
+  cameraFrustum?: THREE.Frustum | null;
 }) {
   if (!pedestrianVisuals.length) {
     return 0;
@@ -88,6 +92,15 @@ export function updatePedestrianVisualLayer({
     if (!signal) {
       pedestrian.group.visible = false;
       return;
+    }
+
+    if (cameraFrustum) {
+      _pedSphere.center.copy(signal.visualPoint);
+      _pedSphere.radius = 16.0;
+      if (!cameraFrustum.intersectsSphere(_pedSphere)) {
+        pedestrian.group.visible = false;
+        return;
+      }
     }
 
     const state =
@@ -122,10 +135,24 @@ export function updatePedestrianVisualLayer({
     const bob = Math.sin(elapsedTime * 9 + pedestrian.phaseOffset * 11) * 0.05;
 
     // Beautiful cross-swing walking cycle animation
-    const leftLeg = pedestrian.group.getObjectByName("leftLeg");
-    const rightLeg = pedestrian.group.getObjectByName("rightLeg");
-    const leftArm = pedestrian.group.getObjectByName("leftArm");
-    const rightArm = pedestrian.group.getObjectByName("rightArm");
+    if (pedestrian.leftLeg === undefined) {
+      pedestrian.leftLeg = pedestrian.group.getObjectByName("leftLeg") || null;
+    }
+    if (pedestrian.rightLeg === undefined) {
+      pedestrian.rightLeg = pedestrian.group.getObjectByName("rightLeg") || null;
+    }
+    if (pedestrian.leftArm === undefined) {
+      pedestrian.leftArm = pedestrian.group.getObjectByName("leftArm") || null;
+    }
+    if (pedestrian.rightArm === undefined) {
+      pedestrian.rightArm = pedestrian.group.getObjectByName("rightArm") || null;
+    }
+
+    const leftLeg = pedestrian.leftLeg;
+    const rightLeg = pedestrian.rightLeg;
+    const leftArm = pedestrian.leftArm;
+    const rightArm = pedestrian.rightArm;
+
     if (leftLeg || rightLeg || leftArm || rightArm) {
       const speedFreq = 11.5 + pedestrian.speed * 8;
       const swingAngle = elapsedTime * speedFreq + pedestrian.phaseOffset * 8;

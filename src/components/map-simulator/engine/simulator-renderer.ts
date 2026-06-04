@@ -78,6 +78,8 @@ export function createSimulatorRendererController({
     }
   });
 
+  applyRenderBudget(getCameraMode());
+
   return {
     applyRenderBudget,
     resize,

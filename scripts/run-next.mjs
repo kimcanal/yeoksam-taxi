@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
@@ -13,6 +13,12 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 process.chdir(rootDir);
 
 const defaultServerPort = "8000";
+const defaultHealthTimeoutMs = 2500;
+const defaultStartupTimeoutMs = 40_000;
+const defaultWatchdogStartupMs = 10_000;
+const defaultWatchdogIntervalMs = 15_000;
+const defaultWatchdogFailures = 3;
+const defaultMaxRestarts = 5;
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -65,6 +71,17 @@ Options:
       --open                Open the browser after the server is ready.
       --no-open             Do not open the browser.
       --auto-port           In non-interactive mode, use the next free port if busy.
+      --replace-stale       If the port is busy but unresponsive, stop this app's stale listener and reuse it.
+      --watchdog            Restart start/dev if HTTP health checks keep failing. Defaults on for start.
+      --no-watchdog         Disable server health watchdog.
+      --health-timeout-ms <ms>
+                            HTTP timeout for readiness and health checks. Defaults to ${defaultHealthTimeoutMs}.
+      --watchdog-interval-ms <ms>
+                            Interval between watchdog checks. Defaults to ${defaultWatchdogIntervalMs}.
+      --watchdog-failures <count>
+                            Failed health checks before restart. Defaults to ${defaultWatchdogFailures}.
+      --max-restarts <count>
+                            Max watchdog restarts before giving up. Defaults to ${defaultMaxRestarts}.
       --cloudflare-dev      Enable OpenNext Cloudflare dev context.
   -h, --help                Show this help.`);
 }
@@ -81,16 +98,38 @@ function readOptionValue(args, index, optionName) {
   return value;
 }
 
+function readNonNegativeInteger(args, index, optionName) {
+  const value = Number(readOptionValue(args, index, optionName));
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${optionName} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function readPositiveInteger(args, index, optionName) {
+  const value = readNonNegativeInteger(args, index, optionName);
+  if (value <= 0) {
+    throw new Error(`${optionName} must be greater than 0.`);
+  }
+  return value;
+}
+
 function parseArgs(args) {
   const options = {
     autoPort: false,
     bindHost: null,
     cloudflareDev: false,
     help: false,
+    healthTimeoutMs: defaultHealthTimeoutMs,
     launchPath: null,
+    maxRestarts: defaultMaxRestarts,
     port: null,
+    replaceStale: false,
     scriptName: null,
     shouldOpen: null,
+    watchdog: null,
+    watchdogFailures: defaultWatchdogFailures,
+    watchdogIntervalMs: defaultWatchdogIntervalMs,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -134,6 +173,31 @@ function parseArgs(args) {
         break;
       case "--auto-port":
         options.autoPort = true;
+        break;
+      case "--replace-stale":
+        options.replaceStale = true;
+        break;
+      case "--watchdog":
+        options.watchdog = true;
+        break;
+      case "--no-watchdog":
+        options.watchdog = false;
+        break;
+      case "--health-timeout-ms":
+        options.healthTimeoutMs = readPositiveInteger(args, index, arg);
+        index += 1;
+        break;
+      case "--watchdog-interval-ms":
+        options.watchdogIntervalMs = readPositiveInteger(args, index, arg);
+        index += 1;
+        break;
+      case "--watchdog-failures":
+        options.watchdogFailures = readPositiveInteger(args, index, arg);
+        index += 1;
+        break;
+      case "--max-restarts":
+        options.maxRestarts = readNonNegativeInteger(args, index, arg);
+        index += 1;
         break;
       case "--cloudflare-dev":
         options.cloudflareDev = true;
@@ -199,6 +263,21 @@ function validatePort(candidate) {
   return Number.isInteger(port) && port >= 1 && port <= 65535;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function normalizeLaunchPath(value) {
+  const nextPath = value?.trim() || "/";
+  return nextPath.startsWith("/") ? nextPath : `/${nextPath}`;
+}
+
+function formatElapsed(ms) {
+  return `${Math.max(1, Math.round(ms))}ms`;
+}
+
 function portIsBusy(port) {
   return new Promise((resolve) => {
     const socket = net
@@ -214,9 +293,170 @@ function portIsBusy(port) {
   });
 }
 
+function checkHttpHealth(url, options = {}) {
+  const timeoutMs = options.timeoutMs ?? defaultHealthTimeoutMs;
+
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve({
+        elapsedMs: Date.now() - startedAt,
+        ...result,
+      });
+    };
+
+    const request = http.get(url, (response) => {
+      response.resume();
+      finish({
+        ok: (response.statusCode ?? 500) < 500,
+        statusCode: response.statusCode ?? null,
+      });
+    });
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`timeout after ${timeoutMs}ms`));
+    });
+
+    request.once("error", (error) => {
+      finish({
+        error: error.message,
+        ok: false,
+        statusCode: null,
+      });
+    });
+  });
+}
+
+function listeningPidsForPort(port) {
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  const result = spawnSync("lsof", [
+    "-nP",
+    `-iTCP:${port}`,
+    "-sTCP:LISTEN",
+    "-t",
+  ], {
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0 || !result.stdout.trim()) {
+    return [];
+  }
+
+  return result.stdout
+    .split(/\s+/)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+function describePid(pid) {
+  let command = "";
+  let cwd = "";
+
+  try {
+    command = fs
+      .readFileSync(`/proc/${pid}/cmdline`, "utf8")
+      .replace(/\0/g, " ")
+      .trim();
+  } catch {
+    command = "";
+  }
+
+  try {
+    cwd = fs.realpathSync(`/proc/${pid}/cwd`);
+  } catch {
+    cwd = "";
+  }
+
+  return { command, cwd, pid };
+}
+
+function isProjectListener(description) {
+  return (
+    description.cwd === rootDir ||
+    description.cwd.startsWith(`${rootDir}${path.sep}`) ||
+    description.command.includes(rootDir)
+  );
+}
+
+async function terminateProjectListenersOnPort(port) {
+  const listeners = listeningPidsForPort(port).map(describePid);
+  const projectListeners = listeners.filter(isProjectListener);
+
+  if (!listeners.length) {
+    console.error(`No listener process was found for port ${port}.`);
+    return false;
+  }
+
+  const foreignListeners = listeners.filter((item) => !isProjectListener(item));
+  if (foreignListeners.length) {
+    console.error(`Port ${port} is owned by a process outside this project. Refusing to stop it.`);
+    foreignListeners.forEach((item) => {
+      console.error(`  pid ${item.pid}: ${item.command || "(command unavailable)"}`);
+    });
+    return false;
+  }
+
+  console.error(`Stopping stale ${rootDir} listener(s) on port ${port}:`);
+  projectListeners.forEach((item) => {
+    console.error(`  pid ${item.pid}: ${item.command || "(command unavailable)"}`);
+  });
+
+  for (const item of projectListeners) {
+    try {
+      process.kill(item.pid, "SIGTERM");
+    } catch {
+      // The process may already have exited.
+    }
+  }
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!(await portIsBusy(port))) {
+      return true;
+    }
+    await sleep(250);
+  }
+
+  console.error(`Port ${port} is still busy after stopping stale listener(s).`);
+  return false;
+}
+
 async function chooseAvailablePort(port, options = {}) {
   if (!(await portIsBusy(port))) {
     return port;
+  }
+
+  const healthPath = normalizeLaunchPath(options.healthPath);
+  const healthUrl = `http://127.0.0.1:${port}${healthPath}`;
+  const health = await checkHttpHealth(healthUrl, {
+    timeoutMs: options.healthTimeoutMs,
+  });
+
+  if (health.ok) {
+    console.error(
+      `Port ${port} is already in use and responding with HTTP ${health.statusCode} in ${formatElapsed(health.elapsedMs)}.`,
+    );
+  } else {
+    console.error(
+      `Port ${port} is already in use but did not respond to ${healthUrl} (${health.error ?? "unhealthy"}).`,
+    );
+
+    if (options.replaceStale) {
+      const replaced = await terminateProjectListenersOnPort(port);
+      if (replaced) {
+        console.error(`Reusing port ${port} after stale listener cleanup.`);
+        return String(port);
+      }
+      process.exit(1);
+    }
   }
 
   let alternatePort = Number(port) + 1;
@@ -258,7 +498,10 @@ async function promptPort(options) {
 
     return chooseAvailablePort(options.port, {
       autoPort: options.autoPort,
-      prompt: !options.scriptName || process.stdin.isTTY,
+      healthPath: options.healthPath,
+      healthTimeoutMs: options.healthTimeoutMs,
+      prompt: !options.scriptName || Boolean(process.stdin.isTTY),
+      replaceStale: options.replaceStale,
     });
   }
 
@@ -266,7 +509,10 @@ async function promptPort(options) {
     const defaultPort = process.env.PORT || defaultServerPort;
     return chooseAvailablePort(defaultPort, {
       autoPort: options.autoPort,
+      healthPath: options.healthPath,
+      healthTimeoutMs: options.healthTimeoutMs,
       prompt: false,
+      replaceStale: options.replaceStale,
     });
   }
 
@@ -282,13 +528,21 @@ async function promptPort(options) {
       case "1":
       case "default":
       case "8000":
-        return chooseAvailablePort(defaultServerPort);
+        return chooseAvailablePort(defaultServerPort, {
+          healthPath: options.healthPath,
+          healthTimeoutMs: options.healthTimeoutMs,
+          replaceStale: options.replaceStale,
+        });
       case "2":
       case "custom": {
         const customPortInput = await ask(`Port number [${defaultServerPort}]: `);
         const customPort = customPortInput.trim() || defaultServerPort;
         if (validatePort(customPort)) {
-          return chooseAvailablePort(customPort);
+          return chooseAvailablePort(customPort, {
+            healthPath: options.healthPath,
+            healthTimeoutMs: options.healthTimeoutMs,
+            replaceStale: options.replaceStale,
+          });
         }
         console.error("Port must be a number between 1 and 65535.");
         break;
@@ -395,12 +649,13 @@ function commandForScript(scriptName, serverOptions = {}) {
         command: localBinCommand("next"),
         args: [
           scriptName,
+          ...(scriptName === "dev" ? ["--webpack"] : []),
           "--hostname",
           serverOptions.bindHost,
           "--port",
           serverOptions.port,
         ],
-        label: `next ${scriptName} --hostname ${serverOptions.bindHost} --port ${serverOptions.port}`,
+        label: `next ${scriptName}${scriptName === "dev" ? " --webpack" : ""} --hostname ${serverOptions.bindHost} --port ${serverOptions.port}`,
       };
     case "build":
       return {
@@ -425,19 +680,161 @@ function commandForScript(scriptName, serverOptions = {}) {
   }
 }
 
+function spawnManagedChild(command, args, options = {}) {
+  const childEnv = createChildEnv(options);
+  return spawn(command, args, {
+    cwd: rootDir,
+    env: childEnv,
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+}
+
 function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const childEnv = createChildEnv(options);
-    const child = spawn(command, args, {
-      cwd: rootDir,
-      env: childEnv,
-      stdio: ["ignore", "inherit", "inherit"],
-    });
+    const child = spawnManagedChild(command, args, options);
 
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       resolve({ code: code ?? 1, signal });
     });
+  });
+}
+
+function stopChild(child, signal = "SIGTERM") {
+  if (!child || child.exitCode !== null || child.killed) {
+    return;
+  }
+
+  child.kill(signal);
+}
+
+function runServerCommand(command, args, options = {}) {
+  const watchdogEnabled = Boolean(options.watchdogEnabled);
+  const watchdogFailures = options.watchdogFailures ?? defaultWatchdogFailures;
+  const watchdogIntervalMs = options.watchdogIntervalMs ?? defaultWatchdogIntervalMs;
+  const maxRestarts = options.maxRestarts ?? defaultMaxRestarts;
+  const healthTimeoutMs = options.healthTimeoutMs ?? defaultHealthTimeoutMs;
+  const healthUrl = options.healthUrl;
+
+  return new Promise((resolve, reject) => {
+    let child = null;
+    let consecutiveFailures = 0;
+    let finalCode = null;
+    let forceStopTimer = null;
+    let healthTimer = null;
+    let intentionalStop = false;
+    let restartRequested = false;
+    let restarts = 0;
+    let startupTimer = null;
+
+    const clearTimers = () => {
+      if (forceStopTimer) {
+        clearTimeout(forceStopTimer);
+        forceStopTimer = null;
+      }
+      if (healthTimer) {
+        clearInterval(healthTimer);
+        healthTimer = null;
+      }
+      if (startupTimer) {
+        clearTimeout(startupTimer);
+        startupTimer = null;
+      }
+    };
+
+    const requestStop = (code = null) => {
+      intentionalStop = true;
+      finalCode = code;
+      stopChild(child);
+      forceStopTimer = setTimeout(() => stopChild(child, "SIGKILL"), 8000);
+    };
+
+    const startHealthChecks = () => {
+      if (!watchdogEnabled || !healthUrl) {
+        return;
+      }
+
+      startupTimer = setTimeout(() => {
+        const check = async () => {
+          if (!child || child.exitCode !== null || intentionalStop || restartRequested) {
+            return;
+          }
+
+          const health = await checkHttpHealth(healthUrl, {
+            timeoutMs: healthTimeoutMs,
+          });
+
+          if (health.ok) {
+            consecutiveFailures = 0;
+            return;
+          }
+
+          consecutiveFailures += 1;
+          console.error(
+            `[Launcher] Health check failed for ${healthUrl}: ${health.error ?? `HTTP ${health.statusCode}`} (${consecutiveFailures}/${watchdogFailures})`,
+          );
+
+          if (consecutiveFailures < watchdogFailures) {
+            return;
+          }
+
+          if (restarts >= maxRestarts) {
+            console.error(
+              `[Launcher] Max restarts reached (${maxRestarts}). Stopping server supervisor.`,
+            );
+            requestStop(1);
+            return;
+          }
+
+          restarts += 1;
+          consecutiveFailures = 0;
+          restartRequested = true;
+          console.error(
+            `[Launcher] Restarting unhealthy server (${restarts}/${maxRestarts}).`,
+          );
+          stopChild(child);
+          forceStopTimer = setTimeout(() => stopChild(child, "SIGKILL"), 8000);
+        };
+
+        void check();
+        healthTimer = setInterval(() => {
+          void check();
+        }, watchdogIntervalMs);
+      }, defaultWatchdogStartupMs);
+    };
+
+    const startChild = () => {
+      child = spawnManagedChild(command, args, options);
+      startHealthChecks();
+
+      child.once("error", (error) => {
+        clearTimers();
+        reject(error);
+      });
+
+      child.once("exit", (code, signal) => {
+        clearTimers();
+
+        if (intentionalStop) {
+          resolve({ code: finalCode ?? code ?? 0, signal });
+          return;
+        }
+
+        if (restartRequested) {
+          restartRequested = false;
+          setTimeout(startChild, 1500);
+          return;
+        }
+
+        resolve({ code: code ?? 1, signal });
+      });
+    };
+
+    const handleSignal = () => requestStop(0);
+    process.once("SIGINT", handleSignal);
+    process.once("SIGTERM", handleSignal);
+
+    startChild();
   });
 }
 
@@ -462,32 +859,20 @@ async function ensureBuildIfNeeded(options) {
   process.exit(1);
 }
 
-function waitForUrl(url) {
-  return new Promise((resolve) => {
-    let attempt = 0;
+async function waitForUrl(url, options = {}) {
+  const timeoutMs = options.timeoutMs ?? defaultHealthTimeoutMs;
+  const startupTimeoutMs = options.startupTimeoutMs ?? defaultStartupTimeoutMs;
+  const startedAt = Date.now();
 
-    const check = () => {
-      attempt += 1;
-      const request = http.get(url, (response) => {
-        response.resume();
-        resolve(true);
-      });
+  while (Date.now() - startedAt < startupTimeoutMs) {
+    const health = await checkHttpHealth(url, { timeoutMs });
+    if (health.ok) {
+      return true;
+    }
+    await sleep(500);
+  }
 
-      request.setTimeout(500, () => {
-        request.destroy();
-      });
-
-      request.once("error", () => {
-        if (attempt >= 80) {
-          resolve(false);
-          return;
-        }
-        setTimeout(check, 500);
-      });
-    };
-
-    check();
-  });
+  return false;
 }
 
 function openUrl(url) {
@@ -512,12 +897,12 @@ function openUrl(url) {
   child.unref();
 }
 
-function openUrlWhenReady(url, shouldOpen) {
+function openUrlWhenReady(url, shouldOpen, options = {}) {
   if (!shouldOpen) {
     return;
   }
 
-  waitForUrl(url).then((ready) => {
+  waitForUrl(url, options).then((ready) => {
     if (ready) {
       openUrl(url);
     } else {
@@ -528,13 +913,15 @@ function openUrlWhenReady(url, shouldOpen) {
 
 async function runSelectedScript(scriptName, options) {
   if (scriptName === "dev" || scriptName === "start") {
+    const launchPath = normalizeLaunchPath(options.launchPath || process.env.LAUNCH_PATH || "/");
+    options.healthPath = launchPath;
     const port = await promptPort(options);
     const bindHost = options.bindHost || process.env.LAUNCH_BIND_HOST || "0.0.0.0";
     const accessHost = selectAccessHost();
-    const launchPath = options.launchPath || process.env.LAUNCH_PATH || "/";
     const localUrl = `http://localhost:${port}${launchPath}`;
     const shouldOpen =
       options.shouldOpen ?? (process.env.LAUNCH_OPEN ? process.env.LAUNCH_OPEN !== "0" : true);
+    const watchdogEnabled = options.watchdog ?? scriptName === "start";
 
     if (scriptName === "start") {
       await ensureBuildIfNeeded(options);
@@ -543,12 +930,25 @@ async function runSelectedScript(scriptName, options) {
     printAccessUrls(port, bindHost, accessHost, launchPath);
     console.log("");
     console.log(`Opening when ready: ${localUrl}`);
+    if (watchdogEnabled) {
+      console.log(
+        `Health watchdog: on (${options.watchdogFailures} failures, every ${options.watchdogIntervalMs}ms)`,
+      );
+    } else {
+      console.log("Health watchdog: off");
+    }
     const task = commandForScript(scriptName, { bindHost, port });
     console.log(`Running: ${task.label}`);
-    openUrlWhenReady(localUrl, shouldOpen);
+    openUrlWhenReady(localUrl, shouldOpen, {
+      timeoutMs: options.healthTimeoutMs,
+    });
 
     rl.close();
-    const result = await runCommand(task.command, task.args, options);
+    const result = await runServerCommand(task.command, task.args, {
+      ...options,
+      healthUrl: localUrl,
+      watchdogEnabled,
+    });
     process.exit(result.code);
   }
 

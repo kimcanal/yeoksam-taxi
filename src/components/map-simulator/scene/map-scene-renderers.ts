@@ -5,6 +5,7 @@ import {
 import type { CameraMode } from "@/components/map-simulator/camera";
 import {
   resolvedRendererPixelRatioFor,
+  shouldUseHardwareAntialias,
 } from "@/components/map-simulator/utils";
 import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene";
 
@@ -16,8 +17,12 @@ export function createMapSceneRenderers({
   cameraMode: CameraMode;
 }) {
   const devicePixelRatio = window.devicePixelRatio || 1;
+  const viewportPixels = container.clientWidth * container.clientHeight;
   const renderer = new THREE.WebGLRenderer({
-    antialias: true,
+    antialias: shouldUseHardwareAntialias({
+      devicePixelRatio,
+      viewportPixels,
+    }),
     powerPreference: "high-performance",
   });
   renderer.setPixelRatio(

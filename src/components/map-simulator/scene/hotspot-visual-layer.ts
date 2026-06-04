@@ -172,27 +172,52 @@ export function createHotspotVisualLayer({
   return { group: layer, hotspotVisuals };
 }
 
+const hotspotSnapshotById = new globalThis.Map<string, HotspotSnapshot>();
+const _hotspotSphere = new THREE.Sphere();
+
 export function updateHotspotVisualLayer({
   elapsedTime,
   hotspotSnapshots,
   hotspotVisuals,
+  cameraFrustum,
 }: {
   elapsedTime: number;
   hotspotSnapshots: HotspotSnapshot[];
   hotspotVisuals: HotspotVisual[];
+  cameraFrustum?: THREE.Frustum | null;
 }) {
   if (!hotspotVisuals.length) {
     return;
   }
 
-  const hotspotSnapshotById = new globalThis.Map(
-    hotspotSnapshots.map(
-      (hotspotSnapshot) => [hotspotSnapshot.id, hotspotSnapshot] as const,
-    ),
-  );
+  hotspotSnapshotById.clear();
+  for (let i = 0; i < hotspotSnapshots.length; i += 1) {
+    const snapshot = hotspotSnapshots[i]!;
+    hotspotSnapshotById.set(snapshot.id, snapshot);
+  }
 
   for (let index = 0; index < hotspotVisuals.length; index += 1) {
     const visual = hotspotVisuals[index]!;
+
+    if (cameraFrustum) {
+      _hotspotSphere.center.copy(visual.hotspot.position);
+      _hotspotSphere.radius = 10.0;
+      if (!cameraFrustum.intersectsSphere(_hotspotSphere)) {
+        visual.base.visible = false;
+        visual.glow.visible = false;
+        visual.beacon.visible = false;
+        visual.ring.visible = false;
+        visual.callerGroup.visible = false;
+        visual.callBadge.visible = false;
+        continue;
+      } else {
+        visual.base.visible = true;
+        visual.glow.visible = true;
+        visual.beacon.visible = true;
+        visual.ring.visible = true;
+      }
+    }
+
     const hotspotSnapshot = hotspotSnapshotById.get(visual.hotspot.id);
     const markerMode: HotspotMarkerMode = hotspotSnapshot?.mode ?? "idle";
     const isActive = markerMode !== "idle";

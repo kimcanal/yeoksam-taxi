@@ -79,6 +79,36 @@ export function createEngineVisualUpdater(
   let activeHighlightedDongNames: string[] = [];
   let lastHighlightedKey = "";
 
+  // Pre-allocated objects reused across boundary highlight updates to avoid GC pressure
+  const _boundaryDummy = new THREE.Object3D();
+  const _highlightGlowColor = new THREE.Color(0xffa726);
+  const _highlightLineColor = new THREE.Color(0xffffff);
+  const _defaultGlowColor = new THREE.Color(0xd4834a);
+  const _defaultLineColor = new THREE.Color(0xe8904a);
+
+  // Pre-allocated objects for shared frustum culling
+  const _sharedFrustum = new THREE.Frustum();
+  const _sharedProjectionMatrix = new THREE.Matrix4();
+  const _vehicleSphere = new THREE.Sphere(new THREE.Vector3(), 6);
+  let lastFrustumElapsedTime = -1;
+
+  const getSharedFrustum = (elapsedTime: number) => {
+    const isCameraValid = camera.projectionMatrix.elements[0] !== 0;
+    if (!isCameraValid) {
+      return null;
+    }
+    if (lastFrustumElapsedTime !== elapsedTime) {
+      camera.updateMatrixWorld();
+      _sharedProjectionMatrix.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse,
+      );
+      _sharedFrustum.setFromProjectionMatrix(_sharedProjectionMatrix);
+      lastFrustumElapsedTime = elapsedTime;
+    }
+    return _sharedFrustum;
+  };
+
   const updateBoundaryVisualHighlight = () => {
     const { glowMesh, lineMesh } = ctx.dongBoundaryLayer;
     if (!glowMesh || !lineMesh) return;
@@ -93,7 +123,7 @@ export function createEngineVisualUpdater(
     }
     lastHighlightedKey = key;
 
-    const dummy = new THREE.Object3D();
+    const dummy = _boundaryDummy;
     dongBoundarySegments.forEach((segment, index) => {
       const isHighlighted =
         (segment.leftDong && activeDongs.has(segment.leftDong)) ||
@@ -106,14 +136,14 @@ export function createEngineVisualUpdater(
         dummy.scale.set(3.8, 1.4, segment.length + 1.1);
         dummy.updateMatrix();
         glowMesh.setMatrixAt(index, dummy.matrix);
-        glowMesh.setColorAt(index, new THREE.Color(0xffa726));
+        glowMesh.setColorAt(index, _highlightGlowColor);
 
         dummy.position.set(segment.center.x, 0.315, segment.center.z);
         dummy.rotation.set(0, segment.angle, 0);
         dummy.scale.set(1.9, 1.9, segment.length + 0.44);
         dummy.updateMatrix();
         lineMesh.setMatrixAt(index, dummy.matrix);
-        lineMesh.setColorAt(index, new THREE.Color(0xffffff));
+        lineMesh.setColorAt(index, _highlightLineColor);
       } else {
         // Default normal state
         dummy.position.set(segment.center.x, 0.26, segment.center.z);
@@ -121,14 +151,14 @@ export function createEngineVisualUpdater(
         dummy.scale.set(2.1, 1, segment.length + 1.1);
         dummy.updateMatrix();
         glowMesh.setMatrixAt(index, dummy.matrix);
-        glowMesh.setColorAt(index, new THREE.Color(0xd4834a));
+        glowMesh.setColorAt(index, _defaultGlowColor);
 
         dummy.position.set(segment.center.x, 0.315, segment.center.z);
         dummy.rotation.set(0, segment.angle, 0);
         dummy.scale.set(1.28, 1.4, segment.length + 0.44);
         dummy.updateMatrix();
         lineMesh.setMatrixAt(index, dummy.matrix);
-        lineMesh.setColorAt(index, new THREE.Color(0xe8904a));
+        lineMesh.setColorAt(index, _defaultLineColor);
       }
     });
 
@@ -202,6 +232,7 @@ export function createEngineVisualUpdater(
       elapsedTime,
       hotspotSnapshots,
       hotspotVisuals,
+      cameraFrustum: getSharedFrustum(elapsedTime),
     });
   };
 
@@ -211,6 +242,7 @@ export function createEngineVisualUpdater(
       frameSignalStates,
       pedestrianVisuals,
       signalById,
+      cameraFrustum: getSharedFrustum(elapsedTime),
     });
   };
 
@@ -429,6 +461,32 @@ export function createEngineVisualUpdater(
     }
   };
 
+  /**
+   * Frustum-cull individual vehicle groups so that offscreen vehicles
+   * skip the GPU draw call entirely.  Uses the same camera already
+   * available in ctx; the bounding sphere radius (6 units) covers the
+   * largest taxi / traffic asset with margin.
+   */
+  const cullVehicles = (elapsedTime: number) => {
+    const frustum = getSharedFrustum(elapsedTime);
+    if (!frustum) {
+      return ctx.vehicles.length;
+    }
+
+    const vehicles = ctx.vehicles;
+    let visible = 0;
+    for (let i = 0; i < vehicles.length; i++) {
+      const vehicle = vehicles[i];
+      _vehicleSphere.center.copy(vehicle.group.position);
+      const isVisible = frustum.intersectsSphere(_vehicleSphere);
+      vehicle.group.visible = isVisible;
+      if (isVisible) {
+        visible += 1;
+      }
+    }
+    return visible;
+  };
+
   return {
     markHoverDirty,
     markLabelVisibilityDirty,
@@ -445,6 +503,7 @@ export function createEngineVisualUpdater(
     updateAtmosphere,
     updateLabelsAndHover,
     renderLabelsIfNeeded,
+    cullVehicles,
     setBoundaryDongHighlight,
     getHighlightedDongNames: () => activeHighlightedDongNames,
   };

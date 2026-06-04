@@ -18,7 +18,6 @@ import {
 } from "@/components/map-simulator/demand";
 import type {
   DemandFetchStatus,
-  DemandHeatmapScope,
   HourlyDemandPoint,
 } from "@/components/map-simulator/demand";
 import type { CircumstanceMode } from "@/components/map-simulator/types";
@@ -49,8 +48,6 @@ export function useDemandForecast({
   const [heatmapHour, setHeatmapHour] = useState(() =>
     Math.floor(normalizedSimulationTimeMinutes / 60),
   );
-  const [heatmapScope, setHeatmapScope] =
-    useState<DemandHeatmapScope>("all");
   const [taxiDemandScalePercent, setTaxiDemandScalePercent] = useState(
     DEMAND_TAXI_SCALE_DEFAULT_PERCENT,
   );
@@ -252,15 +249,7 @@ export function useDemandForecast({
       ),
     [demandSeriesByDong],
   );
-  const heatmapDemandByDong = useMemo(() => {
-    if (heatmapScope === "all") {
-      return heatmapAllDemandByDong;
-    }
-    const selectedDemand = heatmapAllDemandByDong[selectedDongName];
-    return selectedDemand === undefined
-      ? {}
-      : { [selectedDongName]: selectedDemand };
-  }, [heatmapAllDemandByDong, heatmapScope, selectedDongName]);
+  const heatmapDemandByDong = heatmapAllDemandByDong;
   const heatmapMaxDemand = Math.max(0, ...Object.values(heatmapDemandByDong));
   const demandFetchBadgeText =
     demandFetchStatus === "ready"
@@ -305,9 +294,7 @@ export function useDemandForecast({
     heatmapHour: effectiveHeatmapHour,
     heatmapDailyMaxDemand,
     heatmapMaxDemand,
-    heatmapScope,
     setHeatmapHour,
-    setHeatmapScope,
     demandFetchStatus,
     demandFetchBadgeText,
     demandFetchBadgeClass,
