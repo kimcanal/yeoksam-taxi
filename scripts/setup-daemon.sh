@@ -57,7 +57,7 @@ WorkingDirectory=${APP_DIR}
 Environment=NODE_ENV=production
 Environment=PORT=8000
 Environment=NODE_EXTRA_CA_CERTS=${APP_DIR}/cert.pem
-ExecStart=${node_path} ${APP_DIR}/scripts/run-next.mjs start --no-open --port 8000 --host 0.0.0.0
+ExecStart=${node_path} ${APP_DIR}/scripts/run-next.mjs start --no-open --port 8000 --host 0.0.0.0 --replace-stale --watchdog
 Restart=always
 RestartSec=5
 StandardOutput=append:${APP_DIR}/daemon.log

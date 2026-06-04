@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import {
   ROAD_LAYER_Y,
+  ROAD_SURFACE_DECAL_THICKNESS,
+  ROAD_SURFACE_DECAL_Y_OFFSET,
   ROAD_SURFACE_THICKNESS,
 } from "@/components/map-simulator/scene/scene-constants";
 import { distanceXZ } from "@/components/map-simulator/road";
@@ -11,7 +13,13 @@ import {
 
 type StaticCulledLayer = {
   group: THREE.Group;
+  getVisibilityStats: () => StaticCullingStats;
   updateVisibility: (camera: THREE.Camera) => void;
+};
+
+export type StaticCullingStats = {
+  total: number;
+  visible: number;
 };
 
 type ChunkBounds = {
@@ -27,7 +35,9 @@ type RoadChunk = ChunkBounds & {
 };
 
 const BUILDING_CHUNK_SIZE = 112;
+const BUILDING_CHUNK_VISIBILITY_PADDING = 44;
 const ROAD_CHUNK_SIZE = 144;
+const ROAD_CHUNK_VISIBILITY_PADDING = 72;
 
 function chunkKey(x: number, z: number, size: number) {
   return `${Math.floor(x / size)}:${Math.floor(z / size)}`;
@@ -246,7 +256,7 @@ function createLaneMarkerMesh(
 
   const dummy = new THREE.Object3D();
   const mesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(0.16, 0.0005, 1),
+    new THREE.BoxGeometry(0.16, ROAD_SURFACE_DECAL_THICKNESS, 1),
     material,
     markers.length,
   );
@@ -255,7 +265,9 @@ function createLaneMarkerMesh(
   markers.forEach((marker, index) => {
     dummy.position.set(
       marker.center.x,
-      ROAD_LAYER_Y[marker.roadClass] + ROAD_SURFACE_THICKNESS / 2 + 0.001,
+      ROAD_LAYER_Y[marker.roadClass] +
+        ROAD_SURFACE_THICKNESS / 2 +
+        ROAD_SURFACE_DECAL_Y_OFFSET,
       marker.center.z,
     );
     dummy.rotation.set(0, marker.angle, 0);
@@ -317,26 +329,42 @@ export function createBuildingCulledLayer(
       b.position,
       new THREE.Vector3(b.position.x, b.height, b.position.z),
     ]);
-    const sphere = computeChunkSphere(boundingPoints, 28);
+    const sphere = computeChunkSphere(
+      boundingPoints,
+      BUILDING_CHUNK_VISIBILITY_PADDING,
+    );
     root.add(group);
     return { group, sphere };
   });
 
   const projectionMatrix = new THREE.Matrix4();
   const frustum = new THREE.Frustum();
+  const visibilityStats: StaticCullingStats = {
+    total: chunks.length,
+    visible: chunks.length,
+  };
 
   return {
     group: root,
     buildingMaterial,
     buildingRoofMaterial,
+    getVisibilityStats() {
+      return visibilityStats;
+    },
     updateVisibility(camera) {
       if (!updateFrustum(camera, projectionMatrix, frustum)) {
         return;
       }
 
+      let visible = 0;
       chunks.forEach((chunk) => {
-        chunk.group.visible = frustum.intersectsSphere(chunk.sphere);
+        const isVisible = frustum.intersectsSphere(chunk.sphere);
+        chunk.group.visible = isVisible;
+        if (isVisible) {
+          visible += 1;
+        }
       });
+      visibilityStats.visible = visible;
     },
   };
 }
@@ -393,6 +421,7 @@ export function createRoadCulledLayer(
     polygonOffsetFactor: -4,
     polygonOffsetUnits: -4,
   });
+  roadSheenMaterial.visible = false;
 
   const laneMarkerMaterial = new THREE.MeshStandardMaterial({
     color: 0xf3e9cf,
@@ -400,6 +429,7 @@ export function createRoadCulledLayer(
     emissiveIntensity: 0.06,
     roughness: 0.82,
     depthWrite: false,
+    depthTest: false,
     polygonOffset: true,
     polygonOffsetFactor: -6,
     polygonOffsetUnits: -6,
@@ -443,7 +473,7 @@ export function createRoadCulledLayer(
 
     const sphere = computeChunkSphere(
       segments.flatMap((segment) => [segment.start, segment.end]),
-      36,
+      ROAD_CHUNK_VISIBILITY_PADDING,
     );
     root.add(group);
     return { group, sphere };
@@ -451,20 +481,33 @@ export function createRoadCulledLayer(
 
   const projectionMatrix = new THREE.Matrix4();
   const frustum = new THREE.Frustum();
+  const visibilityStats: StaticCullingStats = {
+    total: chunks.length,
+    visible: chunks.length,
+  };
 
   return {
     group: root,
     roadMaterials,
     roadSheenMaterial,
     laneMarkerMaterial,
+    getVisibilityStats() {
+      return visibilityStats;
+    },
     updateVisibility(camera) {
       if (!updateFrustum(camera, projectionMatrix, frustum)) {
         return;
       }
 
+      let visible = 0;
       chunks.forEach((chunk) => {
-        chunk.group.visible = frustum.intersectsSphere(chunk.sphere);
+        const isVisible = frustum.intersectsSphere(chunk.sphere);
+        chunk.group.visible = isVisible;
+        if (isVisible) {
+          visible += 1;
+        }
       });
+      visibilityStats.visible = visible;
     },
   };
 }

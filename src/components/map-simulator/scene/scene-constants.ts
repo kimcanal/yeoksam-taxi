@@ -3,13 +3,15 @@ export const POSITION_SCALE = 0.2;
 export const ROAD_WIDTH_SCALE = 0.6;
 export const BUILDING_HEIGHT_SCALE = 0.2;
 export const ROAD_LAYER_Y = {
-  local: 0.116,
-  connector: 0.121,
-  arterial: 0.126,
+  local: 0.12,
+  connector: 0.17,
+  arterial: 0.22,
 } as const;
 export const ROAD_SURFACE_THICKNESS = 0.035;
 export const ROAD_SHEEN_Y_OFFSET = 0.065;
-export const ROAD_MARKING_Y = 0.205;
+export const ROAD_SURFACE_DECAL_Y_OFFSET = 0.012;
+export const ROAD_SURFACE_DECAL_THICKNESS = 0.001;
+export const ROAD_MARKING_Y = 0.255;
 export const NON_ROAD_LAYER_Y = {
   facility: 0.048,
   green: 0.056,

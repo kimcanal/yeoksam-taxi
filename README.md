@@ -31,6 +31,9 @@ npm install
 
 # Or start the development server directly
 ./run-web.sh dev
+
+# Stable production server for demos or external sharing
+./run-web.sh start --no-open --port 8000 --replace-stale
 ```
 
 The application will be available at `http://localhost:8000` by default.

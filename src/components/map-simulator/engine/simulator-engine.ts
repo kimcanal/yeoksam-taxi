@@ -325,7 +325,9 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     updateStaticLayerVisibility();
 
     // Vehicle frustum culling – skip draw calls for offscreen vehicles
-    finalVisualUpdater.cullVehicles(snapshot.clock.elapsedTimeSeconds);
+    const visibleVehicles = finalVisualUpdater.cullVehicles(
+      snapshot.clock.elapsedTimeSeconds,
+    );
 
     // Render
     const renderStart = performance.now();
@@ -338,6 +340,8 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     fpsAccumulator += delta;
     if (fpsAccumulator >= FPS_REPORT_INTERVAL) {
       const fps = Math.round(fpsFrameCount / fpsAccumulator);
+      const buildingStats = ctx.buildingMassLayer.getVisibilityStats();
+      const roadStats = ctx.staticRoadLayer.getVisibilityStats();
       sceneSetters.setFpsStats({
         fps,
         capLabel: `${fps} FPS`,
@@ -348,6 +352,11 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
         renderMs: Math.round(renderMs * 100) / 100,
         simulationHz: 0,
         vehicles: ctx.vehicles.length,
+        visibleVehicles,
+        buildingChunksVisible: buildingStats.visible,
+        buildingChunksTotal: buildingStats.total,
+        roadChunksVisible: roadStats.visible,
+        roadChunksTotal: roadStats.total,
       });
       fpsFrameCount = 0;
       fpsAccumulator = 0;

@@ -12,6 +12,8 @@ import {
   CROSSWALK_STRIPE_COUNT,
   CROSSWALK_WIDTH,
   ROAD_LAYER_Y,
+  ROAD_SURFACE_DECAL_THICKNESS,
+  ROAD_SURFACE_DECAL_Y_OFFSET,
   ROAD_SURFACE_THICKNESS,
 } from "@/components/map-simulator/scene";
 import { signalState } from "@/components/map-simulator/signal";
@@ -217,6 +219,7 @@ export function createTrafficSignalLayer({
     emissiveIntensity: 0.02,
     roughness: 0.9,
     depthWrite: false,
+    depthTest: false,
     polygonOffset: true,
     polygonOffsetFactor: -5,
     polygonOffsetUnits: -5,
@@ -228,7 +231,11 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .setY(ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + 0.0015)
+          .setY(
+            ROAD_LAYER_Y["arterial"] +
+              ROAD_SURFACE_THICKNESS / 2 +
+              ROAD_SURFACE_DECAL_Y_OFFSET,
+          )
           .add(
             new THREE.Vector3(
               0,
@@ -246,7 +253,11 @@ export function createTrafficSignalLayer({
       (_, index) => ({
         center: signal.point
           .clone()
-          .setY(ROAD_LAYER_Y["arterial"] + ROAD_SURFACE_THICKNESS / 2 + 0.0015)
+          .setY(
+            ROAD_LAYER_Y["arterial"] +
+              ROAD_SURFACE_THICKNESS / 2 +
+              ROAD_SURFACE_DECAL_Y_OFFSET,
+          )
           .add(
             new THREE.Vector3(
               (index - stripeOffset) * CROSSWALK_STEP,
@@ -262,7 +273,7 @@ export function createTrafficSignalLayer({
     return [...nsStripes, ...ewStripes];
   });
   const crosswalkMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.0005, 1),
+    new THREE.BoxGeometry(1, ROAD_SURFACE_DECAL_THICKNESS, 1),
     crosswalkMaterial,
     crosswalkStripes.length,
   );
@@ -283,6 +294,7 @@ export function createTrafficSignalLayer({
     emissiveIntensity: 0.03,
     roughness: 0.82,
     depthWrite: false,
+    depthTest: false,
     polygonOffset: true,
     polygonOffsetFactor: -5,
     polygonOffsetUnits: -5,
@@ -291,7 +303,7 @@ export function createTrafficSignalLayer({
     .filter((route) => route.roadClass !== "local")
     .flatMap((route) => route.stops.map((stop) => ({ route, stop })));
   const stopLineMesh = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 0.0005, 0.32),
+    new THREE.BoxGeometry(1, ROAD_SURFACE_DECAL_THICKNESS, 0.32),
     stopLineMaterial,
     stopLineMarkers.length,
   );
@@ -304,7 +316,10 @@ export function createTrafficSignalLayer({
       marker.route.laneOffset,
     );
     const roadClass = marker.route.roadClass;
-    const y = ROAD_LAYER_Y[roadClass] + ROAD_SURFACE_THICKNESS / 2 + 0.002;
+    const y =
+      ROAD_LAYER_Y[roadClass] +
+      ROAD_SURFACE_THICKNESS / 2 +
+      ROAD_SURFACE_DECAL_Y_OFFSET;
     dummy.position.set(lanePosition.x, y, lanePosition.z);
     dummy.rotation.set(0, Math.atan2(sample.heading.x, sample.heading.z), 0);
     dummy.scale.set(Math.min(marker.route.roadWidth * 0.48, 2.4), 1, 1);

@@ -470,15 +470,21 @@ export function createEngineVisualUpdater(
   const cullVehicles = (elapsedTime: number) => {
     const frustum = getSharedFrustum(elapsedTime);
     if (!frustum) {
-      return;
+      return ctx.vehicles.length;
     }
 
     const vehicles = ctx.vehicles;
+    let visible = 0;
     for (let i = 0; i < vehicles.length; i++) {
       const vehicle = vehicles[i];
       _vehicleSphere.center.copy(vehicle.group.position);
-      vehicle.group.visible = frustum.intersectsSphere(_vehicleSphere);
+      const isVisible = frustum.intersectsSphere(_vehicleSphere);
+      vehicle.group.visible = isVisible;
+      if (isVisible) {
+        visible += 1;
+      }
     }
+    return visible;
   };
 
   return {

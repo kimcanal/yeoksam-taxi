@@ -26,7 +26,7 @@ import { useMapSimulatorStores } from "@/components/map-simulator/hooks/use-map-
 import { useSimulationDataLoader } from "@/components/map-simulator/hooks/use-simulation-data-loader";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { WeatherBadge } from "@/components/map-simulator/ui/WeatherBadge";
-import { Menu, X } from "lucide-react";
+import { Activity, Menu, X } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
 import type { FpsMode } from "@/components/map-simulator/camera";
 import { useMapDemandState } from "@/components/map-simulator/demand";
@@ -75,6 +75,8 @@ export default function MapSimulator({
     weatherMode,
     trafficLoadPercent,
     cameraMode,
+    showFps,
+    fpsStats,
     miniMapFocus,
     followTaxiId,
     selectedPoiCode,
@@ -91,6 +93,7 @@ export default function MapSimulator({
     setSimulationTimeMinutes,
     setWeatherMode,
     setCameraMode,
+    setShowFps,
     setMiniMapFocus,
     setFollowTaxiId,
     setStats,
@@ -259,6 +262,10 @@ export default function MapSimulator({
     setIsSidebarCollapsed(false);
   }
 
+  function toggleFpsHud() {
+    setShowFps((current) => !current);
+  }
+
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden bg-[#060d16]">
       <section className="relative h-full overflow-hidden" style={layoutStyle}>
@@ -345,42 +352,92 @@ export default function MapSimulator({
           />
         ) : null}
 
-        {/* 나침반 UI */}
-        {!isSceneBusy && miniMapFocus ? (
-          <div
-            data-ui-panel="compass"
-            onClick={handleResetCompass}
-            title="클릭 시 지도 정북 방향(North-Up) 정렬"
-            className="absolute right-4 top-4 z-30 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300 cursor-pointer hover:bg-slate-900/90 hover:scale-105 active:scale-95"
-          >
-            <div className="relative h-12 w-12 flex items-center justify-center">
-              {/* 나침반 다이얼 */}
-              <div
-                className="absolute inset-0 rounded-full border border-white/5 bg-slate-900/40 transition-transform duration-200"
-                style={{ transform: `rotate(${-compassAngle}deg)` }}
+        {!isSceneBusy ? (
+          <div className="absolute right-4 top-4 z-30 flex max-w-[calc(100%-2rem)] flex-col items-end gap-2">
+            {/* 나침반 UI */}
+            {miniMapFocus ? (
+              <button
+                type="button"
+                data-ui-panel="compass"
+                onClick={handleResetCompass}
+                title="클릭 시 지도 정북 방향(North-Up) 정렬"
+                className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-slate-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95"
               >
-                {/* 방위 표시 */}
-                <span className="absolute left-1/2 top-0.5 -translate-x-1/2 text-[9px] font-bold text-red-500">N</span>
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400">S</span>
-                <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">W</span>
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">E</span>
+                <div className="relative flex h-12 w-12 items-center justify-center">
+                  {/* 나침반 다이얼 */}
+                  <div
+                    className="absolute inset-0 rounded-full border border-white/5 bg-slate-900/40 transition-transform duration-200"
+                    style={{ transform: `rotate(${-compassAngle}deg)` }}
+                  >
+                    {/* 방위 표시 */}
+                    <span className="absolute left-1/2 top-0.5 -translate-x-1/2 text-[9px] font-bold text-red-500">N</span>
+                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400">S</span>
+                    <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">W</span>
+                    <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">E</span>
+                  </div>
+                  {/* 바늘 */}
+                  <div className="z-10 h-7 w-0.5 rounded-full bg-gradient-to-b from-red-500 to-slate-400 shadow-lg" />
+                </div>
+                <span className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                  {Math.round((compassAngle + 360) % 360)}° {(() => {
+                    const normalizedAngle = ((compassAngle % 360) + 360) % 360;
+                    if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return "북";
+                    if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return "북동";
+                    if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return "동";
+                    if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return "남동";
+                    if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return "남";
+                    if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return "남서";
+                    if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return "서";
+                    return "북서";
+                  })()}
+                </span>
+              </button>
+            ) : null}
+
+            {showFps ? (
+              <div
+                data-ui-panel="render-hud"
+                className="w-64 rounded-lg border border-white/10 bg-slate-950/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-md"
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="font-semibold text-slate-100">
+                    Render HUD
+                  </span>
+                  <span className="font-mono text-cyan-200">
+                    {fpsStats.capLabel}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
+                  <span className="text-slate-500">render</span>
+                  <span className="text-right text-slate-100">
+                    {fpsStats.renderMs.toFixed(2)}ms
+                  </span>
+                  <span className="text-slate-500">vehicles</span>
+                  <span className="text-right text-slate-100">
+                    {fpsStats.visibleVehicles}/{fpsStats.vehicles}
+                  </span>
+                  <span className="text-slate-500">build chunks</span>
+                  <span className="text-right text-slate-100">
+                    {fpsStats.buildingChunksVisible}/
+                    {fpsStats.buildingChunksTotal}
+                  </span>
+                  <span className="text-slate-500">road chunks</span>
+                  <span className="text-right text-slate-100">
+                    {fpsStats.roadChunksVisible}/{fpsStats.roadChunksTotal}
+                  </span>
+                </div>
               </div>
-              {/* 바늘 */}
-              <div className="z-10 h-7 w-0.5 bg-gradient-to-b from-red-500 to-slate-400 rounded-full shadow-lg" />
-            </div>
-            <span className="mt-1 text-[9px] font-semibold tracking-wider text-slate-400 uppercase">
-              {Math.round((compassAngle + 360) % 360)}° {(() => {
-                const normalizedAngle = ((compassAngle % 360) + 360) % 360;
-                if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return "북";
-                if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return "북동";
-                if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return "동";
-                if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return "남동";
-                if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return "남";
-                if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return "남서";
-                if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return "서";
-                return "북서";
-              })()}
-            </span>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={toggleFpsHud}
+              aria-label={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
+              aria-pressed={showFps}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+            >
+              <Activity className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
         ) : null}
 
@@ -393,7 +450,6 @@ export default function MapSimulator({
             buildVersion={buildVersion}
           />
         ) : null}
-
 
         <DemandSidebar
           isVisible={isSidebarVisible}
