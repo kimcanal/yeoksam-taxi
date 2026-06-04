@@ -325,7 +325,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     updateStaticLayerVisibility();
 
     // Vehicle frustum culling – skip draw calls for offscreen vehicles
-    finalVisualUpdater.cullVehicles();
+    finalVisualUpdater.cullVehicles(snapshot.clock.elapsedTimeSeconds);
 
     // Render
     const renderStart = performance.now();

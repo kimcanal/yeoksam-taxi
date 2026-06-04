@@ -67,16 +67,20 @@ export function createPedestrianVisualLayer(signalVisuals: SignalVisual[]) {
   return { group: layer, pedestrianVisuals };
 }
 
+const _pedSphere = new THREE.Sphere();
+
 export function updatePedestrianVisualLayer({
   elapsedTime,
   frameSignalStates,
   pedestrianVisuals,
   signalById,
+  cameraFrustum,
 }: {
   elapsedTime: number;
   frameSignalStates: ReadonlyMap<string, SignalFlow>;
   pedestrianVisuals: PedestrianVisual[];
   signalById: ReadonlyMap<string, SignalData>;
+  cameraFrustum?: THREE.Frustum | null;
 }) {
   if (!pedestrianVisuals.length) {
     return 0;
@@ -88,6 +92,15 @@ export function updatePedestrianVisualLayer({
     if (!signal) {
       pedestrian.group.visible = false;
       return;
+    }
+
+    if (cameraFrustum) {
+      _pedSphere.center.copy(signal.visualPoint);
+      _pedSphere.radius = 16.0;
+      if (!cameraFrustum.intersectsSphere(_pedSphere)) {
+        pedestrian.group.visible = false;
+        return;
+      }
     }
 
     const state =

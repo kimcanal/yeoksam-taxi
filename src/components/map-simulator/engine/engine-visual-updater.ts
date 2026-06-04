@@ -86,10 +86,28 @@ export function createEngineVisualUpdater(
   const _defaultGlowColor = new THREE.Color(0xd4834a);
   const _defaultLineColor = new THREE.Color(0xe8904a);
 
-  // Pre-allocated objects for vehicle frustum culling
-  const _vehicleFrustum = new THREE.Frustum();
-  const _vehicleProjectionMatrix = new THREE.Matrix4();
+  // Pre-allocated objects for shared frustum culling
+  const _sharedFrustum = new THREE.Frustum();
+  const _sharedProjectionMatrix = new THREE.Matrix4();
   const _vehicleSphere = new THREE.Sphere(new THREE.Vector3(), 6);
+  let lastFrustumElapsedTime = -1;
+
+  const getSharedFrustum = (elapsedTime: number) => {
+    const isCameraValid = camera.projectionMatrix.elements[0] !== 0;
+    if (!isCameraValid) {
+      return null;
+    }
+    if (lastFrustumElapsedTime !== elapsedTime) {
+      camera.updateMatrixWorld();
+      _sharedProjectionMatrix.multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse,
+      );
+      _sharedFrustum.setFromProjectionMatrix(_sharedProjectionMatrix);
+      lastFrustumElapsedTime = elapsedTime;
+    }
+    return _sharedFrustum;
+  };
 
   const updateBoundaryVisualHighlight = () => {
     const { glowMesh, lineMesh } = ctx.dongBoundaryLayer;
@@ -214,6 +232,7 @@ export function createEngineVisualUpdater(
       elapsedTime,
       hotspotSnapshots,
       hotspotVisuals,
+      cameraFrustum: getSharedFrustum(elapsedTime),
     });
   };
 
@@ -223,6 +242,7 @@ export function createEngineVisualUpdater(
       frameSignalStates,
       pedestrianVisuals,
       signalById,
+      cameraFrustum: getSharedFrustum(elapsedTime),
     });
   };
 
@@ -447,23 +467,17 @@ export function createEngineVisualUpdater(
    * available in ctx; the bounding sphere radius (6 units) covers the
    * largest taxi / traffic asset with margin.
    */
-  const cullVehicles = () => {
-    const isCameraValid = camera.projectionMatrix.elements[0] !== 0;
-    if (!isCameraValid) {
+  const cullVehicles = (elapsedTime: number) => {
+    const frustum = getSharedFrustum(elapsedTime);
+    if (!frustum) {
       return;
     }
-    camera.updateMatrixWorld();
-    _vehicleProjectionMatrix.multiplyMatrices(
-      camera.projectionMatrix,
-      camera.matrixWorldInverse,
-    );
-    _vehicleFrustum.setFromProjectionMatrix(_vehicleProjectionMatrix);
 
     const vehicles = ctx.vehicles;
     for (let i = 0; i < vehicles.length; i++) {
       const vehicle = vehicles[i];
       _vehicleSphere.center.copy(vehicle.group.position);
-      vehicle.group.visible = _vehicleFrustum.intersectsSphere(_vehicleSphere);
+      vehicle.group.visible = frustum.intersectsSphere(_vehicleSphere);
     }
   };
 
