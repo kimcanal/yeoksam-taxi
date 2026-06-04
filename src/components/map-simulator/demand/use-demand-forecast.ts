@@ -138,9 +138,18 @@ export function useDemandForecast({
 
     // 만약 오늘 날짜이고 이미 메모리 캐시에 데이터가 존재한다면 즉각 반환하고 통신 생략!
     if (isToday && todayDemandCache) {
-      setDemandSeriesByDong(todayDemandCache);
-      setHeatmapFetchStatus("ready");
-      return;
+      const cachedSeries = todayDemandCache;
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (cancelled) {
+          return;
+        }
+        setDemandSeriesByDong(cachedSeries);
+        setHeatmapFetchStatus("ready");
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     const controller = new AbortController();

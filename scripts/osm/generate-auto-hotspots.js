@@ -1,4 +1,5 @@
 /* scripts/osm/generate-auto-hotspots.js */
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS script without package type:module. */
 'use strict';
 
 const fs = require('node:fs');
