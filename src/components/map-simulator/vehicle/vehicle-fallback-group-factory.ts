@@ -25,6 +25,8 @@ type FallbackVehicleGroup = {
   clickTarget: THREE.Mesh | null;
 };
 
+const FALLBACK_VEHICLE_SETTLE_Y = 0.075;
+
 const TRAFFIC_FALLBACK_PROFILES: Record<
   TrafficVehicleModelKey,
   TrafficFallbackProfile
@@ -81,6 +83,12 @@ const TRAFFIC_FALLBACK_PROFILES: Record<
 
 function trafficProfileFor(modelKey: TrafficVehicleModelKey | null | undefined) {
   return TRAFFIC_FALLBACK_PROFILES[modelKey ?? "compact"];
+}
+
+function settleFallbackVehicleBody(group: THREE.Group) {
+  group.children.forEach((child) => {
+    child.position.y -= FALLBACK_VEHICLE_SETTLE_Y;
+  });
 }
 
 function addFallbackTaxiDetails({
@@ -524,6 +532,8 @@ export function createFallbackVehicleGroup(
     sign.position.set(0, 1.88, -0.12);
     group.add(sign);
   }
+
+  settleFallbackVehicleBody(group);
 
   const shadow = new THREE.Mesh(
     new THREE.PlaneGeometry(

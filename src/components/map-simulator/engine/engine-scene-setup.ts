@@ -433,7 +433,10 @@ export function setupEngineScene(
           return;
         }
         const currentMode = props.cameraModeRef.current;
-        if (currentMode === "ride" || currentMode === "follow") {
+        if (currentMode === "ride") {
+          return;
+        }
+        if (currentMode === "follow") {
           const exitMode = props.rideExitModeRef.current || "drive";
           props.cameraModeRef.current = exitMode;
           props.setCameraMode(exitMode);

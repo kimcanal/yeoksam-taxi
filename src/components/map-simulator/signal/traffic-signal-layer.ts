@@ -10,7 +10,6 @@ import type { SignalSnapshot } from "@/components/map-simulator/simulation";
 import {
   CROSSWALK_STEP,
   CROSSWALK_STRIPE_COUNT,
-  CROSSWALK_WIDTH,
   ROAD_LAYER_Y,
   ROAD_SURFACE_DECAL_THICKNESS,
   ROAD_SURFACE_DECAL_Y_OFFSET,
@@ -214,63 +213,78 @@ export function createTrafficSignalLayer({
   group.add(signalHeadMesh);
 
   const crosswalkMaterial = new THREE.MeshStandardMaterial({
-    color: 0xc6cbd1,
-    emissive: 0x15181c,
-    emissiveIntensity: 0.02,
+    color: 0xf4f7fb,
+    emissive: 0x2b3038,
+    emissiveIntensity: 0.06,
     roughness: 0.9,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     polygonOffset: true,
     polygonOffsetFactor: -5,
     polygonOffsetUnits: -5,
   });
-  const crosswalkStripes = signalVisuals.flatMap((signal) => {
+  const crosswalkMarkers = new Map<
+    string,
+    {
+      center: THREE.Vector3;
+      heading: THREE.Vector3;
+      roadClass: RouteTemplate["roadClass"];
+      roadWidth: number;
+    }
+  >();
+  loopRoutes
+    .filter((route) => route.roadClass !== "local")
+    .forEach((route) => {
+      route.stops.forEach((stop) => {
+        const sample = sampleRoute(route, stop.distance);
+        const center = offsetToRight(
+          sample.position,
+          sample.heading,
+          route.laneOffset * 0.35,
+        );
+        const markerKey = [
+          stop.signalId,
+          stop.axis,
+          Math.round(center.x / 4),
+          Math.round(center.z / 4),
+        ].join(":");
+        if (crosswalkMarkers.has(markerKey)) {
+          return;
+        }
+        crosswalkMarkers.set(markerKey, {
+          center,
+          heading: sample.heading.clone(),
+          roadClass: route.roadClass,
+          roadWidth: route.roadWidth,
+        });
+      });
+    });
+  const crosswalkStripes = [...crosswalkMarkers.values()].flatMap((marker) => {
     const stripeOffset = (CROSSWALK_STRIPE_COUNT - 1) * 0.5;
-    const nsStripes = Array.from(
-      { length: CROSSWALK_STRIPE_COUNT },
-      (_, index) => ({
-        center: signal.point
-          .clone()
-          .setY(
-            ROAD_LAYER_Y["arterial"] +
-              ROAD_SURFACE_THICKNESS / 2 +
-              ROAD_SURFACE_DECAL_Y_OFFSET,
-          )
-          .add(
-            new THREE.Vector3(
-              0,
-              0,
-              (index - stripeOffset) * CROSSWALK_STEP,
-            ),
-          ),
-        angle: 0,
-        width: CROSSWALK_WIDTH,
-        depth: 0.34,
-      }),
+    const stripeY =
+      ROAD_LAYER_Y[marker.roadClass] +
+      ROAD_SURFACE_THICKNESS / 2 +
+      ROAD_SURFACE_DECAL_Y_OFFSET;
+    const crosswalkWidth = Math.min(
+      Math.max(marker.roadWidth * 1.08, 3.8),
+      7.2,
     );
-    const ewStripes = Array.from(
-      { length: CROSSWALK_STRIPE_COUNT },
-      (_, index) => ({
-        center: signal.point
-          .clone()
-          .setY(
-            ROAD_LAYER_Y["arterial"] +
-              ROAD_SURFACE_THICKNESS / 2 +
-              ROAD_SURFACE_DECAL_Y_OFFSET,
-          )
-          .add(
-            new THREE.Vector3(
-              (index - stripeOffset) * CROSSWALK_STEP,
-              0,
-              0,
-            ),
-          ),
-        angle: Math.PI / 2,
-        width: CROSSWALK_WIDTH,
-        depth: 0.34,
-      }),
-    );
-    return [...nsStripes, ...ewStripes];
+    const crosswalkDepth = 0.46;
+    const angle = Math.atan2(marker.heading.x, marker.heading.z);
+
+    return Array.from({ length: CROSSWALK_STRIPE_COUNT }, (_, index) => ({
+      center: marker.center
+        .clone()
+        .setY(stripeY)
+        .add(
+          marker.heading
+            .clone()
+            .multiplyScalar((index - stripeOffset) * CROSSWALK_STEP),
+        ),
+      angle,
+      width: crosswalkWidth,
+      depth: crosswalkDepth,
+    }));
   });
   const crosswalkMesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, ROAD_SURFACE_DECAL_THICKNESS, 1),
@@ -294,7 +308,7 @@ export function createTrafficSignalLayer({
     emissiveIntensity: 0.03,
     roughness: 0.82,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     polygonOffset: true,
     polygonOffsetFactor: -5,
     polygonOffsetUnits: -5,

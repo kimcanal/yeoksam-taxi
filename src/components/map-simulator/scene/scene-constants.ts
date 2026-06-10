@@ -49,9 +49,9 @@ export const INTERSECTION_EXIT_BLOCK_SPEED = 2.4;
 export const INTERSECTION_BOX_ENTRY_LOOKAHEAD = 10.5;
 export const INTERSECTION_SIGNAL_LOOKAHEAD = 18;
 export const INTERSECTION_LEFT_TURN_GAP_DISTANCE = 7.2;
-export const CROSSWALK_STRIPE_COUNT = 4;
-export const CROSSWALK_STEP = 1.35;
-export const CROSSWALK_WIDTH = 5.4;
+export const CROSSWALK_STRIPE_COUNT = 6;
+export const CROSSWALK_STEP = 0.95;
+export const CROSSWALK_WIDTH = 7.2;
 export const PEDESTRIAN_SPAN = 4.2;
 
 // Vehicle stepping and spacing aim for predictable motion over physical realism.

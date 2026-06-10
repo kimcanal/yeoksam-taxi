@@ -429,7 +429,7 @@ export function createRoadCulledLayer(
     emissiveIntensity: 0.06,
     roughness: 0.82,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     polygonOffset: true,
     polygonOffsetFactor: -6,
     polygonOffsetUnits: -6,

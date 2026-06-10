@@ -298,6 +298,7 @@ function buildSignalsFromOsm(
     const hasProtectedLeft =
       approaches.length >= 4 &&
       (rank >= 3 || cluster.turnHints.size > 0 || cluster.points.length >= 2);
+    const visualPoint = clusterPoint.clone().lerp(anchorNode.point, 0.65);
     const candidate = {
       ...createSignalData(
         `signal-${byAnchorKey.size}`,
@@ -305,7 +306,7 @@ function buildSignalsFromOsm(
         anchorNode.point.clone(),
         approaches,
         hasProtectedLeft,
-        clusterPoint.clone(), /* Use actual OSM centroid for visuals */
+        visualPoint,
         approachYaws,
       ),
       score,
@@ -327,6 +328,7 @@ function buildSignalsFromOsm(
           signal.approaches,
           signal.hasProtectedLeft,
           signal.visualPoint,
+          signal.approachYaws,
         ),
       ),
   );

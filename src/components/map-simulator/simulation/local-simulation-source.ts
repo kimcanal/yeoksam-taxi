@@ -29,11 +29,15 @@ import {
   clearVehicleSampleBuckets,
   copyVehicleMotionState,
   createVehicleSimulationSample,
+  routeDistanceAhead,
   resolveNextStopInto,
   syncVehicleSampleBucket,
   vehicleProximityCellCoord,
 } from "@/components/map-simulator/road";
-import { limitSpeedForNearbyVehicles } from "./local-proximity-checker";
+import {
+  limitSpeedForNearbyVehicles,
+  limitTravelDistanceForNearbyVehicles,
+} from "./local-proximity-checker";
 import {
   castLocalVehicleForMotion,
   type LocalVehicle,
@@ -73,6 +77,13 @@ import type {
 
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
+const ROUTE_REENTRY_CLEARANCE = 11.5;
+const ROUTE_REENTRY_DISTANCE_STEP = 8.5;
+const ROUTE_REENTRY_ATTEMPTS = 8;
+const VEHICLE_ACCELERATION = 2.35;
+const VEHICLE_BRAKING = 6.8;
+const VEHICLE_HARD_BRAKING = 10.5;
+const VEHICLE_STOP_SPEED_EPSILON = 0.045;
 
 export function createLocalSimulationSource(): SimulationSource {
   let staticContext: SceneStaticContext | null = null;
@@ -104,6 +115,108 @@ export function createLocalSimulationSource(): SimulationSource {
     SignalDirectionalOccupancy
   >();
   const proximityBuckets: LocalVehicleProximityBuckets = new globalThis.Map();
+
+  const countRouteAssignments = (routes: readonly { id: string }[], count: number) => {
+    const totals = new globalThis.Map<string, number>();
+    if (!routes.length) {
+      return totals;
+    }
+    for (let index = 0; index < count; index += 1) {
+      const route = routes[index % routes.length]!;
+      totals.set(route.id, (totals.get(route.id) ?? 0) + 1);
+    }
+    return totals;
+  };
+
+  const nextRouteSlot = (
+    route: { id: string },
+    routeSlotCounts: Map<string, number>,
+  ) => {
+    const slot = routeSlotCounts.get(route.id) ?? 0;
+    routeSlotCounts.set(route.id, slot + 1);
+    return slot;
+  };
+
+  const routeDistanceSeparation = (
+    route: LocalVehicle["route"],
+    left: number,
+    right: number,
+  ) => {
+    if (route.isLoop) {
+      return Math.min(
+        routeDistanceAhead(route, left, right),
+        routeDistanceAhead(route, right, left),
+      );
+    }
+    return Math.abs(left - right);
+  };
+
+  const findOpenRouteEntryDistance = (
+    vehicle: LocalVehicle,
+    route: LocalVehicle["route"],
+    preferredDistance: number,
+  ) => {
+    for (let attempt = 0; attempt < ROUTE_REENTRY_ATTEMPTS; attempt += 1) {
+      const candidate = clampRouteDistance(
+        route,
+        preferredDistance + attempt * ROUTE_REENTRY_DISTANCE_STEP,
+      );
+      const isClear = vehicles.every((other) => {
+        if (other === vehicle || other.route.id !== route.id) {
+          return true;
+        }
+        const requiredClearance = Math.max(
+          ROUTE_REENTRY_CLEARANCE,
+          vehicle.length * 0.5 + other.length * 0.5 + other.safeGap,
+        );
+        return (
+          routeDistanceSeparation(route, candidate, other.distance) >=
+          requiredClearance
+        );
+      });
+      if (isClear) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+
+  const cruiseSpeedVariation = (vehicle: LocalVehicle) => {
+    const seed = vehicle.renderSeed + (vehicle.kind === "taxi" ? 11 : 47);
+    const wave =
+      Math.sin(elapsedTimeSeconds * (0.11 + (seed % 5) * 0.012) + seed * 1.73);
+    return 0.965 + wave * 0.035;
+  };
+
+  const approachVehicleSpeed = (
+    vehicle: LocalVehicle,
+    targetSpeed: number,
+    deltaSeconds: number,
+  ) => {
+    const clampedTarget = Math.max(0, targetSpeed);
+    const deltaSpeed = clampedTarget - vehicle.speed;
+    if (Math.abs(deltaSpeed) < VEHICLE_STOP_SPEED_EPSILON) {
+      return clampedTarget < VEHICLE_STOP_SPEED_EPSILON ? 0 : clampedTarget;
+    }
+
+    const accelerationBias = 0.92 + (vehicle.renderSeed % 7) * 0.025;
+    const brakingBias = 0.96 + (vehicle.renderSeed % 5) * 0.035;
+    const maxDelta =
+      deltaSpeed > 0
+        ? VEHICLE_ACCELERATION * accelerationBias * deltaSeconds
+        : (clampedTarget < vehicle.speed * 0.45
+            ? VEHICLE_HARD_BRAKING
+            : VEHICLE_BRAKING) *
+          brakingBias *
+          deltaSeconds;
+    const nextSpeed =
+      vehicle.speed +
+      THREE.MathUtils.clamp(deltaSpeed, -maxDelta, maxDelta);
+    if (clampedTarget <= 0 && nextSpeed < VEHICLE_STOP_SPEED_EPSILON) {
+      return 0;
+    }
+    return nextSpeed;
+  };
   const vehicleSimulationSamples: LocalVehicleSimulationSample[] = [];
 
   let signalById = new globalThis.Map<string, SignalData>();
@@ -201,13 +314,23 @@ export function createLocalSimulationSource(): SimulationSource {
     }
 
     clearVehicleLayer();
+    const taxiRouteTotals = countRouteAssignments(taxiRoutePool, nextTaxiCount);
+    const taxiRouteSlotCounts = new globalThis.Map<string, number>();
+    const trafficRouteTotals = countRouteAssignments(
+      staticContext.trafficRoutePool,
+      nextTrafficCount,
+    );
+    const trafficRouteSlotCounts = new globalThis.Map<string, number>();
 
     for (let index = 0; index < nextTaxiCount; index += 1) {
       const route = taxiRoutePool[index % taxiRoutePool.length]!;
+      const routeSlotIndex = nextRouteSlot(route, taxiRouteSlotCounts);
       const vehicle = createLocalTaxiVehicle({
         index,
         totalCount: nextTaxiCount,
         route,
+        routeSlotIndex,
+        routeSlotCount: taxiRouteTotals.get(route.id) ?? nextTaxiCount,
       });
       vehicles.push(vehicle);
       taxiVehicles.push(vehicle);
@@ -217,10 +340,13 @@ export function createLocalSimulationSource(): SimulationSource {
     for (let index = 0; index < nextTrafficCount; index += 1) {
       const route =
         staticContext.trafficRoutePool[index % staticContext.trafficRoutePool.length]!;
+      const routeSlotIndex = nextRouteSlot(route, trafficRouteSlotCounts);
       const vehicle = createLocalTrafficVehicle({
         index,
         totalCount: nextTrafficCount,
         route,
+        routeSlotIndex,
+        routeSlotCount: trafficRouteTotals.get(route.id) ?? nextTrafficCount,
       });
       vehicles.push(vehicle);
       trafficVehicles.push(vehicle);
@@ -380,7 +506,10 @@ export function createLocalSimulationSource(): SimulationSource {
       const vehicle = vehicles[vehicleIndex]!;
       const current = vehicleSimulationSamples[vehicleIndex]!;
       let nextStopState = current.nextStopState;
-      let targetSpeed = vehicle.baseSpeed * activeVehicleSpeedMultiplier;
+      let targetSpeed =
+        vehicle.baseSpeed *
+        activeVehicleSpeedMultiplier *
+        cruiseSpeedVariation(vehicle);
       let holdPosition = false;
 
       if (vehicle.serviceTimer > 0) {
@@ -466,20 +595,30 @@ export function createLocalSimulationSource(): SimulationSource {
                 nextRoute.totalLength * 0.12,
                 TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
               );
-              assignVehicleRoute(
-                castLocalVehicleForMotion(vehicle),
+              const openEntryDistance = findOpenRouteEntryDistance(
+                vehicle,
                 nextRoute,
                 entryDistance,
               );
-              nextStopState = resolveNextStopInto(
-                vehicle.route,
-                vehicle.distance,
-                nextStopState,
-                vehicle.motion.nextStopIndex,
-              );
-              vehicle.motion.nextStopIndex = nextStopState.index;
-              syncVehicleSampleBucket(proximityBuckets, current);
-              continue;
+              if (openEntryDistance === null) {
+                targetSpeed = 0;
+                waitingVehicles += 1;
+              } else {
+                assignVehicleRoute(
+                  castLocalVehicleForMotion(vehicle),
+                  nextRoute,
+                  openEntryDistance,
+                );
+                nextStopState = resolveNextStopInto(
+                  vehicle.route,
+                  vehicle.distance,
+                  nextStopState,
+                  vehicle.motion.nextStopIndex,
+                );
+                vehicle.motion.nextStopIndex = nextStopState.index;
+                syncVehicleSampleBucket(proximityBuckets, current);
+                continue;
+              }
             }
           }
         }
@@ -487,11 +626,28 @@ export function createLocalSimulationSource(): SimulationSource {
 
       vehicle.speed = holdPosition
         ? 0
-        : THREE.MathUtils.damp(vehicle.speed, targetSpeed, 3.2, deltaSeconds);
+        : approachVehicleSpeed(vehicle, targetSpeed, deltaSeconds);
       if (!holdPosition || (vehicle.kind === "taxi" && vehicle.serviceTimer > 0)) {
+        const requestedTravelDistance = holdPosition
+          ? 0
+          : vehicle.speed * deltaSeconds;
+        const travelDistance = holdPosition
+          ? 0
+          : limitTravelDistanceForNearbyVehicles({
+            vehicle,
+            current,
+            requestedDistance: requestedTravelDistance,
+            proximityBuckets,
+          });
+        if (
+          requestedTravelDistance > 0 &&
+          travelDistance < requestedTravelDistance
+        ) {
+          vehicle.speed = Math.min(vehicle.speed, travelDistance / deltaSeconds);
+        }
         vehicle.distance = clampRouteDistance(
           vehicle.route,
-          holdPosition ? vehicle.distance : vehicle.distance + vehicle.speed * deltaSeconds,
+          vehicle.distance + travelDistance,
         );
         updateVehicleMotionState(castLocalVehicleForMotion(vehicle));
       }

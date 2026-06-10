@@ -250,6 +250,14 @@ export function createEngineInputHandler(
       (pointerClientX / rect.width) * 2 - 1,
       -(pointerClientY / rect.height) * 2 + 1,
     );
+    if (cameraModeRef.current === "ride") {
+      event.preventDefault();
+      pointerDragged = false;
+      activeTouchPointers.clear();
+      stopDragging();
+      callbacks.markHoverDirty();
+      return;
+    }
     if (event.pointerType === "touch") {
       event.preventDefault();
       activeTouchPointers.set(event.pointerId, {
@@ -304,6 +312,13 @@ export function createEngineInputHandler(
     }
     callbacks.markHoverDirty();
 
+    if (cameraModeRef.current === "ride") {
+      if (event.pointerType === "touch") {
+        event.preventDefault();
+      }
+      return;
+    }
+
     if (event.pointerType === "touch") {
       const touchPoint = activeTouchPointers.get(event.pointerId);
       if (!touchPoint) {
@@ -350,8 +365,6 @@ export function createEngineInputHandler(
       followOrbit.yawOffset = wrapAngle(
         followOrbit.yawOffset - deltaX * CAMERA_DRAG_SENSITIVITY,
       );
-    } else if (cameraModeRef.current === "ride") {
-      return;
     } else {
       enterTouchMapMode();
       cameraRig.yaw -= deltaX * CAMERA_DRAG_SENSITIVITY;
@@ -365,6 +378,16 @@ export function createEngineInputHandler(
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    if (cameraModeRef.current === "ride") {
+      if (event.pointerType === "touch") {
+        event.preventDefault();
+      }
+      activeTouchPointers.delete(event.pointerId);
+      stopDragging();
+      callbacks.markHoverDirty();
+      return;
+    }
+
     if (event.pointerType === "touch") {
       const hadTouchPointer = activeTouchPointers.has(event.pointerId);
       if (!hadTouchPointer) {
@@ -387,9 +410,6 @@ export function createEngineInputHandler(
       touchGestureState.usedMultiTouch = false;
       setTouchGestureBasis();
       if (shouldTreatAsClick) {
-        if (cameraModeRef.current === "ride") {
-          return;
-        }
         const clickedPoiCode = ctx.pointerPickController.findPoiCodeFromPointer();
         if (clickedPoiCode) {
           onPoiSelect?.(clickedPoiCode);
@@ -417,9 +437,6 @@ export function createEngineInputHandler(
     stopDragging();
     callbacks.markHoverDirty();
     if (shouldTreatAsClick) {
-      if (cameraModeRef.current === "ride") {
-        return;
-      }
       const clickedPoiCode = ctx.pointerPickController.findPoiCodeFromPointer();
       if (clickedPoiCode) {
         onPoiSelect?.(clickedPoiCode);
@@ -441,6 +458,7 @@ export function createEngineInputHandler(
 
   const onWheel = (event: WheelEvent) => {
     if (cameraModeRef.current === "ride") {
+      event.preventDefault();
       return;
     }
     event.preventDefault();

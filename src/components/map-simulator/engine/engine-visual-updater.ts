@@ -89,7 +89,7 @@ export function createEngineVisualUpdater(
   // Pre-allocated objects for shared frustum culling
   const _sharedFrustum = new THREE.Frustum();
   const _sharedProjectionMatrix = new THREE.Matrix4();
-  const _vehicleSphere = new THREE.Sphere(new THREE.Vector3(), 6);
+  const _vehicleSphere = new THREE.Sphere(new THREE.Vector3(), 10);
   let lastFrustumElapsedTime = -1;
 
   const getSharedFrustum = (elapsedTime: number) => {
@@ -489,9 +489,9 @@ export function createEngineVisualUpdater(
 
   /**
    * Frustum-cull individual vehicle groups so that offscreen vehicles
-   * skip the GPU draw call entirely.  Uses the same camera already
-   * available in ctx; the bounding sphere radius (6 units) covers the
-   * largest taxi / traffic asset with margin.
+   * skip the GPU draw call entirely. Uses the same camera already
+   * available in ctx; the bounding sphere is intentionally generous to
+   * avoid edge-of-screen pop-out with larger loaded vehicle assets.
    */
   const cullVehicles = (elapsedTime: number) => {
     const frustum = getSharedFrustum(elapsedTime);

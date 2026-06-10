@@ -9,7 +9,10 @@ import {
 import dynamic from "next/dynamic";
 import * as THREE from "three";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
-import type { CircumstanceMode } from "@/components/map-simulator/types";
+import type {
+  CircumstanceMode,
+  FpsStats,
+} from "@/components/map-simulator/types";
 import { MapSimulatorErrorBoundary } from "@/components/MapSimulatorErrorBoundary";
 import {
   format24Hour,
@@ -26,10 +29,9 @@ import { useMapSimulatorStores } from "@/components/map-simulator/hooks/use-map-
 import { useSimulationDataLoader } from "@/components/map-simulator/hooks/use-simulation-data-loader";
 import { SceneLoading } from "@/components/map-simulator/ui/SceneLoading";
 import { WeatherBadge } from "@/components/map-simulator/ui/WeatherBadge";
-import { Activity, Gauge, Menu, X } from "lucide-react";
+import { Activity, Menu, Shuffle, X } from "lucide-react";
 import type { DemandSidebarProps } from "@/components/map-simulator/ui/DemandSidebar";
 import type { FpsMode } from "@/components/map-simulator/camera";
-import Link from "next/link";
 import { useMapDemandState } from "@/components/map-simulator/demand";
 import { trafficCountForLoadPercent } from "@/components/map-simulator/simulation";
 
@@ -248,6 +250,18 @@ export default function MapSimulator({
     setCameraMode(nextCameraMode);
   }
 
+  function handleSwitchRideTaxi() {
+    const taxiCount = Math.max(0, demandState.appliedMapTaxiCount);
+    if (taxiCount <= 1) {
+      return;
+    }
+    const currentIndex = Number(
+      /taxi-(\d+)/.exec(followTaxiId)?.[1] ?? "-1",
+    );
+    const nextTaxiId = `taxi-${(currentIndex + 1 + taxiCount) % taxiCount}`;
+    setFollowTaxiId(nextTaxiId);
+  }
+
   const formattedSimulationTime = format24Hour(normalizedSimulationTimeMinutes);
   const isSidebarVisible = !isSidebarCollapsed;
   const isRideMode = cameraMode === "ride";
@@ -332,15 +346,27 @@ export default function MapSimulator({
         </button>
 
         {isRideMode && !isSceneBusy ? (
-          <button
-            type="button"
-            onClick={handleExitRideMode}
-            aria-label="택시 시점 나가기"
-            className="absolute left-1/2 top-4 z-40 inline-flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/85 px-3 py-2 text-xs font-semibold text-slate-100 shadow-xl backdrop-blur-md transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 active:scale-95"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-            <span>택시 시점 나가기</span>
-          </button>
+          <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSwitchRideTaxi}
+              aria-label="다른 택시 시점 보기"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-slate-950/85 text-slate-100 shadow-xl backdrop-blur-md transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+              disabled={demandState.appliedMapTaxiCount <= 1}
+              title="다른 택시 시점 보기"
+            >
+              <Shuffle className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={handleExitRideMode}
+              aria-label="택시 시점 나가기"
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/85 px-3 py-2 text-xs font-semibold text-slate-100 shadow-xl backdrop-blur-md transition hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 active:scale-95"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+              <span>택시 시점 나가기</span>
+            </button>
+          </div>
         ) : null}
 
 
@@ -350,72 +376,6 @@ export default function MapSimulator({
             weatherObservation={weatherState.weatherObservation}
             simulationDate={simulationDate}
           />
-        ) : null}
-
-        {!isSceneBusy ? (
-          <div
-            data-ui-panel="diagnostic-controls"
-            className={`absolute left-1/2 z-30 flex max-w-[calc(100%-7rem)] -translate-x-1/2 flex-wrap items-start justify-center gap-2 transition-[top] duration-300 ${
-              isRideMode ? "top-16" : "top-4"
-            }`}
-          >
-            <Link
-              href="/r3f-perf-test"
-              title="성능 벤치마크 페이지 이동"
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95 lg:inline-flex"
-            >
-              <Gauge className="h-5 w-5" aria-hidden="true" />
-            </Link>
-
-            <button
-              type="button"
-              onClick={toggleFpsHud}
-              aria-label={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
-              aria-pressed={showFps}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
-            >
-              <Activity className="h-5 w-5" aria-hidden="true" />
-            </button>
-
-            {showFps ? (
-              <div
-                data-ui-panel="render-hud"
-                className="w-64 max-w-full rounded-lg border border-white/10 bg-slate-950/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-md"
-              >
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="font-semibold text-slate-100">
-                    Render HUD
-                  </span>
-                  <span className="font-mono text-cyan-200">
-                    {fpsStats.capLabel}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
-                  <span className="text-slate-500">frame</span>
-                  <span className="text-right text-slate-100">
-                    {fpsStats.frameMs.toFixed(2)}ms
-                  </span>
-                  <span className="text-slate-500">render</span>
-                  <span className="text-right text-slate-100">
-                    {fpsStats.renderMs.toFixed(2)}ms
-                  </span>
-                  <span className="text-slate-500">vehicles</span>
-                  <span className="text-right text-slate-100">
-                    {fpsStats.visibleVehicles}/{fpsStats.vehicles}
-                  </span>
-                  <span className="text-slate-500">build chunks</span>
-                  <span className="text-right text-slate-100">
-                    {fpsStats.buildingChunksVisible}/
-                    {fpsStats.buildingChunksTotal}
-                  </span>
-                  <span className="text-slate-500">road chunks</span>
-                  <span className="text-right text-slate-100">
-                    {fpsStats.roadChunksVisible}/{fpsStats.roadChunksTotal}
-                  </span>
-                </div>
-              </div>
-            ) : null}
-          </div>
         ) : null}
 
         {!isSceneBusy && miniMapFocus ? (
@@ -439,6 +399,18 @@ export default function MapSimulator({
                 <CompassDial angle={compassAngle} />
               </button>
             )}
+            <button
+              type="button"
+              data-ui-panel="render-hud-toggle"
+              onClick={toggleFpsHud}
+              aria-label={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
+              aria-pressed={showFps}
+              title={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95"
+            >
+              <Activity className="h-5 w-5" aria-hidden="true" />
+            </button>
+            {showFps ? <RenderHud fpsStats={fpsStats} /> : null}
           </div>
         ) : null}
 
@@ -486,6 +458,44 @@ function compassDirectionLabel(angle: number): string {
   if (n < 247.5) return "남서";
   if (n < 292.5) return "서";
   return "북서";
+}
+
+function RenderHud({ fpsStats }: { fpsStats: FpsStats }) {
+  return (
+    <div
+      data-ui-panel="render-hud"
+      className="w-64 max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-slate-950/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-md"
+    >
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="font-semibold text-slate-100">Render HUD</span>
+        <span className="font-mono text-cyan-200">
+          {fpsStats.capLabel}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[11px]">
+        <span className="text-slate-500">frame</span>
+        <span className="text-right text-slate-100">
+          {fpsStats.frameMs.toFixed(2)}ms
+        </span>
+        <span className="text-slate-500">render</span>
+        <span className="text-right text-slate-100">
+          {fpsStats.renderMs.toFixed(2)}ms
+        </span>
+        <span className="text-slate-500">vehicles</span>
+        <span className="text-right text-slate-100">
+          {fpsStats.visibleVehicles}/{fpsStats.vehicles}
+        </span>
+        <span className="text-slate-500">build chunks</span>
+        <span className="text-right text-slate-100">
+          {fpsStats.buildingChunksVisible}/{fpsStats.buildingChunksTotal}
+        </span>
+        <span className="text-slate-500">road chunks</span>
+        <span className="text-right text-slate-100">
+          {fpsStats.roadChunksVisible}/{fpsStats.roadChunksTotal}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 /** 나침반 다이얼 + 각도 라벨. ride mode / 일반 모드 모두 공유합니다. */

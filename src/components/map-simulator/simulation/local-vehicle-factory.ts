@@ -16,12 +16,29 @@ type CreateLocalVehicleParams = {
   index: number;
   totalCount: number;
   route: RouteTemplate;
+  routeSlotIndex?: number;
+  routeSlotCount?: number;
 };
+
+function routeSpawnDistance({
+  index,
+  totalCount,
+  route,
+  routeSlotIndex = index,
+  routeSlotCount = totalCount,
+}: CreateLocalVehicleParams) {
+  return (
+    (route.totalLength / Math.max(routeSlotCount, 1)) *
+    (routeSlotIndex % Math.max(routeSlotCount, 1))
+  );
+}
 
 export function createLocalTaxiVehicle({
   index,
   totalCount,
   route,
+  routeSlotIndex,
+  routeSlotCount,
 }: CreateLocalVehicleParams): LocalVehicle {
   const vehicle: LocalVehicle = {
     id: `taxi-${index}`,
@@ -29,7 +46,13 @@ export function createLocalTaxiVehicle({
     route,
     baseSpeed: 7.1 + (index % 4) * 0.55,
     speed: 0,
-    distance: (route.totalLength / Math.max(totalCount, 1)) * index,
+    distance: routeSpawnDistance({
+      index,
+      totalCount,
+      route,
+      routeSlotIndex,
+      routeSlotCount,
+    }),
     safeGap: 7.8,
     length: 4.6,
     currentSignalId: null,
@@ -59,6 +82,8 @@ export function createLocalTrafficVehicle({
   index,
   totalCount,
   route,
+  routeSlotIndex,
+  routeSlotCount,
 }: CreateLocalVehicleParams): LocalVehicle {
   const vehicle: LocalVehicle = {
     id: `traffic-${index}`,
@@ -66,7 +91,13 @@ export function createLocalTrafficVehicle({
     route,
     baseSpeed: 5.6 + (index % 5) * 0.4,
     speed: 0,
-    distance: (route.totalLength / Math.max(totalCount, 1)) * index,
+    distance: routeSpawnDistance({
+      index,
+      totalCount,
+      route,
+      routeSlotIndex,
+      routeSlotCount,
+    }),
     safeGap: 6.4,
     length: 4.2,
     currentSignalId: null,

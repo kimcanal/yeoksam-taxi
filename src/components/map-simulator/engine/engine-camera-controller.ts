@@ -43,9 +43,7 @@ export function createEngineCameraController(
   const {
     cameraModeRef,
     followTaxiIdRef,
-    rideExitModeRef,
     cameraFocusTargetRef,
-    setCameraMode,
     onCameraFocusChange,
   } = props;
 
@@ -299,17 +297,21 @@ export function createEngineCameraController(
         }
         camera.lookAt(rideLookTarget);
       } else {
-        // Exiting because viewedTaxi is null (reached destination or vanished)
-        cameraRig.focus.copy(lastRidePosition);
-        cameraRig.focus.y = 0;
-        const taxiYaw = Math.atan2(lastRideHeading.x, lastRideHeading.z);
-        cameraRig.yaw = taxiYaw + Math.PI;
-        cameraRig.pitch = 0.52;
-        cameraRig.distance = 90;
-
-        setCameraMode(rideExitModeRef.current);
-        cameraModeRef.current = rideExitModeRef.current;
-        syncCamera();
+        if (rideLookInitialized) {
+          camera.lookAt(rideLookTarget);
+        } else {
+          rideCameraPosition
+            .copy(lastRidePosition)
+            .addScaledVector(lastRideHeading, TAXI_VIEW_CAMERA_BACK_OFFSET);
+          rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
+          rideLookTarget
+            .copy(lastRidePosition)
+            .addScaledVector(lastRideHeading, TAXI_VIEW_LOOK_AHEAD);
+          rideLookTarget.y = lastRidePosition.y + 1.6;
+          camera.position.copy(rideCameraPosition);
+          camera.lookAt(rideLookTarget);
+          rideLookInitialized = true;
+        }
       }
     }
 

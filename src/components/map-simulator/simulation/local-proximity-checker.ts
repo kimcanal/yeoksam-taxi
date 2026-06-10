@@ -12,17 +12,32 @@ import type {
 type LimitSpeedForNearbyVehiclesParams = {
   vehicle: LocalVehicle;
   current: LocalVehicleSimulationSample;
-  targetSpeed: number;
   proximityBuckets: LocalVehicleProximityBuckets;
+  targetSpeed: number;
 };
 
-export function limitSpeedForNearbyVehicles({
+type LimitTravelDistanceForNearbyVehiclesParams = {
+  vehicle: LocalVehicle;
+  current: LocalVehicleSimulationSample;
+  proximityBuckets: LocalVehicleProximityBuckets;
+  requestedDistance: number;
+};
+
+function nearbyLeadVehicleConstraints({
   vehicle,
   current,
-  targetSpeed,
   proximityBuckets,
-}: LimitSpeedForNearbyVehiclesParams) {
-  let nextTargetSpeed = targetSpeed;
+  onLeadVehicle,
+}: {
+  vehicle: LocalVehicle;
+  current: LocalVehicleSimulationSample;
+  proximityBuckets: LocalVehicleProximityBuckets;
+  onLeadVehicle: (
+    other: LocalVehicleSimulationSample,
+    longitudinal: number,
+    requiredClearance: number,
+  ) => boolean;
+}) {
   const maxInteractionDistance =
     vehicle.safeGap + VEHICLE_FOLLOW_LOOKAHEAD_BUFFER;
   const searchCellRadius = Math.max(
@@ -76,25 +91,76 @@ export function limitSpeedForNearbyVehicles({
         const lateral = Math.abs(
           deltaX * current.motion.right.x + deltaZ * current.motion.right.z,
         );
-        const laneTolerance =
+        const laneTolerance = Math.min(
+          2.4,
           Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) *
-          0.48;
+            0.36,
+        );
         if (lateral > laneTolerance) {
           continue;
         }
 
-        const gapLimit = Math.max(
-          0,
-          (longitudinal - other.vehicle.length * 0.65 - 0.9) * 1.1,
-        );
-        nextTargetSpeed = Math.min(nextTargetSpeed, gapLimit);
-        if (nextTargetSpeed <= 0.001) {
-          nextTargetSpeed = 0;
+        const requiredClearance =
+          vehicle.length * 0.5 +
+          other.vehicle.length * 0.5 +
+          Math.max(2.2, vehicle.safeGap * 0.38);
+
+        if (!onLeadVehicle(other, longitudinal, requiredClearance)) {
           break searchNearbyVehicles;
         }
       }
     }
   }
+}
+
+export function limitSpeedForNearbyVehicles({
+  vehicle,
+  current,
+  targetSpeed,
+  proximityBuckets,
+}: LimitSpeedForNearbyVehiclesParams) {
+  let nextTargetSpeed = targetSpeed;
+
+  nearbyLeadVehicleConstraints({
+    vehicle,
+    current,
+    proximityBuckets,
+    onLeadVehicle: (other, longitudinal, requiredClearance) => {
+      const openGap = longitudinal - requiredClearance;
+      const gapLimit = Math.max(
+        0,
+        Math.min(other.vehicle.speed, targetSpeed) + openGap * 0.92,
+      );
+      nextTargetSpeed = Math.min(nextTargetSpeed, gapLimit);
+      if (nextTargetSpeed <= 0.001) {
+        nextTargetSpeed = 0;
+        return false;
+      }
+      return true;
+    },
+  });
 
   return nextTargetSpeed;
+}
+
+export function limitTravelDistanceForNearbyVehicles({
+  vehicle,
+  current,
+  requestedDistance,
+  proximityBuckets,
+}: LimitTravelDistanceForNearbyVehiclesParams) {
+  let nextDistance = Math.max(0, requestedDistance);
+
+  nearbyLeadVehicleConstraints({
+    vehicle,
+    current,
+    proximityBuckets,
+    onLeadVehicle: (_other, longitudinal, requiredClearance) => {
+      const remainingGap = longitudinal - requiredClearance - 0.35;
+      nextDistance = Math.min(nextDistance, Math.max(0, remainingGap));
+      return nextDistance > 0.001;
+    },
+  });
+
+  return nextDistance;
 }
