@@ -7,6 +7,10 @@ export const MIN_TAXI_COUNT = 3;
 export const MAX_TAXI_COUNT = 140;
 export const MIN_TRAFFIC_COUNT = 0;
 export const MAX_TRAFFIC_COUNT = 160;
+export const ROUTE_BUILDING_CLEARANCE = 0.75;
+export const ROUTE_BUILDING_SAMPLE_STEP = 7.5;
+export const MIN_BUILDING_SAFE_LOOP_ROUTES = 8;
+export const MIN_BUILDING_SAFE_TRAFFIC_ROUTES = 18;
 
 export function trafficCountForLoadPercent(percent: number) {
   const normalizedPercent = Math.min(

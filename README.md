@@ -59,3 +59,11 @@ To regenerate the base map layers from OSM:
 ```
 
 This will refresh multiple layers in `public/` including `buildings.geojson`, `roads.geojson`, and `traffic-signals.geojson`.
+
+## 🚕 Simulation Tuning
+
+Vehicle density caps and conservative route-safety thresholds live in
+`src/components/map-simulator/simulation/simulation-defaults.ts`. Route pools
+prefer paths that keep vehicle lane samples out of simplified building boxes;
+if too few safe routes remain, the loader falls back to the original OSM-derived
+routes so the scene still starts.

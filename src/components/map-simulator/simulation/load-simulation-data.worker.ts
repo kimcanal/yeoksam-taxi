@@ -25,6 +25,10 @@ import { DEFAULT_MAP_CENTER } from "@/components/map-simulator/utils/map-default
 import {
   MAX_TAXI_COUNT,
   MAX_TRAFFIC_COUNT,
+  MIN_BUILDING_SAFE_LOOP_ROUTES,
+  MIN_BUILDING_SAFE_TRAFFIC_ROUTES,
+  ROUTE_BUILDING_CLEARANCE,
+  ROUTE_BUILDING_SAMPLE_STEP,
 } from "@/components/map-simulator/simulation/simulation-defaults";
 import {
   EMPTY_NON_ROAD_FEATURE_COLLECTION,
@@ -123,9 +127,6 @@ function mergeRoutePools(...routePools: RouteTemplate[][]) {
 
   return mergedRoutes;
 }
-
-const ROUTE_BUILDING_CLEARANCE = 0.75;
-const ROUTE_BUILDING_SAMPLE_STEP = 7.5;
 
 function pointTouchesBuildingBox(
   point: { x: number; z: number },
@@ -329,11 +330,15 @@ async function loadSimulationData() {
   );
   const rawLoopRoutes = buildLoopRoutes(roads, center, signalByKey);
   const rawTrafficRoutes = buildTrafficRoutes(roads, center, signalByKey);
-  const loopRoutes = preferBuildingSafeRoutes(rawLoopRoutes, buildingMasses, 8);
+  const loopRoutes = preferBuildingSafeRoutes(
+    rawLoopRoutes,
+    buildingMasses,
+    MIN_BUILDING_SAFE_LOOP_ROUTES,
+  );
   const trafficRoutes = preferBuildingSafeRoutes(
     rawTrafficRoutes,
     buildingMasses,
-    18,
+    MIN_BUILDING_SAFE_TRAFFIC_ROUTES,
   );
   const baseTaxiRoutePool = loopRoutes
     .filter((route) => route.roadClass !== "local")
