@@ -15,53 +15,10 @@ import {
 import { createFallbackVehicleGroup } from "@/components/map-simulator/vehicle";
 
 const IMPORTED_VEHICLE_SETTLE_Y = 0.035;
-const IMPORTED_WHEEL_RADIUS = 0.18;
-const IMPORTED_WHEEL_DEPTH = 0.1;
-
-let importedVehicleWheelGeometry: THREE.CylinderGeometry | null = null;
-
-function sharedImportedVehicleWheelGeometry() {
-  importedVehicleWheelGeometry ??= new THREE.CylinderGeometry(
-    IMPORTED_WHEEL_RADIUS,
-    IMPORTED_WHEEL_RADIUS,
-    IMPORTED_WHEEL_DEPTH,
-    12,
-  );
-  return importedVehicleWheelGeometry;
-}
 
 function settleImportedVehicleBody(group: THREE.Group) {
   group.children.forEach((child) => {
     child.position.y -= IMPORTED_VEHICLE_SETTLE_Y;
-  });
-}
-
-function addImportedVehicleWheels({
-  group,
-  material,
-  bounds,
-}: {
-  group: THREE.Group;
-  material: THREE.Material;
-  bounds: THREE.Box3;
-}) {
-  const size = bounds.getSize(new THREE.Vector3());
-  const wheelX = THREE.MathUtils.clamp(size.x * 0.43, 0.62, 0.82);
-  const wheelZ = THREE.MathUtils.clamp(size.z * 0.31, 1.05, 1.38);
-  const wheelY = IMPORTED_WHEEL_RADIUS - 0.025;
-  const geometry = sharedImportedVehicleWheelGeometry();
-
-  [-1, 1].forEach((side) => {
-    [-1, 1].forEach((end) => {
-      const wheel = markMeshResourceSharing(
-        new THREE.Mesh(geometry, material),
-      );
-      wheel.userData.skipGeometryDispose = true;
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(side * wheelX, wheelY, end * wheelZ);
-      wheel.castShadow = true;
-      group.add(wheel);
-    });
   });
 }
 
@@ -136,11 +93,6 @@ function createTaxiAssetGroup(
 
   settleImportedVehicleBody(group);
   const assetBounds = new THREE.Box3().setFromObject(group);
-  addImportedVehicleWheels({
-    group,
-    material: trimMaterial,
-    bounds: assetBounds,
-  });
   const sign = markMeshResourceSharing(
     new THREE.Mesh(sharedImportedTaxiSignGeometry(), signMaterial),
   );
@@ -240,12 +192,6 @@ function createTrafficAssetGroup(
   });
 
   settleImportedVehicleBody(group);
-  const assetBounds = new THREE.Box3().setFromObject(group);
-  addImportedVehicleWheels({
-    group,
-    material: trimMaterial,
-    bounds: assetBounds,
-  });
   const shadow = new THREE.Mesh(
     sharedImportedTrafficShadowGeometry(),
     new THREE.MeshBasicMaterial({
