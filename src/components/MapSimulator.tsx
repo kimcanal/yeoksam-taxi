@@ -353,43 +353,34 @@ export default function MapSimulator({
         ) : null}
 
         {!isSceneBusy ? (
-          <div className="absolute right-4 top-4 z-30 flex max-w-[calc(100%-2rem)] flex-col items-end gap-2">
-            {/* 성능 벤치마크 바로가기 */}
+          <div
+            data-ui-panel="diagnostic-controls"
+            className={`absolute left-1/2 z-30 flex max-w-[calc(100%-7rem)] -translate-x-1/2 flex-wrap items-start justify-center gap-2 transition-[top] duration-300 ${
+              isRideMode ? "top-16" : "top-4"
+            }`}
+          >
             <Link
               href="/r3f-perf-test"
               title="성능 벤치마크 페이지 이동"
-              className="hidden lg:inline-flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95 lg:inline-flex"
             >
               <Gauge className="h-5 w-5" aria-hidden="true" />
             </Link>
 
-            {/* 나침반 UI */}
-            {miniMapFocus ? (
-              isRideMode ? (
-                <div
-                  data-ui-panel="compass-display"
-                  title="현재 진행 방향 (택시 시점에서는 정북 정렬이 비활성화됩니다)"
-                  className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300"
-                >
-                  <CompassDial angle={compassAngle} />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  data-ui-panel="compass"
-                  onClick={handleResetCompass}
-                  title="클릭 시 지도 정북 방향(North-Up) 정렬"
-                  className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-slate-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95"
-                >
-                  <CompassDial angle={compassAngle} />
-                </button>
-              )
-            ) : null}
+            <button
+              type="button"
+              onClick={toggleFpsHud}
+              aria-label={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
+              aria-pressed={showFps}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+            >
+              <Activity className="h-5 w-5" aria-hidden="true" />
+            </button>
 
             {showFps ? (
               <div
                 data-ui-panel="render-hud"
-                className="w-64 rounded-lg border border-white/10 bg-slate-950/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-md"
+                className="w-64 max-w-full rounded-lg border border-white/10 bg-slate-950/85 p-3 text-xs text-slate-300 shadow-xl backdrop-blur-md"
               >
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <span className="font-semibold text-slate-100">
@@ -424,16 +415,30 @@ export default function MapSimulator({
                 </div>
               </div>
             ) : null}
+          </div>
+        ) : null}
 
-            <button
-              type="button"
-              onClick={toggleFpsHud}
-              aria-label={showFps ? "렌더링 지표 숨기기" : "렌더링 지표 보기"}
-              aria-pressed={showFps}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950/80 text-slate-300 shadow-xl backdrop-blur-md transition hover:bg-slate-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
-            >
-              <Activity className="h-5 w-5" aria-hidden="true" />
-            </button>
+        {!isSceneBusy && miniMapFocus ? (
+          <div className="absolute right-4 top-4 z-30 flex max-w-[calc(100%-2rem)] flex-col items-end gap-2">
+            {isRideMode ? (
+              <div
+                data-ui-panel="compass-display"
+                title="현재 진행 방향 (택시 시점에서는 정북 정렬이 비활성화됩니다)"
+                className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300"
+              >
+                <CompassDial angle={compassAngle} />
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-ui-panel="compass"
+                onClick={handleResetCompass}
+                title="클릭 시 지도 정북 방향(North-Up) 정렬"
+                className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-slate-950/80 p-3 shadow-xl backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-slate-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 active:scale-95"
+              >
+                <CompassDial angle={compassAngle} />
+              </button>
+            )}
           </div>
         ) : null}
 
