@@ -36,7 +36,6 @@ export function createEngineCameraController(
     overviewDistance,
     cameraOffset,
     taxiById,
-    taxiVehicles,
     props,
   } = ctx;
 
