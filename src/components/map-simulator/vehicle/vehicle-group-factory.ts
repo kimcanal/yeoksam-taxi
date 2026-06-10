@@ -15,8 +15,8 @@ import {
 import { createFallbackVehicleGroup } from "@/components/map-simulator/vehicle";
 
 const IMPORTED_VEHICLE_SETTLE_Y = 0.035;
-const IMPORTED_WHEEL_RADIUS = 0.26;
-const IMPORTED_WHEEL_DEPTH = 0.18;
+const IMPORTED_WHEEL_RADIUS = 0.18;
+const IMPORTED_WHEEL_DEPTH = 0.1;
 
 let importedVehicleWheelGeometry: THREE.CylinderGeometry | null = null;
 
@@ -25,7 +25,7 @@ function sharedImportedVehicleWheelGeometry() {
     IMPORTED_WHEEL_RADIUS,
     IMPORTED_WHEEL_RADIUS,
     IMPORTED_WHEEL_DEPTH,
-    16,
+    12,
   );
   return importedVehicleWheelGeometry;
 }
@@ -46,9 +46,9 @@ function addImportedVehicleWheels({
   bounds: THREE.Box3;
 }) {
   const size = bounds.getSize(new THREE.Vector3());
-  const wheelX = THREE.MathUtils.clamp(size.x * 0.56, 0.78, 1.08);
-  const wheelZ = THREE.MathUtils.clamp(size.z * 0.34, 1.18, 1.58);
-  const wheelY = IMPORTED_WHEEL_RADIUS - 0.01;
+  const wheelX = THREE.MathUtils.clamp(size.x * 0.43, 0.62, 0.82);
+  const wheelZ = THREE.MathUtils.clamp(size.z * 0.31, 1.05, 1.38);
+  const wheelY = IMPORTED_WHEEL_RADIUS - 0.025;
   const geometry = sharedImportedVehicleWheelGeometry();
 
   [-1, 1].forEach((side) => {
