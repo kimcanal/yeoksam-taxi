@@ -427,13 +427,19 @@ export function setupEngineScene(
     isSceneDisposed: () => lateBound.isSceneDisposed.current(),
     resetVehicleSimulationAccumulator: () => lateBound.resetVehicleSimulationAccumulator.current(),
     syncSelectedTaxi: () => {
-      if (props.followTaxiIdRef.current && taxiById.has(props.followTaxiIdRef.current)) {
-        return;
-      }
-      const fallbackTaxiId = taxiVehicles[0]?.id ?? "";
-      if (props.followTaxiIdRef.current !== fallbackTaxiId) {
-        props.followTaxiIdRef.current = fallbackTaxiId;
-        setFollowTaxiId(fallbackTaxiId);
+      const followTaxiId = props.followTaxiIdRef.current;
+      if (followTaxiId) {
+        if (taxiById.has(followTaxiId)) {
+          return;
+        }
+        const currentMode = props.cameraModeRef.current;
+        if (currentMode === "ride" || currentMode === "follow") {
+          const exitMode = props.rideExitModeRef.current || "drive";
+          props.cameraModeRef.current = exitMode;
+          props.setCameraMode(exitMode);
+        }
+        props.followTaxiIdRef.current = "";
+        setFollowTaxiId("");
       }
     },
     markVisualsDirty: () => lateBound.markVisualsDirty.current(),

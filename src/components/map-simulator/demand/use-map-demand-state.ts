@@ -23,15 +23,12 @@ type UseMapDemandStateParams = {
 
 function buildDongDemandScores(
   heatmapDemandByDong: Record<string, number>,
-  heatmapDailyMaxDemand: number,
+  dongDailyMaxDemands: Record<string, number>,
 ) {
   const scores: Record<string, number> = {};
-  const maxDemand = Math.max(0, heatmapDailyMaxDemand);
-  if (maxDemand <= 0) {
-    return scores;
-  }
   Object.entries(heatmapDemandByDong).forEach(([dongName, demand]) => {
-    scores[dongName] = Math.max(0, demand) / maxDemand;
+    const maxDemand = Math.max(0, dongDailyMaxDemands[dongName] ?? 0);
+    scores[dongName] = maxDemand > 0 ? Math.max(0, demand) / maxDemand : 0;
   });
   return scores;
 }
@@ -55,9 +52,9 @@ export function useMapDemandState({
     () =>
       buildDongDemandScores(
         forecast.heatmapDemandByDong,
-        forecast.heatmapDailyMaxDemand,
+        forecast.dongDailyMaxDemands,
       ),
-    [forecast.heatmapDailyMaxDemand, forecast.heatmapDemandByDong],
+    [forecast.dongDailyMaxDemands, forecast.heatmapDemandByDong],
   );
   const demandMiniMap = useMemo(
     () =>

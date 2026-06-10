@@ -72,7 +72,7 @@ export function WeatherBadge({
       <div className="flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1.5 font-semibold text-slate-100">
           <WeatherModeIcon mode={weatherObservation?.weatherMode ?? null} />
-          지도 정보
+          실시간 날씨
         </span>
         <span className="text-[9px] text-slate-500">{statusLabel}</span>
       </div>

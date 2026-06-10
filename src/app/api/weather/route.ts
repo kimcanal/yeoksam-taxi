@@ -3,9 +3,7 @@ import { proxyBackendGet, toBackendDate } from "@/lib/backend-proxy";
 
 export const runtime = "nodejs";
 
-const BACKEND_WEATHER_API_URL =
-  process.env.BACKEND_WEATHER_API_URL ||
-  "https://163.239.77.92:2222/api/weather";
+const BACKEND_WEATHER_API_URL = process.env.BACKEND_WEATHER_API_URL;
 const WEATHER_PROXY_CACHE_TTL_MS = positiveIntegerEnv(
   "WEATHER_PROXY_CACHE_TTL_MS",
   5 * 60_000,
@@ -35,6 +33,14 @@ export async function GET(request: Request) {
         required: ["date", "hour"],
       },
       { status: 400 },
+    );
+  }
+
+  if (!BACKEND_WEATHER_API_URL) {
+    console.error(`[WEATHER API] BACKEND_WEATHER_API_URL is not configured in env`);
+    return NextResponse.json(
+      { error: "Internal server error: Weather backend URL is not configured" },
+      { status: 500 },
     );
   }
 

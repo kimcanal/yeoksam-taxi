@@ -618,6 +618,7 @@ export const DemandSidebar = memo(function DemandSidebar({
           demandChart={demandChart}
           selectedAverageDemand={selectedAverageDemand}
           currentHour={heatmapHour}
+          onHourSelect={handleHeatmapHourChange}
         />
       </div>
 

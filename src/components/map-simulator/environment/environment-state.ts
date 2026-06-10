@@ -460,37 +460,37 @@ export function buildEnvironmentState(
       : weatherMode === "cloudy"
         ? {
           ambientColor: 0xffffff,
-          ambientIntensity: 1.15,
+          ambientIntensity: 1.45,
           hemiSkyColor: 0xeef2f7,
           hemiGroundColor: 0x778899,
-          hemiIntensity: 1.05,
+          hemiIntensity: 1.25,
           sunColor: 0xffffff,
-          sunIntensity: 1.0,
+          sunIntensity: 0.15,
           fogNear: 200,
           fogFar: 600,
-          exposure: 1.1,
+          exposure: 1.15,
         }
         : weatherMode === "heavy-rain"
           ? {
             ambientColor: 0xccddee,
-            ambientIntensity: 1.0,
+            ambientIntensity: 1.3,
             hemiSkyColor: 0x99aabb,
             hemiGroundColor: 0x556677,
-            hemiIntensity: 0.95,
+            hemiIntensity: 1.15,
             sunColor: 0xccddee,
-            sunIntensity: 0.8,
+            sunIntensity: 0.05,
             fogNear: 150,
             fogFar: 450,
-            exposure: 1.05,
+            exposure: 1.1,
           }
           : {
             ambientColor: 0xffffff,
-            ambientIntensity: 1.2,
+            ambientIntensity: 1.4,
             hemiSkyColor: 0xffffff,
             hemiGroundColor: 0x99aabb,
-            hemiIntensity: 1.1,
+            hemiIntensity: 1.25,
             sunColor: 0xffffff,
-            sunIntensity: 1.1,
+            sunIntensity: 0.1,
             fogNear: 180,
             fogFar: 500,
             exposure: 1.1,
@@ -557,7 +557,7 @@ export function buildEnvironmentState(
     roadRoughness:
       weatherMode === "heavy-rain"
         ? 0.12
-        : 0.82,
+        : 0.92,
     roadMetalness:
       weatherMode === "heavy-rain"
         ? 0.08
