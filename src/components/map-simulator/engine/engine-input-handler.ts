@@ -387,6 +387,9 @@ export function createEngineInputHandler(
       touchGestureState.usedMultiTouch = false;
       setTouchGestureBasis();
       if (shouldTreatAsClick) {
+        if (cameraModeRef.current === "ride") {
+          return;
+        }
         const clickedPoiCode = ctx.pointerPickController.findPoiCodeFromPointer();
         if (clickedPoiCode) {
           onPoiSelect?.(clickedPoiCode);
@@ -414,6 +417,9 @@ export function createEngineInputHandler(
     stopDragging();
     callbacks.markHoverDirty();
     if (shouldTreatAsClick) {
+      if (cameraModeRef.current === "ride") {
+        return;
+      }
       const clickedPoiCode = ctx.pointerPickController.findPoiCodeFromPointer();
       if (clickedPoiCode) {
         onPoiSelect?.(clickedPoiCode);

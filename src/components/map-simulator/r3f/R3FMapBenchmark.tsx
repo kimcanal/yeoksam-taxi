@@ -16,6 +16,11 @@ import { MapControls } from "@react-three/drei";
 import * as THREE from "three";
 import { loadSimulationData } from "@/components/map-simulator/simulation/load-simulation-data";
 
+import { useMapDemandState } from "@/components/map-simulator/demand/use-map-demand-state";
+import { buildStaticPoiFeatureRows } from "@/components/map-simulator/demand/demand-minimap-renderer";
+import { DemandMiniMapPanel } from "@/components/map-simulator/ui/DemandMiniMapPanel";
+import { currentSimulationClock } from "@/components/map-simulator/environment";
+
 // Dynamic import to avoid Turbopack utf-8 parse errors from r3f-perf's bundled font
 const LazyPerf = lazy(() =>
   import("r3f-perf").then((mod) => ({ default: mod.Perf })),
@@ -29,6 +34,7 @@ import type {
   ProjectedRoadSegment,
   RouteTemplate,
   SimulationData,
+  CircumstanceMode,
 } from "@/components/map-simulator/types";
 
 const BUILDING_CHUNK_SIZE = 112;
@@ -804,6 +810,29 @@ export default function R3FMapBenchmark() {
     vehicleCount: 420,
   });
 
+  const clock = useMemo(() => currentSimulationClock(), []);
+  const [simulationDate, setSimulationDate] = useState(clock.dateIso);
+  const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(clock.minutes);
+  const [circumstanceMode, setCircumstanceMode] = useState<CircumstanceMode>("live");
+  const [selectedPoiCode, setSelectedPoiCode] = useState("");
+
+  const sceneBounds = useMemo(
+    () => (data ? computeSceneBounds(data.projectedRoadSegments) : null),
+    [data],
+  );
+
+  const mapPoiFeatureRows = useMemo(() => buildStaticPoiFeatureRows(), []);
+  const demandState = useMapDemandState({
+    data,
+    mapPoiFeatureRows,
+    miniMapFocus: null,
+    scenarioMapCenter: sceneBounds ? sceneBounds.center : null,
+    activePoiCode: selectedPoiCode,
+    circumstanceMode,
+    simulationDate,
+    normalizedSimulationTimeMinutes: circumstanceMode === "live" ? clock.minutes : simulationTimeMinutes,
+  });
+
   useEffect(() => {
     const controller = new AbortController();
     loadSimulationData({
@@ -837,10 +866,7 @@ export default function R3FMapBenchmark() {
     return () => controller.abort();
   }, []);
 
-  const sceneBounds = useMemo(
-    () => (data ? computeSceneBounds(data.projectedRoadSegments) : null),
-    [data],
-  );
+
   const cameraPosition = useMemo<[number, number, number]>(() => {
     if (!sceneBounds) {
       return [-120, 150, 190];
@@ -982,6 +1008,59 @@ export default function R3FMapBenchmark() {
                 r3f-perf {settings.showPerf ? "ON" : "OFF"}
               </button>
             </div>
+
+            <div className="mt-4 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              수요 기준 시간 모드
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCircumstanceMode("live");
+                  setSimulationDate(clock.dateIso);
+                  setSimulationTimeMinutes(clock.minutes);
+                  demandState.setHeatmapHour(Math.floor(clock.minutes / 60));
+                }}
+                className={`h-9 rounded-lg border text-xs font-semibold transition ${
+                  circumstanceMode === "live"
+                    ? "border-cyan-300/30 bg-cyan-300/15 text-cyan-100"
+                    : "border-white/10 bg-slate-900/80 text-slate-300"
+                }`}
+              >
+                실시간 (Live)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCircumstanceMode("specific");
+                }}
+                className={`h-9 rounded-lg border text-xs font-semibold transition ${
+                  circumstanceMode === "specific"
+                    ? "border-amber-300/30 bg-amber-300/15 text-amber-100"
+                    : "border-white/10 bg-slate-900/80 text-slate-300"
+                }`}
+              >
+                조회 (Specific)
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <label htmlFor="benchmark-date" className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                수요 데이터 날짜
+              </label>
+              <select
+                id="benchmark-date"
+                value={simulationDate}
+                onChange={(event) => {
+                  setSimulationDate(event.target.value);
+                }}
+                className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/80 px-2 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-300"
+              >
+                <option value={clock.dateIso}>오늘 ({clock.dateIso})</option>
+                <option value="2026-01-01">과거 (2026-01-01)</option>
+              </select>
+            </div>
+
             <label className="mt-4 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               Vehicle instances
             </label>
@@ -999,6 +1078,29 @@ export default function R3FMapBenchmark() {
               }}
               className="mt-2 h-1.5 w-full accent-cyan-300"
               aria-label="R3F 차량 인스턴스 수"
+            />
+          </div>
+        ) : null}
+
+        {status === "ready" ? (
+          <div className="pointer-events-auto">
+            <DemandMiniMapPanel
+              demandMiniMap={demandState.demandMiniMap}
+              heatmapFetchStatus={demandState.heatmapFetchStatus}
+              heatmapHour={demandState.heatmapHour}
+              heatmapMaxDemand={demandState.heatmapMaxDemand}
+              selectedDongName={demandState.selectedDongName}
+              setHeatmapHour={(hour) => {
+                setCircumstanceMode("specific");
+                setSimulationTimeMinutes(hour * 60);
+                demandState.setHeatmapHour(hour);
+              }}
+              mapPoiFeatureRows={mapPoiFeatureRows}
+              onPoiSelect={setSelectedPoiCode}
+              onDongSelect={(dongName) => {
+                demandState.setSelectedDongName(dongName);
+              }}
+              circumstanceMode={circumstanceMode}
             />
           </div>
         ) : null}

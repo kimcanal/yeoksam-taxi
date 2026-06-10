@@ -3,12 +3,10 @@ import { proxyBackendGet, toBackendDate } from "@/lib/backend-proxy";
 
 export const runtime = "nodejs";
 
-const BACKEND_DEMAND_API_URL =
-  process.env.BACKEND_DEMAND_API_URL ||
-  "https://163.239.77.92:2222/api/demand/hourly";
+const BACKEND_DEMAND_API_URL = process.env.BACKEND_DEMAND_API_URL;
 const BACKEND_DEMAND_DAILY_API_URL =
   process.env.BACKEND_DEMAND_DAILY_API_URL ||
-  BACKEND_DEMAND_API_URL.replace(/\/hourly\/?$/, "/daily");
+  BACKEND_DEMAND_API_URL?.replace(/\/hourly\/?$/, "/daily");
 const DEMAND_PROXY_CACHE_TTL_MS = positiveIntegerEnv(
   "DEMAND_PROXY_CACHE_TTL_MS",
   60_000,
@@ -36,11 +34,18 @@ export async function GET(request: Request) {
     );
   }
 
+  const activeUrl = scope === "daily" ? BACKEND_DEMAND_DAILY_API_URL : BACKEND_DEMAND_API_URL;
+  if (!activeUrl) {
+    console.error(`[DEMAND API] Backend demand URL is not configured (scope: ${scope})`);
+    return NextResponse.json(
+      { error: "Internal server error: Backend demand URL is not configured" },
+      { status: 500 },
+    );
+  }
+
   let targetUrl: URL;
   try {
-    targetUrl = new URL(
-      scope === "daily" ? BACKEND_DEMAND_DAILY_API_URL : BACKEND_DEMAND_API_URL,
-    );
+    targetUrl = new URL(activeUrl);
   } catch (urlError) {
     console.error(`[DEMAND API] Invalid backend URL configured:`, urlError);
     return NextResponse.json(

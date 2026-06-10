@@ -16,6 +16,7 @@ export type FpsStats = {
   vehicleMs: number;
   overlayMs: number;
   renderMs: number;
+  frameMs: number;
   simulationHz: number;
   vehicles: number;
   visibleVehicles: number;

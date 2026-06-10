@@ -135,7 +135,10 @@ function nextCappedDeltaSeconds({
     setLastCappedRenderTimestamp(frameTimestamp);
   } else {
     const elapsedSinceCap = frameTimestamp - lastCappedRenderTimestamp;
-    if (elapsedSinceCap < targetFrameMs) {
+    // A 1.0ms jitter tolerance prevents sub-millisecond precision variances in requestAnimationFrame
+    // from causing VSync frame skips (which causes FPS to lock at divisors like 30 FPS or 20 FPS).
+    const jitterToleranceMs = 1.0;
+    if (elapsedSinceCap < targetFrameMs - jitterToleranceMs) {
       return null;
     }
     setLastCappedRenderTimestamp(

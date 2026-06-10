@@ -114,7 +114,7 @@ export function createEnvironmentSettingsController({
     sun.intensity = state.sunIntensity;
 
     groundMaterial.color.setHex(state.groundColor);
-    groundMaterial.roughness = state.weatherMode === "heavy-rain" ? 0.42 : 0.94;
+    groundMaterial.roughness = state.weatherMode === "heavy-rain" ? 0.42 : 0.98;
     groundMaterial.metalness = state.weatherMode === "heavy-rain" ? 0.08 : 0.01;
 
     roadMaterials.arterial.color.setHex(state.roadColors.arterial);

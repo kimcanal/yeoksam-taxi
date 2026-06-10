@@ -9,6 +9,8 @@ This project was originally born out of a capstone specification for taxi-demand
 - **3D Urban Environment**: Real-world OpenStreetMap (OSM) geometry of Gangnam/Yeoksam rendered in rich 3D with realistic roads, buildings, and horizontally-aligned Korean traffic signals.
 - **Backend Demand Visualization**: Dong-level taxi demand curves and minimap highlights rendered only from backend API responses.
 - **API-Driven Architecture**: The frontend is completely decoupled from model training, feature generation, and dispatch decisions.
+- **Ride Mode (택시 시점)**: Click any taxi to enter a first-person ride view that follows the vehicle with a smooth heading-aligned camera. Exiting ride mode returns the camera naturally to the taxi's last position without jarring snaps.
+- **Live Weather & Environment**: Real-time weather mode (clear / cloudy / rain / snow / heavy rain / heavy snow) drives dynamic lighting, fog, precipitation, road wetness, and ambient sky colour across the scene.
 - **Professional UX/UI**: Clean, modern overlays and natural Korean standard terminology for an intuitive user experience reminiscent of professional mapping services.
 
 ## 📂 Project Structure

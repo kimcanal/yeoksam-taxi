@@ -292,6 +292,32 @@ export function createEngineVisualUpdater(
       (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
     sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
     moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
+
+    // 폭우(heavy-rain) 모드 시 현실적인 번개 효과 (Lightning Flash) 시뮬레이션
+    if (ctx.props.weatherModeRef.current === "heavy-rain") {
+      const cycle = 18; // 18초 주기
+      const timeInCycle = elapsedTime % cycle;
+      let lightningIntensity = 0;
+
+      // 3.0초~3.4초 구간에 번쩍이는 번개 발생 (이중 섬광)
+      if (timeInCycle > 3.0 && timeInCycle < 3.4) {
+        const t = timeInCycle - 3.0;
+        if (t < 0.08) {
+          // 첫 번째 번개 섬광
+          lightningIntensity = Math.sin((t / 0.08) * Math.PI) * 1.4;
+        } else if (t >= 0.12 && t < 0.35) {
+          // 두 번째 더 강한 번개 섬광
+          const t2 = t - 0.12;
+          lightningIntensity = Math.sin((t2 / 0.23) * Math.PI) * 2.2;
+        }
+      }
+
+      if (lightningIntensity > 0.01) {
+        ctx.renderer.toneMappingExposure = ctx.renderer.toneMappingExposure + lightningIntensity * 0.7;
+        ctx.ambientLight.intensity = ctx.ambientLight.intensity + lightningIntensity * 1.4;
+        ctx.sceneFog.far = ctx.sceneFog.far + lightningIntensity * 600;
+      }
+    }
   };
 
   // --- Hover ---

@@ -258,6 +258,13 @@ export function useDemandForecast({
       ),
     [demandSeriesByDong],
   );
+  const dongDailyMaxDemands = useMemo(() => {
+    const maxes: Record<string, number> = {};
+    Object.entries(demandSeriesByDong).forEach(([dongName, series]) => {
+      maxes[dongName] = Math.max(0, ...series.map((point) => point.demandPred));
+    });
+    return maxes;
+  }, [demandSeriesByDong]);
   const heatmapDemandByDong = heatmapAllDemandByDong;
   const heatmapMaxDemand = Math.max(0, ...Object.values(heatmapDemandByDong));
   const demandFetchBadgeText =
@@ -302,6 +309,7 @@ export function useDemandForecast({
     heatmapFetchStatus,
     heatmapHour: effectiveHeatmapHour,
     heatmapDailyMaxDemand,
+    dongDailyMaxDemands,
     heatmapMaxDemand,
     setHeatmapHour,
     demandFetchStatus,

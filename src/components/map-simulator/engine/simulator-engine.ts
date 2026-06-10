@@ -136,6 +136,13 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     if (cameraModeRef.current === "ride") {
       return;
     }
+    if (
+      cameraModeRef.current === "drive" ||
+      cameraModeRef.current === "overview" ||
+      cameraModeRef.current === "follow"
+    ) {
+      props.rideExitModeRef.current = cameraModeRef.current;
+    }
     props.followTaxiIdRef.current = vehicle.id;
     props.setFollowTaxiId(vehicle.id);
     setCameraMode("ride");
@@ -252,6 +259,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
       return;
     }
     const { delta, elapsedTime, frameTimestamp } = frameTiming;
+    const frameWorkStart = performance.now();
 
     // Config change detection
     if (simDriver.hasConfigChanged()) {
@@ -334,6 +342,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
     renderer.render(scene, camera);
     const renderMs = performance.now() - renderStart;
     finalVisualUpdater.renderLabelsIfNeeded(delta);
+    const frameMs = performance.now() - frameWorkStart;
 
     // FPS stats reporting
     fpsFrameCount += 1;
@@ -350,6 +359,7 @@ export function createMapSimulatorEngine(props: MapSimulatorSceneRuntimeProps) {
         vehicleMs: 0,
         overlayMs: 0,
         renderMs: Math.round(renderMs * 100) / 100,
+        frameMs: Math.round(frameMs * 100) / 100,
         simulationHz: 0,
         vehicles: ctx.vehicles.length,
         visibleVehicles,

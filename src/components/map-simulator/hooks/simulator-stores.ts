@@ -80,6 +80,7 @@ const initialSceneState: SceneState = {
     vehicleMs: 0,
     overlayMs: 0,
     renderMs: 0,
+    frameMs: 0,
     simulationHz: 0,
     vehicles: 0,
     visibleVehicles: 0,

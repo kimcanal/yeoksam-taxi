@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DemandChartGeometry } from "@/components/map-simulator/demand";
 import { formatDateLabel } from "@/components/map-simulator/environment";
 
@@ -8,6 +9,7 @@ type DemandChartProps = {
   demandChart: DemandChartGeometry;
   selectedAverageDemand: number;
   currentHour: number;
+  onHourSelect?: (hour: number) => void;
 };
 
 export function DemandChart({
@@ -17,7 +19,37 @@ export function DemandChart({
   demandChart,
   selectedAverageDemand,
   currentHour,
+  onHourSelect,
 }: DemandChartProps) {
+  const [hoveredHour, setHoveredHour] = useState<number | null>(null);
+
+  function getHourFromEvent(event: React.MouseEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickRatio = clickX / rect.width;
+    const svgX = clickRatio * 320; // 320 is the viewBox width
+    const paddingLeft = 30;
+    const paddingRight = 12;
+    const graphWidth = 320 - paddingLeft - paddingRight; // 278
+    const hourRatio = (svgX - paddingLeft) / graphWidth;
+    return Math.max(0, Math.min(23, Math.round(hourRatio * 23)));
+  }
+
+  const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (!onHourSelect) return;
+    setHoveredHour(getHourFromEvent(event));
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredHour(null);
+  };
+
+  const handleClick = (event: React.MouseEvent<SVGSVGElement>) => {
+    if (!onHourSelect) return;
+    const hour = getHourFromEvent(event);
+    onHourSelect(hour);
+  };
+
   return (
     <>
       <div className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#07111c]">
@@ -26,7 +58,10 @@ export function DemandChart({
             viewBox={`0 0 ${demandChart.width} ${demandChart.height}`}
             role="img"
             aria-label={`${selectedDongName} ${formatDateLabel(simulationDate)} 시간대별 택시 수요`}
-            className="block h-auto w-full"
+            className={`block h-auto w-full ${onHourSelect ? "cursor-pointer" : ""}`}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
           >
             <defs>
               <linearGradient id="demandCurveFill" x1="0" x2="0" y1="0" y2="1">
@@ -145,6 +180,35 @@ export function DemandChart({
                     fill="#fbbf24" fontSize="8" fontWeight="700"
                   >
                     {clampedHour}
+                  </text>
+                </g>
+              );
+            })()}
+            {/* 마우스 호버 시간대 가이드 라인 */}
+            {hoveredHour !== null && hoveredHour !== currentHour && (() => {
+              const graphWidth = demandChart.width - demandChart.paddingLeft - 12;
+              const hx = demandChart.paddingLeft + (hoveredHour / 23) * graphWidth;
+              const topY = demandChart.yTicks[demandChart.yTicks.length - 1]?.y ?? 0;
+              return (
+                <g className="pointer-events-none">
+                  <line
+                    x1={hx} y1={topY}
+                    x2={hx} y2={demandChart.baseY}
+                    stroke="rgba(34,211,238,0.4)"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                  <rect
+                    x={hx - 10} y={demandChart.baseY + 5}
+                    width={20} height={12} rx={3}
+                    fill="rgba(34,211,238,0.18)"
+                  />
+                  <text
+                    x={hx} y={demandChart.baseY + 14}
+                    textAnchor="middle"
+                    fill="#22d3ee" fontSize="8" fontWeight="700"
+                  >
+                    {hoveredHour}
                   </text>
                 </g>
               );

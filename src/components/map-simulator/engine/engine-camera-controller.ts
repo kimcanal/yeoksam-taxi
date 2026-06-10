@@ -51,6 +51,7 @@ export function createEngineCameraController(
 
   let activeCameraMode: CameraMode = cameraModeRef.current;
   let activeFollowTaxiId = followTaxiIdRef.current;
+  let activeFollowTaxiInstance: Vehicle | null = null;
   let cameraLookLift = CAMERA_LOOK_HEIGHT;
   let rideLookInitialized = false;
 
@@ -61,6 +62,8 @@ export function createEngineCameraController(
   const followFocusTarget = new THREE.Vector3();
   const miniMapCameraDirection = new THREE.Vector3();
   const overviewFocusTarget = new THREE.Vector3(centerPoint.x, 0, centerPoint.z);
+  const lastRidePosition = new THREE.Vector3();
+  const lastRideHeading = new THREE.Vector3(0, 0, 1);
 
   // Mini map focus report throttling
   let lastMiniMapFocusReportTimestamp = 0;
@@ -73,7 +76,7 @@ export function createEngineCameraController(
   let lastMiniMapFocusReportLabel = "";
 
   const resolveFollowTaxi = (): Vehicle | null =>
-    taxiById.get(followTaxiIdRef.current) ?? taxiVehicles[0] ?? null;
+    taxiById.get(followTaxiIdRef.current) ?? null;
 
   const taxiHeading = (vehicle: Vehicle) => vehicle.renderMotion.yaw;
 
@@ -132,6 +135,14 @@ export function createEngineCameraController(
   const handleModeChange = (): CameraMode => {
     const currentMode = cameraModeRef.current;
     if (currentMode !== activeCameraMode) {
+      if (activeCameraMode === "ride" && (currentMode === "drive" || currentMode === "follow")) {
+        cameraRig.focus.copy(lastRidePosition);
+        cameraRig.focus.y = 0;
+        const taxiYaw = Math.atan2(lastRideHeading.x, lastRideHeading.z);
+        cameraRig.yaw = taxiYaw + Math.PI;
+        cameraRig.pitch = 0.52;
+        cameraRig.distance = 90;
+      }
       activeCameraMode = currentMode;
       applyModePreset(currentMode);
       applyDistrictPresentation(currentMode);
@@ -242,11 +253,15 @@ export function createEngineCameraController(
       syncCamera();
     } else {
       // ride mode
-      if (followTaxiIdRef.current !== activeFollowTaxiId) {
+      const viewedTaxi = resolveFollowTaxi();
+      if (
+        followTaxiIdRef.current !== activeFollowTaxiId ||
+        viewedTaxi !== activeFollowTaxiInstance
+      ) {
         activeFollowTaxiId = followTaxiIdRef.current;
+        activeFollowTaxiInstance = viewedTaxi;
         rideLookInitialized = false;
       }
-      const viewedTaxi = resolveFollowTaxi();
       if (viewedTaxi) {
         rideHeading.copy(viewedTaxi.renderMotion.heading);
         if (rideHeading.lengthSq() < 0.0001) {
@@ -254,6 +269,11 @@ export function createEngineCameraController(
         } else {
           rideHeading.normalize();
         }
+
+        // Cache latest valid position and heading for exit transition
+        lastRidePosition.copy(viewedTaxi.renderMotion.lanePosition);
+        lastRideHeading.copy(rideHeading);
+
         const rideBlend = 1 - Math.exp(-delta * 7.2);
         rideCameraPosition
           .copy(viewedTaxi.renderMotion.lanePosition)
@@ -279,6 +299,14 @@ export function createEngineCameraController(
         }
         camera.lookAt(rideLookTarget);
       } else {
+        // Exiting because viewedTaxi is null (reached destination or vanished)
+        cameraRig.focus.copy(lastRidePosition);
+        cameraRig.focus.y = 0;
+        const taxiYaw = Math.atan2(lastRideHeading.x, lastRideHeading.z);
+        cameraRig.yaw = taxiYaw + Math.PI;
+        cameraRig.pitch = 0.52;
+        cameraRig.distance = 90;
+
         setCameraMode(rideExitModeRef.current);
         cameraModeRef.current = rideExitModeRef.current;
         syncCamera();

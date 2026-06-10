@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { PANEL_TOKEN_CLASS } from "@/components/map-simulator/panel-classes";
 import type { BuildVersionInfo } from "@/components/map-simulator/utils";
 
@@ -16,6 +17,33 @@ export function SceneLoading({
   loadingHint,
   buildVersion,
 }: SceneLoadingProps) {
+  const [displayProgress, setDisplayProgress] = useState(0);
+
+  useEffect(() => {
+    let animationFrameId: number;
+    const startTime = performance.now();
+    const startValue = displayProgress;
+    const targetValue = loadingProgress;
+    const duration = 600; // 600ms smooth transition for a natural progressive feel
+
+    const updateProgress = (now: number) => {
+      const elapsed = now - startTime;
+      if (elapsed < duration) {
+        const progressRatio = elapsed / duration;
+        // Ease out quad: f(x) = x * (2 - x)
+        const ease = progressRatio * (2 - progressRatio);
+        setDisplayProgress(Math.round(startValue + (targetValue - startValue) * ease));
+        animationFrameId = requestAnimationFrame(updateProgress);
+      } else {
+        setDisplayProgress(targetValue);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(updateProgress);
+    return () => cancelAnimationFrame(animationFrameId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingProgress]);
+
   return (
     <div
       data-ui-panel="scene-loading"
@@ -38,13 +66,13 @@ export function SceneLoading({
           <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.14em] text-slate-400">
             <span>초기화 진행 상태</span>
             <span className="tabular-nums text-cyan-100">
-              {loadingProgress}%
+              {displayProgress}%
             </span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/8">
             <div
-              className="h-full rounded-full bg-cyan-400 transition-[width] duration-300"
-              style={{ width: `${loadingProgress}%` }}
+              className="h-full rounded-full bg-cyan-400 transition-[width] duration-75"
+              style={{ width: `${displayProgress}%` }}
             />
           </div>
           <div className="mt-3 text-sm text-slate-100">{statusDetail}</div>
