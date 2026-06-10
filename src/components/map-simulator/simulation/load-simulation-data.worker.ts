@@ -38,6 +38,7 @@ import {
 } from "@/components/map-simulator/utils/map-geometry-utils";
 import {
   type BuildingFeatureCollection,
+  type BuildingMass,
   type DongFeatureCollection,
   type NonRoadFeatureCollection,
   type RoadFeatureCollection,
@@ -121,6 +122,88 @@ function mergeRoutePools(...routePools: RouteTemplate[][]) {
   });
 
   return mergedRoutes;
+}
+
+const ROUTE_BUILDING_CLEARANCE = 0.75;
+const ROUTE_BUILDING_SAMPLE_STEP = 7.5;
+
+function pointTouchesBuildingBox(
+  point: { x: number; z: number },
+  building: BuildingMass,
+) {
+  const dx = point.x - building.position.x;
+  const dz = point.z - building.position.z;
+  const cos = Math.cos(building.rotationY);
+  const sin = Math.sin(building.rotationY);
+  const localX = dx * cos - dz * sin;
+  const localZ = dx * sin + dz * cos;
+  return (
+    Math.abs(localX) <= building.width * 0.5 + ROUTE_BUILDING_CLEARANCE &&
+    Math.abs(localZ) <= building.depth * 0.5 + ROUTE_BUILDING_CLEARANCE
+  );
+}
+
+function routeTouchesBuilding(route: RouteTemplate, buildingMasses: BuildingMass[]) {
+  const buildingSearchPadding = ROUTE_BUILDING_CLEARANCE + route.roadWidth * 0.32;
+  for (let segmentIndex = 0; segmentIndex < route.nodes.length - 1; segmentIndex += 1) {
+    const start = route.nodes[segmentIndex]!.point;
+    const end = route.nodes[segmentIndex + 1]!.point;
+    const heading = route.segmentHeadings[segmentIndex];
+    if (!heading) {
+      continue;
+    }
+    const rightX = heading.z;
+    const rightZ = -heading.x;
+    const segmentLength = Math.max(route.segmentLengths[segmentIndex] ?? 0, 0);
+    const sampleCount = Math.max(
+      1,
+      Math.ceil(segmentLength / ROUTE_BUILDING_SAMPLE_STEP),
+    );
+
+    for (let sampleIndex = 0; sampleIndex <= sampleCount; sampleIndex += 1) {
+      const alpha = sampleIndex / sampleCount;
+      const centerX = start.x + (end.x - start.x) * alpha;
+      const centerZ = start.z + (end.z - start.z) * alpha;
+      const laneSamples = [
+        { x: centerX, z: centerZ },
+        {
+          x: centerX + rightX * route.laneOffset,
+          z: centerZ + rightZ * route.laneOffset,
+        },
+        {
+          x: centerX - rightX * route.laneOffset,
+          z: centerZ - rightZ * route.laneOffset,
+        },
+      ];
+
+      for (let buildingIndex = 0; buildingIndex < buildingMasses.length; buildingIndex += 1) {
+        const building = buildingMasses[buildingIndex]!;
+        const broadPhaseDistance =
+          Math.max(building.width, building.depth) * 0.5 + buildingSearchPadding;
+        if (
+          Math.abs(building.position.x - centerX) > broadPhaseDistance ||
+          Math.abs(building.position.z - centerZ) > broadPhaseDistance
+        ) {
+          continue;
+        }
+        if (laneSamples.some((sample) => pointTouchesBuildingBox(sample, building))) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function preferBuildingSafeRoutes(
+  routes: RouteTemplate[],
+  buildingMasses: BuildingMass[],
+  minimumRouteCount: number,
+) {
+  const safeRoutes = routes.filter(
+    (route) => !routeTouchesBuilding(route, buildingMasses),
+  );
+  return safeRoutes.length >= minimumRouteCount ? safeRoutes : routes;
 }
 
 async function loadSimulationData() {
@@ -244,8 +327,14 @@ async function loadSimulationData() {
   const signalByKey = new globalThis.Map(
     signals.map((signal) => [signal.key, signal] as const),
   );
-  const loopRoutes = buildLoopRoutes(roads, center, signalByKey);
-  const trafficRoutes = buildTrafficRoutes(roads, center, signalByKey);
+  const rawLoopRoutes = buildLoopRoutes(roads, center, signalByKey);
+  const rawTrafficRoutes = buildTrafficRoutes(roads, center, signalByKey);
+  const loopRoutes = preferBuildingSafeRoutes(rawLoopRoutes, buildingMasses, 8);
+  const trafficRoutes = preferBuildingSafeRoutes(
+    rawTrafficRoutes,
+    buildingMasses,
+    18,
+  );
   const baseTaxiRoutePool = loopRoutes
     .filter((route) => route.roadClass !== "local")
     .slice(0, Math.max(MAX_TAXI_COUNT, 12));
