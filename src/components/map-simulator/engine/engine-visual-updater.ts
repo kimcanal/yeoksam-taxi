@@ -467,7 +467,11 @@ export function createEngineVisualUpdater(
       hoverNeedsUpdate &&
       hoverRefreshAccumulator >= HOVER_REFRESH_INTERVAL
     ) {
-      updateBoundaryHover();
+      if (mode === "ride") {
+        hoverHintController.clear();
+      } else {
+        updateBoundaryHover();
+      }
       hoverNeedsUpdate = false;
       hoverRefreshAccumulator = 0;
     }

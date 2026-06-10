@@ -28,11 +28,14 @@ import {
   clampRouteDistance,
   clearVehicleSampleBuckets,
   copyVehicleMotionState,
+  createRouteSample,
   createVehicleSimulationSample,
   routeDistanceAhead,
   resolveNextStopInto,
+  sampleRouteInto,
   syncVehicleSampleBucket,
   vehicleProximityCellCoord,
+  writeRightVector,
 } from "@/components/map-simulator/road";
 import {
   limitSpeedForNearbyVehicles,
@@ -84,6 +87,7 @@ const VEHICLE_ACCELERATION = 2.35;
 const VEHICLE_BRAKING = 6.8;
 const VEHICLE_HARD_BRAKING = 10.5;
 const VEHICLE_STOP_SPEED_EPSILON = 0.045;
+const ROUTE_ENTRY_RADIAL_CLEARANCE = 7.2;
 
 export function createLocalSimulationSource(): SimulationSource {
   let staticContext: SceneStaticContext | null = null;
@@ -115,6 +119,8 @@ export function createLocalSimulationSource(): SimulationSource {
     SignalDirectionalOccupancy
   >();
   const proximityBuckets: LocalVehicleProximityBuckets = new globalThis.Map();
+  const routeEntrySample = createRouteSample();
+  const routeEntryRight = new THREE.Vector3();
 
   const countRouteAssignments = (routes: readonly { id: string }[], count: number) => {
     const totals = new globalThis.Map<string, number>();
@@ -161,18 +167,33 @@ export function createLocalSimulationSource(): SimulationSource {
         route,
         preferredDistance + attempt * ROUTE_REENTRY_DISTANCE_STEP,
       );
+      sampleRouteInto(route, candidate, routeEntrySample);
+      writeRightVector(routeEntrySample.heading, routeEntryRight);
+      const candidateX =
+        routeEntrySample.position.x + routeEntryRight.x * route.laneOffset;
+      const candidateZ =
+        routeEntrySample.position.z + routeEntryRight.z * route.laneOffset;
       const isClear = vehicles.every((other) => {
-        if (other === vehicle || other.route.id !== route.id) {
+        if (other === vehicle) {
           return true;
         }
         const requiredClearance = Math.max(
           ROUTE_REENTRY_CLEARANCE,
           vehicle.length * 0.5 + other.length * 0.5 + other.safeGap,
         );
-        return (
-          routeDistanceSeparation(route, candidate, other.distance) >=
-          requiredClearance
-        );
+        const deltaX = other.motion.lanePosition.x - candidateX;
+        const deltaZ = other.motion.lanePosition.z - candidateZ;
+        if (
+          deltaX * deltaX + deltaZ * deltaZ <
+          ROUTE_ENTRY_RADIAL_CLEARANCE * ROUTE_ENTRY_RADIAL_CLEARANCE
+        ) {
+          return false;
+        }
+        if (other.route.id !== route.id) {
+          return true;
+        }
+        return routeDistanceSeparation(route, candidate, other.distance) >=
+          requiredClearance;
       });
       if (isClear) {
         return candidate;

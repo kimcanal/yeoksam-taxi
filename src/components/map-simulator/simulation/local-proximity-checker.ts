@@ -23,26 +23,30 @@ type LimitTravelDistanceForNearbyVehiclesParams = {
   requestedDistance: number;
 };
 
-function nearbyLeadVehicleConstraints({
-  vehicle,
+const RADIAL_CLEARANCE_PADDING = 1.55;
+const RADIAL_TRAVEL_BUFFER = 0.55;
+
+function vehicleRadialClearance(left: LocalVehicle, right: LocalVehicle) {
+  return (
+    Math.max(left.length, right.length) * 0.56 +
+    Math.max(RADIAL_CLEARANCE_PADDING, left.safeGap * 0.18)
+  );
+}
+
+function nearbyVehicleSamples({
   current,
   proximityBuckets,
-  onLeadVehicle,
+  searchDistance,
+  onSample,
 }: {
-  vehicle: LocalVehicle;
   current: LocalVehicleSimulationSample;
   proximityBuckets: LocalVehicleProximityBuckets;
-  onLeadVehicle: (
-    other: LocalVehicleSimulationSample,
-    longitudinal: number,
-    requiredClearance: number,
-  ) => boolean;
+  searchDistance: number;
+  onSample: (other: LocalVehicleSimulationSample) => boolean;
 }) {
-  const maxInteractionDistance =
-    vehicle.safeGap + VEHICLE_FOLLOW_LOOKAHEAD_BUFFER;
   const searchCellRadius = Math.max(
     1,
-    Math.ceil(maxInteractionDistance / VEHICLE_PROXIMITY_CELL_SIZE),
+    Math.ceil(searchDistance / VEHICLE_PROXIMITY_CELL_SIZE),
   );
   const currentCellX = vehicleProximityCellCoord(
     current.motion.lanePosition.x,
@@ -68,13 +72,42 @@ function nearbyLeadVehicleConstraints({
 
       for (let bucketIndex = 0; bucketIndex < bucket.length; bucketIndex += 1) {
         const other = bucket[bucketIndex]!;
-        if (other.vehicle === vehicle) {
+        if (other === current || other.vehicle === current.vehicle) {
           continue;
         }
+        if (!onSample(other)) {
+          break searchNearbyVehicles;
+        }
+      }
+    }
+  }
+}
 
+function nearbyLeadVehicleConstraints({
+  vehicle,
+  current,
+  proximityBuckets,
+  onLeadVehicle,
+}: {
+  vehicle: LocalVehicle;
+  current: LocalVehicleSimulationSample;
+  proximityBuckets: LocalVehicleProximityBuckets;
+  onLeadVehicle: (
+    other: LocalVehicleSimulationSample,
+    longitudinal: number,
+    requiredClearance: number,
+  ) => boolean;
+}) {
+  const maxInteractionDistance =
+    vehicle.safeGap + VEHICLE_FOLLOW_LOOKAHEAD_BUFFER;
+  nearbyVehicleSamples({
+    current,
+    proximityBuckets,
+    searchDistance: maxInteractionDistance,
+    onSample: (other) => {
         const alignment = current.motion.heading.dot(other.motion.heading);
         if (alignment < 0.35) {
-          continue;
+          return true;
         }
 
         const deltaX =
@@ -85,7 +118,7 @@ function nearbyLeadVehicleConstraints({
           deltaX * current.motion.heading.x +
           deltaZ * current.motion.heading.z;
         if (longitudinal <= 0 || longitudinal > maxInteractionDistance) {
-          continue;
+          return true;
         }
 
         const lateral = Math.abs(
@@ -97,7 +130,7 @@ function nearbyLeadVehicleConstraints({
             0.36,
         );
         if (lateral > laneTolerance) {
-          continue;
+          return true;
         }
 
         const requiredClearance =
@@ -105,12 +138,9 @@ function nearbyLeadVehicleConstraints({
           other.vehicle.length * 0.5 +
           Math.max(2.2, vehicle.safeGap * 0.38);
 
-        if (!onLeadVehicle(other, longitudinal, requiredClearance)) {
-          break searchNearbyVehicles;
-        }
-      }
-    }
-  }
+        return onLeadVehicle(other, longitudinal, requiredClearance);
+    },
+  });
 }
 
 export function limitSpeedForNearbyVehicles({
@@ -159,6 +189,32 @@ export function limitTravelDistanceForNearbyVehicles({
       const remainingGap = longitudinal - requiredClearance - 0.35;
       nextDistance = Math.min(nextDistance, Math.max(0, remainingGap));
       return nextDistance > 0.001;
+    },
+  });
+
+  const searchDistance =
+    Math.max(
+      VEHICLE_FOLLOW_LOOKAHEAD_BUFFER,
+      vehicle.safeGap + requestedDistance + RADIAL_TRAVEL_BUFFER,
+    );
+  nearbyVehicleSamples({
+    current,
+    proximityBuckets,
+    searchDistance,
+    onSample: (other) => {
+      const clearance = vehicleRadialClearance(vehicle, other.vehicle);
+      const predictedX =
+        current.motion.lanePosition.x + current.motion.heading.x * nextDistance;
+      const predictedZ =
+        current.motion.lanePosition.z + current.motion.heading.z * nextDistance;
+      const deltaX = other.motion.lanePosition.x - predictedX;
+      const deltaZ = other.motion.lanePosition.z - predictedZ;
+      if (deltaX * deltaX + deltaZ * deltaZ >= clearance * clearance) {
+        return true;
+      }
+
+      nextDistance = 0;
+      return false;
     },
   });
 
