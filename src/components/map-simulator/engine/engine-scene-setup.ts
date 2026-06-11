@@ -434,6 +434,11 @@ export function setupEngineScene(
         }
         const currentMode = props.cameraModeRef.current;
         if (currentMode === "ride") {
+          const exitMode = props.rideExitModeRef.current || "drive";
+          props.cameraModeRef.current = exitMode;
+          props.setCameraMode(exitMode);
+          props.followTaxiIdRef.current = "";
+          setFollowTaxiId("");
           return;
         }
         if (currentMode === "follow") {

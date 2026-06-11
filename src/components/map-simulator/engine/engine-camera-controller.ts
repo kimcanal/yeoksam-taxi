@@ -44,6 +44,8 @@ export function createEngineCameraController(
     followTaxiIdRef,
     cameraFocusTargetRef,
     onCameraFocusChange,
+    setCameraMode,
+    setFollowTaxiId,
   } = props;
 
   let activeCameraMode: CameraMode = cameraModeRef.current;
@@ -76,6 +78,14 @@ export function createEngineCameraController(
     taxiById.get(followTaxiIdRef.current) ?? null;
 
   const taxiHeading = (vehicle: Vehicle) => vehicle.renderMotion.yaw;
+
+  const exitRideMode = () => {
+    const exitMode = props.rideExitModeRef.current || "drive";
+    followTaxiIdRef.current = "";
+    setFollowTaxiId("");
+    cameraModeRef.current = exitMode;
+    setCameraMode(exitMode);
+  };
 
   const syncCamera = () => {
     syncSimulatorCameraRig({
@@ -250,68 +260,62 @@ export function createEngineCameraController(
       syncCamera();
     } else {
       // ride mode
+      const currentFollowTaxiId = followTaxiIdRef.current;
       const viewedTaxi = resolveFollowTaxi();
-      if (
-        followTaxiIdRef.current !== activeFollowTaxiId ||
+      if (!currentFollowTaxiId || !viewedTaxi) {
+        exitRideMode();
+        return;
+      }
+      if (currentFollowTaxiId !== activeFollowTaxiId) {
+        activeFollowTaxiId = currentFollowTaxiId;
+        activeFollowTaxiInstance = viewedTaxi;
+        rideLookInitialized = false;
+      } else if (
+        activeFollowTaxiInstance &&
         viewedTaxi !== activeFollowTaxiInstance
       ) {
-        activeFollowTaxiId = followTaxiIdRef.current;
+        exitRideMode();
+        return;
+      } else if (!activeFollowTaxiInstance) {
         activeFollowTaxiInstance = viewedTaxi;
         rideLookInitialized = false;
       }
-      if (viewedTaxi) {
-        rideHeading.copy(viewedTaxi.renderMotion.heading);
-        if (rideHeading.lengthSq() < 0.0001) {
-          rideHeading.set(0, 0, 1);
-        } else {
-          rideHeading.normalize();
-        }
 
-        // Cache latest valid position and heading for exit transition
-        lastRidePosition.copy(viewedTaxi.renderMotion.lanePosition);
-        lastRideHeading.copy(rideHeading);
-
-        const rideBlend = 1 - Math.exp(-delta * 7.2);
-        rideCameraPosition
-          .copy(viewedTaxi.renderMotion.lanePosition)
-          .addScaledVector(rideHeading, TAXI_VIEW_CAMERA_BACK_OFFSET)
-          .addScaledVector(
-            viewedTaxi.renderMotion.right,
-            TAXI_VIEW_CAMERA_SIDE_OFFSET,
-          );
-        rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
-
-        rideDesiredLookTarget
-          .copy(viewedTaxi.renderMotion.lanePosition)
-          .addScaledVector(rideHeading, TAXI_VIEW_LOOK_AHEAD);
-        rideDesiredLookTarget.y = viewedTaxi.group.position.y + 1.6;
-
-        if (!rideLookInitialized) {
-          camera.position.copy(rideCameraPosition);
-          rideLookTarget.copy(rideDesiredLookTarget);
-          rideLookInitialized = true;
-        } else {
-          camera.position.lerp(rideCameraPosition, rideBlend);
-          rideLookTarget.lerp(rideDesiredLookTarget, rideBlend);
-        }
-        camera.lookAt(rideLookTarget);
+      rideHeading.copy(viewedTaxi.renderMotion.heading);
+      if (rideHeading.lengthSq() < 0.0001) {
+        rideHeading.set(0, 0, 1);
       } else {
-        if (rideLookInitialized) {
-          camera.lookAt(rideLookTarget);
-        } else {
-          rideCameraPosition
-            .copy(lastRidePosition)
-            .addScaledVector(lastRideHeading, TAXI_VIEW_CAMERA_BACK_OFFSET);
-          rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
-          rideLookTarget
-            .copy(lastRidePosition)
-            .addScaledVector(lastRideHeading, TAXI_VIEW_LOOK_AHEAD);
-          rideLookTarget.y = lastRidePosition.y + 1.6;
-          camera.position.copy(rideCameraPosition);
-          camera.lookAt(rideLookTarget);
-          rideLookInitialized = true;
-        }
+        rideHeading.normalize();
       }
+
+      // Cache latest valid position and heading for exit transition.
+      lastRidePosition.copy(viewedTaxi.renderMotion.lanePosition);
+      lastRideHeading.copy(rideHeading);
+
+      const rideBlend = 1 - Math.exp(-delta * 7.2);
+      rideCameraPosition
+        .copy(viewedTaxi.renderMotion.lanePosition)
+        .addScaledVector(rideHeading, TAXI_VIEW_CAMERA_BACK_OFFSET)
+        .addScaledVector(
+          viewedTaxi.renderMotion.right,
+          TAXI_VIEW_CAMERA_SIDE_OFFSET,
+        );
+      rideCameraPosition.y += TAXI_VIEW_CAMERA_HEIGHT;
+
+      rideDesiredLookTarget
+        .copy(viewedTaxi.renderMotion.lanePosition)
+        .addScaledVector(rideHeading, TAXI_VIEW_LOOK_AHEAD);
+      rideDesiredLookTarget.y = viewedTaxi.group.position.y + 1.6;
+
+      if (!rideLookInitialized) {
+        camera.position.copy(rideCameraPosition);
+        rideLookTarget.copy(rideDesiredLookTarget);
+        rideLookInitialized = true;
+      } else {
+        camera.position.lerp(rideCameraPosition, rideBlend);
+        rideLookTarget.lerp(rideDesiredLookTarget, rideBlend);
+      }
+      camera.lookAt(rideLookTarget);
     }
 
     if (mode !== "follow" && mode !== "ride") {

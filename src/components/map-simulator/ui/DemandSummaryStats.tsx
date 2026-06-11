@@ -33,7 +33,7 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">피크 시간대 호출량</div>
+          <div className="text-[10px] text-slate-500">피크 수요 지수</div>
           <div className="mt-1 font-semibold tabular-nums text-rose-100">
             {hasDemandData
               ? selectedPeakDemand.demandPred.toLocaleString("ko-KR")
@@ -41,7 +41,7 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">피크 대비 현재 수요량</div>
+          <div className="text-[10px] text-slate-500">피크 대비 현재 수요</div>
           <div className="mt-1 font-semibold tabular-nums text-cyan-100">
             {selectedDemandIntensityLabel}
           </div>
@@ -56,7 +56,7 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">현재 수요 예측</div>
+          <div className="text-[10px] text-slate-500">현재 수요 지수</div>
           <div className="mt-1 font-semibold tabular-nums text-cyan-100">
             {hasDemandData
               ? roundedCurrentDemand.toLocaleString("ko-KR")
@@ -64,15 +64,15 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">선택 동 택시</div>
+          <div className="text-[10px] text-slate-500">시각화 택시</div>
           <div className="mt-1 font-semibold tabular-nums text-amber-100">
             {hasDemandData ? `${appliedTaxiCount}대` : "-"}
           </div>
         </div>
       </div>
       <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] leading-4 text-slate-400 font-normal">
-        현재 수요 예측은 선택한 행정동의 시간당 예측량입니다. 선택 동 택시는
-        현재 수요 예측에 위 슬라이더 비율을 곱한 값입니다.
+        수요 값은 모델 비교용 지수입니다. 지도 택시는 이 지수에 위 슬라이더
+        비율을 곱해 만든 시각화용 개체 수입니다.
       </div>
     </>
   );

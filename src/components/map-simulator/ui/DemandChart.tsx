@@ -126,16 +126,6 @@ export function DemandChart({
             <path
               d={demandChart.trendPath}
               fill="none"
-              stroke="#fda4af"
-              strokeDasharray="4 4"
-              strokeLinecap="round"
-              strokeWidth="1.6"
-              opacity="0.9"
-              className="transition-all duration-500 ease-out"
-            />
-            <path
-              d={demandChart.linePath}
-              fill="none"
               stroke="#22d3ee"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -225,7 +215,7 @@ export function DemandChart({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-1.5 w-4 rounded-full bg-cyan-300" />
-            시간당 수요
+            수요 지수 추세
           </span>
           {demandChart.hasActualDemand ? (
             <span className="inline-flex items-center gap-1.5">
@@ -233,14 +223,10 @@ export function DemandChart({
               실수요
             </span>
           ) : null}
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-0 w-4 border-t border-dashed border-rose-300" />
-            추세
-          </span>
         </div>
         <span className="tabular-nums">
           {hasDemandData
-            ? `평균 ${selectedAverageDemand.toLocaleString("ko-KR")}`
+            ? `평균 수요지수 ${selectedAverageDemand.toLocaleString("ko-KR")}`
             : "데이터 수신 대기 중"}
         </span>
       </div>

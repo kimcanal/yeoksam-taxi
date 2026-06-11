@@ -289,9 +289,7 @@ export function demandSlotLabel(point: FiveMinuteDemandPoint | null) {
   return `${format24Hour(start)}-${format24Hour(end)}`;
 }
 
-export function buildDemandChartGeometry(
-  points: HourlyDemandPoint[],
-): DemandChartGeometry {
+export function buildDemandChartGeometry(points: HourlyDemandPoint[]): DemandChartGeometry {
   const paddingLeft = DEMAND_CHART_PADDING.left;
   const paddingRight = DEMAND_CHART_PADDING.right;
   const paddingTop = DEMAND_CHART_PADDING.top;
@@ -302,8 +300,8 @@ export function buildDemandChartGeometry(
     1,
     ...points.flatMap((point) =>
       point.actualDemand === null
-        ? [point.demandPred]
-        : [point.demandPred, point.actualDemand],
+        ? [point.trendDemandPred]
+        : [point.trendDemandPred, point.actualDemand],
     ),
   );
   const yMax =
@@ -335,10 +333,11 @@ export function buildDemandChartGeometry(
     .join(" ");
   const baseY = paddingTop + graphHeight;
   const areaPath = points.length
-    ? `${linePath} L ${xForHour(points[points.length - 1]!.hour).toFixed(2)} ${baseY.toFixed(2)} L ${xForHour(points[0]!.hour).toFixed(2)} ${baseY.toFixed(2)} Z`
+    ? `${trendPath} L ${xForHour(points[points.length - 1]!.hour).toFixed(2)} ${baseY.toFixed(2)} L ${xForHour(points[0]!.hour).toFixed(2)} ${baseY.toFixed(2)} Z`
     : "";
   const peakPoint = points.reduce(
-    (peak, point) => (point.demandPred > peak.demandPred ? point : peak),
+    (peak, point) =>
+      point.trendDemandPred > peak.trendDemandPred ? point : peak,
     points[0] ?? {
       hour: 0,
       populationPred: null,
@@ -347,7 +346,6 @@ export function buildDemandChartGeometry(
       trendDemandPred: 0,
     },
   );
-
   return {
     width: DEMAND_CHART_WIDTH,
     height: DEMAND_CHART_HEIGHT,
@@ -361,7 +359,7 @@ export function buildDemandChartGeometry(
     hasActualDemand: actualDemandPoints.length > 0,
     peakPoint,
     peakX: xForHour(peakPoint.hour),
-    peakY: yForDemand(peakPoint.demandPred),
+    peakY: yForDemand(peakPoint.trendDemandPred),
     xTicks: DEMAND_CHART_X_TICK_HOURS.map((hour) => ({
       hour,
       x: xForHour(hour),

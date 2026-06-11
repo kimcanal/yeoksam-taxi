@@ -15,6 +15,7 @@ import {
   normalizeRemoteDailyDemandSeries,
   scoreDemandAtHour,
   TARGET_DONGS,
+  withDemandTrend,
 } from "@/components/map-simulator/demand";
 import type {
   DemandFetchStatus,
@@ -27,10 +28,26 @@ const DEMAND_API_ENDPOINT =
 
 type DemandSeriesByDong = Record<string, HourlyDemandPoint[]>;
 
-let todayDemandCache: DemandSeriesByDong | null = null;
-
 function demandAtHour(points: HourlyDemandPoint[] | undefined, hour: number) {
   return points?.find((point) => point.hour === hour)?.demandPred ?? null;
+}
+
+function fillPastDemandSeriesToFullDay(seriesByDong: DemandSeriesByDong) {
+  return Object.fromEntries(
+    Object.entries(seriesByDong).map(([dongName, points]) => {
+      const pointsByHour = new Map(points.map((point) => [point.hour, point]));
+      const fullDayPoints = Array.from({ length: 24 }, (_, hour) =>
+        pointsByHour.get(hour) ?? {
+          hour,
+          populationPred: null,
+          demandPred: 0,
+          actualDemand: null,
+          trendDemandPred: 0,
+        },
+      );
+      return [dongName, withDemandTrend(fullDayPoints)];
+    }),
+  ) as DemandSeriesByDong;
 }
 
 export function useDemandForecast({
@@ -136,22 +153,6 @@ export function useDemandForecast({
     const todayStr = new Date(Date.now() + KST_OFFSET).toISOString().slice(0, 10);
     const isToday = simulationDate === todayStr;
 
-    // 만약 오늘 날짜이고 이미 메모리 캐시에 데이터가 존재한다면 즉각 반환하고 통신 생략!
-    if (isToday && todayDemandCache) {
-      const cachedSeries = todayDemandCache;
-      let cancelled = false;
-      queueMicrotask(() => {
-        if (cancelled) {
-          return;
-        }
-        setDemandSeriesByDong(cachedSeries);
-        setHeatmapFetchStatus("ready");
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-
     const controller = new AbortController();
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
@@ -164,9 +165,8 @@ export function useDemandForecast({
       url.searchParams.set("scope", "daily");
       url.searchParams.set("date", simulationDate);
       
-      // 오늘인 경우 브라우저 HTTP 캐싱을 타도록 cache: "default" 지정, 과거일 땐 no-store 유지
       const response = await fetch(url.toString(), {
-        cache: isToday ? "default" : "no-store",
+        cache: "no-store",
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -175,14 +175,13 @@ export function useDemandForecast({
         );
         return {};
       }
-      const normalized = normalizeRemoteDailyDemandSeries(
-        await response.json(),
-      );
+      const payload = await response.json();
+      const normalized = normalizeRemoteDailyDemandSeries(payload);
       if (!normalized) {
         console.warn("Daily demand heatmap response invalid.");
         return {};
       }
-      return normalized;
+      return isToday ? normalized : fillPastDemandSeriesToFullDay(normalized);
     }
 
     fetchDailySeries()
@@ -198,11 +197,6 @@ export function useDemandForecast({
       .then((nextSeries) => {
         if (controller.signal.aborted || nextSeries === null) {
           return;
-        }
-
-        // 가져온 데이터가 오늘이고 유효하다면 오늘 전용 런타임 메모리 캐시에 박제!
-        if (isToday && Object.keys(nextSeries).length > 0) {
-          todayDemandCache = nextSeries;
         }
 
         setDemandSeriesByDong(nextSeries);

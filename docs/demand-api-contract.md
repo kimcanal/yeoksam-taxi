@@ -10,6 +10,11 @@ renders the backend response without calculating demand locally.
 - Configure `NEXT_PUBLIC_DEMAND_API_ENDPOINT` to enable backend fetches.
 - The frontend proxy accepts `YYYY-MM-DD` from the UI and forwards `YYYYMMDD`
   to the FastAPI demand endpoints.
+- Demand requests are routed to the canonical demand model backend at
+  `https://163.239.77.92:2222` (`/api/demand/hourly` and
+  `/api/demand/daily`). If local temporary deploy URLs from `:2223` are present
+  in runtime configuration, the proxy rewrites demand requests back to this
+  canonical backend.
 - Selected-dong graph data comes from FastAPI `/api/demand/hourly`.
 - All-dong heatmap data comes from FastAPI `/api/demand/daily`; if daily
   aggregation is temporarily unavailable, the frontend can fall back to hourly
