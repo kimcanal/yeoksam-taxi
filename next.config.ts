@@ -88,6 +88,20 @@ const nextConfig: any = {
       },
     ];
   },
+  async headers() {
+    return [
+      {
+        source:
+          "/:asset(roads|buildings|dongs|non-road|road-network|taxi-stands|traffic-signals|transit).:ext(json|geojson)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

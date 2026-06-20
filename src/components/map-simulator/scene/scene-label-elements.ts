@@ -85,15 +85,15 @@ export function hotspotCallElement() {
   element.dataset.labelKind = "hotspot";
   element.style.padding = "2px 7px";
   element.style.borderRadius = "999px";
-  element.style.border = "1px solid rgba(180,161,128,0.28)";
-  element.style.background = "rgba(25,24,22,0.78)";
-  element.style.color = "#ddd2bb";
-  element.style.fontSize = "10px";
-  element.style.fontWeight = "600";
+  element.style.border = "1px solid rgba(56,189,248,0.22)";
+  element.style.background = "rgba(8,20,31,0.68)";
+  element.style.color = "#bae6fd";
+  element.style.fontSize = "9.5px";
+  element.style.fontWeight = "650";
   element.style.fontFamily = "Pretendard, SUIT Variable, sans-serif";
   element.style.letterSpacing = "0";
   element.style.whiteSpace = "nowrap";
   element.style.pointerEvents = "none";
-  element.style.boxShadow = "0 4px 10px rgba(0,0,0,0.18)";
+  element.style.boxShadow = "0 4px 12px rgba(0,0,0,0.18)";
   return element;
 }

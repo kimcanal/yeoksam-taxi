@@ -58,3 +58,18 @@ svg *:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
+
+.r3f-benchmark-perf-overlay {
+  top: 72px !important;
+  right: 16px !important;
+  z-index: 40 !important;
+}
+
+@media (max-width: 768px) {
+  .r3f-benchmark-perf-overlay {
+    top: 64px !important;
+    right: 12px !important;
+    transform: scale(0.88);
+    transform-origin: top right;
+  }
+}

@@ -23,6 +23,8 @@ const proxyResponseCache = new Map<string, CachedProxyPayload>();
 const proxyInflightRequests = new Map<string, Promise<unknown>>();
 const proxyErrorCache = new Map<string, CachedProxyError>();
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 class ProxyBackendError extends Error {
   body: string;
   status: number;
@@ -84,6 +86,37 @@ export function toBackendDate(date: string): string {
   return formatted;
 }
 
+export function positiveIntegerEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value >= 0 ? value : fallback;
+}
+
+export function todayBackendDateInKst(now = Date.now()) {
+  return new Date(now + KST_OFFSET_MS)
+    .toISOString()
+    .slice(0, 10)
+    .replaceAll("-", "");
+}
+
+export function cacheTtlForBackendDate(
+  backendDate: string,
+  {
+    futureMs = 0,
+    pastMs,
+    todayMs,
+  }: {
+    futureMs?: number;
+    pastMs: number;
+    todayMs: number;
+  },
+) {
+  const today = todayBackendDateInKst();
+  if (backendDate === today) {
+    return todayMs;
+  }
+  return backendDate < today ? pastMs : futureMs;
+}
+
 export type BackendProxyOptions = {
   /** The full backend URL (including query params) to proxy to. */
   targetUrl: URL;
@@ -125,6 +158,7 @@ export async function proxyBackendGet({
         headers: {
           "Cache-Control": "no-store",
           "X-Proxy-Cache": "HIT",
+          "X-Proxy-Cache-Ttl-Ms": String(cacheTtlMs),
         },
       });
     }
@@ -160,6 +194,7 @@ export async function proxyBackendGet({
         headers: {
           "Cache-Control": "no-store",
           "X-Proxy-Cache": "INFLIGHT",
+          "X-Proxy-Cache-Ttl-Ms": String(cacheTtlMs),
         },
       });
     } catch (error: unknown) {
@@ -259,6 +294,7 @@ export async function proxyBackendGet({
       headers: {
         "Cache-Control": "no-store",
         "X-Proxy-Cache": "MISS",
+        "X-Proxy-Cache-Ttl-Ms": String(cacheTtlMs),
       },
     });
   } catch (error: unknown) {

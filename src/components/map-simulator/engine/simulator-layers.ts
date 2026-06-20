@@ -86,9 +86,13 @@ export function disposeEnvironmentVisualResources({
   cloudPuffGeometry.dispose();
   cloudMaterial.dispose();
   stormCloudMaterial.dispose();
+  sunDiscMaterial.map?.dispose();
   sunDiscMaterial.dispose();
+  sunHaloMaterial.map?.dispose();
   sunHaloMaterial.dispose();
+  sunsetGlowMaterial.map?.dispose();
   sunsetGlowMaterial.dispose();
+  moonMaterial.map?.dispose();
   moonMaterial.dispose();
 }
 

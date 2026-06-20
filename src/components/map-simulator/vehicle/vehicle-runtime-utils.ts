@@ -50,14 +50,15 @@ export function updateVehicleMotionState(vehicle: Vehicle) {
   );
   writeRightVector(vehicle.motion.heading, vehicle.motion.right);
   const pullOverBlend = curbsideApproachBlend(vehicle);
+  const baseLaneOffset = vehicle.route.laneOffset + (vehicle.laneOffsetBias ?? 0);
   const laneOffset =
     pullOverBlend > 0
       ? THREE.MathUtils.lerp(
-        vehicle.route.laneOffset,
+        baseLaneOffset,
         curbsideLaneOffset(vehicle.route),
         pullOverBlend,
       )
-      : vehicle.route.laneOffset;
+      : baseLaneOffset;
   vehicle.motion.lanePosition
     .copy(vehicle.motion.position)
     .addScaledVector(vehicle.motion.right, laneOffset);

@@ -23,14 +23,91 @@ type LimitTravelDistanceForNearbyVehiclesParams = {
   requestedDistance: number;
 };
 
-const RADIAL_CLEARANCE_PADDING = 1.55;
-const RADIAL_TRAVEL_BUFFER = 0.55;
+const RADIAL_CLEARANCE_PADDING = 1.05;
+const RADIAL_TRAVEL_BUFFER = 0.75;
+const OVERLAP_REAR_YIELD_RATIO = 0.35;
+const SIDE_PASS_LATERAL_RATIO = 0.62;
+const SOFT_CONFLICT_CRAWL_RATIO = 0.42;
+const SOFT_CONFLICT_CRAWL_MAX_DISTANCE = 0.28;
 
 function vehicleRadialClearance(left: LocalVehicle, right: LocalVehicle) {
   return (
-    Math.max(left.length, right.length) * 0.56 +
-    Math.max(RADIAL_CLEARANCE_PADDING, left.safeGap * 0.18)
+    Math.max(left.length, right.length) * 0.52 +
+    Math.max(RADIAL_CLEARANCE_PADDING, left.safeGap * 0.1)
   );
+}
+
+function vehicleRelation({
+  current,
+  other,
+  vehicle,
+}: {
+  current: LocalVehicleSimulationSample;
+  other: LocalVehicleSimulationSample;
+  vehicle: LocalVehicle;
+}) {
+  const deltaX =
+    other.motion.lanePosition.x - current.motion.lanePosition.x;
+  const deltaZ =
+    other.motion.lanePosition.z - current.motion.lanePosition.z;
+  const longitudinal =
+    deltaX * current.motion.heading.x +
+    deltaZ * current.motion.heading.z;
+  const lateral = Math.abs(
+    deltaX * current.motion.right.x + deltaZ * current.motion.right.z,
+  );
+  const alignment = current.motion.heading.dot(other.motion.heading);
+  const laneTolerance = Math.min(
+    2.4,
+    Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) * 0.36,
+  );
+  const sidePassTolerance = Math.max(1.05, laneTolerance * SIDE_PASS_LATERAL_RATIO);
+
+  return {
+    alignment,
+    deltaX,
+    deltaZ,
+    laneTolerance,
+    lateral,
+    longitudinal,
+    sidePassTolerance,
+  };
+}
+
+function softConflictCrawlDistance(requestedDistance: number) {
+  return Math.min(
+    requestedDistance * SOFT_CONFLICT_CRAWL_RATIO,
+    SOFT_CONFLICT_CRAWL_MAX_DISTANCE,
+  );
+}
+
+function shouldYieldForOverlap({
+  clearance,
+  current,
+  other,
+  vehicle,
+}: {
+  clearance: number;
+  current: LocalVehicleSimulationSample;
+  other: LocalVehicleSimulationSample;
+  vehicle: LocalVehicle;
+}) {
+  const { alignment, lateral, longitudinal, sidePassTolerance } =
+    vehicleRelation({
+      current,
+      other,
+      vehicle,
+    });
+
+  if (alignment > 0.35 && lateral > sidePassTolerance) {
+    return false;
+  }
+
+  if (alignment > 0.35) {
+    return longitudinal > -clearance * OVERLAP_REAR_YIELD_RATIO;
+  }
+
+  return vehicle.renderSeed > other.vehicle.renderSeed;
 }
 
 function nearbyVehicleSamples({
@@ -105,40 +182,32 @@ function nearbyLeadVehicleConstraints({
     proximityBuckets,
     searchDistance: maxInteractionDistance,
     onSample: (other) => {
-        const alignment = current.motion.heading.dot(other.motion.heading);
-        if (alignment < 0.35) {
-          return true;
-        }
+      const relation = vehicleRelation({
+        current,
+        other,
+        vehicle,
+      });
+      if (relation.alignment < 0.35) {
+        return true;
+      }
 
-        const deltaX =
-          other.motion.lanePosition.x - current.motion.lanePosition.x;
-        const deltaZ =
-          other.motion.lanePosition.z - current.motion.lanePosition.z;
-        const longitudinal =
-          deltaX * current.motion.heading.x +
-          deltaZ * current.motion.heading.z;
-        if (longitudinal <= 0 || longitudinal > maxInteractionDistance) {
-          return true;
-        }
+      if (
+        relation.longitudinal <= 0 ||
+        relation.longitudinal > maxInteractionDistance
+      ) {
+        return true;
+      }
 
-        const lateral = Math.abs(
-          deltaX * current.motion.right.x + deltaZ * current.motion.right.z,
-        );
-        const laneTolerance = Math.min(
-          2.4,
-          Math.max(vehicle.route.roadWidth, other.vehicle.route.roadWidth) *
-            0.36,
-        );
-        if (lateral > laneTolerance) {
-          return true;
-        }
+      if (relation.lateral > relation.sidePassTolerance) {
+        return true;
+      }
 
-        const requiredClearance =
-          vehicle.length * 0.5 +
-          other.vehicle.length * 0.5 +
-          Math.max(2.2, vehicle.safeGap * 0.38);
+      const requiredClearance =
+        vehicle.length * 0.5 +
+        other.vehicle.length * 0.5 +
+        Math.max(2.2, vehicle.safeGap * 0.38);
 
-        return onLeadVehicle(other, longitudinal, requiredClearance);
+      return onLeadVehicle(other, relation.longitudinal, requiredClearance);
     },
   });
 }
@@ -203,6 +272,31 @@ export function limitTravelDistanceForNearbyVehicles({
     searchDistance,
     onSample: (other) => {
       const clearance = vehicleRadialClearance(vehicle, other.vehicle);
+      const relation = vehicleRelation({
+        current,
+        other,
+        vehicle,
+      });
+      if (
+        relation.deltaX * relation.deltaX + relation.deltaZ * relation.deltaZ <
+        clearance * clearance
+      ) {
+        if (
+          shouldYieldForOverlap({
+            clearance,
+            current,
+            other,
+            vehicle,
+          })
+        ) {
+          nextDistance = Math.min(
+            nextDistance,
+            softConflictCrawlDistance(requestedDistance),
+          );
+          return false;
+        }
+        return true;
+      }
       const predictedX =
         current.motion.lanePosition.x + current.motion.heading.x * nextDistance;
       const predictedZ =
@@ -213,7 +307,18 @@ export function limitTravelDistanceForNearbyVehicles({
         return true;
       }
 
-      nextDistance = 0;
+      if (
+        relation.alignment > 0.35 &&
+        (relation.lateral > relation.sidePassTolerance ||
+          relation.longitudinal < -clearance * OVERLAP_REAR_YIELD_RATIO)
+      ) {
+        return true;
+      }
+
+      nextDistance = Math.min(
+        nextDistance,
+        softConflictCrawlDistance(requestedDistance),
+      );
       return false;
     },
   });

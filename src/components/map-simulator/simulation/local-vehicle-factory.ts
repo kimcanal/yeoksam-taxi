@@ -20,17 +20,65 @@ type CreateLocalVehicleParams = {
   routeSlotCount?: number;
 };
 
+function stableUnitInterval(input: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0x100000000;
+}
+
 function routeSpawnDistance({
   index,
-  totalCount,
   route,
   routeSlotIndex = index,
-  routeSlotCount = totalCount,
+  routeSlotCount = 1,
 }: CreateLocalVehicleParams) {
-  return (
-    (route.totalLength / Math.max(routeSlotCount, 1)) *
-    (routeSlotIndex % Math.max(routeSlotCount, 1))
+  if (route.totalLength <= 0) {
+    return 0;
+  }
+
+  const slotCount = Math.max(routeSlotCount, 1);
+  const slotIndex = routeSlotIndex % slotCount;
+  const phase =
+    0.18 +
+    stableUnitInterval(`${route.id}:${index}:${slotIndex}`) * 0.64;
+
+  if (route.isLoop) {
+    return (route.totalLength / slotCount) * (slotIndex + phase);
+  }
+
+  const edgeMargin = Math.min(
+    24,
+    Math.max(6, route.totalLength * 0.06),
   );
+  if (route.totalLength <= edgeMargin * 2) {
+    return route.totalLength * phase;
+  }
+
+  const usableLength = route.totalLength - edgeMargin * 2;
+  return edgeMargin + (usableLength / slotCount) * (slotIndex + phase);
+}
+
+// Presentation-layer lane variance: enough to prevent visual clumping without modeling real lanes.
+function routeLaneOffsetBias({
+  index,
+  route,
+  routeSlotIndex = index,
+}: CreateLocalVehicleParams) {
+  const usableRoadHalfWidth = route.roadWidth * 0.5 - route.laneOffset - 0.38;
+  const maxBias = Math.max(0, Math.min(0.52, usableRoadHalfWidth));
+  if (maxBias < 0.05) {
+    return 0;
+  }
+
+  const lanePattern = [0, -0.72, 0.66, -0.34, 0.38] as const;
+  const patternValue = lanePattern[(index + routeSlotIndex) % lanePattern.length]!;
+  const noise =
+    (stableUnitInterval(`lane:${route.id}:${index}:${routeSlotIndex}`) - 0.5) *
+    0.24;
+  return (patternValue + noise) * maxBias;
 }
 
 export function createLocalTaxiVehicle({
@@ -40,6 +88,13 @@ export function createLocalTaxiVehicle({
   routeSlotIndex,
   routeSlotCount,
 }: CreateLocalVehicleParams): LocalVehicle {
+  const laneOffsetBias = routeLaneOffsetBias({
+    index,
+    totalCount,
+    route,
+    routeSlotIndex,
+    routeSlotCount,
+  });
   const vehicle: LocalVehicle = {
     id: `taxi-${index}`,
     kind: "taxi",
@@ -54,6 +109,7 @@ export function createLocalTaxiVehicle({
       routeSlotCount,
     }),
     safeGap: 7.8,
+    laneOffsetBias,
     length: 4.6,
     currentSignalId: null,
     roadName: route.name,
@@ -68,6 +124,7 @@ export function createLocalTaxiVehicle({
     jobAssignedAt: 0,
     pickupStartedAt: null,
     serviceTimer: 0,
+    blockedSeconds: 0,
     planMode: "traffic",
     previousMotion: createVehicleMotionState(),
     motion: createVehicleMotionState(),
@@ -85,6 +142,13 @@ export function createLocalTrafficVehicle({
   routeSlotIndex,
   routeSlotCount,
 }: CreateLocalVehicleParams): LocalVehicle {
+  const laneOffsetBias = routeLaneOffsetBias({
+    index,
+    totalCount,
+    route,
+    routeSlotIndex,
+    routeSlotCount,
+  });
   const vehicle: LocalVehicle = {
     id: `traffic-${index}`,
     kind: "traffic",
@@ -99,6 +163,7 @@ export function createLocalTrafficVehicle({
       routeSlotCount,
     }),
     safeGap: 6.4,
+    laneOffsetBias,
     length: 4.2,
     currentSignalId: null,
     roadName: route.name,
@@ -109,6 +174,7 @@ export function createLocalTrafficVehicle({
     jobAssignedAt: 0,
     pickupStartedAt: null,
     serviceTimer: 0,
+    blockedSeconds: 0,
     planMode: "traffic",
     previousMotion: createVehicleMotionState(),
     motion: createVehicleMotionState(),

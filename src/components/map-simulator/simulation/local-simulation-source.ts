@@ -80,14 +80,16 @@ import type {
 
 const ROUTE_END_SLOWDOWN_DISTANCE = 18;
 const ROUTE_END_SWITCH_DISTANCE = 1.5;
-const ROUTE_REENTRY_CLEARANCE = 11.5;
-const ROUTE_REENTRY_DISTANCE_STEP = 8.5;
-const ROUTE_REENTRY_ATTEMPTS = 8;
+const ROUTE_REENTRY_CLEARANCE = 12.8;
+const ROUTE_REENTRY_DISTANCE_STEP = 10;
+const ROUTE_REENTRY_ATTEMPTS = 10;
+const VEHICLE_STUCK_RECOVERY_SECONDS = 8.5;
+const VEHICLE_STUCK_RECOVERY_DISTANCE = 18;
 const VEHICLE_ACCELERATION = 2.35;
 const VEHICLE_BRAKING = 6.8;
 const VEHICLE_HARD_BRAKING = 10.5;
 const VEHICLE_STOP_SPEED_EPSILON = 0.045;
-const ROUTE_ENTRY_RADIAL_CLEARANCE = 7.2;
+const ROUTE_ENTRY_RADIAL_CLEARANCE = 8.4;
 
 export function createLocalSimulationSource(): SimulationSource {
   let staticContext: SceneStaticContext | null = null;
@@ -169,10 +171,11 @@ export function createLocalSimulationSource(): SimulationSource {
       );
       sampleRouteInto(route, candidate, routeEntrySample);
       writeRightVector(routeEntrySample.heading, routeEntryRight);
+      const laneOffset = route.laneOffset + (vehicle.laneOffsetBias ?? 0);
       const candidateX =
-        routeEntrySample.position.x + routeEntryRight.x * route.laneOffset;
+        routeEntrySample.position.x + routeEntryRight.x * laneOffset;
       const candidateZ =
-        routeEntrySample.position.z + routeEntryRight.z * route.laneOffset;
+        routeEntrySample.position.z + routeEntryRight.z * laneOffset;
       const isClear = vehicles.every((other) => {
         if (other === vehicle) {
           return true;
@@ -326,9 +329,9 @@ export function createLocalSimulationSource(): SimulationSource {
 
   const rebuildVehicleLayer = (nextTaxiCount: number, nextTrafficCount: number) => {
     const taxiRoutePool =
-      staticContext?.trafficRoutePool.length
-        ? staticContext.trafficRoutePool
-        : staticContext?.taxiRoutePool ?? [];
+      staticContext?.taxiRoutePool.length
+        ? staticContext.taxiRoutePool
+        : staticContext?.trafficRoutePool ?? [];
     if (!staticContext || !taxiRoutePool.length) {
       clearVehicleLayer();
       return;
@@ -353,6 +356,18 @@ export function createLocalSimulationSource(): SimulationSource {
         routeSlotIndex,
         routeSlotCount: taxiRouteTotals.get(route.id) ?? nextTaxiCount,
       });
+      const openEntryDistance = findOpenRouteEntryDistance(
+        vehicle,
+        route,
+        vehicle.distance,
+      );
+      if (openEntryDistance !== null) {
+        assignVehicleRoute(
+          castLocalVehicleForMotion(vehicle),
+          route,
+          openEntryDistance,
+        );
+      }
       vehicles.push(vehicle);
       taxiVehicles.push(vehicle);
       taxiById.set(vehicle.id, vehicle);
@@ -369,6 +384,18 @@ export function createLocalSimulationSource(): SimulationSource {
         routeSlotIndex,
         routeSlotCount: trafficRouteTotals.get(route.id) ?? nextTrafficCount,
       });
+      const openEntryDistance = findOpenRouteEntryDistance(
+        vehicle,
+        route,
+        vehicle.distance,
+      );
+      if (openEntryDistance !== null) {
+        assignVehicleRoute(
+          castLocalVehicleForMotion(vehicle),
+          route,
+          openEntryDistance,
+        );
+      }
       vehicles.push(vehicle);
       trafficVehicles.push(vehicle);
     }
@@ -660,6 +687,45 @@ export function createLocalSimulationSource(): SimulationSource {
             requestedDistance: requestedTravelDistance,
             proximityBuckets,
           });
+        const isBlockedByProximity =
+          !holdPosition &&
+          requestedTravelDistance > 0.08 &&
+          travelDistance < Math.min(0.08, requestedTravelDistance * 0.24);
+        vehicle.blockedSeconds = isBlockedByProximity
+          ? vehicle.blockedSeconds + deltaSeconds
+          : 0;
+        if (vehicle.blockedSeconds >= VEHICLE_STUCK_RECOVERY_SECONDS) {
+          const recoveryRoute =
+            vehicle.kind === "traffic"
+              ? pickNextTrafficRoute(vehicle.route.id, vehicleIndex) ??
+                vehicle.route
+              : vehicle.route;
+          const preferredDistance =
+            recoveryRoute === vehicle.route
+              ? vehicle.distance +
+                VEHICLE_STUCK_RECOVERY_DISTANCE +
+                (vehicleIndex % 5) * 2.5
+              : Math.min(
+                recoveryRoute.totalLength * 0.12,
+                TRAFFIC_ROUTE_REENTRY_DISTANCE + (vehicleIndex % 4) * 1.1,
+              );
+          const openEntryDistance = findOpenRouteEntryDistance(
+            vehicle,
+            recoveryRoute,
+            preferredDistance,
+          );
+          if (openEntryDistance !== null) {
+            assignVehicleRoute(
+              castLocalVehicleForMotion(vehicle),
+              recoveryRoute,
+              openEntryDistance,
+            );
+            vehicle.speed = 0;
+            vehicle.blockedSeconds = 0;
+            syncVehicleSampleBucket(proximityBuckets, current);
+            continue;
+          }
+        }
         if (
           requestedTravelDistance > 0 &&
           travelDistance < requestedTravelDistance

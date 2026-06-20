@@ -223,21 +223,21 @@ export function createEnvironmentSettingsController({
     const sunDiscCol = state.sunset > 0.18 ? 0xffc78b : 0xfff1c9;
     environmentVisuals.sunDiscMaterial.color.setHex(sunDiscCol);
     environmentVisuals.sunDiscMaterial.opacity =
-      THREE.MathUtils.clamp(state.daylight * 0.34 + state.sunset * 0.52, 0, 0.86) *
+      THREE.MathUtils.clamp(state.daylight * 0.26 + state.sunset * 0.42, 0, 0.72) *
       (0.88 + state.cloudVisibility * 0.12);
     environmentVisuals.sunHaloMaterial.opacity =
-      THREE.MathUtils.clamp(state.daylight * 0.1 + state.sunset * 0.22, 0, 0.24) *
+      THREE.MathUtils.clamp(state.daylight * 0.07 + state.sunset * 0.16, 0, 0.18) *
       state.cloudVisibility;
     environmentVisuals.sunsetGlowMaterial.opacity =
-      THREE.MathUtils.clamp(state.sunset * 0.24, 0, 0.22) *
+      THREE.MathUtils.clamp(state.sunset * 0.17, 0, 0.16) *
       (0.86 + state.cloudVisibility * 0.14);
 
-    const moonOpacityTarget = THREE.MathUtils.clamp((0.22 - state.daylight) / 0.22, 0, 0.88) *
+    const moonOpacityTarget = THREE.MathUtils.clamp((0.22 - state.daylight) / 0.22, 0, 0.74) *
       (state.weatherMode === "heavy-rain"
-        ? 0.34
+        ? 0.28
         : state.weatherMode === "cloudy"
-          ? 0.72
-          : 0.84);
+          ? 0.58
+          : 0.74);
     environmentVisuals.moonMaterial.opacity = moonOpacityTarget;
 
     activeStarOpacity =

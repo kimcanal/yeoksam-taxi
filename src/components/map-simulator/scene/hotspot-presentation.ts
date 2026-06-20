@@ -5,18 +5,18 @@ import type {
 
 export const HOTSPOT_PRESENTATION: Record<HotspotMarkerMode, HotspotPresentation> = {
   pickup: {
-    accentColor: 0xc99543,
-    badgeLabel: "승차",
-    badgeBorderColor: "rgba(196,154,88,0.34)",
-    badgeBackground: "rgba(35,29,22,0.84)",
-    badgeTextColor: "#efe3c6",
-    showsCaller: true,
+    accentColor: 0x38bdf8,
+    badgeLabel: "콜",
+    badgeBorderColor: "rgba(56,189,248,0.24)",
+    badgeBackground: "rgba(8,20,31,0.68)",
+    badgeTextColor: "#bae6fd",
+    showsCaller: false,
   },
   dropoff: {
     accentColor: 0x78908a,
     badgeLabel: "하차",
-    badgeBorderColor: "rgba(124,151,146,0.32)",
-    badgeBackground: "rgba(24,31,30,0.82)",
+    badgeBorderColor: "rgba(124,151,146,0.24)",
+    badgeBackground: "rgba(24,31,30,0.66)",
     badgeTextColor: "#d5dfdc",
     showsCaller: false,
   },

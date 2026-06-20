@@ -7,8 +7,10 @@ import {
   type CSSProperties,
 } from "react";
 import dynamic from "next/dynamic";
-import * as THREE from "three";
-import type { BuildVersionInfo } from "@/components/map-simulator/utils";
+import {
+  computeProjectedRoadSegmentBounds,
+  type BuildVersionInfo,
+} from "@/components/map-simulator/utils";
 import type {
   CircumstanceMode,
   FpsStats,
@@ -19,7 +21,7 @@ import {
   normalizeDayMinutes,
   useWeatherForecast,
 } from "@/components/map-simulator/environment";
-import { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
+import type { MapSimulatorSceneRuntimeProps } from "@/components/map-simulator/map-simulator-scene-runtime";
 import { useLiveClockSync } from "@/components/map-simulator/hooks/use-live-clock-sync";
 import { useMapInteractions } from "@/components/map-simulator/hooks/use-map-interactions";
 import { pitchFromControlValue } from "@/components/map-simulator/camera";
@@ -39,8 +41,6 @@ type MapSimulatorProps = {
   buildVersion: BuildVersionInfo;
   initialMode?: CircumstanceMode;
 };
-
-
 
 const MapSimulatorSceneRuntime = dynamic<MapSimulatorSceneRuntimeProps>(
   () => import("@/components/map-simulator/map-simulator-scene-runtime"),
@@ -151,12 +151,7 @@ export default function MapSimulator({
       return null;
     }
 
-    const bounds = new THREE.Box3();
-    segments.forEach((segment) => {
-      bounds.expandByPoint(segment.start);
-      bounds.expandByPoint(segment.end);
-    });
-    return bounds.getCenter(new THREE.Vector3());
+    return computeProjectedRoadSegmentBounds(segments).center;
   }, [data?.projectedRoadSegments]);
   const statusLabel =
     status === "loading"

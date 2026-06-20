@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "launch": "node scripts/run-next.mjs",
+    "demo:start": "bash scripts/demo-start.sh",
+    "demo:stop": "bash scripts/demo-stop.sh",
     "asset:update": "node scripts/update-assets.mjs",
     "screenshot:install": "playwright install chromium",
     "screenshot:scenarios": "node scripts/capture-scenario-screenshots.mjs",

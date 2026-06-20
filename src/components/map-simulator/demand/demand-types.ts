@@ -33,6 +33,15 @@ export type HourlyDemandPoint = {
   demandPred: number;
   actualDemand: number | null;
   trendDemandPred: number;
+  isBackendMissing?: boolean;
+};
+
+export type DemandChartPointMarker = {
+  hour: number;
+  x: number;
+  y: number;
+  value: number;
+  isBackendMissing?: boolean;
 };
 
 export type FiveMinuteDemandPoint = {
@@ -104,6 +113,50 @@ export type DemandChartGeometry = {
   peakY: number;
   xTicks: { hour: number; x: number }[];
   yTicks: { value: number; y: number }[];
+  demandPointMarkers: DemandChartPointMarker[];
+  missingDemandHours: number[];
+
+  // 공급 추정 통합 필드
+  supplyLinePath: string;
+  hasSupplyData: boolean;
+  peakSupplyPoint: HourlySupplyPoint | null;
+  peakSupplyX: number;
+  peakSupplyY: number;
+};
+
+export type PricingChartGeometry = {
+  width: number;
+  height: number;
+  paddingLeft: number;
+  baseY: number;
+  yMax: number;
+  yMin: number;
+  linePath: string;
+  areaPath: string;
+  peakPoint: HourlyPricingPoint;
+  peakX: number;
+  peakY: number;
+  xTicks: { hour: number; x: number }[];
+  yTicks: { value: number; y: number }[];
 };
 
 export type TransitFeature = SimulationData["transit"]["features"][number];
+
+export type HourlySupplyPoint = {
+  hour: number;
+  supplyPred: number;
+};
+
+export type HourlyPricingPoint = {
+  hour: number;
+  demand: number;
+  supplyProxy: number;
+  shortage: number;
+  shortageRatio: number;
+  pricingTier: string;
+  surgeMultiplier: number;
+  suggestedDriverIncentiveKrw: number;
+  expectedSupplyIncrease: number;
+  postIncentiveSupplyProxy: number;
+  postIncentiveShortage: number;
+};

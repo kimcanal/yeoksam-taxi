@@ -14,14 +14,14 @@ export type CloudCluster = {
 
 export type EnvironmentVisuals = {
   celestialRadius: number;
-  sunDiscMaterial: THREE.MeshBasicMaterial;
-  sunDisc: THREE.Mesh;
-  sunHaloMaterial: THREE.MeshBasicMaterial;
-  sunHalo: THREE.Mesh;
-  sunsetGlowMaterial: THREE.MeshBasicMaterial;
-  sunsetGlow: THREE.Mesh;
-  moonMaterial: THREE.MeshBasicMaterial;
-  moon: THREE.Mesh;
+  sunDiscMaterial: THREE.SpriteMaterial;
+  sunDisc: THREE.Sprite;
+  sunHaloMaterial: THREE.SpriteMaterial;
+  sunHalo: THREE.Sprite;
+  sunsetGlowMaterial: THREE.SpriteMaterial;
+  sunsetGlow: THREE.Sprite;
+  moonMaterial: THREE.SpriteMaterial;
+  moon: THREE.Sprite;
   starsGeometry: THREE.BufferGeometry;
   starsMaterial: THREE.PointsMaterial;
   stars: THREE.Points;
@@ -48,6 +48,157 @@ const STORM_CLOUD_PUFFS = [
   { x: 13.2, y: 0.1, z: -0.4, sx: 8.2, sy: 3.1, sz: 4.4 },
 ] as const;
 
+type GradientStop = {
+  offset: number;
+  color: string;
+};
+
+function createCanvasTexture(
+  size: number,
+  draw: (context: CanvasRenderingContext2D) => void,
+) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return null;
+  }
+
+  draw(context);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  return texture;
+}
+
+function createRadialTexture(size: number, stops: GradientStop[]) {
+  return createCanvasTexture(size, (context) => {
+    const center = size / 2;
+    const gradient = context.createRadialGradient(
+      center,
+      center,
+      size * 0.035,
+      center,
+      center,
+      center,
+    );
+    stops.forEach((stop) => gradient.addColorStop(stop.offset, stop.color));
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, size, size);
+  });
+}
+
+function seededNoise(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function createMoonTexture() {
+  return createCanvasTexture(512, (context) => {
+    const size = 512;
+    const center = size / 2;
+    const radius = 228;
+
+    context.clearRect(0, 0, size, size);
+    context.save();
+    context.beginPath();
+    context.arc(center, center, radius, 0, Math.PI * 2);
+    context.clip();
+
+    const base = context.createRadialGradient(186, 158, 32, center, center, radius);
+    base.addColorStop(0, "#f8fbff");
+    base.addColorStop(0.42, "#dce5ef");
+    base.addColorStop(0.78, "#aebccc");
+    base.addColorStop(1, "#708092");
+    context.fillStyle = base;
+    context.fillRect(0, 0, size, size);
+
+    const maria = [
+      { x: 176, y: 186, r: 82, alpha: 0.2 },
+      { x: 326, y: 238, r: 70, alpha: 0.18 },
+      { x: 224, y: 332, r: 78, alpha: 0.16 },
+      { x: 354, y: 342, r: 44, alpha: 0.12 },
+    ];
+    maria.forEach((plain) => {
+      context.fillStyle = `rgba(82, 96, 113, ${plain.alpha})`;
+      context.beginPath();
+      context.ellipse(
+        plain.x,
+        plain.y,
+        plain.r * 1.08,
+        plain.r * 0.74,
+        -0.24,
+        0,
+        Math.PI * 2,
+      );
+      context.fill();
+    });
+
+    const craters = [
+      { x: 128, y: 138, r: 17 },
+      { x: 390, y: 176, r: 14 },
+      { x: 318, y: 374, r: 21 },
+      { x: 146, y: 354, r: 11 },
+      { x: 248, y: 104, r: 13 },
+      { x: 228, y: 226, r: 9 },
+    ];
+    craters.forEach((crater) => {
+      const craterShade = context.createRadialGradient(
+        crater.x - crater.r * 0.32,
+        crater.y - crater.r * 0.36,
+        crater.r * 0.22,
+        crater.x,
+        crater.y,
+        crater.r,
+      );
+      craterShade.addColorStop(0, "rgba(255,255,255,0.42)");
+      craterShade.addColorStop(0.48, "rgba(132,146,164,0.22)");
+      craterShade.addColorStop(1, "rgba(48,60,76,0.24)");
+      context.fillStyle = craterShade;
+      context.beginPath();
+      context.arc(crater.x, crater.y, crater.r, 0, Math.PI * 2);
+      context.fill();
+    });
+
+    for (let index = 0; index < 620; index += 1) {
+      const x = seededNoise(index + 3) * size;
+      const y = seededNoise(index + 17) * size;
+      const dx = x - center;
+      const dy = y - center;
+      if (dx * dx + dy * dy > radius * radius) {
+        continue;
+      }
+      const dotRadius = 0.35 + seededNoise(index + 41) * 1.15;
+      const alpha = 0.035 + seededNoise(index + 73) * 0.06;
+      context.fillStyle =
+        seededNoise(index + 109) > 0.5
+          ? `rgba(255,255,255,${alpha})`
+          : `rgba(48,60,76,${alpha})`;
+      context.beginPath();
+      context.arc(x, y, dotRadius, 0, Math.PI * 2);
+      context.fill();
+    }
+
+    context.restore();
+
+    const edge = context.createRadialGradient(center, center, radius * 0.72, center, center, radius);
+    edge.addColorStop(0, "rgba(255,255,255,0)");
+    edge.addColorStop(0.72, "rgba(255,255,255,0)");
+    edge.addColorStop(1, "rgba(5,10,18,0.28)");
+    context.fillStyle = edge;
+    context.beginPath();
+    context.arc(center, center, radius, 0, Math.PI * 2);
+    context.fill();
+  });
+}
+
 export function createEnvironmentVisuals({
   scene,
   mapSize,
@@ -59,126 +210,76 @@ export function createEnvironmentVisuals({
 }): EnvironmentVisuals {
   const celestialRadius = Math.max(mapSize.x, mapSize.z) + 320;
 
-  // Create procedural glowing sun canvas texture in memory
-  const sunCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
-  let sunTexture: THREE.CanvasTexture | null = null;
-  if (sunCanvas) {
-    sunCanvas.width = 256;
-    sunCanvas.height = 256;
-    const sCtx = sunCanvas.getContext("2d");
-    if (sCtx) {
-      const grad = sCtx.createRadialGradient(128, 128, 20, 128, 128, 128);
-      grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
-      grad.addColorStop(0.15, "rgba(255, 250, 220, 1.0)");
-      grad.addColorStop(0.4, "rgba(255, 215, 80, 0.9)");
-      grad.addColorStop(0.7, "rgba(255, 110, 20, 0.4)");
-      grad.addColorStop(1.0, "rgba(255, 50, 0, 0.0)");
-      sCtx.fillStyle = grad;
-      sCtx.fillRect(0, 0, 256, 256);
-      sunTexture = new THREE.CanvasTexture(sunCanvas);
-    }
-  }
+  const sunTexture = createRadialTexture(384, [
+    { offset: 0, color: "rgba(255,255,255,1)" },
+    { offset: 0.2, color: "rgba(255,248,215,1)" },
+    { offset: 0.44, color: "rgba(255,215,126,0.86)" },
+    { offset: 0.68, color: "rgba(255,178,92,0.28)" },
+    { offset: 1, color: "rgba(255,160,72,0)" },
+  ]);
+  const sunHaloTexture = createRadialTexture(384, [
+    { offset: 0, color: "rgba(255,230,180,0.58)" },
+    { offset: 0.34, color: "rgba(255,190,112,0.18)" },
+    { offset: 1, color: "rgba(255,160,72,0)" },
+  ]);
+  const sunsetGlowTexture = createRadialTexture(384, [
+    { offset: 0, color: "rgba(255,178,112,0.52)" },
+    { offset: 0.36, color: "rgba(255,118,74,0.2)" },
+    { offset: 1, color: "rgba(255,84,38,0)" },
+  ]);
 
-  const sunDiscMaterial = new THREE.MeshBasicMaterial({
+  const sunDiscMaterial = new THREE.SpriteMaterial({
     color: 0xfff9e6,
     map: sunTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
+    blending: THREE.NormalBlending,
   });
-  const sunDisc = new THREE.Mesh(
-    new THREE.SphereGeometry(22.0, 20, 20),
-    sunDiscMaterial,
-  );
+  const sunDisc = new THREE.Sprite(sunDiscMaterial);
+  sunDisc.scale.set(46, 46, 1);
   scene.add(sunDisc);
 
-  const sunHaloMaterial = new THREE.MeshBasicMaterial({
+  const sunHaloMaterial = new THREE.SpriteMaterial({
     color: 0xffb66c,
+    map: sunHaloTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
+    blending: THREE.AdditiveBlending,
   });
-  const sunHalo = new THREE.Mesh(
-    new THREE.SphereGeometry(38.0, 20, 20),
-    sunHaloMaterial,
-  );
+  const sunHalo = new THREE.Sprite(sunHaloMaterial);
+  sunHalo.scale.set(92, 92, 1);
   scene.add(sunHalo);
 
-  const sunsetGlowMaterial = new THREE.MeshBasicMaterial({
+  const sunsetGlowMaterial = new THREE.SpriteMaterial({
     color: 0xff8b47,
+    map: sunsetGlowTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
+    blending: THREE.AdditiveBlending,
   });
-  const sunsetGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(55.0, 20, 20),
-    sunsetGlowMaterial,
-  );
+  const sunsetGlow = new THREE.Sprite(sunsetGlowMaterial);
+  sunsetGlow.scale.set(150, 150, 1);
   scene.add(sunsetGlow);
 
-  // Create procedural moon crater canvas texture in memory
-  const moonCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
-  let moonTexture: THREE.CanvasTexture | null = null;
-  if (moonCanvas) {
-    moonCanvas.width = 512;
-    moonCanvas.height = 512;
-    const mCtx = moonCanvas.getContext("2d");
-    if (mCtx) {
-      // Pearly moon base color
-      mCtx.fillStyle = "#e2e8f0";
-      mCtx.fillRect(0, 0, 512, 512);
+  const moonTexture = createMoonTexture();
 
-      // Large basaltic plains (Maria)
-      mCtx.fillStyle = "rgba(160, 174, 192, 0.5)";
-      mCtx.beginPath(); mCtx.arc(160, 180, 110, 0, Math.PI * 2); mCtx.fill();
-      mCtx.beginPath(); mCtx.arc(330, 240, 85, 0, Math.PI * 2); mCtx.fill();
-      mCtx.beginPath(); mCtx.arc(200, 330, 95, 0, Math.PI * 2); mCtx.fill();
-
-      // Craters
-      const craters = [
-        { x: 90, y: 140, r: 22 },
-        { x: 380, y: 170, r: 18 },
-        { x: 330, y: 360, r: 26 },
-        { x: 130, y: 340, r: 14 },
-        { x: 250, y: 90, r: 16 },
-        { x: 210, y: 210, r: 11 },
-      ];
-      craters.forEach(c => {
-        mCtx.fillStyle = "rgba(90, 100, 115, 0.65)";
-        mCtx.beginPath(); mCtx.arc(c.x, c.y, c.r, 0, Math.PI * 2); mCtx.fill();
-        mCtx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        mCtx.beginPath(); mCtx.arc(c.x - c.r * 0.15, c.y - c.r * 0.15, c.r * 0.85, 0, Math.PI * 2); mCtx.fill();
-        mCtx.fillStyle = "rgba(150, 160, 175, 0.7)";
-        mCtx.beginPath(); mCtx.arc(c.x - c.r * 0.08, c.y - c.r * 0.08, c.r * 0.7, 0, Math.PI * 2); mCtx.fill();
-      });
-
-      // Procedural surface noise
-      for (let i = 0; i < 3000; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        const r = Math.random() * 2 + 0.5;
-        mCtx.fillStyle = Math.random() > 0.5 ? "rgba(255, 255, 255, 0.3)" : "rgba(80, 95, 110, 0.15)";
-        mCtx.beginPath(); mCtx.arc(x, y, r, 0, Math.PI * 2); mCtx.fill();
-      }
-      moonTexture = new THREE.CanvasTexture(moonCanvas);
-    }
-  }
-
-  const moonMaterial = new THREE.MeshBasicMaterial({
+  const moonMaterial = new THREE.SpriteMaterial({
     color: 0xffffff,
     map: moonTexture || undefined,
     transparent: true,
     opacity: 0,
     fog: false,
     depthWrite: false,
+    blending: THREE.NormalBlending,
   });
-  const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(18.0, 18, 18),
-    moonMaterial,
-  );
+  const moon = new THREE.Sprite(moonMaterial);
+  moon.scale.set(36, 36, 1);
   scene.add(moon);
 
   const starPositions = new Float32Array(280 * 3);

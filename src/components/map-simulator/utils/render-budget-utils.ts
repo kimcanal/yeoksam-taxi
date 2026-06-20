@@ -126,7 +126,7 @@ export function shouldUseHardwareAntialias({
   return (
     ENABLE_HARDWARE_ANTIALIAS &&
     devicePixelRatio <= 1.1 &&
-    viewportPixels <= 1_300_000
+    viewportPixels <= 2_400_000
   );
 }
 

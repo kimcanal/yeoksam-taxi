@@ -10,8 +10,8 @@ import {
   formatDateLabel,
 } from "@/components/map-simulator/environment";
 import {
-  DEMAND_TAXI_SCALE_MIN_PERCENT,
-  DEMAND_TAXI_SCALE_STEP_PERCENT,
+  TAXI_MARKER_SCALE_MIN_PERCENT,
+  TAXI_MARKER_SCALE_STEP_PERCENT,
 } from "@/components/map-simulator/constants/demand-constants";
 
 import type { CircumstanceMode } from "@/components/map-simulator/types";
@@ -22,6 +22,9 @@ import {
   type FiveMinuteDemandPoint,
   type HourlyDemandPoint,
   type MapPoiFeatureRow,
+  type HourlySupplyPoint,
+  type HourlyPricingPoint,
+  type PricingChartGeometry,
 } from "@/components/map-simulator/demand";
 import { DemandChart } from "@/components/map-simulator/ui/DemandChart";
 import { DemandControls } from "@/components/map-simulator/ui/DemandControls";
@@ -38,11 +41,11 @@ type DemandSidebarDemandState = {
   selectedDemandIntensityLabel: string;
   currentDemandSlot: FiveMinuteDemandPoint | null;
   currentFiveMinuteDemand: number;
-  currentMapDemand: number;
-  taxiDemandScalePercent: number;
-  effectiveTaxiDemandScalePercent: number;
-  maxSafeTaxiScalePercent: number;
-  setTaxiDemandScalePercent: (percent: number) => void;
+  currentMapSupply: number;
+  taxiMarkerScalePercent: number;
+  effectiveTaxiMarkerScalePercent: number;
+  maxSafeTaxiMarkerScalePercent: number;
+  setTaxiMarkerScalePercent: (percent: number) => void;
   appliedTaxiCount: number;
   appliedMapTaxiCount: number;
   demandChart: DemandChartGeometry;
@@ -52,6 +55,15 @@ type DemandSidebarDemandState = {
   heatmapMaxDemand: number;
   setHeatmapHour: (hour: number) => void;
   demandMiniMap: DemandMiniMapData | null;
+  minimapShadingMode: "demand" | "supply" | "shortage";
+  setMinimapShadingMode: (mode: "demand" | "supply" | "shortage") => void;
+  currentSupplyPoint: HourlySupplyPoint | null;
+  currentPricingPoint: HourlyPricingPoint | null;
+  pricingChart: PricingChartGeometry;
+  selectedAverageSupply: number;
+  selectedPeakSupply: HourlySupplyPoint | null;
+  hasSupplyData: boolean;
+  hasPricingData: boolean;
 };
 
 type DemandSidebarPoiState = {
@@ -338,10 +350,10 @@ export const DemandSidebar = memo(function DemandSidebar({
     selectedDemandIntensityLabel,
     currentDemandSlot,
     currentFiveMinuteDemand,
-    currentMapDemand,
-    effectiveTaxiDemandScalePercent,
-    maxSafeTaxiScalePercent,
-    setTaxiDemandScalePercent,
+    currentMapSupply,
+    effectiveTaxiMarkerScalePercent,
+    maxSafeTaxiMarkerScalePercent,
+    setTaxiMarkerScalePercent,
     appliedTaxiCount,
     appliedMapTaxiCount,
     demandChart,
@@ -351,6 +363,13 @@ export const DemandSidebar = memo(function DemandSidebar({
     heatmapMaxDemand,
     setHeatmapHour,
     demandMiniMap,
+    minimapShadingMode,
+    setMinimapShadingMode,
+    currentSupplyPoint,
+    currentPricingPoint,
+    pricingChart,
+    selectedAverageSupply,
+    selectedPeakSupply,
   } = demandState;
 
   const { mapPoiFeatureRows, onPoiSelect } = poiState;
@@ -365,6 +384,15 @@ export const DemandSidebar = memo(function DemandSidebar({
   } = environmentControls;
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentSupplyValue = currentSupplyPoint?.supplyPred ?? null;
+  const currentSupplyDemandGap =
+    currentSupplyValue === null
+      ? null
+      : Math.max(0, currentFiveMinuteDemand - currentSupplyValue);
+  const currentSupplyDemandGapRatio =
+    currentSupplyDemandGap === null || currentFiveMinuteDemand <= 0
+      ? null
+      : currentSupplyDemandGap / currentFiveMinuteDemand;
 
   const triggerToast = useCallback((message: string) => {
     if (toastTimeoutRef.current) {
@@ -537,43 +565,47 @@ export const DemandSidebar = memo(function DemandSidebar({
           />
         ) : null}
 
-        {/* 수요 기반 택시 표시 슬라이더 — 실시간/과거 공통 */}
+        {/* 예측 택시 공급 마커 슬라이더 — 실시간/과거 공통 */}
         <div className="mt-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
-            수요 기반 택시 표시
+            예측 택시 공급 마커
           </div>
           <div className="flex flex-col justify-center rounded-xl border border-white/10 bg-slate-900/30 px-3 py-2.5">
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                {selectedDongName} 수요의{" "}
+                {selectedDongName} 예측 공급의{" "}
                 <span className="font-bold text-amber-300 tabular-nums">
-                  {effectiveTaxiDemandScalePercent.toFixed(1)}%
+                  {effectiveTaxiMarkerScalePercent.toFixed(1)}%
                 </span>
                 {" "}표시 중
               </span>
               <span className="text-sm font-bold tabular-nums text-slate-50">
-                선택 동 {appliedTaxiCount.toLocaleString("ko-KR")}대
+                마커 {appliedTaxiCount.toLocaleString("ko-KR")}개
               </span>
             </div>
             <input
               type="range"
-              min={DEMAND_TAXI_SCALE_MIN_PERCENT}
-              max={maxSafeTaxiScalePercent}
-              step={DEMAND_TAXI_SCALE_STEP_PERCENT}
-              value={effectiveTaxiDemandScalePercent}
+              min={TAXI_MARKER_SCALE_MIN_PERCENT}
+              max={maxSafeTaxiMarkerScalePercent}
+              step={TAXI_MARKER_SCALE_STEP_PERCENT}
+              value={effectiveTaxiMarkerScalePercent}
               onChange={(event) => {
-                setTaxiDemandScalePercent(
-                  Math.min(Number(event.target.value), maxSafeTaxiScalePercent),
+                setTaxiMarkerScalePercent(
+                  Math.min(Number(event.target.value), maxSafeTaxiMarkerScalePercent),
                 );
               }}
               className="h-1.5 w-full accent-amber-300"
-              aria-label="수요 기반 택시 표시 비율"
+              aria-label="예측 택시 공급 마커 표시 비율"
             />
-            <div className="mt-1 text-[9px] text-slate-500">
-              {selectedDongName} 현재 수요 {Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")}건 기준 ·
-              지도 전체 {appliedMapTaxiCount.toLocaleString("ko-KR")}대 표시 ·
-              전체 수요 {Math.round(currentMapDemand).toLocaleString("ko-KR")}건 기준 ·
-              최대 {maxSafeTaxiScalePercent.toFixed(1)}%
+            <div className="mt-1 text-[9px] leading-3 text-slate-500">
+              공급 모델의 시간대별 택시 공급량을 축약해 지도에 띄운 마커입니다.
+            </div>
+            <div className="mt-1 text-[9px] leading-3 text-slate-500">
+              수요 {Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")}건/h ·
+              공급 {currentSupplyValue === null ? "-" : Math.round(currentSupplyValue).toLocaleString("ko-KR")}대 ·
+              전체 공급 {Math.round(currentMapSupply).toLocaleString("ko-KR")}대 ·
+              택시 마커 {appliedMapTaxiCount.toLocaleString("ko-KR")}개 ·
+              최대 {maxSafeTaxiMarkerScalePercent.toFixed(1)}%
             </div>
           </div>
         </div>
@@ -589,12 +621,46 @@ export const DemandSidebar = memo(function DemandSidebar({
               <LineChart className="h-4 w-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <div className={PANEL_SECTION_LABEL_CLASS}>수요 곡선</div>
+              <div className={PANEL_SECTION_LABEL_CLASS}>분석 시뮬레이터</div>
               <div className="mt-0.5 truncate text-sm font-semibold text-slate-100">
-                시간대별 호출 수요
+                시간대별 데이터 분석 및 인센티브
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 대시보드 모드 전환 탭 */}
+        <div className="mt-4 flex rounded-xl bg-slate-950/50 p-1 border border-white/5 shadow-inner">
+          <button
+            onClick={() => setMinimapShadingMode("demand")}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              minimapShadingMode === "demand"
+                ? "bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 shadow-md shadow-cyan-900/40"
+                : "text-slate-400 hover:text-slate-200 border border-transparent"
+            }`}
+          >
+            수요 분석
+          </button>
+          <button
+            onClick={() => setMinimapShadingMode("supply")}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              minimapShadingMode === "supply"
+                ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 shadow-md shadow-emerald-900/40"
+                : "text-slate-400 hover:text-slate-200 border border-transparent"
+            }`}
+          >
+            공급 분석
+          </button>
+          <button
+            onClick={() => setMinimapShadingMode("shortage")}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              minimapShadingMode === "shortage"
+                ? "bg-amber-500/20 border border-amber-400/30 text-amber-300 shadow-md shadow-amber-900/40"
+                : "text-slate-400 hover:text-slate-200 border border-transparent"
+            }`}
+          >
+            인센티브
+          </button>
         </div>
 
         <DemandControls
@@ -602,14 +668,110 @@ export const DemandSidebar = memo(function DemandSidebar({
           setSelectedDongName={setSelectedDongName}
         />
 
-        <DemandSummaryStats
-          hasDemandData={hasDemandData}
-          selectedPeakDemand={selectedPeakDemand}
-          selectedDemandIntensityLabel={selectedDemandIntensityLabel}
-          currentDemandSlot={currentDemandSlot}
-          currentTaxiDemandBase={currentFiveMinuteDemand}
-          appliedTaxiCount={appliedTaxiCount}
-        />
+        {/* 탭별 통계 수치 시각화 */}
+        {minimapShadingMode === "demand" && (
+          <DemandSummaryStats
+            hasDemandData={hasDemandData}
+            selectedPeakDemand={selectedPeakDemand}
+            selectedDemandIntensityLabel={selectedDemandIntensityLabel}
+            currentDemandSlot={currentDemandSlot}
+            currentTaxiDemandBase={currentFiveMinuteDemand}
+            currentTaxiSupplyBase={currentSupplyValue}
+            appliedTaxiCount={appliedTaxiCount}
+          />
+        )}
+
+        {minimapShadingMode === "supply" && (
+          <div className="mt-4 space-y-3 rounded-2xl border border-white/5 bg-slate-900/20 p-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-950/45 p-2.5 border border-white/5">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">평균 공급량</span>
+                <div className="mt-1 text-base font-bold text-emerald-400">
+                  {selectedAverageSupply.toLocaleString("ko-KR")}대
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-950/45 p-2.5 border border-white/5">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">피크 공급량</span>
+                <div className="mt-1 text-base font-bold text-slate-100">
+                  {selectedPeakSupply ? `${selectedPeakSupply.hour}시` : "-"}
+                  <span className="text-[10.5px] text-slate-400 font-medium ml-1.5">
+                    ({selectedPeakSupply ? Math.round(selectedPeakSupply.supplyPred).toLocaleString("ko-KR") : "0"}대)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-white/5 pt-3 text-[10.5px] font-medium text-slate-400">
+              조회 {String(heatmapHour).padStart(2, "0")}:00 기준 · 수요{" "}
+              {Math.round(currentFiveMinuteDemand).toLocaleString("ko-KR")}건/h ·
+              공급{" "}
+              {currentSupplyValue === null
+                ? "-"
+                : Math.round(currentSupplyValue).toLocaleString("ko-KR")}
+              {currentSupplyValue === null ? "" : "대"}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="text-center">
+                <span className="text-[9.5px] text-slate-400 font-semibold">현재 공급량</span>
+                <div className="mt-1 text-sm font-bold text-emerald-300">
+                  {currentSupplyPoint ? Math.round(currentSupplyPoint.supplyPred).toLocaleString("ko-KR") : "-"}대
+                </div>
+              </div>
+              <div className="text-center border-x border-white/5">
+                <span className="text-[9.5px] text-slate-400 font-semibold">현재 차이</span>
+                <div className="mt-1 text-sm font-bold text-rose-400">
+                  {currentSupplyDemandGap === null
+                    ? "-"
+                    : Math.round(currentSupplyDemandGap).toLocaleString("ko-KR")}
+                  {currentSupplyDemandGap === null ? "" : "대"}
+                </div>
+              </div>
+              <div className="text-center">
+                <span className="text-[9.5px] text-slate-400 font-semibold">현재 미충족률</span>
+                <div className="mt-1 text-sm font-bold text-amber-400">
+                  {currentSupplyDemandGapRatio === null
+                    ? "-"
+                    : `${(currentSupplyDemandGapRatio * 100).toFixed(1)}%`}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {minimapShadingMode === "shortage" && (
+          <div className="mt-4 space-y-3 rounded-2xl border border-white/5 bg-slate-900/20 p-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-950/45 p-2.5 border border-white/5">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">서지 요금 배율</span>
+                <div className="mt-1 text-base font-bold text-amber-400">
+                  {currentPricingPoint ? `${currentPricingPoint.surgeMultiplier.toFixed(2)}x` : "1.00x"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-950/45 p-2.5 border border-white/5">
+                <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">추천 인센티브</span>
+                <div className="mt-1 text-base font-bold text-cyan-400">
+                  {currentPricingPoint ? `${currentPricingPoint.suggestedDriverIncentiveKrw.toLocaleString("ko-KR")}원` : "0원"}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-white/5 pt-3 space-y-2 text-[11px]">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>인센티브 도입 시 공급 증가 (예상)</span>
+                <span className="font-semibold text-emerald-400">
+                  +{currentPricingPoint ? Math.round(currentPricingPoint.expectedSupplyIncrease).toLocaleString("ko-KR") : "0"}대
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>도입 후 잔여 부족량 (예상)</span>
+                <span className="font-semibold text-slate-300">
+                  {currentPricingPoint ? Math.round(currentPricingPoint.postIncentiveShortage).toLocaleString("ko-KR") : "0"}대
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <DemandChart
           hasDemandData={hasDemandData}
@@ -619,6 +781,9 @@ export const DemandSidebar = memo(function DemandSidebar({
           selectedAverageDemand={selectedAverageDemand}
           currentHour={heatmapHour}
           onHourSelect={handleHeatmapHourChange}
+          minimapShadingMode={minimapShadingMode}
+          pricingChart={pricingChart}
+          selectedAverageSupply={selectedAverageSupply}
         />
       </div>
 
@@ -633,6 +798,8 @@ export const DemandSidebar = memo(function DemandSidebar({
         onPoiSelect={onPoiSelect}
         onDongSelect={setSelectedDongName}
         circumstanceMode={circumstanceMode}
+        minimapShadingMode={minimapShadingMode}
+        setMinimapShadingMode={setMinimapShadingMode}
       />
     </div>
     </>

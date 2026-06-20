@@ -3,7 +3,8 @@ import { proxyBackendGet, toBackendDate } from "@/lib/backend-proxy";
 
 export const runtime = "nodejs";
 
-const BACKEND_WEATHER_API_URL = process.env.BACKEND_WEATHER_API_URL;
+const BACKEND_WEATHER_API_URL =
+  process.env.BACKEND_WEATHER_API_URL || "http://localhost:2223/api/weather";
 const WEATHER_PROXY_CACHE_TTL_MS = positiveIntegerEnv(
   "WEATHER_PROXY_CACHE_TTL_MS",
   5 * 60_000,
@@ -18,19 +19,22 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date") || "";
   const hour = searchParams.get("hour") || "";
-  const hourNumber = Number(hour);
+  const hasHour = hour !== "";
+  const hourNumber = hasHour ? Number(hour) : null;
   const backendDate = toBackendDate(date);
 
   if (
     !backendDate ||
-    !Number.isInteger(hourNumber) ||
-    hourNumber < 0 ||
-    hourNumber > 23
+    (hasHour &&
+      (!Number.isInteger(hourNumber) ||
+        hourNumber === null ||
+        hourNumber < 0 ||
+        hourNumber > 23))
   ) {
     return NextResponse.json(
       {
         error: "Missing or invalid weather query parameters",
-        required: ["date", "hour"],
+        required: hasHour ? ["date", "hour"] : ["date"],
       },
       { status: 400 },
     );
@@ -56,7 +60,9 @@ export async function GET(request: Request) {
   }
 
   targetUrl.searchParams.set("date", backendDate);
-  targetUrl.searchParams.set("hour", String(hourNumber));
+  if (hasHour && hourNumber !== null) {
+    targetUrl.searchParams.set("hour", String(hourNumber));
+  }
 
   return proxyBackendGet({
     targetUrl,

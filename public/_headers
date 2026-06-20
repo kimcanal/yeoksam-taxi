@@ -2,3 +2,27 @@
 # https://opennext.js.org/cloudflare/caching#static-assets-caching
 /_next/static/*
   Cache-Control: public,max-age=31536000,immutable
+
+/roads.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/buildings.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/dongs.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/non-road.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/road-network.json
+  Cache-Control: public,max-age=31536000,immutable
+
+/taxi-stands.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/traffic-signals.geojson
+  Cache-Control: public,max-age=31536000,immutable
+
+/transit.geojson
+  Cache-Control: public,max-age=31536000,immutable

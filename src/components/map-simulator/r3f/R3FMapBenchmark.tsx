@@ -20,6 +20,7 @@ import { useMapDemandState } from "@/components/map-simulator/demand/use-map-dem
 import { buildStaticPoiFeatureRows } from "@/components/map-simulator/demand/demand-minimap-renderer";
 import { DemandMiniMapPanel } from "@/components/map-simulator/ui/DemandMiniMapPanel";
 import { currentSimulationClock } from "@/components/map-simulator/environment";
+import { computeProjectedRoadSegmentBounds } from "@/components/map-simulator/utils";
 
 // Dynamic import to avoid Turbopack utf-8 parse errors from r3f-perf's bundled font
 const LazyPerf = lazy(() =>
@@ -53,11 +54,6 @@ type RoadChunk = {
   id: string;
   items: ProjectedRoadSegment[];
   sphere: THREE.Sphere;
-};
-
-type SceneBounds = {
-  center: THREE.Vector3;
-  size: THREE.Vector3;
 };
 
 type BenchmarkStats = {
@@ -108,26 +104,6 @@ function roadAngle(segment: ProjectedRoadSegment) {
     segment.end.x - segment.start.x,
     segment.end.z - segment.start.z,
   );
-}
-
-function computeSceneBounds(roadSegments: ProjectedRoadSegment[]): SceneBounds {
-  const bounds = new THREE.Box3();
-  roadSegments.forEach((segment) => {
-    bounds.expandByPoint(segment.start);
-    bounds.expandByPoint(segment.end);
-  });
-
-  if (bounds.isEmpty()) {
-    return {
-      center: new THREE.Vector3(),
-      size: new THREE.Vector3(320, 0, 320),
-    };
-  }
-
-  return {
-    center: bounds.getCenter(new THREE.Vector3()),
-    size: bounds.getSize(new THREE.Vector3()),
-  };
 }
 
 function computeSphere(points: THREE.Vector3[], padding: number) {
@@ -645,7 +621,7 @@ function BenchmarkScene({
   settings: BenchmarkSettings;
 }) {
   const sceneBounds = useMemo(
-    () => computeSceneBounds(data.projectedRoadSegments),
+    () => computeProjectedRoadSegmentBounds(data.projectedRoadSegments),
     [data.projectedRoadSegments],
   );
   const buildingChunks = useMemo(
@@ -766,7 +742,10 @@ function BenchmarkScene({
       />
       {settings.showPerf ? (
         <Suspense fallback={null}>
-          <LazyPerf position="top-left" />
+          <LazyPerf
+            className="r3f-benchmark-perf-overlay"
+            position="top-right"
+          />
         </Suspense>
       ) : null}
     </>
@@ -815,9 +794,15 @@ export default function R3FMapBenchmark() {
   const [simulationTimeMinutes, setSimulationTimeMinutes] = useState(clock.minutes);
   const [circumstanceMode, setCircumstanceMode] = useState<CircumstanceMode>("live");
   const [selectedPoiCode, setSelectedPoiCode] = useState("");
+  const [minimapShadingMode, setMinimapShadingMode] = useState<
+    "demand" | "supply" | "shortage"
+  >("demand");
 
   const sceneBounds = useMemo(
-    () => (data ? computeSceneBounds(data.projectedRoadSegments) : null),
+    () =>
+      data
+        ? computeProjectedRoadSegmentBounds(data.projectedRoadSegments)
+        : null,
     [data],
   );
 
@@ -1101,6 +1086,8 @@ export default function R3FMapBenchmark() {
                 demandState.setSelectedDongName(dongName);
               }}
               circumstanceMode={circumstanceMode}
+              minimapShadingMode={minimapShadingMode}
+              setMinimapShadingMode={setMinimapShadingMode}
             />
           </div>
         ) : null}

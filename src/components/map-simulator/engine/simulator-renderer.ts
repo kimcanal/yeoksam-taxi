@@ -2,7 +2,10 @@ import * as THREE from "three";
 import type { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { CameraMode } from "@/components/map-simulator/camera";
 import { resolvedRendererPixelRatioFor } from "@/components/map-simulator/utils";
-import { ENABLE_REALTIME_SHADOWS } from "@/components/map-simulator/scene";
+import {
+  ENABLE_REALTIME_SHADOWS,
+  MAX_RENDER_DEVICE_PIXEL_RATIO,
+} from "@/components/map-simulator/scene";
 import { sceneStore } from "@/components/map-simulator/hooks/simulator-stores";
 
 export function createSimulatorRendererController({
@@ -34,7 +37,10 @@ export function createSimulatorRendererController({
             getIsPageHidden(),
             devicePixelRatio,
           )
-        : devicePixelRatio;
+        : Math.min(
+            Math.max(devicePixelRatio, 1),
+            MAX_RENDER_DEVICE_PIXEL_RATIO,
+          );
 
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(container.clientWidth, container.clientHeight, false);

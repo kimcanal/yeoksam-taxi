@@ -86,3 +86,21 @@ next-env.d.ts
 /cloudflared-yeoksam-taxi.service
 /cloudflared-*.yml
 /cloudflared-*.yaml
+
+# generated report / presentation artifacts
+/yeoksam-taxi*.zip
+/docs/*결과보고서.pdf
+/docs/산학협력_프로젝트_결과보고서.md
+/docs/claude-pages-prompt.md
+/docs/model-and-api-architecture.md
+/docs/poster-script.md
+/docs/presentation-script.md
+/docs/poster.html
+/docs/poster-standalone.html
+/docs/diagrams/
+/docs/report-figures/
+/docs/screenshots/*.png
+/docs/screenshots/final-batch/
+/scripts/capture-readme-screenshots.mjs
+/scripts/make-demand-eval-figures.py
+/scripts/make-report-figures.py

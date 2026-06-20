@@ -125,18 +125,18 @@ export function createDemandVisualLayer({
   demandBadgeElement.className = "scene-label scene-label-demand";
   demandBadgeElement.style.pointerEvents = "none";
   demandBadgeElement.style.border = "1.5px solid #22d3ee";
-  demandBadgeElement.style.background = "#08121d";
-  demandBadgeElement.style.color = "#ffffff";
+  demandBadgeElement.style.background = "rgba(8,18,29,0.82)";
+  demandBadgeElement.style.color = "#d8f7ff";
   demandBadgeElement.style.boxShadow =
-    "0 0 0 1.5px rgba(34,211,238,0.28), 0 12px 28px rgba(0,0,0,0.65)";
-  demandBadgeElement.style.fontWeight = "700";
-  demandBadgeElement.style.fontSize = "12px";
-  demandBadgeElement.style.letterSpacing = "0.02em";
-  demandBadgeElement.style.padding = "6px 12px";
+    "0 0 0 1px rgba(34,211,238,0.18), 0 10px 24px rgba(0,0,0,0.45)";
+  demandBadgeElement.style.fontWeight = "650";
+  demandBadgeElement.style.fontSize = "11px";
+  demandBadgeElement.style.letterSpacing = "0";
+  demandBadgeElement.style.padding = "5px 10px";
   demandBadgeElement.style.borderRadius = "999px";
   demandBadgeElement.style.whiteSpace = "nowrap";
   const demandBadgeLabel = new CSS2DObject(demandBadgeElement);
-  demandBadgeLabel.position.set(0, 6.8, 0);
+  demandBadgeLabel.position.set(0, 4.4, 0);
   demandBadgeLabel.visible = false;
   demandPulseGroup.add(demandBadgeLabel);
   group.add(demandPulseGroup);
@@ -155,7 +155,7 @@ export function createDemandVisualLayer({
     blending: THREE.AdditiveBlending,
   });
   const demandAnchorColumnMesh = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.62, 0.84, 1, 24),
+    new THREE.CylinderGeometry(0.5, 0.76, 1, 24),
     demandAnchorColumnMaterial,
     demandAnchors.length,
   );
@@ -244,10 +244,10 @@ export function updateDemandVisualLayer(
   layer.color.copy(layer.baseColor).lerp(layer.peakColor, demandScore);
 
   layer.demandAnchorColumnMaterial.opacity = isVisible
-    ? 0.26 + demandScore * 0.36
+    ? 0.14 + demandScore * 0.2
     : 0;
   layer.demandAnchorRingMaterial.opacity = isVisible
-    ? 0.18 + demandScore * 0.28
+    ? 0.12 + demandScore * 0.18
     : 0;
   layer.demandAnchors.forEach((anchor, index) => {
     const isActive = isVisible && anchor.dongNames.includes(selectedDongName);
@@ -255,26 +255,26 @@ export function updateDemandVisualLayer(
       const anchorIntensity =
         (0.45 + demandScore * 0.55) * (0.58 + anchor.score * 0.42);
       const height =
-        1.2 + anchorIntensity * 5.8 + Math.min(visualUnits, 14) * 0.28;
+        0.48 + anchorIntensity * 2.15 + Math.min(visualUnits, 14) * 0.08;
       const radius =
-        1.2 + anchor.score * 0.72 + demandScore * 0.9 + pulse * 0.18;
+        1.18 + anchor.score * 0.58 + demandScore * 0.62 + pulse * 0.08;
 
       layer.anchorColor
         .copy(anchor.kind === "stand" ? layer.standColor : layer.color)
         .lerp(layer.peakColor, demandScore * 0.34);
 
-      dummy.position.set(anchor.position.x, height / 2 + 0.24, anchor.position.z);
+      dummy.position.set(anchor.position.x, height / 2 + 0.16, anchor.position.z);
       dummy.rotation.set(0, 0, 0);
       dummy.scale.set(
-        0.82 + anchor.score * 0.34,
+        0.56 + anchor.score * 0.18,
         height,
-        0.82 + anchor.score * 0.34,
+        0.56 + anchor.score * 0.18,
       );
       dummy.updateMatrix();
       layer.demandAnchorColumnMesh.setMatrixAt(index, dummy.matrix);
       layer.demandAnchorColumnMesh.setColorAt(index, layer.anchorColor);
 
-      dummy.position.set(anchor.position.x, 0.62, anchor.position.z);
+      dummy.position.set(anchor.position.x, 0.38, anchor.position.z);
       dummy.rotation.set(-Math.PI / 2, 0, 0);
       dummy.scale.set(radius, radius, 1);
       dummy.updateMatrix();
@@ -313,17 +313,17 @@ export function updateDemandVisualLayer(
     activeDong.position.z,
   );
   const ringScale =
-    1.2 + demandScore * 1.05 + Math.min(visualUnits, 12) * 0.045 + pulse * 0.08;
-  const coreScale = 1 + demandScore * 0.55 + pulse * 0.05;
+    1.02 + demandScore * 0.62 + Math.min(visualUnits, 12) * 0.025 + pulse * 0.045;
+  const coreScale = 0.82 + demandScore * 0.34 + pulse * 0.035;
   layer.demandPulseRing.scale.set(ringScale, ringScale, 1);
   layer.demandPulseCore.scale.set(coreScale, coreScale, 1);
   layer.demandPulseMaterial.color.copy(layer.color);
   layer.demandPulseCoreMaterial.color.copy(layer.color);
-  layer.demandPulseMaterial.opacity = 0.22 + demandScore * 0.26 + pulse * 0.08;
+  layer.demandPulseMaterial.opacity = 0.12 + demandScore * 0.18 + pulse * 0.035;
   layer.demandPulseCoreMaterial.opacity =
-    0.08 + demandScore * 0.16 + pulse * 0.04;
+    0.04 + demandScore * 0.1 + pulse * 0.02;
 
-  const nextBadgeText = `${selectedDongName} · ${Math.round(fiveMinuteDemand).toLocaleString("ko-KR")}건/h`;
+  const nextBadgeText = `${selectedDongName} · 수요 ${Math.round(fiveMinuteDemand).toLocaleString("ko-KR")}건/h`;
   if (nextBadgeText !== layer.lastBadgeText) {
     layer.demandBadgeElement.textContent = nextBadgeText;
     layer.lastBadgeText = nextBadgeText;

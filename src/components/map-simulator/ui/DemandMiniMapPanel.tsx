@@ -21,7 +21,23 @@ type DemandMiniMapPanelProps = {
   onPoiSelect: (poiCode: string) => void;
   onDongSelect?: (dongName: string) => void;
   circumstanceMode: CircumstanceMode;
+  minimapShadingMode: "demand" | "supply" | "shortage";
+  setMinimapShadingMode: (mode: "demand" | "supply" | "shortage") => void;
 };
+
+function formatMiniMapMetricValue(
+  value: number,
+  mode: DemandMiniMapPanelProps["minimapShadingMode"],
+) {
+  const formattedValue = Math.round(value).toLocaleString("ko-KR");
+  if (mode === "demand") {
+    return `${formattedValue}건/h`;
+  }
+  if (mode === "shortage") {
+    return `${formattedValue}대 부족`;
+  }
+  return `${formattedValue}대`;
+}
 
 export function DemandMiniMapPanel({
   demandMiniMap,
@@ -34,10 +50,23 @@ export function DemandMiniMapPanel({
   onPoiSelect,
   onDongSelect,
   circumstanceMode,
+  minimapShadingMode,
+  setMinimapShadingMode,
 }: DemandMiniMapPanelProps) {
+  const activeHeatmapMaxValue = demandMiniMap
+    ? Math.max(
+        0,
+        ...demandMiniMap.regions.flatMap((region) =>
+          region.demandCount === null ? [] : [region.demandCount],
+        ),
+      )
+    : heatmapMaxDemand;
   const heatmapStatusText =
     heatmapFetchStatus === "ready"
-      ? `최대 ${Math.round(heatmapMaxDemand).toLocaleString("ko-KR")}대`
+      ? `최대 ${formatMiniMapMetricValue(
+          activeHeatmapMaxValue,
+          minimapShadingMode,
+        )}`
       : heatmapFetchStatus === "loading"
         ? "API 요청 중"
         : "API 오류";
@@ -46,7 +75,7 @@ export function DemandMiniMapPanel({
     <div className={`mt-3 ${PANEL_ACCENT_CARD_CLASS} p-4`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className={PANEL_SECTION_LABEL_CLASS}>수요 현황 지도</div>
+          <div className={PANEL_SECTION_LABEL_CLASS}>수요·공급 현황 지도</div>
         </div>
         <div className="text-right text-[11px] text-slate-500">
           선택 동
@@ -54,6 +83,23 @@ export function DemandMiniMapPanel({
             {selectedDongName}
           </div>
         </div>
+      </div>
+
+      {/* 쉐이딩 모드 토글러 */}
+      <div className="mt-3 flex rounded-lg bg-slate-950/40 p-1 border border-white/5">
+        {(["demand", "supply", "shortage"] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setMinimapShadingMode(mode)}
+            className={`flex-1 text-[10.5px] font-bold py-1.5 px-2 rounded-md transition-all duration-200 ${
+              minimapShadingMode === mode
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shadow-sm shadow-cyan-900/40"
+                : "text-slate-400 hover:text-slate-200 border border-transparent"
+            }`}
+          >
+            {mode === "demand" ? "수요" : mode === "supply" ? "공급" : "부족"}
+          </button>
+        ))}
       </div>
 
       {circumstanceMode === "live" ? (
@@ -108,6 +154,7 @@ export function DemandMiniMapPanel({
             demandMiniMap={demandMiniMap}
             onPoiSelect={onPoiSelect}
             onDongSelect={onDongSelect}
+            minimapShadingMode={minimapShadingMode}
           />
         ) : (
           <div className="flex aspect-square items-center justify-center text-xs text-slate-400 font-medium animate-pulse">
@@ -132,7 +179,9 @@ export function DemandMiniMapPanel({
           <span>매우 높음 (&gt;85%)</span>
         </div>
         <div className="text-[9px] text-slate-500 mt-1 font-medium text-right leading-none select-none">
-          ※ 구역별 일일 최대 예측 수요 대비 비율 기준
+          {minimapShadingMode === "demand" && "※ 구역별 일일 최대 예측 수요 대비 비율 기준"}
+          {minimapShadingMode === "supply" && "※ 구역별 일일 최대 예측 공급 대비 비율 기준"}
+          {minimapShadingMode === "shortage" && "※ 구역별 예측 수요 대비 부족분 비율 기준"}
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">

@@ -11,7 +11,7 @@ export type VehicleMotionState = RouteSample & { lanePosition: THREE.Vector3; ri
 
 export type Vehicle = {
   id: string; kind: VehicleKind; route: RouteTemplate; group: THREE.Group; bodyMaterial: THREE.MeshStandardMaterial; signMaterial: THREE.MeshStandardMaterial | null;
-  baseSpeed: number; speed: number; distance: number; safeGap: number; length: number; currentSignalId: string | null; roadName: string | null; palette: VehiclePalette;
+  baseSpeed: number; speed: number; distance: number; safeGap: number; laneOffsetBias?: number; length: number; currentSignalId: string | null; roadName: string | null; palette: VehiclePalette;
   isOccupied: boolean; pickupHotspot: Hotspot | null; dropoffHotspot: Hotspot | null; jobAssignedAt: number; pickupStartedAt: number | null; serviceTimer: number; planMode: VehiclePlanMode;
   previousMotion: VehicleMotionState; motion: VehicleMotionState; renderMotion: VehicleMotionState;
 };

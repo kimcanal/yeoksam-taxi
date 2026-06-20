@@ -18,7 +18,68 @@ type DemandMiniMapSvgProps = {
   demandMiniMap: DemandMiniMapData;
   onPoiSelect: (poiCode: string) => void;
   onDongSelect?: (dongName: string) => void;
+  minimapShadingMode?: "demand" | "supply" | "shortage";
 };
+
+type MiniMapShadingMode = NonNullable<
+  DemandMiniMapSvgProps["minimapShadingMode"]
+>;
+
+function miniMapMetricLabel(mode: MiniMapShadingMode) {
+  if (mode === "supply") {
+    return "공급 예측량";
+  }
+  if (mode === "shortage") {
+    return "부족분";
+  }
+  return "수요 예측량";
+}
+
+function miniMapMetricValueLabel(value: number, mode: MiniMapShadingMode) {
+  const formattedValue = Math.round(value).toLocaleString("ko-KR");
+  if (mode === "demand") {
+    return `${formattedValue}건/h`;
+  }
+  if (mode === "shortage") {
+    return `${formattedValue}대 부족`;
+  }
+  return `${formattedValue}대`;
+}
+
+function miniMapMetricBadgeLabel(value: number, mode: MiniMapShadingMode) {
+  const formattedValue = Math.round(value).toLocaleString("ko-KR");
+  if (mode === "demand") {
+    return `콜 ${formattedValue}건/h`;
+  }
+  if (mode === "shortage") {
+    return `부족 ${formattedValue}대`;
+  }
+  return `공급 ${formattedValue}대`;
+}
+
+function miniMapRegionTitle(
+  region: DemandMiniMapRegion,
+  mode: MiniMapShadingMode,
+  metricLabel: string,
+) {
+  if (region.demandCount === null) {
+    return `${region.name} 데이터 없음`;
+  }
+  return `${region.name} ${metricLabel} ${miniMapMetricValueLabel(
+    region.demandCount,
+    mode,
+  )}`;
+}
+
+function miniMapAriaLabel(mode: MiniMapShadingMode) {
+  if (mode === "supply") {
+    return "역삼동 주변 9개 동 공급 표시 지도";
+  }
+  if (mode === "shortage") {
+    return "역삼동 주변 9개 동 수요 대비 부족분 표시 지도";
+  }
+  return "역삼동 주변 9개 동 콜 수요 표시 지도";
+}
 
 function focusHeadingAngle(demandMiniMap: DemandMiniMapData) {
   if (!demandMiniMap.focusHeading) {
@@ -117,12 +178,16 @@ function regionStrokeWidth(region: DemandMiniMapRegion) {
 function MiniMapRegions({
   regions,
   onDongSelect,
+  minimapShadingMode = "demand",
 }: {
   regions: DemandMiniMapRegion[];
   onDongSelect?: (dongName: string) => void;
+  minimapShadingMode?: MiniMapShadingMode;
 }) {
   const [hoveredRegion, setHoveredRegion] =
     useState<DemandMiniMapRegion | null>(null);
+
+  const metricLabel = miniMapMetricLabel(minimapShadingMode);
 
   return (
     <>
@@ -152,11 +217,7 @@ function MiniMapRegions({
             stroke={demandStrokeForScore(region.score, region.isSelected)}
             strokeWidth={regionStrokeWidth(region)}
           />
-          <title>
-            {region.demandCount === null
-              ? `${region.name} 수요 데이터 없음`
-              : `${region.name} 예측량 ${Math.round(region.demandCount).toLocaleString("ko-KR")}대`}
-          </title>
+          <title>{miniMapRegionTitle(region, minimapShadingMode, metricLabel)}</title>
         </g>
       ))}
       {hoveredRegion ? (
@@ -180,7 +241,10 @@ function MiniMapRegions({
           <text x="2.2" y="6.8" fill="#bae6fd" fontSize="2.05">
             {hoveredRegion.demandCount === null
               ? "데이터 없음"
-              : `예측량 ${Math.round(hoveredRegion.demandCount).toLocaleString("ko-KR")}대`}
+              : miniMapMetricBadgeLabel(
+                  hoveredRegion.demandCount,
+                  minimapShadingMode,
+                )}
           </text>
         </g>
       ) : null}
@@ -387,16 +451,18 @@ export function DemandMiniMapSvg({
   demandMiniMap,
   onPoiSelect,
   onDongSelect,
+  minimapShadingMode = "demand",
 }: DemandMiniMapSvgProps) {
   const idPrefix = useId().replace(/:/g, "-");
   const fovGradientId = `${idPrefix}-fov`;
   const glowFilterId = `${idPrefix}-glow`;
+  const ariaLabel = miniMapAriaLabel(minimapShadingMode);
 
   return (
     <svg
       viewBox={`0 0 ${DEMAND_MINI_MAP_VIEWBOX_SIZE} ${DEMAND_MINI_MAP_VIEWBOX_SIZE}`}
       role="img"
-      aria-label="역삼동 주변 9개 동 수요 표시 지도"
+      aria-label={ariaLabel}
       className="block aspect-square w-full"
     >
       <MiniMapDefs fovGradientId={fovGradientId} glowFilterId={glowFilterId} />
@@ -411,6 +477,7 @@ export function DemandMiniMapSvg({
       <MiniMapRegions
         regions={demandMiniMap.regions}
         onDongSelect={onDongSelect}
+        minimapShadingMode={minimapShadingMode}
       />
       <MiniMapFocus
         demandMiniMap={demandMiniMap}

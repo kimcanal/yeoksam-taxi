@@ -52,6 +52,86 @@ type VehicleRuntimeSyncControllerOptions = {
   markVisualsDirty: () => void;
 };
 
+const VISUAL_SEPARATION_RADIUS = 2.85;
+const VISUAL_SEPARATION_RADIUS_SQ =
+  VISUAL_SEPARATION_RADIUS * VISUAL_SEPARATION_RADIUS;
+const VISUAL_SEPARATION_MIN_DISTANCE_SQ = 0.09;
+const VISUAL_SEPARATION_MAX_PAIR_NUDGE = 0.66;
+const VISUAL_SEPARATION_MAX_TOTAL_NUDGE = 0.9;
+
+function visuallySeparateCloseVehicles(vehicles: Vehicle[]) {
+  if (vehicles.length < 2) {
+    return;
+  }
+
+  const offsetX = new Array<number>(vehicles.length).fill(0);
+  const offsetZ = new Array<number>(vehicles.length).fill(0);
+
+  for (let leftIndex = 0; leftIndex < vehicles.length - 1; leftIndex += 1) {
+    const left = vehicles[leftIndex]!;
+    const leftPosition = left.renderMotion.lanePosition;
+
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < vehicles.length;
+      rightIndex += 1
+    ) {
+      const right = vehicles[rightIndex]!;
+      const rightPosition = right.renderMotion.lanePosition;
+      const deltaX = rightPosition.x - leftPosition.x;
+      const deltaZ = rightPosition.z - leftPosition.z;
+      const distanceSq = deltaX * deltaX + deltaZ * deltaZ;
+
+      if (distanceSq >= VISUAL_SEPARATION_RADIUS_SQ) {
+        continue;
+      }
+
+      let separationX: number;
+      let separationZ: number;
+      const distance = Math.sqrt(
+        Math.max(distanceSq, VISUAL_SEPARATION_MIN_DISTANCE_SQ),
+      );
+
+      if (distanceSq < VISUAL_SEPARATION_MIN_DISTANCE_SQ) {
+        const stableDirection = left.id < right.id ? 1 : -1;
+        separationX = left.renderMotion.right.x * stableDirection;
+        separationZ = left.renderMotion.right.z * stableDirection;
+      } else {
+        separationX = deltaX / distance;
+        separationZ = deltaZ / distance;
+      }
+
+      const nudge = Math.min(
+        VISUAL_SEPARATION_MAX_PAIR_NUDGE,
+        (VISUAL_SEPARATION_RADIUS - distance) * 0.44,
+      );
+
+      offsetX[leftIndex] -= separationX * nudge;
+      offsetZ[leftIndex] -= separationZ * nudge;
+      offsetX[rightIndex] += separationX * nudge;
+      offsetZ[rightIndex] += separationZ * nudge;
+    }
+  }
+
+  vehicles.forEach((vehicle, vehicleIndex) => {
+    const x = offsetX[vehicleIndex]!;
+    const z = offsetZ[vehicleIndex]!;
+    if (Math.abs(x) < 0.001 && Math.abs(z) < 0.001) {
+      return;
+    }
+
+    const offsetLength = Math.hypot(x, z);
+    const offsetScale =
+      offsetLength > VISUAL_SEPARATION_MAX_TOTAL_NUDGE
+        ? VISUAL_SEPARATION_MAX_TOTAL_NUDGE / offsetLength
+        : 1;
+
+    vehicle.renderMotion.lanePosition.x += x * offsetScale;
+    vehicle.renderMotion.lanePosition.z += z * offsetScale;
+    vehicle.group.position.copy(vehicle.renderMotion.lanePosition);
+  });
+}
+
 export function createVehicleRuntimeSyncController({
   scene,
   routeById,
@@ -211,6 +291,7 @@ export function createVehicleRuntimeSyncController({
       });
     });
 
+    visuallySeparateCloseVehicles(vehicles);
     syncSelectedTaxi();
   };
 

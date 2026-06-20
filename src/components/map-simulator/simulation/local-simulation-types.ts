@@ -8,6 +8,7 @@ export type LocalVehicle = Omit<
   Vehicle,
   "group" | "bodyMaterial" | "signMaterial"
 > & {
+  blockedSeconds: number;
   renderSeed: number;
 };
 

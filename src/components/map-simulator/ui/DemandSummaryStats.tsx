@@ -10,6 +10,7 @@ export type DemandSummaryStatsProps = {
   selectedDemandIntensityLabel: string;
   currentDemandSlot: FiveMinuteDemandPoint | null;
   currentTaxiDemandBase: number;
+  currentTaxiSupplyBase: number | null;
   appliedTaxiCount: number;
 };
 
@@ -19,9 +20,16 @@ export function DemandSummaryStats({
   selectedDemandIntensityLabel,
   currentDemandSlot,
   currentTaxiDemandBase,
+  currentTaxiSupplyBase,
   appliedTaxiCount,
 }: DemandSummaryStatsProps) {
   const roundedCurrentDemand = Math.round(currentTaxiDemandBase);
+  const roundedCurrentSupply =
+    currentTaxiSupplyBase === null ? null : Math.round(currentTaxiSupplyBase);
+  const taxiMarkerDescription =
+    roundedCurrentSupply === null
+      ? "택시 마커는 같은 시간대의 예측 공급량을 슬라이더 비율로 축약해 보여주는 시각화 단위입니다."
+      : `택시 마커는 같은 시간대의 예측 공급량 ${roundedCurrentSupply.toLocaleString("ko-KR")}대를 슬라이더 비율로 축약해 보여주는 시각화 단위입니다.`;
 
   return (
     <>
@@ -33,10 +41,10 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">피크 시간대 호출량</div>
+          <div className="text-[10px] text-slate-500">피크 콜 수요</div>
           <div className="mt-1 font-semibold tabular-nums text-rose-100">
             {hasDemandData
-              ? selectedPeakDemand.demandPred.toLocaleString("ko-KR")
+              ? `${selectedPeakDemand.demandPred.toLocaleString("ko-KR")}건/h`
               : "-"}
           </div>
         </div>
@@ -56,23 +64,23 @@ export function DemandSummaryStats({
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">현재 수요 예측</div>
+          <div className="text-[10px] text-slate-500">현재 콜 수요</div>
           <div className="mt-1 font-semibold tabular-nums text-cyan-100">
             {hasDemandData
-              ? roundedCurrentDemand.toLocaleString("ko-KR")
+              ? `${roundedCurrentDemand.toLocaleString("ko-KR")}건/h`
               : "-"}
           </div>
         </div>
         <div className="px-2 py-2">
-          <div className="text-[10px] text-slate-500">선택 동 택시</div>
+          <div className="text-[10px] text-slate-500">택시 마커</div>
           <div className="mt-1 font-semibold tabular-nums text-amber-100">
-            {hasDemandData ? `${appliedTaxiCount}대` : "-"}
+            {roundedCurrentSupply !== null ? `${appliedTaxiCount}개` : "-"}
           </div>
         </div>
       </div>
       <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] leading-4 text-slate-400 font-normal">
-        현재 수요 예측은 선택한 행정동의 시간당 예측량입니다. 선택 동 택시는
-        현재 수요 예측에 위 슬라이더 비율을 곱한 값입니다.
+        현재 콜 수요는 선택한 행정동의 시간당 수요 proxy입니다.{" "}
+        {taxiMarkerDescription}
       </div>
     </>
   );

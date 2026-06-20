@@ -265,6 +265,8 @@ export function createEngineVisualUpdater(
   // --- Atmosphere ---
 
   const { sunHalo, moon, starsMaterial, cloudMaterial, cloudClusters, stormCloudMaterial, stormCloudClusters } = environmentVisuals;
+  const sunHaloBaseScale = sunHalo.scale.x;
+  const moonBaseScale = moon.scale.x;
 
   const updateAtmosphere = (elapsedTime: number) => {
     if (cloudMaterial.opacity > 0.001) {
@@ -290,8 +292,12 @@ export function createEngineVisualUpdater(
     starsMaterial.opacity =
       environmentSettings.getActiveStarOpacity() *
       (0.92 + Math.sin(elapsedTime * 0.7) * 0.08);
-    sunHalo.scale.setScalar(1 + Math.sin(elapsedTime * 0.9) * 0.03);
-    moon.scale.setScalar(1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02);
+    sunHalo.scale.setScalar(
+      sunHaloBaseScale * (1 + Math.sin(elapsedTime * 0.9) * 0.03),
+    );
+    moon.scale.setScalar(
+      moonBaseScale * (1 + Math.sin(elapsedTime * 0.55 + 1.4) * 0.02),
+    );
 
     // 폭우(heavy-rain) 모드 시 현실적인 번개 효과 (Lightning Flash) 시뮬레이션
     if (ctx.props.weatherModeRef.current === "heavy-rain") {

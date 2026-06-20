@@ -1,21 +1,34 @@
 import { NextResponse } from "next/server";
-import { proxyBackendGet, toBackendDate } from "@/lib/backend-proxy";
+import {
+  cacheTtlForBackendDate,
+  positiveIntegerEnv,
+  proxyBackendGet,
+  toBackendDate,
+} from "@/lib/backend-proxy";
 
 export const runtime = "nodejs";
 
-const BACKEND_DEMAND_API_URL = process.env.BACKEND_DEMAND_API_URL;
+const DEFAULT_DEMAND_API_URL = "http://localhost:2223/api/demand/hourly";
+const DEFAULT_DEMAND_DAILY_API_URL =
+  "http://localhost:2223/api/demand/dong-daily";
+
+const BACKEND_DEMAND_API_URL =
+  process.env.BACKEND_DEMAND_API_URL || DEFAULT_DEMAND_API_URL;
 const BACKEND_DEMAND_DAILY_API_URL =
   process.env.BACKEND_DEMAND_DAILY_API_URL ||
-  BACKEND_DEMAND_API_URL?.replace(/\/hourly\/?$/, "/daily");
+  DEFAULT_DEMAND_DAILY_API_URL;
 const DEMAND_PROXY_CACHE_TTL_MS = positiveIntegerEnv(
   "DEMAND_PROXY_CACHE_TTL_MS",
   60_000,
 );
-
-function positiveIntegerEnv(name: string, fallback: number) {
-  const value = Number(process.env[name]);
-  return Number.isInteger(value) && value >= 0 ? value : fallback;
-}
+const DEMAND_DAILY_TODAY_CACHE_TTL_MS = positiveIntegerEnv(
+  "DEMAND_DAILY_TODAY_CACHE_TTL_MS",
+  5 * 60_000,
+);
+const DEMAND_DAILY_PAST_CACHE_TTL_MS = positiveIntegerEnv(
+  "DEMAND_DAILY_PAST_CACHE_TTL_MS",
+  6 * 60 * 60_000,
+);
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -59,26 +72,19 @@ export async function GET(request: Request) {
   }
   targetUrl.searchParams.set("date", backendDate);
 
+  const cacheTtlMs =
+    scope === "daily"
+      ? cacheTtlForBackendDate(backendDate, {
+          todayMs: DEMAND_DAILY_TODAY_CACHE_TTL_MS,
+          pastMs: DEMAND_DAILY_PAST_CACHE_TTL_MS,
+        })
+      : DEMAND_PROXY_CACHE_TTL_MS;
+
   const response = await proxyBackendGet({
     targetUrl,
     logLabel: "API",
-    cacheTtlMs: DEMAND_PROXY_CACHE_TTL_MS,
+    cacheTtlMs,
   });
-
-  // 오늘 날짜 24시간 수요 데이터 조회인 경우에 한해서 브라우저 캐싱 (Cache-Control) 허용
-  if (response.ok && scope === "daily") {
-    const KST_OFFSET = 9 * 60 * 60 * 1000;
-    const todayKst = new Date(Date.now() + KST_OFFSET);
-    const todayStr = todayKst.toISOString().slice(0, 10); // YYYY-MM-DD
-    const todayBackendStr = todayStr.replaceAll("-", "");
-
-    if (backendDate === todayBackendStr) {
-      response.headers.set(
-        "Cache-Control",
-        "public, max-age=3600, stale-while-revalidate=600",
-      );
-    }
-  }
 
   return response;
 }

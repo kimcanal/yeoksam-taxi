@@ -26,6 +26,9 @@ type HotspotVisualLayerOptions = {
   taxiRouteById: ReadonlyMap<string, RouteTemplate>;
 };
 
+const HOTSPOT_BADGE_BASE_Y = 0.92;
+const HOTSPOT_CALLER_BADGE_BASE_Y = 1.62;
+
 export function createHotspotVisualLayer({
   hotspots,
   taxiRouteById,
@@ -56,8 +59,8 @@ export function createHotspotVisualLayer({
     );
     const baseMaterial = base.material as THREE.MeshStandardMaterial;
     base.position.y = 0.22;
-    base.scale.setScalar(0.72);
-    baseMaterial.emissiveIntensity = 0.08;
+    base.scale.setScalar(0.66);
+    baseMaterial.emissiveIntensity = 0.05;
     group.add(base);
 
     const glow = new THREE.Mesh(
@@ -72,10 +75,10 @@ export function createHotspotVisualLayer({
       }),
     );
     const glowMaterial = glow.material as THREE.MeshStandardMaterial;
-    glow.position.y = 0.32;
-    glow.scale.setScalar(0.62);
-    glowMaterial.emissiveIntensity = 0.12;
-    glowMaterial.opacity = 0.18;
+    glow.position.y = 0.28;
+    glow.scale.setScalar(0.56);
+    glowMaterial.emissiveIntensity = 0.08;
+    glowMaterial.opacity = 0.12;
     group.add(glow);
 
     const beacon = new THREE.Mesh(
@@ -90,10 +93,10 @@ export function createHotspotVisualLayer({
       }),
     );
     const beaconMaterial = beacon.material as THREE.MeshStandardMaterial;
-    beacon.position.y = 0.48;
-    beacon.scale.setScalar(0.56);
-    beaconMaterial.emissiveIntensity = 0.16;
-    beaconMaterial.opacity = 0.22;
+    beacon.position.y = 0.42;
+    beacon.scale.setScalar(0.46);
+    beaconMaterial.emissiveIntensity = 0.12;
+    beaconMaterial.opacity = 0.16;
     group.add(beacon);
 
     const ring = new THREE.Mesh(
@@ -107,9 +110,9 @@ export function createHotspotVisualLayer({
     );
     const ringMaterial = ring.material as THREE.MeshStandardMaterial;
     ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.32;
-    ring.scale.setScalar(0.68);
-    ringMaterial.emissiveIntensity = 0.1;
+    ring.position.y = 0.26;
+    ring.scale.setScalar(0.6);
+    ringMaterial.emissiveIntensity = 0.07;
     group.add(ring);
 
     const caller = createCallerGroup(index);
@@ -140,7 +143,7 @@ export function createHotspotVisualLayer({
 
     const callBadge = new CSS2DObject(hotspotCallElement());
     const badgeElement = callBadge.element as HTMLDivElement;
-    callBadge.position.set(0, 2.06, 0);
+    callBadge.position.set(0, HOTSPOT_BADGE_BASE_Y, 0);
     callBadge.visible = false;
     group.add(callBadge);
 
@@ -262,22 +265,22 @@ export function updateHotspotVisualLayer({
 
       if (!isActive) {
         visual.callBadge.visible = false;
-        visual.base.scale.setScalar(0.72);
-        visual.glow.scale.setScalar(0.62);
-        visual.beacon.scale.setScalar(0.56);
-        visual.ring.scale.setScalar(0.68);
+        visual.base.scale.setScalar(0.66);
+        visual.glow.scale.setScalar(0.56);
+        visual.beacon.scale.setScalar(0.46);
+        visual.ring.scale.setScalar(0.6);
         visual.ring.rotation.z = index * 0.2;
-        visual.baseMaterial.emissiveIntensity = 0.08;
-        visual.glowMaterial.emissiveIntensity = 0.12;
-        visual.glowMaterial.opacity = 0.18;
-        visual.beaconMaterial.emissiveIntensity = 0.16;
-        visual.beaconMaterial.opacity = 0.22;
-        visual.ringMaterial.emissiveIntensity = 0.1;
+        visual.baseMaterial.emissiveIntensity = 0.05;
+        visual.glowMaterial.emissiveIntensity = 0.08;
+        visual.glowMaterial.opacity = 0.12;
+        visual.beaconMaterial.emissiveIntensity = 0.12;
+        visual.beaconMaterial.opacity = 0.16;
+        visual.ringMaterial.emissiveIntensity = 0.07;
         visual.hailMaterial.emissiveIntensity = 0.05;
         visual.callerGroup.position.y = 0.07;
         visual.waveArmPivot.rotation.z = -0.72;
         visual.hailCube.scale.setScalar(0.62);
-        visual.callBadge.position.y = 2.06;
+        visual.callBadge.position.y = HOTSPOT_BADGE_BASE_Y;
       } else {
         // 활성화 시 배지 스타일 지정
         visual.badgeElement.style.borderColor = markerPresentation.badgeBorderColor;
@@ -301,19 +304,19 @@ export function updateHotspotVisualLayer({
       continue;
     }
 
-    const pulse = 0.72 + Math.sin(elapsedTime * 2.2 + index * 0.7) * 0.12;
-    visual.base.scale.setScalar(0.8 + pulse * 0.04);
-    visual.glow.scale.setScalar(0.82 + pulse * 0.08);
-    visual.beacon.scale.setScalar(0.72 + pulse * 0.1);
-    visual.ring.scale.setScalar(0.84 + pulse * 0.08);
-    visual.ring.rotation.z = elapsedTime * 0.24 + index * 0.12;
+    const pulse = 0.72 + Math.sin(elapsedTime * 1.8 + index * 0.7) * 0.08;
+    visual.base.scale.setScalar(0.7 + pulse * 0.025);
+    visual.glow.scale.setScalar(0.66 + pulse * 0.05);
+    visual.beacon.scale.setScalar(0.54 + pulse * 0.06);
+    visual.ring.scale.setScalar(0.68 + pulse * 0.045);
+    visual.ring.rotation.z = elapsedTime * 0.14 + index * 0.12;
 
-    visual.baseMaterial.emissiveIntensity = 0.35 + pulse * 0.15;
-    visual.glowMaterial.emissiveIntensity = 0.42 + pulse * 0.18;
-    visual.glowMaterial.opacity = 0.38 + pulse * 0.12;
-    visual.beaconMaterial.emissiveIntensity = 0.48 + pulse * 0.22;
-    visual.beaconMaterial.opacity = 0.46 + pulse * 0.18;
-    visual.ringMaterial.emissiveIntensity = 0.38 + pulse * 0.18;
+    visual.baseMaterial.emissiveIntensity = 0.16 + pulse * 0.07;
+    visual.glowMaterial.emissiveIntensity = 0.2 + pulse * 0.08;
+    visual.glowMaterial.opacity = 0.18 + pulse * 0.06;
+    visual.beaconMaterial.emissiveIntensity = 0.22 + pulse * 0.08;
+    visual.beaconMaterial.opacity = 0.22 + pulse * 0.08;
+    visual.ringMaterial.emissiveIntensity = 0.18 + pulse * 0.08;
     visual.hailMaterial.emissiveIntensity =
       markerMode === "pickup" ? 0.35 + pulse * 0.15 : 0.05;
     visual.callerGroup.position.y =
@@ -328,7 +331,10 @@ export function updateHotspotVisualLayer({
     visual.hailCube.scale.setScalar(
       markerMode === "pickup" ? 0.72 + pulse * 0.08 : 0.62,
     );
+    const badgeBaseY = markerPresentation.showsCaller
+      ? HOTSPOT_CALLER_BADGE_BASE_Y
+      : HOTSPOT_BADGE_BASE_Y;
     visual.callBadge.position.y =
-      2.06 + (isActive ? Math.sin(elapsedTime * 2.2 + index) * 0.04 : 0);
+      badgeBaseY + (isActive ? Math.sin(elapsedTime * 2.2 + index) * 0.03 : 0);
   }
 }

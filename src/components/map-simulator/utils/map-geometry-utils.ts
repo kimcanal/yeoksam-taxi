@@ -133,6 +133,35 @@ export function buildProjectedRoadSegments(
   );
 }
 
+export type ProjectedRoadSegmentBounds = {
+  center: THREE.Vector3;
+  size: THREE.Vector3;
+};
+
+export function computeProjectedRoadSegmentBounds(
+  roadSegments: ProjectedRoadSegment[],
+  fallbackSize = new THREE.Vector3(320, 0, 320),
+): ProjectedRoadSegmentBounds {
+  const bounds = new THREE.Box3();
+
+  roadSegments.forEach((segment) => {
+    bounds.expandByPoint(segment.start);
+    bounds.expandByPoint(segment.end);
+  });
+
+  if (bounds.isEmpty()) {
+    return {
+      center: new THREE.Vector3(),
+      size: fallbackSize.clone(),
+    };
+  }
+
+  return {
+    center: bounds.getCenter(new THREE.Vector3()),
+    size: bounds.getSize(new THREE.Vector3()),
+  };
+}
+
 export function roadSegmentCellCoord(value: number, cellSize: number) {
   return Math.floor(value / cellSize);
 }
