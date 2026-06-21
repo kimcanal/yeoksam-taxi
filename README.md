@@ -15,6 +15,7 @@
 | API | demand, weather, supply, gap, pricing 프록시 연동 |
 | 목적 | 실제 관제가 아니라 수요-공급 imbalance를 설명하는 분석·시뮬레이션용 decision-support 시스템 |
 | 데모 | https://taxi.yatch-game.cloud |
+| 정적 대시보드 | `/dashboard` |
 
 ## 핵심 질문
 
@@ -176,6 +177,8 @@ npm run dev -- --hostname 0.0.0.0 --port 8000
 ```
 
 브라우저에서 `http://localhost:8000`을 엽니다.
+
+정적 검증 대시보드는 `http://localhost:8000/dashboard`에서 확인합니다.
 
 ```bash
 npm run build
