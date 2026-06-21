@@ -7,18 +7,19 @@ renders the backend response without calculating demand locally.
 
 ## Runtime Behavior
 
-- Configure `NEXT_PUBLIC_DEMAND_API_ENDPOINT` to enable backend fetches.
-- The frontend proxy accepts `YYYY-MM-DD` from the UI and forwards `YYYYMMDD`
-  to the FastAPI demand endpoints.
+- The default frontend proxy endpoint is `/api/demand`; it forwards to
+  `http://localhost:2223/api/demand/*` unless `.env` overrides the backend URL.
+- The frontend proxy accepts `YYYY-MM-DD` or `YYYYMMDD` from the UI and forwards
+  strict `YYYYMMDD` to the FastAPI demand endpoints.
 - Selected-dong graph data comes from FastAPI `/api/demand/hourly`.
-- All-dong heatmap data comes from FastAPI `/api/demand/daily`; if daily
-  aggregation is temporarily unavailable, the frontend can fall back to hourly
-  requests per target dong.
+- All-dong heatmap data comes from FastAPI `/api/demand/dong-daily`; if daily
+  aggregation is temporarily unavailable, the frontend should surface the API
+  error rather than synthesize local demand predictions.
 - If the endpoint is not configured, fails, or returns malformed data, the UI
   shows an API-required state. It does not synthesize local demand predictions.
-- The backend value is treated as the actual hourly demand total for that
-  dong. The frontend preserves that hourly total when generating 5-minute
-  visualization slots.
+- The backend value is treated as the authoritative hourly demand proxy for
+  that dong. The frontend renders it as a one-hour display slot and does not
+  create independent short-interval demand predictions.
 - If the backend needs temporary random/sample demand, it should generate it
   deterministically from the request key (`dong + date`) so the same demo
   request renders identically on every client.
@@ -26,8 +27,8 @@ renders the backend response without calculating demand locally.
 ## Request
 
 ```text
-GET {NEXT_PUBLIC_DEMAND_API_ENDPOINT}?dong=역삼1동&date=2026-05-21
-GET {NEXT_PUBLIC_DEMAND_API_ENDPOINT}?scope=daily&date=2026-05-21
+GET /api/demand?dong=역삼1동&date=2026-05-21
+GET /api/demand?scope=daily&date=2026-05-21
 ```
 
 Query parameters:
@@ -36,6 +37,13 @@ Query parameters:
   `역삼1동`, `역삼2동`, `논현1동`, `논현2동`, `삼성1동`, `삼성2동`, `신사동`, `청담동`, `대치4동`.
 - `date`: required local service date in `YYYY-MM-DD` at the frontend proxy;
   the backend receives `YYYYMMDD`.
+
+Backend URL defaults:
+
+```env
+BACKEND_DEMAND_API_URL=http://localhost:2223/api/demand/hourly
+BACKEND_DEMAND_DAILY_API_URL=http://localhost:2223/api/demand/dong-daily
+```
 
 ## Required JSON Shape
 
@@ -109,20 +117,20 @@ The map cannot render one object per real taxi call. The frontend therefore
 uses a two-step display transform:
 
 ```text
-hourly backend demand -> 12 equal 5-minute display slots -> scaled visual units
+hourly backend demand -> one-hour display slot -> scaled visual vehicle agents
 ```
 
 Rules:
 
-- The 1-hour backend total is the source of truth.
-- Each hour is split evenly into 12 five-minute display slots.
-- The 12 generated 5-minute slots sum exactly to the backend hourly total.
-- The generated 5-minute values are visualization display values, not
-  independent model predictions or frontend statistical estimates.
-- The 3D map scales those 5-minute values before rendering vehicles. The
-  current frontend scale is approximately `1 visual taxi = 40 real calls`,
-  with a one-object hint for nonzero demand and a cap at the simulator vehicle
-  limit.
+- The 1-hour backend proxy total is the source of truth for visualization.
+- The frontend keeps a single display slot per hour because the backend API is
+  hourly.
+- The generated display value is a visualization value, not an independent
+  model prediction or frontend statistical estimate.
+- The 3D map scales that hourly value before rendering vehicle agents. The
+  current frontend scale starts from approximately
+  `1 visual vehicle agent = 40 demand proxy calls`, with a one-object hint for
+  nonzero demand and a cap at the simulator vehicle limit.
 
 ## Frontend Scope
 
@@ -131,8 +139,8 @@ The frontend renders this payload as:
 - hourly demand line
 - smoothed trend line
 - peak-hour summary
-- current 5-minute allocated demand
-- scaled visual taxi count for the map
+- current hourly display-slot demand
+- scaled visual vehicle-agent count for the map
 - selected-dong minimap highlight based on the returned curve
 - all-dong or selected-dong heatmap from the daily demand response
 - selected-dong 3D floor glow, road-corridor emphasis, and static context

@@ -1,28 +1,53 @@
 # 강남·역삼 택시 디지털 트윈
 
-강남·역삼권 3D 도시 장면 위에 택시 수요 예측, 공급 proxy 시뮬레이션, 수요-공급 gap, 인센티브 정책 실험을 연결한 웹 기반 모빌리티 디지털 트윈입니다. 프론트엔드는 Next.js/Three.js로 OSM 기반 공간 레이어를 렌더링하고, 배포 폴더의 Python API는 CNN-LSTM 수요 모델과 도로링크 기반 공급 proxy를 제공합니다.
+강남·역삼권 3D 도시 지도 위에 택시 수요 예측, 공급 proxy 시뮬레이션, 수요-공급 gap, 인센티브 정책 실험을 연결한 웹 기반 모빌리티 디지털 트윈입니다.
 
-## 한눈에 보기
+프론트엔드는 Next.js와 Three.js/R3F로 OSM 기반 도시 레이어를 렌더링합니다. Python API는 CNN-LSTM 수요 모델과 도로링크 기반 공급 proxy를 제공하며, 프론트엔드는 이 값을 차트, 미니맵, 3D 마커로 시각화합니다.
 
-| 영역 | 내용 |
+## 프로젝트 요약
+
+| 구분 | 내용 |
 | --- | --- |
+| 핵심 목표 | 강남·역삼권의 시간대별 택시 수요, 공급, 부족 구간을 한 화면에서 설명 |
 | 프론트엔드 | Next.js 16, React 19, Three.js/R3F, OSM 기반 3D 지도 |
-| 수요 모델 | CNN-LSTM backbone + 행정동 embedding + POI time gating |
-| 공급 API | FastAPI/uvicorn, in-process demand model, startup cache warmup |
-| 지원 지역 | 3D OSM 지도는 강남·역삼권 9개 동, 수요 API는 강남구 주요 10개 동 |
-| 주요 화면 | 3D 디지털 트윈, R3F Perf Lab, 수요/공급 그래프, 행정동 미니맵, API 대시보드 |
-| 운영 포트 | 프론트엔드 `8000`, supply API `2223` |
+| 백엔드/API | FastAPI/uvicorn, CNN-LSTM 수요 모델, 도로링크 기반 공급 proxy |
+| 주요 화면 | 3D 디지털 트윈, 수요/공급 분석 패널, 인센티브 패널, R3F Perf Lab, API 대시보드 |
+| 지원 지역 | 3D 지도는 강남·역삼권 9개 동, 수요 API는 강남구 주요 10개 동 |
+| 기본 포트 | 프론트엔드 `8000`, Supply API `2223` |
+
+## 화면 미리보기
+
+### 3D 도시 디지털 트윈
+
+![강남·역삼권 3D 도시 지도](docs/screenshots/final-batch/01-main-or-default-view.png)
+
+### 수요, 공급, 인센티브 분석
+
+| 수요 분석 | 공급 분석 |
+| --- | --- |
+| ![시간대별 수요 분석 패널](docs/screenshots/final-batch/02-demand-analysis-panel.png) | ![시간대별 공급 분석 패널](docs/screenshots/final-batch/03-supply-analysis-panel.png) |
+
+| 인센티브 실험 | 부족 구간 히트맵 |
+| --- | --- |
+| ![인센티브 추천 패널](docs/screenshots/final-batch/04-incentive-panel.png) | ![수요 공급 부족 히트맵](docs/screenshots/final-batch/07-shortage-heatmap-tall.png) |
+
+### API 검증 화면
+
+| Swagger UI | Supply 대시보드 |
+| --- | --- |
+| ![Supply API Swagger UI](docs/screenshots/final-batch/09-supply-api-docs.png) | ![Supply API 대시보드](docs/screenshots/final-batch/10-supply-dashboard.png) |
 
 ## 구현 범위
 
-이 저장소의 디지털 트윈은 실제 교통공학 시뮬레이터가 아니라 수요·공급 분석 결과를 지도 위에서 이해하기 쉽게 보여주는 presentation/analysis layer입니다.
+이 저장소의 디지털 트윈은 실제 교통공학 시뮬레이터가 아니라, 수요·공급 분석 결과를 지도 위에서 이해하기 쉽게 보여주는 presentation/analysis layer입니다.
 
-| 항목 | 목표 |
+| 항목 | 이 프로젝트에서 하는 일 |
 | --- | --- |
-| 지도 | OSM 도로·건물·행정동을 3D 맥락으로 제공 |
-| 차량 | 수요 변화에 맞춰 밀도와 흐름을 그럴듯하게 표현 |
-| 신호/날씨 | 시연과 해석을 돕는 가벼운 환경 연출 |
-| 수요/공급 | backend/supply API의 proxy 값을 차트와 미니맵에 연결 |
+| 지도 | OSM 도로, 건물, 행정동을 3D 맥락으로 제공 |
+| 차량 | 수요/공급 변화에 맞춰 가상 택시 마커 밀도와 흐름을 표현 |
+| 신호/날씨 | 시연과 해석을 돕는 환경 연출 제공 |
+| 수요/공급 | API의 proxy 값을 차트, 미니맵, 3D 마커에 연결 |
+| 정책 실험 | 수요-공급 gap 기반 인센티브 추천 값을 표시 |
 | 제외 | 실제 택시 GPS, 실제 배차 최적화, lane-level traffic simulation |
 
 ## 주요 기능
@@ -30,12 +55,11 @@
 - OSM 기반 강남·역삼권 3D 도시 렌더링
 - 도로, 건물, 행정동 경계, 지하철/버스 landmark, 교통신호 레이어
 - 택시/일반 차량 주행 애니메이션과 날씨/시간대 환경 연출
-- 날짜·시간·행정동 기준 수요 예측 그래프
-- 전체 동 기준 수요 heatmap과 선택 동 강조
-- 공급 proxy 시뮬레이션: 도로링크 통계 + 요일/시간/날씨/수요 보정
-- 수요-공급 gap 지표와 인센티브 추천 API
-- React Three Fiber 기반 성능 벤치마크 화면: chunk culling, draw call, triangle, vehicle instance 확인
-- Swagger UI와 대시보드로 API 직접 검증 가능
+- 날짜, 시간, 행정동 기준 수요 예측 그래프
+- 공급 proxy, 수요-공급 gap, 인센티브 추천 차트
+- 전체 동 기준 수요/공급/부족 heatmap과 선택 동 강조
+- React Three Fiber 성능 벤치마크 화면
+- Swagger UI와 대시보드 기반 API 직접 검증
 
 ## 실행 방법
 
