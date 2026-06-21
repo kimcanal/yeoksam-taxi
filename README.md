@@ -162,7 +162,8 @@ Next.js API route는 브라우저와 백엔드 사이의 중계 레이어로 동
 
 | 파일 | 설명 |
 | --- | --- |
-| [`docs/poster.zip`](docs/poster.zip) | 캡스톤 포스터 A1 PDF, 독립 실행 HTML, 포스터용 이미지 묶음 |
+| [`poster-a1.pdf`](poster-a1.pdf) | 최종 A1 포스터 PDF |
+| [`docs/poster.zip`](docs/poster.zip) | 포스터 독립 실행 HTML, PDF, 포스터용 이미지 묶음 |
 | [`docs/current-working-features.md`](docs/current-working-features.md) | 현재 작동 기능 상세 명세 |
 | [`docs/demand-api-contract.md`](docs/demand-api-contract.md) | 프론트엔드와 수요 API 연동 계약 |
 | [`docs/spec-alignment.md`](docs/spec-alignment.md) | 구현 범위와 명세 정렬 기록 |
