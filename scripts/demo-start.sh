@@ -88,6 +88,7 @@ if [ ! -f "$ROOT_DIR/.next/BUILD_ID" ]; then
   echo ".next 빌드가 없어 production build를 먼저 실행합니다."
   npm run build
 fi
+mkdir -p "$RUNTIME_DIR"
 setsid npm run start -- --hostname 0.0.0.0 --port "$FRONTEND_PORT" \
   > "$NEXT_LOG_FILE" 2>&1 &
 echo $! > "$NEXT_PID_FILE"
