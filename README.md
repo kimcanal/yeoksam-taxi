@@ -13,7 +13,8 @@
 | 화면 | 3D 도시 지도, 수요·공급 분석 패널, 인센티브 패널, 행정동 히트맵 |
 | 프론트엔드 | Next.js 16, React 19, Three.js, React Three Fiber |
 | API | demand, weather, supply, gap, pricing 프록시 연동 |
-| 목적 | 실제 관제가 아니라 수요-공급 imbalance를 설명하는 분석·발표용 decision-support 시스템 |
+| 목적 | 실제 관제가 아니라 수요-공급 imbalance를 설명하는 분석·시뮬레이션용 decision-support 시스템 |
+| 데모 | https://taxi.yatch-game.cloud |
 
 ## 핵심 질문
 
@@ -95,7 +96,7 @@ OpenStreetMap 데이터를 전처리한 정적 자산으로 강남·역삼권 9�
 
 ### 5. 택시 마커와 차량 흐름 표현
 
-3D 지도 위 차량은 실제 GPS나 배차 결과가 아니라 수요·공급 proxy를 설명하기 위한 presentation-layer 마커입니다.
+3D 지도 위 차량은 실제 GPS나 배차 결과가 아니라 수요·공급 proxy를 설명하기 위한 시각화용 마커입니다.
 
 | 기능 | 설명 |
 | --- | --- |
@@ -157,11 +158,11 @@ Next.js API route는 브라우저와 백엔드 사이의 중계 레이어로 동
   -> 차트, 미니맵, 3D 마커 갱신
 ```
 
-## 제출 산출물
+## 프로젝트 산출물
 
 | 파일 | 설명 |
 | --- | --- |
-| [`docs/poster.zip`](docs/poster.zip) | 캡스톤 포스터 독립 실행 HTML과 포스터용 이미지 묶음 |
+| [`docs/poster.zip`](docs/poster.zip) | 캡스톤 포스터 A1 PDF, 독립 실행 HTML, 포스터용 이미지 묶음 |
 | [`docs/current-working-features.md`](docs/current-working-features.md) | 현재 작동 기능 상세 명세 |
 | [`docs/demand-api-contract.md`](docs/demand-api-contract.md) | 프론트엔드와 수요 API 연동 계약 |
 | [`docs/spec-alignment.md`](docs/spec-alignment.md) | 구현 범위와 명세 정렬 기록 |
@@ -183,7 +184,7 @@ npm run build
 
 로컬의 `deploy/` 폴더는 API 코드, 모델 파일, CSV, 로그, PID, 가상환경 캐시가 섞인 실행 산출물이라 그대로 커밋하지 않습니다.
 
-백엔드까지 제출하거나 재현 패키지를 만들어야 한다면 다음 기준으로 별도 정리하는 것이 안전합니다.
+백엔드 재현 패키지는 다음 기준으로 별도 정리합니다.
 
 | 포함 | 제외 |
 | --- | --- |
@@ -216,8 +217,8 @@ npm run build
 | 포함 | 제외 |
 | --- | --- |
 | 공개·가공 데이터 기반 수요·공급 proxy 분석 | 실제 플랫폼 원천 호출 로그 |
-| 3D 지도 기반 시각화와 발표용 시뮬레이션 | 실제 택시 GPS 실시간 관제 |
+| 3D 지도 기반 시각화와 수요·공급 시뮬레이션 | 실제 택시 GPS 실시간 관제 |
 | 수요-공급 gap과 인센티브 정책 실험 지표 | 실제 배차·요금 정책 자동 결정 |
 | 차량 밀도와 흐름의 시각적 표현 | lane-level microscopic traffic simulation |
 
-외부 발표에서는 이 프로젝트를 “실시간 운영 최적화 시스템”보다 “수요·공급 imbalance를 설명하고 시뮬레이션하는 디지털 트윈 companion”으로 설명하는 것이 정확합니다.
+본 프로젝트는 실시간 운영 최적화 시스템이 아니라, 수요·공급 imbalance를 설명하고 정책 실험 가능성을 보여주는 디지털 트윈 기반 분석 시스템입니다.
