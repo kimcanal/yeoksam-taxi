@@ -157,6 +157,15 @@ Next.js API route는 브라우저와 백엔드 사이의 중계 레이어로 동
   -> 차트, 미니맵, 3D 마커 갱신
 ```
 
+## 제출 산출물
+
+| 파일 | 설명 |
+| --- | --- |
+| [`docs/poster.zip`](docs/poster.zip) | 캡스톤 포스터 독립 실행 HTML과 포스터용 이미지 묶음 |
+| [`docs/current-working-features.md`](docs/current-working-features.md) | 현재 작동 기능 상세 명세 |
+| [`docs/demand-api-contract.md`](docs/demand-api-contract.md) | 프론트엔드와 수요 API 연동 계약 |
+| [`docs/spec-alignment.md`](docs/spec-alignment.md) | 구현 범위와 명세 정렬 기록 |
+
 ## 실행 방법
 
 ```bash
